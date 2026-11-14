@@ -53,3 +53,22 @@ export interface GameSummary {
     status: 'active' | 'completed';
   } | null;
 }
+
+/** POST /api/games/{gameId}/rounds and GET /api/rounds/{roundId} — 200/201 response (R04/R06). */
+export interface RoundDTO {
+  roundId: string;
+  roundNumber: number;
+  difficulty: Difficulty;
+  selectionMode: SelectionMode;
+  weather: WeatherDTO;
+  /** Present iff selectionMode === 'list'; never flags which candidate is actual (R04). */
+  candidates?: CandidateDTO[];
+}
+
+/** POST /api/rounds/{roundId}/guess — 200 response (R11 reveal). */
+export interface GuessResultDTO {
+  distanceKm: number;
+  score: number;
+  actual: LatLon;
+  resultId: string;
+}
