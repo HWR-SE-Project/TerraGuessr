@@ -147,3 +147,14 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# OpenClaw agent bootstrap/personality files — never part of the application.
+# These are injected into each agent's worktree workspace root automatically;
+# keep them out of application commits (Phase 0.5 decision, section D).
+/AGENTS.md
+/IDENTITY.md
+/SOUL.md
+/USER.md
+/DREAMS.md
+/BOOTSTRAP.md
+/.openclaw/
