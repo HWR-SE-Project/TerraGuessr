@@ -1,0 +1,378 @@
+/**
+ * Rounds service (B-06). Starts the next round for a game by integrating the
+ * pure selection core (`domain/selection.ts`), the location pool query layer
+ * (`modules/locations/service.ts`) and the weather cache
+ * (`modules/weather/cache.ts`).
+ *
+ * The R13 fallback drops a location whose weather cannot be fetched and selects
+ * a different one (bounded by MAX_SELECTION_TRIES); if every attempt is
+ * exhausted the service fails with 503 SERVICE_UNAVAILABLE.
+ */
+
+import type { GameMode, PrismaClient, WeatherSnapshot } from '@prisma/client';
+
+import {
+  EASY_CANDIDATES,
+  MAX_SELECTION_TRIES,
+  MEDIUM_CANDIDATES,
+  ROUNDS_PER_GAME,
+} from '../../config/constants.js';
+import { GameNotFoundError } from '../../plugins/auth.js';
+import { selectRound } from '../../domain/selection.js';
+import type {
+  Difficulty,
+  PoolItem,
+  Rng,
+  SelectionMode,
+  SelectionResult,
+} from '../../domain/selection.js';
+import { LocationsService } from '../locations/service.js';
+import { getFreshSnapshot, WeatherUnavailableError } from '../weather/cache.js';
+import type { WeatherClient } from '../weather/types.js';
+import type { RoundView } from '../../contracts/rounds.js';
+import { toRoundView } from './dto.js';
+import type { RoundCandidate } from './dto.js';
+
+/** 409 CONFLICT thrown by the round state machine (architecture.md §9). */
+export class RoundConflictError extends Error {
+  public readonly statusCode = 409;
+
+  public constructor(message: string) {
+    super(message);
+    this.name = 'RoundConflictError';
+  }
+}
+
+/** 503 SERVICE_UNAVAILABLE thrown when no location has complete weather (R13). */
+export class ServiceUnavailableError extends Error {
+  public readonly statusCode = 503;
+
+  public constructor() {
+    super('No location with complete weather is currently available');
+    this.name = 'ServiceUnavailableError';
+  }
+}
+
+/** A challenge game has exactly one shared round (ADR-0005/ADR-0008). */
+function roundCap(mode: GameMode): number {
+  return mode === 'solo' ? ROUNDS_PER_GAME : 1;
+}
+
+interface LoadedGame {
+  mode: GameMode;
+  status: 'active' | 'completed';
+  rounds: ReadonlyArray<{ status: 'active' | 'completed' }>;
+}
+
+function enforceStateMachine(game: LoadedGame): void {
+  if (game.status === 'completed') {
+    throw new RoundConflictError('Game is already completed');
+  }
+  if (game.rounds.some((round) => round.status === 'active')) {
+    throw new RoundConflictError('Game already has an active round');
+  }
+  if (game.rounds.length >= roundCap(game.mode)) {
+    throw new RoundConflictError('Game has reached its round limit');
+  }
+}
+
+interface WeatherSelection {
+  snapshot: WeatherSnapshot;
+  selection: SelectionResult;
+}
+
+/**
+ * Pick a location and fetch its weather, dropping any location whose weather
+ * cannot be fetched (R13). Bounded to MAX_SELECTION_TRIES selections.
+ */
+async function selectWithWeatherFallback(
+  difficulty: Difficulty,
+  requestedMode: SelectionMode | undefined,
+  pool: readonly PoolItem[],
+  usedIds: ReadonlySet<string>,
+  previousActuals: readonly { lat: number; lon: number }[],
+  db: PrismaClient,
+  weatherClient: WeatherClient,
+  rng: Rng,
+): Promise<WeatherSelection> {
+  const failedIds = new Set<string>();
+  let snapshot: WeatherSnapshot | undefined;
+  let selection: SelectionResult | undefined;
+
+  for (
+    let attempt = 0;
+    attempt < MAX_SELECTION_TRIES && snapshot === undefined;
+    attempt += 1
+  ) {
+    const availablePool = pool.filter((item) => !failedIds.has(item.id));
+
+    let picked: SelectionResult | null = null;
+    try {
+      picked = selectRound({
+        difficulty,
+        pool: availablePool,
+        usedIds,
+        previousActuals,
+        rng,
+        selectionMode: requestedMode,
+      });
+    } catch {
+      picked = null;
+    }
+
+    if (picked === null) {
+      break;
+    }
+    selection = picked;
+
+    try {
+      snapshot = await getFreshSnapshot(db, weatherClient, picked.actual.id);
+    } catch (error) {
+      if (!(error instanceof WeatherUnavailableError)) {
+        throw error;
+      }
+      failedIds.add(picked.actual.id);
+    }
+  }
+
+  if (snapshot === undefined || selection === undefined) {
+    throw new ServiceUnavailableError();
+  }
+
+  return { snapshot, selection };
+}
+
+/** Attach nullable location names to a list of selected candidates. */
+async function resolveCandidateNames(
+  candidates: readonly PoolItem[],
+  db: PrismaClient,
+): Promise<RoundCandidate[]> {
+  const ids = candidates.map((candidate) => candidate.id);
+  const rows = await db.location.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true },
+  });
+
+  const nameById = new Map<string, string | null>(
+    rows.map((row): [string, string | null] => [row.id, row.name]),
+  );
+
+  return candidates.map((candidate) => ({
+    id: candidate.id,
+    name: nameById.get(candidate.id) ?? null,
+    lat: candidate.lat,
+    lon: candidate.lon,
+    region: candidate.region,
+  }));
+}
+
+/**
+ * Start the next round for `gameId` and return its client-facing view.
+ * Ownership is enforced upstream by the auth hook (ADR-0011).
+ */
+export async function startRound(
+  gameId: string,
+  selectionMode: SelectionMode | undefined,
+  db: PrismaClient,
+  weatherClient: WeatherClient,
+  rng: Rng = Math.random,
+): Promise<RoundView> {
+  const game = await db.game.findUnique({
+    where: { id: gameId },
+    include: {
+      rounds: {
+        orderBy: { roundNumber: 'asc' },
+        include: { location: { select: { lat: true, lon: true } } },
+      },
+    },
+  });
+
+  if (!game) {
+    throw new GameNotFoundError();
+  }
+
+  enforceStateMachine(game);
+
+  const locations = new LocationsService(db);
+  const pool = await locations.listPool();
+  const usedIds = new Set(await locations.usedLocationIds(gameId));
+  const previousActuals = game.rounds.map((round) => ({
+    lat: round.location.lat,
+    lon: round.location.lon,
+  }));
+
+  const { snapshot, selection } = await selectWithWeatherFallback(
+    game.difficulty,
+    selectionMode,
+    pool,
+    usedIds,
+    previousActuals,
+    db,
+    weatherClient,
+    rng,
+  );
+
+  const roundNumber = game.rounds.length + 1;
+  const round = await db.round.create({
+    data: {
+      gameId,
+      locationId: selection.actual.id,
+      weatherSnapshotId: snapshot.id,
+      roundNumber,
+      difficulty: game.difficulty,
+      selectionMode: selection.selectionMode,
+      status: 'active',
+    },
+  });
+
+  const candidates =
+    selection.selectionMode === 'list'
+      ? await resolveCandidateNames(selection.candidates, db)
+      : undefined;
+
+  return toRoundView({
+    round: {
+      roundId: round.id,
+      roundNumber,
+      difficulty: game.difficulty,
+      selectionMode: selection.selectionMode,
+    },
+    weather: {
+      temperatureC: snapshot.temperatureC,
+      precipitationMm: snapshot.precipitationMm,
+      humidityPct: snapshot.humidityPct,
+      windSpeedKmh: snapshot.windSpeedKmh,
+    },
+    candidates,
+  });
+}
+
+function hashSeed(input: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function mulberry32(seed: number): Rng {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle<T>(items: readonly T[], rng: Rng): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const current = copy[i];
+    copy[i] = copy[j]!;
+    copy[j] = current!;
+  }
+  return copy;
+}
+
+/**
+ * Reconstruct the list-mode candidate set for an existing round. The frozen
+ * data model does not persist the candidate list, so it is re-derived
+ * deterministically (seeded by the round id) with the stored actual forced in
+ * and left unflagged (R04).
+ */
+async function rebuildListCandidates(
+  roundId: string,
+  difficulty: Difficulty,
+  locationId: string,
+  usedIds: ReadonlySet<string>,
+  db: PrismaClient,
+): Promise<RoundCandidate[]> {
+  const locations = new LocationsService(db);
+  const pool = await locations.listPool();
+
+  const actual = pool.find((item) => item.id === locationId);
+  if (!actual) {
+    return [];
+  }
+
+  const target = difficulty === 'easy' ? EASY_CANDIDATES : MEDIUM_CANDIDATES;
+  const scope =
+    difficulty === 'easy'
+      ? pool.filter((item) => item.region === actual.region)
+      : pool;
+
+  const distractorPool = scope.filter(
+    (item) => item.id !== actual.id && !usedIds.has(item.id),
+  );
+
+  const rng = mulberry32(hashSeed(roundId));
+  const distractors = shuffle(distractorPool, rng).slice(0, target - 1);
+  const candidates = shuffle([actual, ...distractors], rng);
+
+  return resolveCandidateNames(candidates, db);
+}
+
+/**
+ * Idempotent re-fetch of an existing round's view (GET /api/rounds/:roundId).
+ * No selection is re-run; the stored actual is forced into the candidate list.
+ */
+export async function getRoundView(
+  roundId: string,
+  db: PrismaClient,
+): Promise<RoundView> {
+  const round = await db.round.findUnique({
+    where: { id: roundId },
+    include: {
+      weatherSnapshot: true,
+      game: {
+        include: {
+          rounds: {
+            orderBy: { roundNumber: 'asc' },
+            include: { location: { select: { lat: true, lon: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  if (!round) {
+    throw new GameNotFoundError();
+  }
+
+  const selectionMode = round.selectionMode as SelectionMode;
+  const priorRounds = round.game.rounds.filter(
+    (prior) => prior.roundNumber < round.roundNumber,
+  );
+  const usedIds = new Set(priorRounds.map((prior) => prior.locationId));
+
+  const candidates =
+    selectionMode === 'list'
+      ? await rebuildListCandidates(
+          round.id,
+          round.difficulty,
+          round.locationId,
+          usedIds,
+          db,
+        )
+      : undefined;
+
+  return toRoundView({
+    round: {
+      roundId: round.id,
+      roundNumber: round.roundNumber,
+      difficulty: round.difficulty,
+      selectionMode,
+    },
+    weather: {
+      temperatureC: round.weatherSnapshot.temperatureC,
+      precipitationMm: round.weatherSnapshot.precipitationMm,
+      humidityPct: round.weatherSnapshot.humidityPct,
+      windSpeedKmh: round.weatherSnapshot.windSpeedKmh,
+    },
+    candidates,
+  });
+}
