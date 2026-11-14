@@ -18,11 +18,11 @@ import type { Region } from '@prisma/client';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
-import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
-import { registerGamesRoutes } from '../../src/modules/games/routes.js';
-import { registerRoundsRoutes } from '../../src/modules/rounds/routes.js';
-import { registerResultsRoutes } from '../../src/modules/results/routes.js';
-import type { WeatherClient, WeatherData } from '../../src/modules/weather/types.js';
+import { registerErrorHandler } from '../../../src/plugins/errorHandler.js';
+import { registerGamesRoutes } from '../../../src/modules/games/routes.js';
+import { registerRoundsRoutes } from '../../../src/modules/rounds/routes.js';
+import { registerResultsRoutes } from '../../../src/modules/results/routes.js';
+import type { WeatherClient, WeatherData } from '../../../src/modules/weather/types.js';
 
 const BACKEND_ROOT = resolve(
   dirname(fileURLToPath(import.meta.url)),
