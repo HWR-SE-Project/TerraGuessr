@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import { loadEnv } from './config/env.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { registerGamesRoutes } from './modules/games/routes.js';
+import { registerResultsRoutes } from './modules/results/routes.js';
 import { registerRoundsRoutes } from './modules/rounds/routes.js';
 
 export function buildApp(): FastifyInstance {
@@ -18,6 +19,7 @@ export function buildApp(): FastifyInstance {
   registerErrorHandler(app);
   registerGamesRoutes(app);
   registerRoundsRoutes(app);
+  registerResultsRoutes(app);
 
   void app.register(cors, { origin: config.corsOrigin });
 

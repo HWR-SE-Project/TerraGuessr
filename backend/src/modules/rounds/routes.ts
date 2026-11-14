@@ -18,12 +18,17 @@ import {
   StartRoundBody,
 } from '../../contracts/rounds.js';
 import {
+  GuessResultResponse,
+  SubmitGuessBody,
+} from '../../contracts/results.js';
+import {
   GameNotFoundError,
   hashPlayerToken,
   requirePlayerToken,
 } from '../../plugins/auth.js';
 import { OpenMeteoClient } from '../weather/client.js';
 import type { WeatherClient } from '../weather/types.js';
+import { submitGuess } from './guess.js';
 import { getRoundView, startRound } from './service.js';
 
 interface RoundIdRouteParams {
@@ -98,6 +103,23 @@ export function registerRoundsRoutes(
     async (request) => {
       const { roundId } = request.params as RoundIdParams;
       return getRoundView(roundId, db);
+    },
+  );
+
+  app.post(
+    '/api/rounds/:roundId/guess',
+    {
+      onRequest: requireRoundOwner(db),
+      schema: {
+        params: RoundIdParams,
+        body: SubmitGuessBody,
+        response: { 200: GuessResultResponse },
+      },
+    },
+    async (request) => {
+      const { roundId } = request.params as RoundIdParams;
+      const body = request.body as SubmitGuessBody;
+      return submitGuess(roundId, body, db);
     },
   );
 }
