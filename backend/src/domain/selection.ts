@@ -68,7 +68,7 @@ export interface SelectionResult {
   readonly selectionMode: SelectionMode;
 }
 
-function resolveSelectionMode(
+export function resolveSelectionMode(
   difficulty: Difficulty,
   requested: SelectionMode | undefined,
 ): SelectionMode {
@@ -149,7 +149,7 @@ function pickActualWorld(
   return selected;
 }
 
-function buildCandidates(
+export function buildCandidates(
   difficulty: Difficulty,
   pool: readonly PoolItem[],
   usedIds: ReadonlySet<string>,
