@@ -11,6 +11,7 @@ import {
 } from './api/gameDataSource';
 import type { CreateGameResponse, GameDataSource } from './api/gameDataSource';
 import type { GameResultsDTO, GuessResultDTO, RoundDTO, SelectionMode } from './api/types';
+import { ChallengePanel } from './features/challenge';
 import { DEFAULT_DIFFICULTY, DifficultyPicker, normalizeSelection } from './features/difficulty';
 import type { DifficultySelection } from './features/difficulty';
 import { RoundScreen } from './features/game';
@@ -249,6 +250,8 @@ function AppShell({ dataSource }: AppShellProps) {
   }, [round, source]);
 
   const isFinalRound = round !== null && round.roundNumber >= ROUNDS_PER_GAME;
+  // R16: the challenge replays the last completed round with the player's result.
+  const lastResult = results ? (results.results[results.results.length - 1] ?? null) : null;
 
   return (
     <div style={shellStyle}>
@@ -355,6 +358,9 @@ function AppShell({ dataSource }: AppShellProps) {
             <button type="button" onClick={handlePlayAgain} data-testid="play-again">
               Play again
             </button>
+            {round && lastResult ? (
+              <ChallengePanel roundId={round.roundId} resultId={lastResult.resultId} />
+            ) : null}
           </section>
         ) : null}
       </main>
