@@ -102,7 +102,6 @@ export async function submitGuess(
 
   return {
     resultId: created.id,
-    roundId,
     distanceKm: created.distanceKm,
     score: created.score,
     actual: { lat: created.actualLat, lon: created.actualLon },
