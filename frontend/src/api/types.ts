@@ -89,3 +89,29 @@ export interface GameResultsDTO {
   results: ResultDTO[];
   totalScore: number;
 }
+
+/** POST /api/challenges — 201 response (R16). */
+export interface ChallengeDTO {
+  challengeId: string;
+  shareUrl: string;
+}
+
+/** POST /api/challenges/{challengeId}/entries — 201 response (R16). */
+export interface ChallengeEntryDTO {
+  entryId: string;
+  rank: number;
+}
+
+/** One leaderboard row; displayName is null when the player stays anonymous. */
+export interface LeaderboardEntryDTO {
+  rank: number;
+  displayName: string | null;
+  score: number;
+  distanceKm: number;
+}
+
+/** GET /api/challenges/{challengeId}/leaderboard — 200 response (public, R16/B.6). */
+export interface LeaderboardDTO {
+  challengeId: string;
+  entries: LeaderboardEntryDTO[];
+}
