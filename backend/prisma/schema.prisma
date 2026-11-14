@@ -1,14 +1,51 @@
 // backend/prisma/schema.prisma
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum Region      { AFRICA EUROPE ASIA NORTH_AMERICA SOUTH_AMERICA OCEANIA }
-enum GameMode     { solo challenge }
-enum Difficulty   { easy medium hard }
-enum GameStatus   { active completed }
-enum RoundStatus  { active completed }
-enum LocationSrc  { grid city }
-enum WeatherSrc   { open_meteo }
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Region {
+  AFRICA
+  EUROPE
+  ASIA
+  NORTH_AMERICA
+  SOUTH_AMERICA
+  OCEANIA
+}
+
+enum GameMode {
+  solo
+  challenge
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum GameStatus {
+  active
+  completed
+}
+
+enum RoundStatus {
+  active
+  completed
+}
+
+enum LocationSrc {
+  grid
+  city
+}
+
+enum WeatherSrc {
+  open_meteo
+}
 
 model Location {
   id         String       @id @default(cuid())
@@ -36,7 +73,7 @@ model WeatherSnapshot {
   extra           Json?       // decision B.2: optional, never required
   source          WeatherSrc  @default(open_meteo)
   rounds          Round[]
-  @@index([locationId, fetchedAt])   // drives ≤1h staleness lookup (B.11)
+  @@index([locationId, fetchedAt])   // drives <=1h staleness lookup (B.11)
 }
 
 model Game {
@@ -68,6 +105,7 @@ model Round {
   completedAt       DateTime?
   guess             Guess?
   result            Result?
+  challenge         Challenge?
   @@unique([gameId, roundNumber])
   @@index([gameId, status])
 }
@@ -98,7 +136,7 @@ model Result {
 
 model Challenge {
   id        String   @id @default(cuid())
-  roundId   String                                   // the shared fixed round/location (B.3)
+  roundId   String   @unique                          // the shared fixed round/location (B.3)
   round     Round    @relation(fields: [roundId], references: [id], map: "Challenge_round_fkey")
   createdAt DateTime @default(now())
   expiresAt DateTime?
