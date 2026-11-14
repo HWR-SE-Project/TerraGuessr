@@ -100,4 +100,76 @@ Full policy and data classification: `../security/security-considerations.md`.
 ## 8. Admin endpoints (decision B.14)
 
 Any administrative/operational endpoint (location pool refresh, manual prefetch trigger) must
-require authentication. No unauthenticated admin endpoint ships, including during MVP.
+require authentication. No unauthenticated admin endpoint ships, including during MVP. Mechanism:
+static bearer token, ADR-0011.
+
+---
+
+## Phase 1 finalization (Principal Architect, 2026-11-14)
+
+The following resolve ordinary engineering decisions so implementing agents need not ask. Each
+traces to an ADR. They refine — never contradict — §1–§8 above.
+
+### 6a. Prefetch mechanism (R12, resolves the "1 round ahead" tension)
+
+"Preload exactly 1 round ahead" (decision B.12) is implemented **per game**, not globally. On
+`POST /games/{id}/rounds` the server, after returning the current round, asynchronously:
+1. selects the actual location for round *n+1* (ADR-0008 rules, excluding used + current),
+2. ensures a fresh `WeatherSnapshot` (≤1h) exists for it, fetching if needed,
+3. stores `Game.nextLocationId` + `Game.nextWeatherSnapshotId`.
+
+The **next** `POST .../rounds` consumes that pending selection if still fresh (fast path), else
+selects normally. This is a pure latency optimization: correctness never depends on the prefetch
+having run. The admin `POST /admin/weather/prefetch` warms snapshots across the pool and is
+unrelated to per-game prefetch. No standalone prefetch cron is needed; retention purge is the only
+scheduled job (§7a).
+
+### 9. Game & round state machine (R01/R08/R11)
+
+```
+Game:  active ──(final round completed)──▶ completed
+Round: active ──(POST /rounds/{id}/guess)──▶ completed   // writes Guess + Result atomically
+```
+Invariants (enforced server-side, tested):
+- At most **one** `active` round per game at any time.
+- `POST /games/{id}/rounds` is rejected `409 CONFLICT` if an active round exists, or if the game
+  is `completed`, or (solo) if `ROUNDS_PER_GAME` rounds already exist.
+- `POST /rounds/{id}/guess` on a non-`active` round ⇒ `409 CONFLICT` (enforces R08's "one final
+  submit"; mutation before submit is client-only state).
+- Completing the final solo round (`roundNumber === ROUNDS_PER_GAME`) flips the game to
+  `completed`. A challenge game completes when its single round completes.
+
+### 7a. Scheduler (R18)
+
+In-process `node-cron`. **Retention purge** runs daily at `03:00 UTC`: deletes `Result` rows with
+`createdAt < now − 6 months` (and their `Round`/`Guess` history), never touching `Location` pool
+rows (see data-model note). This is the only cron job. Prefetch (§6a) is event-driven, not cron.
+
+### 10. Configuration surface (R19)
+
+All config via environment (never committed). `.env.example` is the authoritative list.
+- **Backend:** `DATABASE_URL`, `PORT` (default 3000), `CORS_ORIGIN`, `ADMIN_API_TOKEN`,
+  `OPEN_METEO_BASE_URL` (default `https://api.open-meteo.com`), `LOG_LEVEL`.
+- **Frontend (build-time, Vite):** `VITE_API_BASE_URL`, `VITE_TILE_URL` (OSM-compatible XYZ
+  endpoint — dev default documented, finalized at deploy per ADR-0007), `VITE_MAP_ATTRIBUTION`
+  (must credit Open-Meteo + tile provider — ADR-0003/§1.4).
+
+### 11. Weather provider call (R03/R06/R13) — exact
+
+`GET {OPEN_METEO_BASE_URL}/v1/forecast?latitude={lat}&longitude={lon}`
+`&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m`
+`&wind_speed_unit=kmh&temperature_unit=celsius&precipitation_unit=mm`
+
+Field mapping: `current.temperature_2m→temperatureC`, `current.relative_humidity_2m→humidityPct`,
+`current.precipitation→precipitationMm`, `current.wind_speed_10m→windSpeedKmh`. **Mandatory
+validation:** all four present and finite numbers. On failure: retry `3×` with backoff
+`250/500/1000 ms`; if still incomplete, drop the location and select another (R13). A location is
+never served with an incomplete mandatory set. The weather client is an **injectable interface**
+(`WeatherClient`) so tests stub it (ADR-0012).
+
+### 12. Scoring & distance — exact constants (R09/R10, ADR-0006)
+
+- Distance: haversine, Earth radius `R = 6371.0088 km`. Pure fn `domain/distance.ts`.
+- Score: `Math.round(5000 * Math.exp(-distanceKm / 2000))`, clamped `[0, 5000]`. Pure fn
+  `domain/scoring.ts`. Test vectors (TESTING-CHECKLIST): `0→5000`, `2000→1839`, `10000→34`,
+  `≥18421→0`.
