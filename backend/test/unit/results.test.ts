@@ -99,7 +99,6 @@ describe('submitGuess', () => {
     expect(result.score).toBe(scoreForDistance(result.distanceKm));
     expect(result.score).toBe(3224);
     expect(result.actual).toEqual({ lat: BERLIN.lat, lon: BERLIN.lon });
-    expect(result.roundId).toBe('round-1');
     expect(result.resultId).toBe('result-1');
   });
 
@@ -194,7 +193,7 @@ describe('submitGuess', () => {
 });
 
 describe('results service', () => {
-  it('getGameResults returns score/distance per round, ordered, without actual coords (R11)', async () => {
+  it('getGameResults returns full ResultDTOs + totalScore, ordered', async () => {
     const game = {
       id: 'game-1',
       rounds: [
@@ -237,11 +236,17 @@ describe('results service', () => {
 
     const list = await getGameResults('game-1', db);
 
-    expect(list).toEqual([
-      { resultId: 'res-1', roundNumber: 1, distanceKm: 877.4645, score: 3224 },
-      { resultId: 'res-2', roundNumber: 2, distanceKm: 100, score: 4500 },
-    ]);
-    expect(list.some((item) => 'actual' in item)).toBe(false);
+    expect(list.totalScore).toBe(7724);
+    expect(list.results).toHaveLength(2);
+    expect(list.results[0]).toEqual({
+      resultId: 'res-1',
+      roundNumber: 1,
+      distanceKm: 877.4645,
+      score: 3224,
+      actual: { lat: 52.52, lon: 13.405 },
+      guess: { lat: 48.8566, lon: 2.3522 },
+      createdAt: expect.any(String),
+    });
   });
 
   it('getGameResults returns 404 when the game does not exist', async () => {
@@ -254,7 +259,7 @@ describe('results service', () => {
     );
   });
 
-  it('getResult returns a single result item', async () => {
+  it('getResult returns a full ResultDTO', async () => {
     const db = {
       result: {
         findUnique: vi.fn().mockResolvedValue({
@@ -262,6 +267,11 @@ describe('results service', () => {
           round: { roundNumber: 1 },
           distanceKm: 877.4645,
           score: 3224,
+          actualLat: 52.52,
+          actualLon: 13.405,
+          guessLat: 48.8566,
+          guessLon: 2.3522,
+          createdAt: new Date('2026-11-14T12:00:00Z'),
         }),
       },
     } as unknown as PrismaLike;
@@ -273,6 +283,9 @@ describe('results service', () => {
       roundNumber: 1,
       distanceKm: 877.4645,
       score: 3224,
+      actual: { lat: 52.52, lon: 13.405 },
+      guess: { lat: 48.8566, lon: 2.3522 },
+      createdAt: '2026-11-14T12:00:00.000Z',
     });
   });
 
@@ -327,9 +340,20 @@ describe('results routes', () => {
       });
 
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual([
-        { resultId: 'res-1', roundNumber: 1, distanceKm: 877.4645, score: 3224 },
-      ]);
+      expect(res.json()).toEqual({
+        results: [
+          {
+            resultId: 'res-1',
+            roundNumber: 1,
+            distanceKm: 877.4645,
+            score: 3224,
+            actual: { lat: 52.52, lon: 13.405 },
+            guess: { lat: 48.8566, lon: 2.3522 },
+            createdAt: expect.any(String),
+          },
+        ],
+        totalScore: 3224,
+      });
     } finally {
       await app.close();
     }
