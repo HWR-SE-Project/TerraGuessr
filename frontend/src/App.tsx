@@ -15,6 +15,7 @@ import { DEFAULT_DIFFICULTY, DifficultyPicker, normalizeSelection } from './feat
 import type { DifficultySelection } from './features/difficulty';
 import { RoundScreen } from './features/game';
 import type { RoundDataSource } from './features/game';
+import { TutorialDialog } from './features/tutorial';
 import { GameStoreProvider, useGameStore } from './state/gameStore';
 
 const shellStyle = {
@@ -99,6 +100,7 @@ function AppShell({ dataSource }: AppShellProps) {
   const [round, setRound] = useState<RoundDTO | null>(null);
   const [revealed, setRevealed] = useState<GuessResultDTO | null>(null);
   const [results, setResults] = useState<GameResultsDTO | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const busy = status === 'loading';
 
@@ -291,7 +293,7 @@ function AppShell({ dataSource }: AppShellProps) {
             </h2>
             <p>Guess the place from its weather. Five rounds, one score.</p>
             <DifficultyPicker value={selection} onChange={setSelection} disabled={busy} />
-            <p style={{ marginTop: '16px' }}>
+            <p style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => void startGame(selection)}
@@ -299,6 +301,9 @@ function AppShell({ dataSource }: AppShellProps) {
                 data-testid="start-game"
               >
                 {busy ? 'Starting...' : 'Start game'}
+              </button>
+              <button type="button" onClick={() => setTutorialOpen(true)} data-testid="how-to-play">
+                How to play
               </button>
             </p>
           </section>
@@ -358,6 +363,7 @@ function AppShell({ dataSource }: AppShellProps) {
           </section>
         ) : null}
       </main>
+      <TutorialDialog open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
     </div>
   );
 }
