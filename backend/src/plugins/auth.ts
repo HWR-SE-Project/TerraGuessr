@@ -9,7 +9,7 @@
  * does not reveal whether the resource exists.
  */
 
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
@@ -64,6 +64,63 @@ export function requirePlayerToken(
     const game = await db.game.findUnique({ where: { id: gameId } });
     if (!game || game.playerTokenHash !== hashPlayerToken(rawToken)) {
       throw new GameNotFoundError();
+    }
+  };
+}
+
+/** 401 UNAUTHORIZED thrown when an admin bearer token is missing or invalid. */
+export class AdminUnauthorizedError extends Error {
+  public readonly statusCode = 401;
+
+  public constructor() {
+    super('Unauthorized');
+    this.name = 'AdminUnauthorizedError';
+  }
+}
+
+/**
+ * Constant-time string comparison (ADR-0011). Lengths are compared before
+ * `timingSafeEqual`, which requires equal-length buffers.
+ */
+function constantTimeEqual(expected: string, received: string): boolean {
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const receivedBuffer = Buffer.from(received, 'utf8');
+  if (expectedBuffer.length !== receivedBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
+/**
+ * `onRequest` auth hook for every `/api/admin/*` route (ADR-0011, B.14).
+ * Compares `Authorization: Bearer <token>` against `adminApiToken` in constant
+ * time; missing/invalid ⇒ 401 UNAUTHORIZED.
+ */
+export function requireAdmin(
+  adminApiToken: string,
+): (
+  request: FastifyRequest,
+  reply: FastifyReply,
+) => Promise<void> {
+  return async (request) => {
+    const authorization = request.headers.authorization;
+
+    if (typeof authorization !== 'string') {
+      throw new AdminUnauthorizedError();
+    }
+
+    const match = /^Bearer\s+(\S+)$/i.exec(authorization.trim());
+    if (!match) {
+      throw new AdminUnauthorizedError();
+    }
+
+    const token = match[1] ?? '';
+    if (adminApiToken.length === 0 || token.length === 0) {
+      throw new AdminUnauthorizedError();
+    }
+
+    if (!constantTimeEqual(adminApiToken, token)) {
+      throw new AdminUnauthorizedError();
     }
   };
 }
