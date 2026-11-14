@@ -9,8 +9,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/server.ts",
-    "test": "vitest run",
-    "lint": "eslint ."
+    "test": "vitest run --exclude '**/integration/**'",
+    "lint": "eslint .",
+    "test:integration": "vitest run test/integration --no-file-parallelism"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.0",

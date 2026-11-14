@@ -16,9 +16,14 @@ import {
   MAX_SELECTION_TRIES,
   MEDIUM_CANDIDATES,
   ROUNDS_PER_GAME,
+  WEATHER_TTL_MS,
 } from '../../config/constants.js';
 import { GameNotFoundError } from '../../plugins/auth.js';
-import { selectRound } from '../../domain/selection.js';
+import {
+  buildCandidates,
+  resolveSelectionMode,
+  selectRound,
+} from '../../domain/selection.js';
 import type {
   Difficulty,
   PoolItem,
@@ -32,6 +37,7 @@ import type { WeatherClient } from '../weather/types.js';
 import type { RoundView } from '../../contracts/rounds.js';
 import { toRoundView } from './dto.js';
 import type { RoundCandidate } from './dto.js';
+import { prefetchNextRound } from './prefetch.js';
 
 /** 409 CONFLICT thrown by the round state machine (architecture.md §9). */
 export class RoundConflictError extends Error {
@@ -166,8 +172,68 @@ async function resolveCandidateNames(
   }));
 }
 
+/** The game fields needed to consume a pending prefetch (R12 / §6a). */
+interface PendingPrefetch {
+  difficulty: Difficulty;
+  nextLocationId: string | null;
+  nextWeatherSnapshotId: string | null;
+}
+
 /**
- * Start the next round for `gameId` and return its client-facing view.
+ * Fast path: consume the game's pending prefetch when it is still valid.
+ * Returns a ready-to-use selection when nextLocationId + the referenced
+ * snapshot are present, the snapshot is <= WEATHER_TTL_MS old, and the
+ * location is still available (present in the pool and not already used).
+ * Otherwise returns null and the caller selects normally.
+ */
+async function consumePendingPrefetch(
+  gameId: string,
+  game: PendingPrefetch,
+  requestedMode: SelectionMode | undefined,
+  pool: readonly PoolItem[],
+  usedIds: ReadonlySet<string>,
+  db: PrismaClient,
+  rng: Rng,
+): Promise<WeatherSelection | null> {
+  if (!game.nextLocationId || !game.nextWeatherSnapshotId) {
+    return null;
+  }
+
+  const snapshot = await db.weatherSnapshot.findUnique({
+    where: { id: game.nextWeatherSnapshotId },
+  });
+
+  const cutoff = new Date(Date.now() - WEATHER_TTL_MS);
+  if (
+    !snapshot ||
+    snapshot.locationId !== game.nextLocationId ||
+    snapshot.fetchedAt.getTime() < cutoff.getTime()
+  ) {
+    return null;
+  }
+
+  const actual = pool.find((item) => item.id === game.nextLocationId);
+  if (!actual || usedIds.has(actual.id)) {
+    return null;
+  }
+
+  // Consume the pending prefetch exactly once.
+  await db.game.update({
+    where: { id: gameId },
+    data: { nextLocationId: null, nextWeatherSnapshotId: null },
+  });
+
+  const selectionMode = resolveSelectionMode(game.difficulty, requestedMode);
+  const candidates =
+    selectionMode === 'list'
+      ? buildCandidates(game.difficulty, pool, usedIds, actual, rng)
+      : [];
+
+  return { snapshot, selection: { actual, candidates, selectionMode } };
+}
+
+/**
+ * Start the next round for 'gameId' and return its client-facing view.
  * Ownership is enforced upstream by the auth hook (ADR-0011).
  */
 export async function startRound(
@@ -201,16 +267,29 @@ export async function startRound(
     lon: round.location.lon,
   }));
 
-  const { snapshot, selection } = await selectWithWeatherFallback(
-    game.difficulty,
+  // R12 fast path: consume a still-fresh pending prefetch before selecting.
+  const prefetched = await consumePendingPrefetch(
+    gameId,
+    game,
     selectionMode,
     pool,
     usedIds,
-    previousActuals,
     db,
-    weatherClient,
     rng,
   );
+
+  const { snapshot, selection } =
+    prefetched ??
+    (await selectWithWeatherFallback(
+      game.difficulty,
+      selectionMode,
+      pool,
+      usedIds,
+      previousActuals,
+      db,
+      weatherClient,
+      rng,
+    ));
 
   const roundNumber = game.rounds.length + 1;
   const round = await db.round.create({
@@ -230,7 +309,7 @@ export async function startRound(
       ? await resolveCandidateNames(selection.candidates, db)
       : undefined;
 
-  return toRoundView({
+  const view = toRoundView({
     round: {
       roundId: round.id,
       roundNumber,
@@ -245,6 +324,14 @@ export async function startRound(
     },
     candidates,
   });
+
+  // Prefetch the next round (R12, best-effort, fire-and-forget) — only when a
+  // next round actually exists.
+  if (roundNumber < roundCap(game.mode)) {
+    void prefetchNextRound(gameId, db, weatherClient, rng);
+  }
+
+  return view;
 }
 
 function hashSeed(input: string): number {
