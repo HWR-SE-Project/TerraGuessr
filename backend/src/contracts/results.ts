@@ -27,21 +27,29 @@ export const SubmitGuessBody = Type.Object({
  */
 export const GuessResultResponse = Type.Object({
   resultId: Type.String(),
-  roundId: Type.String(),
   distanceKm: Type.Number(),
   score: Type.Integer(),
   actual: LatLon,
 });
 
 /**
- * One item of a game's results listing. Deliberately coordinate-free: actual
- * coordinates are revealed only in the guess response (R11), never here.
+ * A single result (API-CONTRACTS.md §3). Includes the coordinates because the
+ * result is viewed after the guess has already been revealed (R11).
  */
-export const ResultListItem = Type.Object({
+export const ResultDTO = Type.Object({
   resultId: Type.String(),
   roundNumber: Type.Integer(),
   distanceKm: Type.Number(),
   score: Type.Integer(),
+  actual: LatLon,
+  guess: LatLon,
+  createdAt: Type.String(),
+});
+
+/** GET /api/games/:gameId/results → 200 (API-CONTRACTS.md §3). */
+export const GameResultsResponse = Type.Object({
+  results: Type.Array(ResultDTO),
+  totalScore: Type.Integer(),
 });
 
 /** GET /api/results/:resultId path params. */
@@ -52,5 +60,6 @@ export const ResultIdParams = Type.Object({
 export type LatLon = Static<typeof LatLon>;
 export type SubmitGuessBody = Static<typeof SubmitGuessBody>;
 export type GuessResultResponse = Static<typeof GuessResultResponse>;
-export type ResultListItem = Static<typeof ResultListItem>;
+export type ResultDTO = Static<typeof ResultDTO>;
+export type GameResultsResponse = Static<typeof GameResultsResponse>;
 export type ResultIdParams = Static<typeof ResultIdParams>;

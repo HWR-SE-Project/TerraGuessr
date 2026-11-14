@@ -4,13 +4,12 @@
  * ownership (parent game). Actual coordinates are never returned here (R11).
  */
 
-import { Type } from '@sinclair/typebox';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 
 import { prisma } from '../../db/prisma.js';
 import { GameIdParams } from '../../contracts/games.js';
-import { ResultIdParams, ResultListItem } from '../../contracts/results.js';
+import { GameResultsResponse, ResultDTO, ResultIdParams } from '../../contracts/results.js';
 import {
   GameNotFoundError,
   hashPlayerToken,
@@ -64,7 +63,7 @@ export function registerResultsRoutes(
       onRequest: requirePlayerToken(db),
       schema: {
         params: GameIdParams,
-        response: { 200: Type.Array(ResultListItem) },
+        response: { 200: GameResultsResponse },
       },
     },
     async (request) => {
@@ -79,7 +78,7 @@ export function registerResultsRoutes(
       onRequest: requireResultOwner(db),
       schema: {
         params: ResultIdParams,
-        response: { 200: ResultListItem },
+        response: { 200: ResultDTO },
       },
     },
     async (request) => {
