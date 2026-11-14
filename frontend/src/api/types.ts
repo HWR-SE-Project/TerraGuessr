@@ -72,3 +72,20 @@ export interface GuessResultDTO {
   actual: LatLon;
   resultId: string;
 }
+
+/** GET /api/games/{gameId}/results — one stored result (R11/R18). */
+export interface ResultDTO {
+  resultId: string;
+  roundNumber: number;
+  distanceKm: number;
+  score: number;
+  actual: LatLon;
+  guess: LatLon;
+  createdAt: string;
+}
+
+/** GET /api/games/{gameId}/results — 200 response. */
+export interface GameResultsDTO {
+  results: ResultDTO[];
+  totalScore: number;
+}
