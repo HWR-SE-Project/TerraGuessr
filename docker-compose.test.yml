@@ -1,0 +1,66 @@
+name: terraguessr-test
+
+# Deterministic stack for CI e2e / integration tests (ADR-0012). Values are
+# hardcoded so tests never depend on a local .env file. Published ports:
+# postgres 5433, backend 3000, frontend 8080.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: terraguessr
+      POSTGRES_PASSWORD: terraguessr
+      POSTGRES_DB: terraguessr_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U terraguessr -d terraguessr_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://terraguessr:terraguessr@postgres:5432/terraguessr_test
+      PORT: "3000"
+      CORS_ORIGIN: http://localhost:8080
+      ADMIN_API_TOKEN: test-admin-token
+      OPEN_METEO_BASE_URL: https://api.open-meteo.com
+      LOG_LEVEL: warn
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_TILE_URL: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        VITE_MAP_ATTRIBUTION: "© OpenStreetMap contributors · © Open-Meteo"
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pg_test_data:
