@@ -42,3 +42,10 @@ routes, which require authentication (decision B.14) — not yet designed in thi
   §6 of `architecture.md`).
 
 Both require an authenticated admin credential. No anonymous access, no exceptions.
+
+---
+
+**Implementation-ready expansion:** the full, frozen contract (every field, type, status code,
+error envelope, headers, and auth per ADR-0009/0011) lives in
+`../../agent-handoff/API-CONTRACTS.md`. That document is the authority agents implement against;
+this page is the approved high-level shape it expands.
