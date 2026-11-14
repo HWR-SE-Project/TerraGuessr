@@ -16,6 +16,10 @@ describe('R13 weather fallback (integration)', () => {
 
   beforeAll(async () => {
     prisma = await setupDatabase();
+    // Clear cached snapshots from other suites (1h cache would short-circuit).
+    // Rounds reference snapshots, so delete games first (cascades rounds).
+    await prisma.game.deleteMany();
+    await prisma.weatherSnapshot.deleteMany();
     // Every candidate's weather fetch fails -> the R13 fallback must surface a
     // 503 SERVICE_UNAVAILABLE, never a 500 crash and never incomplete weather.
     app = buildTestApp(prisma, new FailingWeatherClient());
