@@ -1,0 +1,130 @@
+name: terraguessr-prod
+
+# =============================================================================
+# TerraGuessr — production stack (R17 / task O-02)
+# =============================================================================
+# Differences from the local docker-compose.yml:
+#   * Only Caddy publishes ports (80/443). Postgres and the app services are
+#     reachable only on the compose network.
+#   * No bind mounts of source trees — images are built from the Dockerfiles.
+#   * Secrets and hostnames come from .env (gitignored) via environment
+#     variable interpolation;
+#     compose fails fast when a required production value is missing.
+#   * restart: unless-stopped on every service.
+#
+# Usage (see docs/deploy.md for the full procedure):
+#   cp .env.example .env        # then fill in the production values
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Required in .env: POSTGRES_PASSWORD, ADMIN_API_TOKEN, DOMAIN, ACME_EMAIL,
+# and VITE_TILE_URL (build-time tile endpoint, see ADR-0007).
+# NEVER commit .env. Do not purchase a domain or publish this stack without
+# Product Owner approval (decision B.7).
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-terraguessr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-terraguessr}
+    volumes:
+      # Named volume only: no host bind mounts in production.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-terraguessr} -d ${POSTGRES_DB:-terraguessr}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging: *default-logging
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Host "postgres" is the compose service name; the URL in .env is only
+      # used when running the backend outside of compose.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-terraguessr}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}@postgres:5432/${POSTGRES_DB:-terraguessr}
+      PORT: "${PORT:-3000}"
+      CORS_ORIGIN: https://${DOMAIN:?DOMAIN is required — set it in .env}
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?ADMIN_API_TOKEN is required — set it in .env}
+      OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # No published ports: Caddy proxies /api to this service over the network.
+    expose:
+      - "${PORT:-3000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT:-3000}/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # Vite inlines these at build time — changing one requires a rebuild.
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:-/api}"
+        # Required: the XYZ template contains {z}/{x}/{y}, which compose's
+        # ${...} parser cannot carry in a default value (first "}" ends it).
+        VITE_TILE_URL: "${VITE_TILE_URL:?VITE_TILE_URL is required — see ADR-0007 and docs/deploy.md}"
+        VITE_MAP_ATTRIBUTION: "${VITE_MAP_ATTRIBUTION:-© OpenStreetMap contributors · © Open-Meteo}"
+    restart: unless-stopped
+    # No published ports: Caddy proxies everything except /api to this service.
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    logging: *default-logging
+
+  # TLS termination + reverse proxy. Caddy obtains and renews Let's Encrypt
+  # certificates automatically for ${DOMAIN} (see Caddyfile).
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required — set it in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required — set it in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificates + ACME account (must persist)
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

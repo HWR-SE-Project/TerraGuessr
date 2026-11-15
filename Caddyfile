@@ -1,0 +1,51 @@
+# =============================================================================
+# TerraGuessr — production reverse proxy (Caddy 2, R17 / task O-02)
+# =============================================================================
+# Caddy terminates TLS (automatic Let's Encrypt certificates) and routes:
+#   /api/*  -> backend:3000   (Fastify REST API)
+#   /*      -> frontend:80    (nginx serving the built SPA)
+#
+# The site address comes from the DOMAIN environment variable, so no real
+# domain is hardcoded or committed. Example value (placeholder only):
+#   DOMAIN=terraguessr.example.com
+#
+# Before starting Caddy:
+#   1. Create an A (and/or AAAA) DNS record for the domain -> this host's IP.
+#   2. Allow inbound TCP 80 and 443 (and UDP 443 for HTTP/3).
+#   Caddy will then obtain the certificate on first request.
+#
+# Rate-limit-safe testing: uncomment acme_ca below to use the Let's Encrypt
+# staging CA first; remove it and delete the caddy_data volume to switch to
+# production certificates.
+
+{
+	email {$ACME_EMAIL}
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# REST API — proxied straight to the backend service.
+	handle /api/* {
+		reverse_proxy backend:3000
+	}
+
+	# Everything else — the SPA served by nginx (SPA fallback lives there).
+	handle {
+		reverse_proxy frontend:80
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

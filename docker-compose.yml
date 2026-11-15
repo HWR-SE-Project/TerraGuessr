@@ -1,0 +1,73 @@
+name: terraguessr
+
+# TerraGuessr local/production stack (R17 prep). Copy .env.example -> .env first.
+#   docker compose up --build
+# Frontend (nginx) -> http://localhost:${FRONTEND_PORT:-8080}, proxies /api -> backend.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-terraguessr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-terraguessr}
+      POSTGRES_DB: ${POSTGRES_DB:-terraguessr}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-terraguessr} -d ${POSTGRES_DB:-terraguessr}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Values interpolate from .env (copy .env.example -> .env; architecture.md
+      # §10 / R19). Defaults keep `docker compose config` valid before .env
+      # exists. DATABASE_URL points at the compose-network postgres service; the
+      # .env value is only used when running the backend outside of compose.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-terraguessr}:${POSTGRES_PASSWORD:-terraguessr}@postgres:5432/${POSTGRES_DB:-terraguessr}
+      PORT: ${PORT:-3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
+      OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${BACKEND_HOST_PORT:-3000}:${PORT:-3000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT:-3000}/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_TILE_URL: ${VITE_TILE_URL}
+        VITE_MAP_ATTRIBUTION: ${VITE_MAP_ATTRIBUTION}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:
