@@ -11,7 +11,7 @@ import {
 } from './api/gameDataSource';
 import type { CreateGameResponse, GameDataSource } from './api/gameDataSource';
 import type { GameResultsDTO, GuessResultDTO, RoundDTO, SelectionMode } from './api/types';
-import { ChallengePanel } from './features/challenge';
+import { ChallengeJoinFlow, ChallengePanel } from './features/challenge';
 import { DEFAULT_DIFFICULTY, DifficultyPicker, normalizeSelection } from './features/difficulty';
 import type { DifficultySelection } from './features/difficulty';
 import { RoundScreen } from './features/game';
@@ -43,6 +43,12 @@ const mainStyle = {
 type Phase = 'home' | 'playing' | 'results';
 
 type LoadStatus = 'idle' | 'loading' | 'error';
+
+/** Shared-link challenges land on shareUrl = '/challenge/:id' (P0-3). */
+function parseChallengeId(pathname: string): string | null {
+  const match = /^\/challenge\/([^/]+)\/?$/.exec(pathname);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
 
 /** ADR-0009 codes -> copy a player can act on. */
 function friendlyErrorMessage(error: unknown): string {
@@ -89,6 +95,9 @@ interface AppShellProps {
 function AppShell({ dataSource }: AppShellProps) {
   const { state, dispatch } = useGameStore();
 
+  const [challengeId] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : parseChallengeId(window.location.pathname),
+  );
   const [source, setSource] = useState<GameDataSource>(dataSource);
   const [phase, setPhase] = useState<Phase>('home');
   const [status, setStatus] = useState<LoadStatus>('idle');
@@ -263,6 +272,22 @@ function AppShell({ dataSource }: AppShellProps) {
   const isFinalRound = round !== null && round.roundNumber >= ROUNDS_PER_GAME;
   // R16: the challenge replays the last completed round with the player's result.
   const lastResult = results ? (results.results[results.results.length - 1] ?? null) : null;
+
+  // P0-3: a shared challenge link bypasses the normal home/playing/results
+  // flow entirely — this browser is an independent participant, not the
+  // original creator, and never touches that player's game/token.
+  if (challengeId) {
+    return (
+      <div style={shellStyle}>
+        <header style={{ padding: '12px 20px', borderBottom: '1px solid #d9d6d0' }}>
+          <h1 style={{ margin: 0, fontSize: '20px' }}>TerraGuessr</h1>
+        </header>
+        <main style={mainStyle}>
+          <ChallengeJoinFlow challengeId={challengeId} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div style={shellStyle}>

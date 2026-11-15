@@ -115,7 +115,7 @@ export function ChallengePanel({
     setJoinState('loading');
     setJoinError(null);
     try {
-      const entry = await dataSource.joinChallenge(
+      const entry = await dataSource.submitEntry(
         challengeId,
         trimmedName.length > 0 ? { resultId, displayName: trimmedName } : { resultId },
       );
