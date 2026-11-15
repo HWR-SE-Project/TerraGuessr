@@ -2,18 +2,25 @@ import { test, expect } from '@playwright/test';
 
 /**
  * R14 — the tutorial explains mechanics, selection, and scoring and is
- * reachable from the app.
- *
- * TODO(frontend): features/tutorial/** is not built yet (W-06, milestone M4).
- * This spec is marked fixme so it is reported (not silently skipped) until the
- * tutorial ships; remove fixme when W-06 lands.
+ * reachable from the app (the "How to play" button on the home screen,
+ * see App.tsx / features/tutorial/Tutorial.tsx).
  */
 test.describe('tutorial (R14)', () => {
-  test.fixme('tutorial is reachable and explains mechanics, selection, and scoring', async ({ page }) => {
+  test('tutorial is reachable and explains mechanics, selection, and scoring', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: /tutorial/i }).click();
-    await expect(page.getByRole('heading', { name: /tutorial/i })).toBeVisible();
-    await expect(page.getByText(/selection/i)).toBeVisible();
-    await expect(page.getByText(/scoring/i)).toBeVisible();
+    await page.getByTestId('how-to-play').click();
+
+    const dialog = page.getByTestId('tutorial-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'How to play' })).toBeVisible();
+
+    await expect(page.getByTestId('tutorial-mechanics')).toBeVisible();
+    await expect(page.getByTestId('tutorial-selection-modes')).toContainText(/map/i);
+    await expect(page.getByTestId('tutorial-selection-modes')).toContainText(/list/i);
+    await expect(page.getByTestId('tutorial-scoring')).toContainText(/scoring/i);
+
+    // Escape closes the dialog (accessible modal behavior).
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
   });
 });

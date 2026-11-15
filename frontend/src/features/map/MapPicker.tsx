@@ -60,7 +60,15 @@ export function MapPicker({
   }
 
   return (
-    <div data-testid="map-picker" style={{ height: '100%', width: '100%', minHeight: '320px' }}>
+    // A fixed, explicit height (not min-height) is required here: MapContainer's
+    // own height:100% can only resolve against a parent with a definite CSS
+    // height. Nothing further up this tree (RoundScreen's <section>, App's
+    // flex shell) establishes one, so a min-height-only wrapper left Leaflet's
+    // container at a computed 0px height — invisible visually (tiles are
+    // absolutely positioned and overflow their collapsed parent) but it
+    // desynced Leaflet's internal pixel origin from the real screen position,
+    // so clicks landed on whatever sat behind the map instead of the map.
+    <div data-testid="map-picker" style={{ height: '400px', width: '100%' }}>
       <MapContainer
         center={toTuple(center)}
         zoom={zoom}
