@@ -100,7 +100,7 @@ export function RoundScreen({ dataSource, gameId, onAttemptChange }: RoundScreen
       <WeatherPanel weather={additionalDataRound?.weather ?? state.round.weather} access={additionalDataRound?.additionalData ?? state.round.additionalData} unlocking={unlocking} unlockError={unlockError} onUnlock={() => void unlockAdditionalData()} />
       {revealed && state.result ? (
         <div className="tg-game-area">
-          <RevealView result={state.result} />
+          <RevealView result={state.result} guess={guess} />
         </div>
       ) : attemptFeedback ? (
         <div className="tg-game-area">
@@ -124,8 +124,8 @@ export function RoundScreen({ dataSource, gameId, onAttemptChange }: RoundScreen
               {state.status === 'submitting' ? 'Submitting…' : 'Submit guess'}
             </button>
           </div>
-          <div className="tg-map-dock">
-            <div className="tg-map-label"><span>◉ World map</span><span>Click to place a marker</span></div>
+          <div className="tg-map-dock" data-testid="map-dock">
+            <div className="tg-map-label"><span>◉ World map</span><span className="tg-map-expand-hint">{guess ? 'Marker placed' : 'Tap to expand'}</span></div>
             <MapPicker guess={guess} onChange={setGuess} zoom={1} />
           </div>
           {state.error ? <p role="alert" className="tg-error">{state.error}</p> : null}

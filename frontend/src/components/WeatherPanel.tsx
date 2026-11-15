@@ -1,20 +1,31 @@
 import { useEffect, useState } from 'react';
 import type { AdditionalDataAccessDTO, WeatherDTO } from '../api/types';
+import {
+  ClockIcon,
+  CompassIcon,
+  HumidityIcon,
+  PrecipitationIcon,
+  PressureIcon,
+  SunshineIcon,
+  TemperatureIcon,
+  UVIcon,
+  WindIcon,
+} from './icons';
 
 // R15 — exactly these four fields, always in this fixed order, with fixed labels
 // and units. The order/labels/units never change between renders.
 const WEATHER_FIELDS = [
-  { key: 'temperatureC', label: 'Temperature', unit: ' °C' },
-  { key: 'precipitationMm', label: 'Precipitation', unit: ' mm' },
-  { key: 'humidityPct', label: 'Humidity', unit: '%' },
-  { key: 'windSpeedKmh', label: 'Wind speed', unit: ' km/h' },
-  { key: 'airPressureHpa', label: 'Air pressure', unit: ' hPa' },
-  { key: 'windDirectionDeg', label: 'Wind direction', unit: '°' },
+  { key: 'temperatureC', label: 'Temperature', unit: ' °C', Icon: TemperatureIcon },
+  { key: 'precipitationMm', label: 'Precipitation', unit: ' mm', Icon: PrecipitationIcon },
+  { key: 'humidityPct', label: 'Humidity', unit: '%', Icon: HumidityIcon },
+  { key: 'windSpeedKmh', label: 'Wind speed', unit: ' km/h', Icon: WindIcon },
+  { key: 'airPressureHpa', label: 'Air pressure', unit: ' hPa', Icon: PressureIcon },
+  { key: 'windDirectionDeg', label: 'Wind direction', unit: '°', Icon: CompassIcon },
 ] as const;
 const SKY_FIELDS = [
-  { key: 'uvIndex', label: 'UV index', unit: '' },
-  { key: 'sunshineDurationSeconds', label: 'Sunshine today', unit: '' },
-  { key: 'localTime', label: 'Local time', unit: '' },
+  { key: 'uvIndex', label: 'UV index', unit: '', Icon: UVIcon },
+  { key: 'sunshineDurationSeconds', label: 'Sunshine today', unit: '', Icon: SunshineIcon },
+  { key: 'localTime', label: 'Local time', unit: '', Icon: ClockIcon },
 ] as const;
 
 export interface WeatherPanelProps {
@@ -39,9 +50,9 @@ export function WeatherPanel({ weather, access = { mode: 'immediate', cost: null
       <h2 id="weather-heading" className="tg-hud-title">Weather conditions</h2>
       <p className="tg-hud-subtitle">Latest available · Open-Meteo</p>
       <dl className="tg-weather-grid">
-        {WEATHER_FIELDS.map(({ key, label, unit }) => (
+        {WEATHER_FIELDS.map(({ key, label, unit, Icon }) => (
           <div key={key} className="tg-weather-cell">
-            <dt className="tg-weather-label" data-icon={key === 'temperatureC' ? '☼' : key === 'precipitationMm' ? '⌁' : key === 'humidityPct' ? '◌' : '↗'}>{label}</dt>
+            <dt className="tg-weather-label">{label}<span className="tg-weather-icon"><Icon /></span></dt>
             <dd className="tg-weather-value">{weather[key] == null ? '—' : `${weather[key]}${unit}`}</dd>
           </div>
         ))}
@@ -54,14 +65,14 @@ export function WeatherPanel({ weather, access = { mode: 'immediate', cost: null
           {unlockError ? <p role="alert" className="tg-error">{unlockError}</p> : null}
         </div> : null}
         <dl className="tg-weather-grid tg-weather-extra-grid">
-          {SKY_FIELDS.map(({ key, label }) => {
+          {SKY_FIELDS.map(({ key, label, Icon }) => {
             const value = weather[key];
             const formatted = value == null ? '—' : key === 'sunshineDurationSeconds'
               ? `${(Number(value) / 3600).toFixed(1)} h`
               : key === 'uvIndex' ? Number(value).toFixed(1)
                 : key === 'localTime' ? (String(value).match(/T(\d{2}:\d{2})/)?.[1] ?? String(value))
                   : String(value);
-            return <div key={key} className="tg-weather-cell"><dt className="tg-weather-label">{label}</dt><dd className="tg-weather-value">{formatted}</dd></div>;
+            return <div key={key} className="tg-weather-cell"><dt className="tg-weather-label">{label}<span className="tg-weather-icon"><Icon /></span></dt><dd className="tg-weather-value">{formatted}</dd></div>;
           })}
         </dl>
       </details>

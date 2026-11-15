@@ -15,7 +15,7 @@ import type { AdditionalDataUnlockMode, GameResultsDTO, GuessResultDTO, RoundDTO
 import { ChallengeJoinFlow, ChallengePanel } from './features/challenge';
 import { DEFAULT_DIFFICULTY, DifficultyPicker, normalizeSelection } from './features/difficulty';
 import type { DifficultySelection } from './features/difficulty';
-import { RoundScreen } from './features/game';
+import { ResultsMap, RoundScreen } from './features/game';
 import type { RoundDataSource } from './features/game';
 import { TutorialDialog } from './features/tutorial';
 import { AuthDialog } from './features/auth/AuthDialog';
@@ -365,7 +365,7 @@ function AppShell({ dataSource }: AppShellProps) {
 
   return (
     <div className="tg-shell">
-      <header className="tg-topbar">
+      <header className={phase === 'playing' ? 'tg-topbar tg-topbar-compact' : 'tg-topbar'}>
         <a className="tg-brand" href="/" onClick={(event) => { if (phase !== 'home') { event.preventDefault(); handlePlayAgain(); } }}><span className="tg-brand-mark" aria-hidden="true">⌖</span><span className="tg-brand-name">Terra<span>Guessr</span></span></a>
         <nav className="tg-nav" aria-label="Main navigation">
           {phase !== 'home' ? <span className="tg-chip"><span className="tg-dot" />{dailyMode ? `Daily · ${dailyDate ?? 'UTC'}` : 'Solo expedition'}</span> : null}
@@ -517,14 +517,21 @@ function AppShell({ dataSource }: AppShellProps) {
             <h2 id="results-heading" className="tg-heading-lg">Your journey</h2>
             <p className="tg-muted">Total score</p>
             <p className="tg-result-score"><strong data-testid="total-score">{results.totalScore}</strong><span className="tg-result-score-suffix"> pts</span></p>
+            <p className="tg-muted tg-mt-1">Total distance: {results.results.reduce((sum, entry) => sum + entry.distanceKm, 0).toLocaleString(undefined, { maximumFractionDigits: 1 })} km across {results.results.length} round{results.results.length === 1 ? '' : 's'}</p>
+            <div className="tg-results-map-wrap">
+              <ResultsMap className="tg-results-map" results={results.results} />
+            </div>
             <ol data-testid="result-list">
               {results.results.map((entry) => (
                 <li key={entry.resultId} data-testid="result-row" className="tg-result-row">
-                  <span>Round {entry.roundNumber}</span><span><strong>{entry.score} pts</strong> · {entry.distanceKm} km</span>
+                  <span>Round {entry.roundNumber}</span><span><strong>{entry.score} pts</strong> · {entry.distanceKm.toLocaleString(undefined, { maximumFractionDigits: 1 })} km</span>
                 </li>
               ))}
             </ol>
-            <button type="button" onClick={handlePlayAgain} data-testid="play-again" className="tg-button tg-button-primary">↻ &nbsp; Play again</button>
+            <div className="tg-results-actions tg-mt-6">
+              <button type="button" onClick={() => void startGame(selection, configuredRoundsTotal, configuredGeography, configuredCandidateCount, configuredAttemptsPerRound, configuredUnlockMode, configuredUnlockCost)} data-testid="play-again" className="tg-button tg-button-primary">↻ &nbsp; Play again</button>
+              <button type="button" onClick={handlePlayAgain} data-testid="return-home" className="tg-button tg-button-secondary">Return home</button>
+            </div>
             {round && lastResult ? (
               <ChallengePanel roundId={round.roundId} resultId={lastResult.resultId} />
             ) : null}
