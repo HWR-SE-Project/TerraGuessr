@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useState } from 'react';
 import type { FormEvent } from 'react';
-import type { LatLon } from '../../api/types';
+import type { LatLon, RoundDTO } from '../../api/types';
 import { WeatherPanel } from '../../components/WeatherPanel';
 import { CandidateList } from '../list/CandidateList';
 import { MapPicker } from '../map/MapPicker';
@@ -23,12 +23,15 @@ export function RoundScreen({ dataSource, gameId, onAttemptChange }: RoundScreen
   const [state, dispatch] = useReducer(roundReducer, createInitialRoundState());
   const [guess, setGuess] = useState<LatLon | null>(null);
   const [attemptFeedback, setAttemptFeedback] = useState<RoundAttemptDTO | null>(null);
+  const [additionalDataRound, setAdditionalDataRound] = useState<RoundDTO | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     dispatch({ type: 'round/loadStarted' });
     void dataSource.startRound(effectiveGameId ?? '').then((round) => {
-      if (!cancelled) dispatch({ type: 'round/loaded', round });
+      if (!cancelled) { dispatch({ type: 'round/loaded', round }); setAdditionalDataRound(round); }
       if (!cancelled) onAttemptChange?.(1, round.attemptsTotal);
     }).catch((cause: unknown) => {
       if (!cancelled) dispatch({
@@ -38,6 +41,14 @@ export function RoundScreen({ dataSource, gameId, onAttemptChange }: RoundScreen
     });
     return () => { cancelled = true; };
   }, [dataSource, effectiveGameId, onAttemptChange]);
+
+  async function unlockAdditionalData(): Promise<void> {
+    if (!state.round || !dataSource.unlockAdditionalData || unlocking) return;
+    setUnlocking(true); setUnlockError(null);
+    try { setAdditionalDataRound(await dataSource.unlockAdditionalData(state.round.roundId)); }
+    catch (cause) { setUnlockError(cause instanceof Error ? cause.message : 'Could not unlock additional clues.'); }
+    finally { setUnlocking(false); }
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -86,7 +97,7 @@ export function RoundScreen({ dataSource, gameId, onAttemptChange }: RoundScreen
     <div className="tg-game-stage" data-testid="round-screen">
       <h2 className="tg-sr-only">Round {state.round.roundNumber}</h2>
       <div className="tg-panorama" aria-hidden="true" />
-      <WeatherPanel weather={state.round.weather} />
+      <WeatherPanel weather={additionalDataRound?.weather ?? state.round.weather} access={additionalDataRound?.additionalData ?? state.round.additionalData} unlocking={unlocking} unlockError={unlockError} onUnlock={() => void unlockAdditionalData()} />
       {revealed && state.result ? (
         <div className="tg-game-area">
           <RevealView result={state.result} />
@@ -95,9 +106,9 @@ export function RoundScreen({ dataSource, gameId, onAttemptChange }: RoundScreen
         <div className="tg-game-area">
           <section className="tg-selection-panel tg-attempt-result" aria-live="polite" data-testid="attempt-result">
             <div className="tg-eyebrow">Attempt {attemptFeedback.attemptNumber} of {attemptFeedback.attemptsTotal}</div>
-            <h2>{attemptFeedback.score.toLocaleString()} pts</h2>
-            <p>Distance: {attemptFeedback.distanceKm.toLocaleString(undefined, { maximumFractionDigits: 1 })} km</p>
-            <p className="tg-muted">The location stays hidden until you finish this round.</p>
+            <h2 className="tg-heading-md">{attemptFeedback.score.toLocaleString()} pts</h2>
+            <p className="tg-mt-2">Distance: {attemptFeedback.distanceKm.toLocaleString(undefined, { maximumFractionDigits: 1 })} km</p>
+            <p className="tg-muted tg-mt-1">The location stays hidden until you finish this round.</p>
             <div className="tg-hero-cta">
               {attemptFeedback.attemptsRemaining > 0 ? <button type="button" className="tg-button tg-button-primary" data-testid="next-attempt" onClick={() => { const next = attemptFeedback.attemptNumber + 1; onAttemptChange?.(next, attemptFeedback.attemptsTotal); setAttemptFeedback(null); }}>Next attempt</button> : null}
               <button type="button" className="tg-button tg-button-secondary" data-testid="finish-round" disabled={state.status === 'submitting'} onClick={() => void finishRound()}>{state.status === 'submitting' ? 'Finishing…' : 'Finish round'}</button>

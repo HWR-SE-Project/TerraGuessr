@@ -11,7 +11,7 @@ import {
   createStubGameDataSource,
 } from './api/gameDataSource';
 import type { CreateGameResponse, GameDataSource } from './api/gameDataSource';
-import type { GameResultsDTO, GuessResultDTO, RoundDTO, SelectionMode } from './api/types';
+import type { AdditionalDataUnlockMode, GameResultsDTO, GuessResultDTO, RoundDTO, SelectionMode } from './api/types';
 import { ChallengeJoinFlow, ChallengePanel } from './features/challenge';
 import { DEFAULT_DIFFICULTY, DifficultyPicker, normalizeSelection } from './features/difficulty';
 import type { DifficultySelection } from './features/difficulty';
@@ -97,6 +97,8 @@ function AppShell({ dataSource }: AppShellProps) {
   const [attemptProgress, setAttemptProgress] = useState({ current: 1, total: 1 });
   const [configuredGeography, setConfiguredGeography] = useState<'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA'>('world');
   const [configuredCandidateCount, setConfiguredCandidateCount] = useState<number | undefined>();
+  const [configuredUnlockMode, setConfiguredUnlockMode] = useState<AdditionalDataUnlockMode>('immediate');
+  const [configuredUnlockCost, setConfiguredUnlockCost] = useState(500);
   const [dailyMode, setDailyMode] = useState(false);
   const [dailyDate, setDailyDate] = useState<string | null>(null);
   const [dailyLeaderboard, setDailyLeaderboard] = useState<{ entries: Array<{ rank: number; displayName: string; score: number; distanceKm: number }>; myRank: number | null } | null>(null);
@@ -111,8 +113,8 @@ function AppShell({ dataSource }: AppShellProps) {
   }, [resetToken]);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
   const copy = language === 'de'
-    ? { help: 'Hilfe', settings: 'Einstellungen', profile: 'Profil', statistics: 'Statistik', leaderboard: 'Bestenliste', signIn: 'Anmelden', signOut: 'Abmelden', welcome: 'Willkommen zurück', dashboard: 'Wähle dein nächstes Abenteuer', solo: 'Solo-Expedition', soloCopy: 'Lies das Wetter, setze deinen Tipp und finde in fünf Runden heraus, wie nah du liegst.', create: 'Solo-Spiel starten', preparing: 'Wird vorbereitet…', homeEyebrow: 'Eine Welt voller Hinweise, ein guter Tipp', homeTitleA: 'Lies den Himmel.', homeTitleB: 'Finde den Ort.', homeCopy: 'Jede Runde beginnt an einem anderen Ort der Erde. Untersuche das Wetter, vertraue deinem Gefühl und setze deine Markierung.', start: 'Solo-Expedition starten', learn: 'Hinweise kennenlernen' }
-    : { help: 'Help', settings: 'Settings', profile: 'Profile', statistics: 'Statistics', leaderboard: 'Leaderboard', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeEyebrow: 'A world of clues, one great guess', homeTitleA: 'Read the sky.', homeTitleB: 'Find the place.', homeCopy: 'Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', learn: 'Learn the signals' };
+    ? { help: 'Hilfe', settings: 'Einstellungen', profile: 'Profil', statistics: 'Statistik', leaderboard: 'Bestenliste', signIn: 'Anmelden', signOut: 'Abmelden', welcome: 'Willkommen zurück', dashboard: 'Wähle dein nächstes Abenteuer', solo: 'Solo-Expedition', soloCopy: 'Lies das Wetter, setze deinen Tipp und finde in fünf Runden heraus, wie nah du liegst.', create: 'Solo-Spiel starten', preparing: 'Wird vorbereitet…', homeEyebrow: 'Eine Welt voller Hinweise, ein guter Tipp', homeTitleA: 'Lies den Himmel.', homeTitleB: 'Finde den Ort.', homeCopy: 'Jede Runde beginnt an einem anderen Ort der Erde. Untersuche das Wetter, vertraue deinem Gefühl und setze deine Markierung.', start: 'Solo-Expedition starten', startHover: 'Bereit zum Abheben!', learn: 'Hinweise kennenlernen' }
+    : { help: 'Help', settings: 'Settings', profile: 'Profile', statistics: 'Statistics', leaderboard: 'Leaderboard', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeEyebrow: 'A world of clues, one great guess', homeTitleA: 'Read the sky.', homeTitleB: 'Find the place.', homeCopy: 'Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', startHover: 'Taking off!', learn: 'Learn the signals' };
 
   const busy = status === 'loading';
   const handleAttemptChange = useCallback((current: number, total: number) => setAttemptProgress({ current, total }), []);
@@ -147,12 +149,14 @@ function AppShell({ dataSource }: AppShellProps) {
       setConfiguredAttemptsPerRound(1);
       setConfiguredGeography('world');
       setConfiguredCandidateCount(undefined);
+      setConfiguredUnlockMode('immediate');
+      setConfiguredUnlockCost(500);
     } catch (cause) {
       setError(friendlyErrorMessage(cause));
     }
   }
 
-  async function startGame(nextSelection: DifficultySelection, roundsTotal = ROUNDS_PER_GAME, geography = configuredGeography, candidateCount = configuredCandidateCount, attemptsPerRound = configuredAttemptsPerRound): Promise<void> {
+  async function startGame(nextSelection: DifficultySelection, roundsTotal = ROUNDS_PER_GAME, geography = configuredGeography, candidateCount = configuredCandidateCount, attemptsPerRound = configuredAttemptsPerRound, unlockMode = configuredUnlockMode, unlockCost = configuredUnlockCost): Promise<void> {
     if (busy) {
       return;
     }
@@ -161,6 +165,8 @@ function AppShell({ dataSource }: AppShellProps) {
     setConfiguredAttemptsPerRound(attemptsPerRound);
     setConfiguredGeography(geography);
     setConfiguredCandidateCount(candidateCount);
+    setConfiguredUnlockMode(unlockMode);
+    setConfiguredUnlockCost(unlockCost);
     setStatus('loading');
     setError(null);
     setRound(null);
@@ -172,7 +178,7 @@ function AppShell({ dataSource }: AppShellProps) {
     try {
       let created: CreateGameResponse;
       try {
-        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty, roundsTotal, geography, ...(candidateCount !== undefined ? { candidateCount } : {}), attemptsPerRound });
+        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty, roundsTotal, geography, ...(candidateCount !== undefined ? { candidateCount } : {}), attemptsPerRound, additionalDataUnlockMode: unlockMode, ...(unlockMode !== 'immediate' ? { additionalDataUnlockCost: unlockCost } : {}) });
       } catch (cause) {
         // Dev fallback: with no backend running the UI must still be playable.
         if (isNetworkError(cause) && import.meta.env.DEV) {
@@ -186,6 +192,8 @@ function AppShell({ dataSource }: AppShellProps) {
             geography,
             ...(candidateCount !== undefined ? { candidateCount } : {}),
             attemptsPerRound,
+            additionalDataUnlockMode: unlockMode,
+            ...(unlockMode !== 'immediate' ? { additionalDataUnlockCost: unlockCost } : {}),
           });
         } else {
           throw cause;
@@ -267,7 +275,7 @@ function AppShell({ dataSource }: AppShellProps) {
 
   function handleRetry(): void {
     if (phase === 'home') {
-      void startGame(selection, configuredRoundsTotal, configuredGeography, configuredCandidateCount);
+      void startGame(selection, configuredRoundsTotal, configuredGeography, configuredCandidateCount, configuredAttemptsPerRound, configuredUnlockMode, configuredUnlockCost);
       return;
     }
     // A failed results fetch happens after the final round was revealed.
@@ -331,6 +339,9 @@ function AppShell({ dataSource }: AppShellProps) {
         setRevealed(result);
         return result;
       },
+      async unlockAdditionalData(roundId) {
+        return apiFetch<RoundDTO>(`/rounds/${encodeURIComponent(roundId)}/intelligence/unlock`, { method: 'POST' });
+      },
     };
   }, [round, source, dailyMode, dailyDate]);
 
@@ -385,12 +396,12 @@ function AppShell({ dataSource }: AppShellProps) {
             data-testid="error-banner"
             className="tg-error"
           >
-            <p style={{ margin: '0 0 8px' }}>{error}</p>
+            <p className="tg-mb-2">{error}</p>
               <button type="button" className="tg-button tg-button-secondary" onClick={handleRetry}>
               Try again
             </button>
             {phase !== 'home' ? (
-              <button type="button" className="tg-button tg-button-quiet" onClick={handlePlayAgain} style={{ marginLeft: '8px' }}>
+              <button type="button" className="tg-button tg-button-quiet tg-ml-2" onClick={handlePlayAgain}>
                 Back to home
               </button>
             ) : null}
@@ -404,7 +415,7 @@ function AppShell({ dataSource }: AppShellProps) {
         {phase === 'home' && (accountPage === 'statistics' || accountPage === 'leaderboard') ? <PlayerPages page={accountPage} language={language} onBack={() => setAccountPage(null)} /> : null}
 
         {phase === 'home' && authUser && !accountPage && gameSetupOpen ? (
-          <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} initialAttemptsPerRound={configuredAttemptsPerRound} initialGeography={configuredGeography} initialCandidateCount={configuredCandidateCount} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count, geography, candidateCount, attempts) => { setGameSetupOpen(false); void startGame(chosen, count, geography, candidateCount, attempts); }} />
+          <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} initialAttemptsPerRound={configuredAttemptsPerRound} initialGeography={configuredGeography} initialCandidateCount={configuredCandidateCount} initialAdditionalDataUnlockMode={configuredUnlockMode} initialAdditionalDataUnlockCost={configuredUnlockCost} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count, geography, candidateCount, attempts, unlockMode, unlockCost) => { setGameSetupOpen(false); void startGame(chosen, count, geography, candidateCount, attempts, unlockMode, unlockCost); }} />
         ) : null}
 
         {phase === 'home' && authUser && !accountPage && !gameSetupOpen ? (
@@ -432,14 +443,25 @@ function AppShell({ dataSource }: AppShellProps) {
                 onClick={() => void startGame(selection)}
                 disabled={busy}
                 data-testid="start-game"
-                className="tg-button tg-button-primary"
+                aria-label={busy ? copy.preparing : copy.start}
+                className="tg-button tg-button-primary tg-fly-button"
               >
-                {busy ? copy.preparing : `◉  ${copy.start}`}
+                {busy ? (
+                  copy.preparing
+                ) : (
+                  <>
+                    <span className="tg-fly-plane" aria-hidden="true">✈</span>
+                    <span className="tg-fly-text" aria-hidden="true">
+                      <span className="tg-fly-text-a">{copy.start}</span>
+                      <span className="tg-fly-text-b">{copy.startHover}</span>
+                    </span>
+                  </>
+                )}
               </button>
                 <button type="button" onClick={() => setTutorialOpen(true)} data-testid="hero-tutorial" className="tg-button tg-button-quiet">{copy.learn}</button>
               </div>
-              <div style={{ marginTop: 30 }}>
-                <div className="tg-eyebrow" style={{ marginBottom: 10 }}>Choose your challenge</div>
+              <div className="tg-mt-6">
+                <div className="tg-eyebrow tg-mb-3">Choose your challenge</div>
                 <DifficultyPicker value={selection} onChange={setSelection} disabled={busy} />
               </div>
             </div>
@@ -457,50 +479,48 @@ function AppShell({ dataSource }: AppShellProps) {
             <div className="tg-game-top">
               <div className="tg-game-stats">
                 <div className="tg-stat"><span className="tg-stat-label">Round</span><span className="tg-stat-value">{round?.roundNumber ?? '-'} <span className="tg-muted">/ {activeRoundsTotal}</span></span></div>
-                <div className="tg-stat"><span className="tg-stat-label">Difficulty</span><span className="tg-stat-value" style={{ textTransform: 'capitalize' }}>{state.difficulty}</span></div>
+                <div className="tg-stat"><span className="tg-stat-label">Difficulty</span><span className="tg-stat-value tg-capitalize">{state.difficulty}</span></div>
                 {round && round.attemptsTotal > 1 ? <div className="tg-stat"><span className="tg-stat-label">Attempt</span><span className="tg-stat-value">{attemptProgress.current} <span className="tg-muted">/ {attemptProgress.total}</span></span></div> : null}
                 <div className="tg-stat"><span className="tg-stat-label">Score</span><span className="tg-stat-value mono">{revealed?.score ?? '—'}</span></div>
               </div>
-              <span className="tg-chip"><span className="tg-dot" />{round?.selectionMode === 'list' ? 'Choice mode' : 'Map mode'}</span>
+              <div className="tg-game-top-actions">
+                <span className="tg-chip"><span className="tg-dot" />{round?.selectionMode === 'list' ? 'Choice mode' : 'Map mode'}</span>
+                {revealed ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleAdvance()}
+                    disabled={busy}
+                    data-testid="advance"
+                    className="tg-button tg-button-secondary"
+                  >
+                    {isFinalRound ? 'See final results' : 'Next round'}
+                  </button>
+                ) : null}
+              </div>
             </div>
             {busy && !round ? <p role="status">Loading round...</p> : null}
             {round && roundSource ? (
-              <>
-                <RoundScreen
-                  key={round.roundId}
-                  dataSource={roundSource}
-                  gameId={activeGameId ?? undefined}
-                  onAttemptChange={handleAttemptChange}
-                />
-                {dailyMode && revealed ? <section className="tg-panel" aria-label="Daily leaderboard" style={{ margin: '14px 0 80px', padding: 20 }}><div className="tg-eyebrow">{dailyDate} · UTC daily leaderboard</div><h2 style={{ marginTop: 8 }}>Your placement: {dailyLeaderboard?.myRank ? `#${dailyLeaderboard.myRank}` : '—'}</h2><ol>{dailyLeaderboard?.entries.map((entry) => <li key={entry.rank}>{entry.rank}. {entry.displayName} · {entry.score} pts · {entry.distanceKm.toFixed(1)} km</li>)}</ol></section> : null}
-                {revealed ? (
-                  <p style={{ position: 'absolute', top: 82, right: 24, zIndex: 10, margin: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => void handleAdvance()}
-                      disabled={busy}
-                      data-testid="advance"
-                      className="tg-button tg-button-secondary"
-                    >
-                      {isFinalRound ? 'See final results' : 'Next round'}
-                    </button>
-                  </p>
-                ) : null}
-              </>
+              <RoundScreen
+                key={round.roundId}
+                dataSource={roundSource}
+                gameId={activeGameId ?? undefined}
+                onAttemptChange={handleAttemptChange}
+              />
             ) : null}
+            {dailyMode && revealed ? <section className="tg-panel tg-daily-leaderboard-panel" aria-label="Daily leaderboard"><div className="tg-eyebrow">{dailyDate} · UTC daily leaderboard</div><h2 className="tg-mt-2">Your placement: {dailyLeaderboard?.myRank ? `#${dailyLeaderboard.myRank}` : '—'}</h2><ol>{dailyLeaderboard?.entries.map((entry) => <li key={entry.rank}>{entry.rank}. {entry.displayName} · {entry.score} pts · {entry.distanceKm.toFixed(1)} km</li>)}</ol></section> : null}
           </section>
         ) : null}
 
         {phase === 'results' && results ? (
           <section aria-labelledby="results-heading" data-testid="results-view" className="tg-panel tg-results">
             <div className="tg-eyebrow">Expedition complete</div>
-            <h2 id="results-heading" style={{ margin: '8px 0', fontSize: 38, letterSpacing: '-.06em' }}>Your journey</h2>
+            <h2 id="results-heading" className="tg-heading-lg">Your journey</h2>
             <p className="tg-muted">Total score</p>
-            <p className="tg-result-score"><strong data-testid="total-score">{results.totalScore}</strong><span style={{ fontSize: 15, color: 'var(--tg-muted)', letterSpacing: 0 }}> pts</span></p>
+            <p className="tg-result-score"><strong data-testid="total-score">{results.totalScore}</strong><span className="tg-result-score-suffix"> pts</span></p>
             <ol data-testid="result-list">
               {results.results.map((entry) => (
                 <li key={entry.resultId} data-testid="result-row" className="tg-result-row">
-                  <span>Round {entry.roundNumber}</span><span><strong style={{ color: 'var(--tg-text)' }}>{entry.score} pts</strong> · {entry.distanceKm} km</span>
+                  <span>Round {entry.roundNumber}</span><span><strong>{entry.score} pts</strong> · {entry.distanceKm} km</span>
                 </li>
               ))}
             </ol>

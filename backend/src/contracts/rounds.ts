@@ -16,6 +16,7 @@ const Difficulty = Type.Union([
   Type.Literal('medium'),
   Type.Literal('hard'),
 ]);
+const AdditionalDataUnlockMode = Type.Union([Type.Literal('immediate'), Type.Literal('time'), Type.Literal('points')]);
 
 /** Weather DTO (R03/R06) — exactly these four fields, always present. */
 export const WeatherView = Type.Object({
@@ -28,6 +29,13 @@ export const WeatherView = Type.Object({
   uvIndex: Type.Union([Type.Number(), Type.Null()]),
   sunshineDurationSeconds: Type.Union([Type.Number(), Type.Null()]),
   localTime: Type.Union([Type.String(), Type.Null()]),
+});
+
+export const AdditionalDataAccess = Type.Object({
+  mode: AdditionalDataUnlockMode,
+  cost: Type.Union([Type.Integer(), Type.Null()]),
+  availableAt: Type.Union([Type.String(), Type.Null()]),
+  unlocked: Type.Boolean(),
 });
 
 /**
@@ -55,6 +63,7 @@ export const RoundView = Type.Object({
   difficulty: Difficulty,
   selectionMode: SelectionMode,
   weather: WeatherView,
+  additionalData: AdditionalDataAccess,
   candidates: Type.Optional(Type.Array(CandidateView)),
 });
 
@@ -67,4 +76,5 @@ export type SelectionMode = Static<typeof SelectionMode>;
 export type Difficulty = Static<typeof Difficulty>;
 export type StartRoundBody = Static<typeof StartRoundBody>;
 export type RoundView = Static<typeof RoundView>;
+export type AdditionalDataAccess = Static<typeof AdditionalDataAccess>;
 export type RoundIdParams = Static<typeof RoundIdParams>;

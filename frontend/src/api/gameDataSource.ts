@@ -12,6 +12,7 @@ import type {
   RoundDTO,
   SelectionMode,
   WeatherDTO,
+  AdditionalDataUnlockMode,
 } from './types';
 
 /** ADR-0008: solo games always have exactly this many rounds. */
@@ -24,6 +25,8 @@ export interface CreateGameInput {
   geography?: 'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA';
   candidateCount?: number;
   attemptsPerRound?: number;
+  additionalDataUnlockMode?: AdditionalDataUnlockMode;
+  additionalDataUnlockCost?: number;
 }
 
 /** POST /api/games 201 response — playerToken is issued exactly once (ADR-0011). */
@@ -32,6 +35,8 @@ export interface CreateGameResponse {
   playerToken: string;
   roundsTotal: number;
   attemptsPerRound: number;
+  additionalDataUnlockMode: AdditionalDataUnlockMode;
+  additionalDataUnlockCost: number | null;
 }
 
 /** Server I/O seam for the whole solo loop; tests inject a deterministic stub. */
@@ -136,7 +141,7 @@ export function createStubGameDataSource(): GameDataSource {
       roundsStarted = 0;
       results.length = 0;
       roundsTotal = input.roundsTotal ?? ROUNDS_PER_GAME;
-      return { gameId: STUB_GAME_ID, playerToken: STUB_PLAYER_TOKEN, roundsTotal, attemptsPerRound: input.attemptsPerRound ?? 1 };
+      return { gameId: STUB_GAME_ID, playerToken: STUB_PLAYER_TOKEN, roundsTotal, attemptsPerRound: input.attemptsPerRound ?? 1, additionalDataUnlockMode: input.additionalDataUnlockMode ?? 'immediate', additionalDataUnlockCost: input.additionalDataUnlockMode === 'immediate' || !input.additionalDataUnlockMode ? null : input.additionalDataUnlockCost ?? (input.additionalDataUnlockMode === 'time' ? 30 : 500) };
     },
 
     async startRound(_gameId, selectionMode = 'list') {
@@ -152,6 +157,7 @@ export function createStubGameDataSource(): GameDataSource {
         difficulty: 'easy',
         selectionMode,
         weather,
+        additionalData: { mode: 'immediate', cost: null, availableAt: null, unlocked: true },
       };
       if (selectionMode === 'list') {
         round.candidates = STUB_CANDIDATES.map((candidate) => ({ ...candidate }));

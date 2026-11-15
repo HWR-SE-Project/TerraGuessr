@@ -1,4 +1,5 @@
-import type { WeatherDTO } from '../api/types';
+import { useEffect, useState } from 'react';
+import type { AdditionalDataAccessDTO, WeatherDTO } from '../api/types';
 
 // R15 — exactly these four fields, always in this fixed order, with fixed labels
 // and units. The order/labels/units never change between renders.
@@ -18,9 +19,20 @@ const SKY_FIELDS = [
 
 export interface WeatherPanelProps {
   weather: WeatherDTO;
+  access?: AdditionalDataAccessDTO;
+  unlocking?: boolean;
+  unlockError?: string | null;
+  onUnlock?: () => void;
 }
 
-export function WeatherPanel({ weather }: WeatherPanelProps) {
+export function WeatherPanel({ weather, access = { mode: 'immediate', cost: null, availableAt: null, unlocked: true }, unlocking = false, unlockError, onUnlock }: WeatherPanelProps) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (access.mode !== 'time' || access.unlocked || !access.availableAt) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(interval);
+  }, [access.mode, access.unlocked, access.availableAt]);
+  const secondsLeft = access.mode === 'time' && access.availableAt ? Math.max(0, Math.ceil((new Date(access.availableAt).getTime() - now) / 1000)) : 0;
   return (
     <section aria-labelledby="weather-heading" data-testid="weather-panel" className="tg-hud">
       <div className="tg-eyebrow">Field intelligence</div>
@@ -30,12 +42,17 @@ export function WeatherPanel({ weather }: WeatherPanelProps) {
         {WEATHER_FIELDS.map(({ key, label, unit }) => (
           <div key={key} className="tg-weather-cell">
             <dt className="tg-weather-label" data-icon={key === 'temperatureC' ? '☼' : key === 'precipitationMm' ? '⌁' : key === 'humidityPct' ? '◌' : '↗'}>{label}</dt>
-            <dd className="tg-weather-value" style={{ margin: 0 }}>{weather[key] == null ? '—' : `${weather[key]}${unit}`}</dd>
+            <dd className="tg-weather-value">{weather[key] == null ? '—' : `${weather[key]}${unit}`}</dd>
           </div>
         ))}
       </dl>
       <details className="tg-weather-extra">
         <summary>Sun &amp; local time</summary>
+        {!access.unlocked ? <div className="tg-weather-lock">
+          <p>{access.mode === 'time' ? `Additional clues unlock in ${secondsLeft}s.` : `Unlock for ${access.cost?.toLocaleString() ?? 0} points. The cost is deducted from this round’s score.`}</p>
+          <button type="button" className="tg-button tg-button-secondary" disabled={unlocking || secondsLeft > 0 || !onUnlock} onClick={onUnlock}>{unlocking ? 'Unlocking…' : access.mode === 'time' && secondsLeft > 0 ? `Available in ${secondsLeft}s` : access.mode === 'points' ? `Unlock · −${access.cost?.toLocaleString() ?? 0} pts` : 'Unlock clues'}</button>
+          {unlockError ? <p role="alert" className="tg-error">{unlockError}</p> : null}
+        </div> : null}
         <dl className="tg-weather-grid tg-weather-extra-grid">
           {SKY_FIELDS.map(({ key, label }) => {
             const value = weather[key];
@@ -44,7 +61,7 @@ export function WeatherPanel({ weather }: WeatherPanelProps) {
               : key === 'uvIndex' ? Number(value).toFixed(1)
                 : key === 'localTime' ? (String(value).match(/T(\d{2}:\d{2})/)?.[1] ?? String(value))
                   : String(value);
-            return <div key={key} className="tg-weather-cell"><dt className="tg-weather-label">{label}</dt><dd className="tg-weather-value" style={{ margin: 0 }}>{formatted}</dd></div>;
+            return <div key={key} className="tg-weather-cell"><dt className="tg-weather-label">{label}</dt><dd className="tg-weather-value">{formatted}</dd></div>;
           })}
         </dl>
       </details>

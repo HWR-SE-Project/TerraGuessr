@@ -305,6 +305,13 @@ export async function startRound(
     ));
 
   const roundNumber = game.rounds.length + 1;
+  const startedAt = new Date();
+  const unlockMode = game.additionalDataUnlockMode ?? 'immediate';
+  const unlockCost = game.additionalDataUnlockCost;
+  const additionalDataAvailableAt = unlockMode === 'time' && unlockCost !== null
+    ? new Date(startedAt.getTime() + unlockCost * 1000)
+    : null;
+  const immediatelyUnlocked = unlockMode === 'immediate';
   const round = await db.round.create({
     data: {
       gameId,
@@ -314,6 +321,9 @@ export async function startRound(
       difficulty: game.difficulty,
       selectionMode: selection.selectionMode,
       status: 'active',
+      startedAt,
+      additionalDataAvailableAt,
+      additionalDataUnlockedAt: immediatelyUnlocked ? startedAt : null,
     },
   });
 
@@ -329,6 +339,7 @@ export async function startRound(
       attemptsTotal: game.attemptsPerRound ?? 1,
       difficulty: game.difficulty,
       selectionMode: selection.selectionMode,
+      additionalData: { mode: unlockMode, cost: unlockCost, availableAt: additionalDataAvailableAt?.toISOString() ?? null, unlocked: immediatelyUnlocked },
     },
     weather: {
       temperatureC: snapshot.temperatureC,
@@ -456,6 +467,12 @@ export async function getRoundView(
       attemptsTotal: round.game.attemptsPerRound,
       difficulty: round.difficulty,
       selectionMode,
+      additionalData: {
+        mode: round.game.additionalDataUnlockMode,
+        cost: round.game.additionalDataUnlockCost,
+        availableAt: round.additionalDataAvailableAt?.toISOString() ?? null,
+        unlocked: round.game.additionalDataUnlockMode === 'immediate' || round.additionalDataUnlockedAt !== null,
+      },
     },
     weather: {
       temperatureC: round.weatherSnapshot.temperatureC,

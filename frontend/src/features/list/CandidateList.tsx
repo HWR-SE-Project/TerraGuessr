@@ -42,8 +42,8 @@ export function CandidateList({ candidates, onChange, selectedId = null }: Candi
   return (
     <section aria-labelledby={headingId} data-testid="candidate-list">
       <div className="tg-eyebrow">Choose your hypothesis</div>
-      <h2 id={headingId} style={{ margin: '6px 0 0', fontSize: 24, letterSpacing: '-.04em' }}>Which region matches?</h2>
-      <p className="tg-muted" style={{ margin: '7px 0 0', fontSize: 13 }}>Compare the conditions, then select the most likely sector.</p>
+      <h2 id={headingId} className="tg-heading-md">Which region matches?</h2>
+      <p className="tg-muted tg-lead">Compare the conditions, then select the most likely sector.</p>
       <ul className="tg-candidate-list">
         {candidates.map((candidate, index) => {
           const selected = candidate.id === selectedId;

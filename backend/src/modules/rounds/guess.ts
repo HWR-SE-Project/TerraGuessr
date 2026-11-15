@@ -48,6 +48,7 @@ export async function submitGuess(
     include: {
       location: { select: { lat: true, lon: true } },
       guess: true,
+      additionalDataPointsSpent: true,
       game: { select: { id: true, mode: true, roundsTotal: true, attemptsPerRound: true } },
     },
   });
@@ -68,7 +69,8 @@ export async function submitGuess(
 
   const actual = { lat: round.location.lat, lon: round.location.lon };
   const distanceKm = haversineKm(guess, actual);
-  const score = scoreForDistance(distanceKm);
+  const grossScore = scoreForDistance(distanceKm);
+  const score = Math.max(0, grossScore - round.additionalDataPointsSpent);
   const completedAt = new Date();
   const isFinalRound = round.roundNumber === roundCap(round.game.mode, round.game.roundsTotal);
 

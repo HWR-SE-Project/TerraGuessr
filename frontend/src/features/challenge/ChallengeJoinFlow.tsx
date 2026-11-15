@@ -92,12 +92,12 @@ export function ChallengeJoinFlow({
   }, [round, dataSource]);
 
   if (status === 'joining') {
-    return <p role="status">Joining challenge...</p>;
+    return <p role="status" className="tg-challenge-join-page">Joining challenge...</p>;
   }
 
   if (status === 'error') {
     return (
-      <div role="alert" data-testid="error-banner">
+      <div role="alert" data-testid="error-banner" className="tg-error tg-challenge-join-page">
         <p>{error}</p>
       </div>
     );
@@ -109,16 +109,18 @@ export function ChallengeJoinFlow({
 
   return (
     <section aria-labelledby="challenge-join-heading" data-testid="challenge-join-flow">
-      <h2 id="challenge-join-heading" style={{ marginTop: 0 }}>
+      <h2 id="challenge-join-heading" className="tg-sr-only">
         Challenge round
       </h2>
       <RoundScreen dataSource={roundSource} gameId={gameId ?? undefined} />
       {revealed ? (
-        <ChallengePanel
-          initialChallengeId={challengeId}
-          resultId={revealed.resultId}
-          dataSource={dataSource}
-        />
+        <div className="tg-challenge-join-page">
+          <ChallengePanel
+            initialChallengeId={challengeId}
+            resultId={revealed.resultId}
+            dataSource={dataSource}
+          />
+        </div>
       ) : null}
     </section>
   );

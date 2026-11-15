@@ -19,6 +19,10 @@ import type {
   GameSummary,
 } from '../../contracts/games.js';
 
+export class GameRulesValidationError extends Error {
+  readonly statusCode = 400;
+}
+
 /**
  * Create a game with the given mode/difficulty and return the raw player token
  * exactly once. The database stores only `playerTokenHash = sha256(raw)`.
@@ -32,20 +36,26 @@ export async function createGame(
   geography: 'world' | Region = 'world',
   candidateCount?: number,
   attemptsPerRound = 1,
+  additionalDataUnlockMode: 'immediate' | 'time' | 'points' = 'immediate',
+  additionalDataUnlockCost?: number,
 ): Promise<CreateGameResponse> {
   // Async challenges have one shared location by product rule; only solo
   // sessions accept the configurable 1–20 round count.
   const appliedRoundsTotal = mode === 'solo' ? roundsTotal : 1;
   const geoRegion = mode === 'solo' && geography !== 'world' ? geography : null;
   const appliedCandidateCount = mode === 'solo' ? candidateCount : undefined;
+  const appliedUnlockMode = mode === 'solo' ? additionalDataUnlockMode : 'immediate';
+  const appliedUnlockCost = appliedUnlockMode === 'immediate' ? null : additionalDataUnlockCost ?? (appliedUnlockMode === 'time' ? 30 : 500);
+  if (appliedUnlockMode === 'time' && (appliedUnlockCost < 10 || appliedUnlockCost > 60)) throw new GameRulesValidationError('Time unlock cost must be between 10 and 60 seconds');
+  if (appliedUnlockMode === 'points' && (appliedUnlockCost < 100 || appliedUnlockCost > 4000)) throw new GameRulesValidationError('Points unlock cost must be between 100 and 4000');
   const playerToken = generatePlayerToken();
   const playerTokenHash = hashPlayerToken(playerToken);
 
   const game = await db.game.create({
-    data: { mode, difficulty, playerTokenHash, ownerUserId, roundsTotal: appliedRoundsTotal, attemptsPerRound: mode === 'solo' ? attemptsPerRound : 1, geoRegion, candidateCount: appliedCandidateCount },
+    data: { mode, difficulty, playerTokenHash, ownerUserId, roundsTotal: appliedRoundsTotal, attemptsPerRound: mode === 'solo' ? attemptsPerRound : 1, geoRegion, candidateCount: appliedCandidateCount, additionalDataUnlockMode: appliedUnlockMode, additionalDataUnlockCost: appliedUnlockCost },
   });
 
-  return { gameId: game.id, playerToken, roundsTotal: game.roundsTotal ?? appliedRoundsTotal, attemptsPerRound: game.attemptsPerRound ?? 1 };
+  return { gameId: game.id, playerToken, roundsTotal: game.roundsTotal ?? appliedRoundsTotal, attemptsPerRound: game.attemptsPerRound ?? 1, additionalDataUnlockMode: game.additionalDataUnlockMode, additionalDataUnlockCost: game.additionalDataUnlockCost };
 }
 
 /**

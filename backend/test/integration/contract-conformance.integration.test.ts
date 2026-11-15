@@ -100,7 +100,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
     return res.json() as { gameId: string; playerToken: string };
   }
 
-  it('POST /api/games -> 201 { gameId, playerToken, roundsTotal, attemptsPerRound }', async () => {
+  it('POST /api/games -> 201 includes authoritative custom unlock rules', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/games',
@@ -108,7 +108,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
     });
     expect(res.statusCode).toBe(201);
     const body = res.json() as Record<string, unknown>;
-    expectExactKeys(body, ['gameId', 'playerToken', 'roundsTotal', 'attemptsPerRound']);
+    expectExactKeys(body, ['gameId', 'playerToken', 'roundsTotal', 'attemptsPerRound', 'additionalDataUnlockMode', 'additionalDataUnlockCost']);
     expect(typeof body.gameId).toBe('string');
     expect(typeof body.playerToken).toBe('string');
     expect(body.roundsTotal).toBe(5);

@@ -22,6 +22,12 @@ enum GameMode {
   challenge
 }
 
+enum AdditionalDataUnlockMode {
+  immediate
+  time
+  points
+}
+
 enum Difficulty {
   easy
   medium
@@ -171,6 +177,8 @@ model Game {
   attemptsPerRound      Int        @default(1)
   geoRegion             Region?
   candidateCount        Int?
+  additionalDataUnlockMode AdditionalDataUnlockMode @default(immediate)
+  additionalDataUnlockCost Int?
   playerTokenHash       String // sha256(rawToken), ADR-0011
   nextLocationId        String? // prefetched next round (R12)
   nextWeatherSnapshotId String?
@@ -196,6 +204,9 @@ model Round {
   selectionMode     String // 'map' | 'list'
   status            RoundStatus     @default(active)
   startedAt         DateTime        @default(now())
+  additionalDataAvailableAt DateTime?
+  additionalDataUnlockedAt DateTime?
+  additionalDataPointsSpent Int @default(0)
   completedAt       DateTime?
   guess             Guess?
   attempts          RoundAttempt[]

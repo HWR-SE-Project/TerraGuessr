@@ -6,6 +6,14 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 export type GameMode = 'solo' | 'challenge';
 
 export type SelectionMode = 'map' | 'list';
+export type AdditionalDataUnlockMode = 'immediate' | 'time' | 'points';
+
+export interface AdditionalDataAccessDTO {
+  mode: AdditionalDataUnlockMode;
+  cost: number | null;
+  availableAt: string | null;
+  unlocked: boolean;
+}
 
 /** R03/R06 — exactly these four metrics, always present. */
 export interface WeatherDTO {
@@ -68,6 +76,7 @@ export interface RoundDTO {
   difficulty: Difficulty;
   selectionMode: SelectionMode;
   weather: WeatherDTO;
+  additionalData: AdditionalDataAccessDTO;
   /** Present iff selectionMode === 'list'; never flags which candidate is actual (R04). */
   candidates?: CandidateDTO[];
 }
