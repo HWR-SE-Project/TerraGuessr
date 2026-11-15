@@ -46,6 +46,7 @@ COPY --from=build /app/package.json ./package.json
 
 EXPOSE 3000
 
-# Apply pending migrations, then start the HTTP server. DATABASE_URL is supplied
-# by docker compose (from .env).
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Apply pending migrations, seed the location pool (idempotent — skips once
+# the pool is already populated, see prisma/seed.ts), then start the HTTP
+# server. DATABASE_URL is supplied by docker compose (from .env).
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node dist/server.js"]
