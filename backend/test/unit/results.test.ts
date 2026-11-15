@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import Fastify from 'fastify';
+import { Prisma } from '@prisma/client';
 
 import { ROUNDS_PER_GAME } from '../../src/config/constants.js';
 import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
@@ -148,6 +149,33 @@ describe('submitGuess', () => {
 
     await expect(promise).rejects.toBeInstanceOf(GuessConflictError);
     await expect(promise).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('maps a concurrent-duplicate race (Guess.roundId unique violation) to 409, not a raw 500 (Phase C)', async () => {
+    const { db, guessCreate } = buildGuessDb();
+    // Simulate two concurrent requests both passing the read-time
+    // `round.guess === null` check before either commits: the loser's
+    // tx.guess.create hits the DB's unique(roundId) constraint.
+    guessCreate.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '5.22.0',
+      }),
+    );
+
+    const promise = submitGuess('round-1', PARIS, db);
+
+    await expect(promise).rejects.toBeInstanceOf(GuessConflictError);
+    await expect(promise).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('re-throws an unrelated database error unchanged (not swallowed as a 409)', async () => {
+    const { db, guessCreate } = buildGuessDb();
+    guessCreate.mockRejectedValue(new Error('connection reset'));
+
+    await expect(submitGuess('round-1', PARIS, db)).rejects.toThrow(
+      'connection reset',
+    );
   });
 
   it('rejects a guess on a non-active round with 409', async () => {

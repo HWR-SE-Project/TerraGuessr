@@ -31,7 +31,14 @@ export interface CreateGameResponse {
 /** Server I/O seam for the whole solo loop; tests inject a deterministic stub. */
 export interface GameDataSource {
   createGame(input: CreateGameInput): Promise<CreateGameResponse>;
-  startRound(gameId: string, selectionMode?: SelectionMode): Promise<RoundDTO>;
+  /**
+   * `playerToken` is optional and, when given, overrides whatever is in
+   * localStorage for this one request (ADR-0011). The caller that just
+   * created the game passes the fresh token explicitly here instead of
+   * relying on it having already propagated to localStorage (P0-2) — see
+   * App.tsx's `startGame`.
+   */
+  startRound(gameId: string, selectionMode?: SelectionMode, playerToken?: string): Promise<RoundDTO>;
   submitGuess(roundId: string, guess: LatLon): Promise<GuessResultDTO>;
   getResults(gameId: string): Promise<GameResultsDTO>;
 }
@@ -45,10 +52,11 @@ export const apiGameDataSource: GameDataSource = {
       playerToken: null,
     });
   },
-  async startRound(gameId, selectionMode) {
+  async startRound(gameId, selectionMode, playerToken) {
     return apiFetch<RoundDTO>('/games/' + encodeURIComponent(gameId) + '/rounds', {
       method: 'POST',
       body: selectionMode ? { selectionMode } : {},
+      ...(playerToken !== undefined ? { playerToken } : {}),
     });
   },
   async submitGuess(roundId, guess) {

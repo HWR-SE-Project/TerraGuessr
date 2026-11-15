@@ -17,10 +17,12 @@ import {
   CreateChallengeResponse,
   CreateEntryBody,
   CreateEntryResponse,
+  JoinChallengeBody,
+  JoinChallengeResponse,
   LeaderboardResponse,
 } from '../../contracts/challenges.js';
 import { GameNotFoundError, hashPlayerToken } from '../../plugins/auth.js';
-import { addEntry, createChallenge, getLeaderboard } from './service.js';
+import { addEntry, createChallenge, getLeaderboard, joinChallenge } from './service.js';
 
 /**
  * Auth hook for POST /api/challenges: the round referenced in the BODY must
@@ -100,6 +102,27 @@ export function registerChallengesRoutes(
   );
 
   app.post(
+    '/api/challenges/:challengeId/join',
+    {
+      // Phase C: anonymous resource creation that may also trigger an
+      // Open-Meteo call via joinChallenge's round build — bound abuse.
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: {
+        params: ChallengeIdParams,
+        body: JoinChallengeBody,
+        response: { 201: JoinChallengeResponse },
+      },
+    },
+    async (request, reply) => {
+      const { challengeId } = request.params as ChallengeIdParams;
+      const body = request.body as JoinChallengeBody;
+      const view = await joinChallenge(challengeId, body, db);
+      reply.code(201);
+      return view;
+    },
+  );
+
+  app.post(
     '/api/challenges/:challengeId/entries',
     {
       preHandler: requireResultOwnerByBody(db),
@@ -112,7 +135,11 @@ export function registerChallengesRoutes(
     async (request, reply) => {
       const { challengeId } = request.params as ChallengeIdParams;
       const body = request.body as CreateEntryBody;
-      const view = await addEntry(challengeId, body, db);
+      const rawToken = request.headers['x-player-token'];
+      if (typeof rawToken !== 'string' || rawToken.length === 0) {
+        throw new GameNotFoundError();
+      }
+      const view = await addEntry(challengeId, body, db, rawToken);
       reply.code(201);
       return view;
     },

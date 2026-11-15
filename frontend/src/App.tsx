@@ -3,7 +3,8 @@
 // -> results. All server I/O goes through src/api/gameDataSource.ts, which in
 // turn uses src/api/client.ts; session state lives in the gameStore context.
 import { useMemo, useState } from 'react';
-import { ApiError } from './api/client';
+import { ApiError, setPlayerToken } from './api/client';
+import { mapApiError } from './api/errorMessages';
 import {
   ROUNDS_PER_GAME,
   apiGameDataSource,
@@ -11,7 +12,7 @@ import {
 } from './api/gameDataSource';
 import type { CreateGameResponse, GameDataSource } from './api/gameDataSource';
 import type { GameResultsDTO, GuessResultDTO, RoundDTO, SelectionMode } from './api/types';
-import { ChallengePanel } from './features/challenge';
+import { ChallengeJoinFlow, ChallengePanel } from './features/challenge';
 import { DEFAULT_DIFFICULTY, DifficultyPicker, normalizeSelection } from './features/difficulty';
 import type { DifficultySelection } from './features/difficulty';
 import { RoundScreen } from './features/game';
@@ -44,25 +45,21 @@ type Phase = 'home' | 'playing' | 'results';
 
 type LoadStatus = 'idle' | 'loading' | 'error';
 
+/** Shared-link challenges land on shareUrl = '/challenge/:id' (P0-3). */
+function parseChallengeId(pathname: string): string | null {
+  const match = /^\/challenge\/([^/]+)\/?$/.exec(pathname);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
 /** ADR-0009 codes -> copy a player can act on. */
 function friendlyErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.code) {
-      case 'NETWORK_ERROR':
-        return 'Could not reach the game server. Check your connection and try again.';
-      case 'NOT_FOUND':
-        return 'That game could not be found. Start a new game.';
-      case 'CONFLICT':
-        return 'That action is not available right now. Start a new game or try the next round.';
-      case 'VALIDATION_ERROR':
-        return 'That guess was not accepted. Check the coordinates and try again.';
-      case 'SERVICE_UNAVAILABLE':
-        return 'The weather service is busy right now. Please try again in a moment.';
-      default:
-        return error.message;
-    }
-  }
-  return error instanceof Error ? error.message : 'Something went wrong.';
+  return mapApiError(error, {
+    NETWORK_ERROR: 'Could not reach the game server. Check your connection and try again.',
+    NOT_FOUND: 'That game could not be found. Start a new game.',
+    CONFLICT: 'That action is not available right now. Start a new game or try the next round.',
+    VALIDATION_ERROR: 'That guess was not accepted. Check the coordinates and try again.',
+    SERVICE_UNAVAILABLE: 'The weather service is busy right now. Please try again in a moment.',
+  });
 }
 
 function isNetworkError(error: unknown): boolean {
@@ -89,6 +86,9 @@ interface AppShellProps {
 function AppShell({ dataSource }: AppShellProps) {
   const { state, dispatch } = useGameStore();
 
+  const [challengeId] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : parseChallengeId(window.location.pathname),
+  );
   const [source, setSource] = useState<GameDataSource>(dataSource);
   const [phase, setPhase] = useState<Phase>('home');
   const [status, setStatus] = useState<LoadStatus>('idle');
@@ -109,13 +109,14 @@ function AppShell({ dataSource }: AppShellProps) {
     active: GameDataSource,
     gameId: string,
     selectionMode: SelectionMode,
+    playerToken?: string,
   ): Promise<void> {
     setStatus('loading');
     setError(null);
     setRound(null);
     setRevealed(null);
     try {
-      const next = await active.startRound(gameId, selectionMode);
+      const next = await active.startRound(gameId, selectionMode, playerToken);
       setRound(next);
       setStatus('idle');
     } catch (cause) {
@@ -155,6 +156,13 @@ function AppShell({ dataSource }: AppShellProps) {
         }
       }
 
+      // Persist the token synchronously, before anything else runs: the
+      // player-token useEffect pattern this used to rely on only commits
+      // after this render, which raced the startRound call right below
+      // (P0-2). The explicit `created.playerToken` argument to loadRound
+      // closes the same gap for this specific request, independent of
+      // localStorage/React timing altogether.
+      setPlayerToken(created.playerToken);
       setActiveGameId(created.gameId);
       dispatch({
         type: 'game/created',
@@ -164,7 +172,7 @@ function AppShell({ dataSource }: AppShellProps) {
         mode: 'solo',
       });
       setPhase('playing');
-      await loadRound(active, created.gameId, nextSelection.selectionMode);
+      await loadRound(active, created.gameId, nextSelection.selectionMode, created.playerToken);
     } catch (cause) {
       setError(friendlyErrorMessage(cause));
       setStatus('error');
@@ -218,6 +226,7 @@ function AppShell({ dataSource }: AppShellProps) {
   }
 
   function handlePlayAgain(): void {
+    setPlayerToken(null);
     dispatch({ type: 'game/reset' });
     setPhase('home');
     setStatus('idle');
@@ -254,6 +263,22 @@ function AppShell({ dataSource }: AppShellProps) {
   const isFinalRound = round !== null && round.roundNumber >= ROUNDS_PER_GAME;
   // R16: the challenge replays the last completed round with the player's result.
   const lastResult = results ? (results.results[results.results.length - 1] ?? null) : null;
+
+  // P0-3: a shared challenge link bypasses the normal home/playing/results
+  // flow entirely — this browser is an independent participant, not the
+  // original creator, and never touches that player's game/token.
+  if (challengeId) {
+    return (
+      <div style={shellStyle}>
+        <header style={{ padding: '12px 20px', borderBottom: '1px solid #d9d6d0' }}>
+          <h1 style={{ margin: 0, fontSize: '20px' }}>TerraGuessr</h1>
+        </header>
+        <main style={mainStyle}>
+          <ChallengeJoinFlow challengeId={challengeId} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div style={shellStyle}>

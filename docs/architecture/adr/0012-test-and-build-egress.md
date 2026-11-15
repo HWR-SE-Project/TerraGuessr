@@ -37,3 +37,10 @@ All requirement-critical logic (R09/R10 scoring, R13 fallback, R04 hiding, R18 p
 by tier-1 unit tests that run even under full network isolation. DB/stack behavior is gated by CI.
 The weather client is an injected interface in all tiers — never a hard dependency on live
 Open-Meteo during tests.
+
+## 2026-11-15 execution update
+
+The remediation workspace has Docker and browser access. Integration and Playwright tests are
+now run locally as well as in CI. `docker-compose.test.yml` supplies a deterministic Open-Meteo
+stand-in; it includes a test-only failure control endpoint for the R13 browser scenario. The
+historical no-egress limitation above described the original specialist sandboxes, not this host.

@@ -32,16 +32,25 @@ function locationId(region: Region, lat: number, lon: number): string {
 }
 
 async function main(): Promise<void> {
-  const landPath = new URL('./data/ne_110m_land.json', import.meta.url);
-  const raw = readFileSync(landPath, 'utf8');
-  const landGeoJson = JSON.parse(raw) as LandGeoJson;
-
-  const points = Array.from(
-    sampleLandPoints(landGeoJson, TARGET_POINTS, mulberry32(RNG_SEED)),
-  );
-
   const prisma = new PrismaClient();
   try {
+    const existing = await prisma.location.count({ where: { source: 'grid' } });
+    if (existing >= TARGET_POINTS && process.env.SEED_FORCE !== '1') {
+      process.stdout.write(
+        'Location pool already has ' + existing + ' grid points (target ' +
+          TARGET_POINTS + ') — skipping seed. Set SEED_FORCE=1 to reseed anyway.',
+      );
+      return;
+    }
+
+    const landPath = new URL('./data/ne_110m_land.json', import.meta.url);
+    const raw = readFileSync(landPath, 'utf8');
+    const landGeoJson = JSON.parse(raw) as LandGeoJson;
+
+    const points = Array.from(
+      sampleLandPoints(landGeoJson, TARGET_POINTS, mulberry32(RNG_SEED)),
+    );
+
     for (const point of points) {
       const id = locationId(point.region, point.lat, point.lon);
       await prisma.location.upsert({

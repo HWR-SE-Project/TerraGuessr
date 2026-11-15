@@ -1,8 +1,8 @@
 // Global game session state: React Context + useReducer only (approved stack —
 // no Redux/Zustand). Server I/O stays in src/api/client.ts.
-import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
+import { createContext, useContext, useMemo, useReducer } from 'react';
 import type { Dispatch, ReactNode } from 'react';
-import { getPlayerToken, setPlayerToken } from '../api/client';
+import { getPlayerToken } from '../api/client';
 import type { Difficulty, GameMode } from '../api/types';
 
 export interface GameState {
@@ -68,16 +68,16 @@ export interface GameStoreProviderProps {
 }
 
 export function GameStoreProvider({ children, initialState }: GameStoreProviderProps) {
+  // playerToken persistence to localStorage happens synchronously at the call
+  // site that receives the token (App.tsx), not here. An effect-based sync
+  // would only commit after this render, which raced the round-start request
+  // that immediately follows game creation (P0-2) — see api/client.ts
+  // setPlayerToken and the explicit playerToken propagation in App.tsx.
   const [state, dispatch] = useReducer(
     gameReducer,
     initialState ?? initialGameState,
     (value) => value,
   );
-
-  // playerToken is issued once (ADR-0011); keep localStorage in sync with it.
-  useEffect(() => {
-    setPlayerToken(state.playerToken);
-  }, [state.playerToken]);
 
   return (
     <GameStateContext.Provider value={state}>
