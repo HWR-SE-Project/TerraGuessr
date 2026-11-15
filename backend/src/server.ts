@@ -4,7 +4,7 @@ import { prisma } from './db/prisma.js';
 import { startScheduler } from './scheduler/index.js';
 
 const config = loadEnv();
-const app = buildApp();
+const app = await buildApp();
 
 const host = process.env.HOST ?? '0.0.0.0';
 

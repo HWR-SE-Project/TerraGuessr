@@ -11,7 +11,7 @@ describe('GET /api/health', () => {
   });
 
   it('returns { status: "ok", time } with a 200 status', async () => {
-    const app = buildApp();
+    const app = await buildApp();
     try {
       const response = await app.inject({
         method: 'GET',
