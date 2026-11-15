@@ -136,6 +136,13 @@ tile endpoint (an empty tile URL would yield a blank map, not a crash).
 
 The backend container runs `prisma migrate deploy` before starting the server,
 so pending migrations are applied on every deploy (see `backend/Dockerfile`).
+It then runs `prisma db seed` (`backend/prisma/seed.ts`), which populates the
+`Location` pool (~2000 land points) on first start. The seed is idempotent —
+it checks the existing row count and skips the sampling work once the pool is
+already populated, so restarts and redeploys do not re-seed unnecessarily
+(set `SEED_FORCE=1` on the backend container to force a reseed). This means a
+fresh environment can start a game immediately after `up -d --build`, with no
+manual seed command.
 
 Watch startup and certificate issuance:
 
