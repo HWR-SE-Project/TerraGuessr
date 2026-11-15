@@ -32,13 +32,14 @@ export async function buildApp(): Promise<FastifyInstance> {
     max: 30,
     timeWindow: '1 minute',
   });
+  // Register CORS before routes so its hooks are active for every endpoint.
+  // An unset CORS_ORIGIN resolves to false (same-origin only).
+  await app.register(cors, { origin: config.corsOrigin });
   registerChallengesRoutes(app);
   registerGamesRoutes(app);
   registerRoundsRoutes(app);
   registerResultsRoutes(app);
   registerAdminRoutes(app, { adminApiToken: config.adminApiToken });
-
-  void app.register(cors, { origin: config.corsOrigin });
 
   app.get(
     '/api/health',
