@@ -1,34 +1,29 @@
 # TerraGuessr 2.0 feature completion matrix
 
-Status reflects this feature branch as of the Phase 1 slice. Existing R01–R20 evidence remains in [`requirements/traceability-matrix.md`](requirements/traceability-matrix.md).
+This matrix records the state of the requested product scope on `feature/terraguessr-v2`. “In progress” means a usable slice exists while listed scope remains incomplete.
 
-| Capability | Status | Notes |
+| Area | Status | Delivered / remaining |
 |---|---|---|
-| Design tokens, TerraGuessr identity, responsive landing | DONE | Phase 1; screenshots in `docs/screenshots/`. |
-| Existing Solo game, Easy candidates, map placement, weather, results | DONE | Existing API/state machine preserved; coordinate inputs removed. |
-| Persistent signed-in navigation and English/German localization | IN PROGRESS | Signed-in settings/profile/logout navigation and actual English/German landing, dashboard, navigation and account-page text. Statistics/leaderboards links await their real data/API. |
-| Google and email authentication, sessions, account recovery | IN PROGRESS | Email registration/login, hashed scrypt passwords, revocable HttpOnly sessions, one-time hashed reset tokens and Google OIDC flow implemented. Google and SMTP end-to-end blocked pending real credentials. |
-| Dashboard, profile, settings, statistics, leaderboards | IN PROGRESS | Authenticated solo dashboard, rename, email/provider identity, safe deletion, language and fullscreen settings. Statistics and leaderboards remain unimplemented. |
-| Game setup, custom rules, live multiplayer rooms | IN PROGRESS | Responsive solo setup enforces world/continent scope, optional 2–4 list choices and 1–20 rounds, plus difficulty/map-list. Country selection, time, attempts, unlock costs and live rooms remain unimplemented. Existing async challenge is preserved. |
-| Ranked 1v1 and matchmaking | NOT STARTED | No ranked match state or scoring policy implemented. |
-| Daily challenge and streaks | NOT STARTED | No UTC challenge schedule or account-linked participation data. |
-| Additional environment/aviation/earthquake data | NOT STARTED | Current weather API supplies the existing four fields only. No paid API enabled. |
-| Panorama imagery provider | NOT STARTED | Generic blurred CSS fallback is present; no image API or billing activated. |
-| Accessibility, security and full-stack release QA | IN PROGRESS | Phase 1 focus states, semantic controls, reduced motion, responsive browser checks; broader audit remains. |
+| Original visual system and responsive landing/game/results | DONE | Dark TerraGuessr identity, reusable tokens, responsive layouts, structured weather, distinguishable Easy options, map selection, reduced-motion foundation, tutorial and browser screenshots. |
+| Existing R01–R20 game | DONE | Preserved and regression-tested. No answer is exposed in a normal round response. |
+| Email account lifecycle | DONE | Scrypt password hashing, persistent opaque cookie sessions, registration/login/logout, one-use reset flow when SMTP is configured, profile rename and confirmed deletion. |
+| Google sign-in | BLOCKED | OIDC state/nonce/PKCE and ID-token validation are implemented. Requires real Google OAuth client ID, secret, and callback URI; unavailable in this environment and not end-to-end verified. |
+| Email recovery delivery | BLOCKED | Reset-token flow is implemented. Requires SMTP URL, sender, and app base URL; no email credentials were supplied. |
+| Authenticated dashboard and account foundations | IN PROGRESS | Solo setup and Daily entry are connected; settings/profile, language preference (EN/DE), fullscreen preference, and account deletion exist. Complete navigation, ranked profile values and streak display remain. |
+| Solo configuration | IN PROGRESS | Easy/Medium/Hard, map/list, world/continent, optional 2–4 choices and 1–20 rounds are server-enforced. Country selection, time limits, attempts, unlock choices, and advanced intelligence configuration remain. |
+| Live multiplayer rooms | NOT STARTED | Existing asynchronous round challenges are preserved. Room creation/join codes, room passwords, synchronized readiness, multi-attempt room play and rematches remain. |
+| Ranked matchmaking and progression | NOT STARTED | No server queue, 1v1 match state, countdown, health/damage rules, ranked score changes or ranked leaderboard. |
+| Daily Challenge | IN PROGRESS | Shared persisted UTC-day challenge, one account submission, answer protection, scoring, result reload and paginated leaderboard with personal placement are implemented. Streaks, historical date selection and full daily statistics remain. |
+| Environmental intelligence beyond base weather | NOT STARTED | The game uses real Open-Meteo base fields with freshness cache and outage fallback. Aviation, UV/solar, pollution, earthquakes and unlock costs are absent. No paid API is enabled. |
+| Panoramic location imagery | NOT STARTED | A blurred non-location-specific visual fallback is present. No imagery provider has been activated; Google Street View licensing/cost study and provider integration remain. |
+| Solo and Daily results | IN PROGRESS | Solo round/final results and Daily score/distance/location/placement are connected. Polished per-mode history/result maps, daily streak and date results remain. |
+| Statistics and leaderboards | IN PROGRESS | Daily server leaderboard is real and paginated. Ranked leaderboard, statistics filters, historical round details and richer daily board UX remain. |
+| Settings audio | NOT STARTED | There is no application audio playback, so functional sound-effect/music controls are not exposed. |
+| Tutorial/legal information | IN PROGRESS | Interactive game tutorial exists; complete legal and external-provider information pages remain. |
+| Testing and accessibility QA | IN PROGRESS | Backend unit/integration suites, frontend unit suite and full Playwright suite pass. Full keyboard/screen-reader audit, mobile/tablet coverage across all flows, provider-failure UI, and browser testing with reachable map tiles remain. |
 
-## Current external configuration blockers
+## External configuration blockers
 
-- Google sign-in needs OAuth client ID/secret and an authorized callback URI, supplied through environment configuration.
-- Email account recovery needs an authorized transactional email provider and sender configuration. No credential has been invented or added.
-- No extra-data or street imagery API is enabled. Provider licensing, coverage, freshness, terms and pricing need evaluation before selection; paid integrations need separate authorization.
-
-## Phase status
-
-| Phase | Status |
-|---|---|
-| 1 — Product design system and existing-game UX | DONE |
-| 2 — Authentication and player dashboard | IN PROGRESS |
-| 3 — Game configuration and multiplayer rooms | IN PROGRESS |
-| 4 — Daily, ranked, statistics and leaderboards | NOT STARTED |
-| 5 — Environmental intelligence | NOT STARTED |
-| 6 — Final polish and release QA | IN PROGRESS |
+- Google OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI`.
+- Password recovery delivery: `SMTP_URL`, `SMTP_FROM`, and `APP_BASE_URL`.
+- No paid data/image APIs are required by implemented functionality or have been activated.
