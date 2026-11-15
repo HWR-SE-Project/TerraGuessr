@@ -62,6 +62,10 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         working-directory: backend
         run: npm test --if-present
+      - name: Test (Vitest integration)
+        if: steps.check.outputs.exists == 'true'
+        working-directory: backend
+        run: npm run test:integration --if-present
       - name: Skip (backend not scaffolded yet)
         if: steps.check.outputs.exists == 'false'
         run: echo "backend/ does not exist yet — Phase 1 has not started. Nothing to check."
