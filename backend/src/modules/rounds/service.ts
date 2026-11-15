@@ -12,9 +12,7 @@
 import type { GameMode, PrismaClient, WeatherSnapshot } from '@prisma/client';
 
 import {
-  EASY_CANDIDATES,
   MAX_SELECTION_TRIES,
-  MEDIUM_CANDIDATES,
   ROUNDS_PER_GAME,
   WEATHER_TTL_MS,
 } from '../../config/constants.js';
@@ -27,6 +25,7 @@ import {
 import type {
   Difficulty,
   PoolItem,
+  Region,
   Rng,
   SelectionMode,
   SelectionResult,
@@ -94,6 +93,8 @@ interface WeatherSelection {
  */
 async function selectWithWeatherFallback(
   difficulty: Difficulty,
+  region: Region | null,
+  candidateCount: number | null,
   requestedMode: SelectionMode | undefined,
   pool: readonly PoolItem[],
   usedIds: ReadonlySet<string>,
@@ -122,6 +123,8 @@ async function selectWithWeatherFallback(
         previousActuals,
         rng,
         selectionMode: requestedMode,
+        ...(region ? { region } : {}),
+        ...(candidateCount ? { candidateCount } : {}),
       });
     } catch {
       picked = null;
@@ -180,6 +183,7 @@ export async function resolveCandidateNames(
 /** The game fields needed to consume a pending prefetch (R12 / §6a). */
 interface PendingPrefetch {
   difficulty: Difficulty;
+  candidateCount: number | null;
   nextLocationId: string | null;
   nextWeatherSnapshotId: string | null;
 }
@@ -231,7 +235,7 @@ async function consumePendingPrefetch(
   const selectionMode = resolveSelectionMode(game.difficulty, requestedMode);
   const candidates =
     selectionMode === 'list'
-      ? buildCandidates(game.difficulty, pool, usedIds, actual, rng)
+      ? buildCandidates(game.difficulty, pool, usedIds, actual, rng, game.candidateCount ?? undefined)
       : [];
 
   return { snapshot, selection: { actual, candidates, selectionMode } };
@@ -265,7 +269,8 @@ export async function startRound(
   enforceStateMachine(game);
 
   const locations = new LocationsService(db);
-  const pool = await locations.listPool();
+  const allLocations = await locations.listPool();
+  const pool = game.geoRegion ? allLocations.filter((item) => item.region === game.geoRegion) : allLocations;
   const usedIds = new Set(await locations.usedLocationIds(gameId));
   const previousActuals = game.rounds.map((round) => ({
     lat: round.location.lat,
@@ -287,6 +292,8 @@ export async function startRound(
     prefetched ??
     (await selectWithWeatherFallback(
       game.difficulty,
+      game.geoRegion,
+      game.candidateCount,
       selectionMode,
       pool,
       usedIds,
@@ -359,17 +366,6 @@ function mulberry32(seed: number): Rng {
   };
 }
 
-function shuffle<T>(items: readonly T[], rng: Rng): T[] {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(rng() * (i + 1));
-    const current = copy[i];
-    copy[i] = copy[j]!;
-    copy[j] = current!;
-  }
-  return copy;
-}
-
 /**
  * Reconstruct the list-mode candidate set for an existing round. The frozen
  * data model does not persist the candidate list, so it is re-derived
@@ -380,30 +376,22 @@ async function rebuildListCandidates(
   roundId: string,
   difficulty: Difficulty,
   locationId: string,
+  region: Region | null,
+  candidateCount: number | null,
   usedIds: ReadonlySet<string>,
   db: PrismaClient,
 ): Promise<RoundCandidate[]> {
   const locations = new LocationsService(db);
-  const pool = await locations.listPool();
+  const allLocations = await locations.listPool();
+  const pool = region ? allLocations.filter((item) => item.region === region) : allLocations;
 
   const actual = pool.find((item) => item.id === locationId);
   if (!actual) {
     return [];
   }
 
-  const target = difficulty === 'easy' ? EASY_CANDIDATES : MEDIUM_CANDIDATES;
-  const scope =
-    difficulty === 'easy'
-      ? pool.filter((item) => item.region === actual.region)
-      : pool;
-
-  const distractorPool = scope.filter(
-    (item) => item.id !== actual.id && !usedIds.has(item.id),
-  );
-
   const rng = mulberry32(hashSeed(roundId));
-  const distractors = shuffle(distractorPool, rng).slice(0, target - 1);
-  const candidates = shuffle([actual, ...distractors], rng);
+  const candidates = buildCandidates(difficulty, pool, usedIds, actual, rng, candidateCount ?? undefined);
 
   return resolveCandidateNames(candidates, db);
 }
@@ -447,6 +435,8 @@ export async function getRoundView(
           round.id,
           round.difficulty,
           round.locationId,
+          round.game.geoRegion,
+          round.game.candidateCount,
           usedIds,
           db,
         )

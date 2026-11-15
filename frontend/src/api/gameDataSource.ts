@@ -21,6 +21,8 @@ export interface CreateGameInput {
   mode: GameMode;
   difficulty: Difficulty;
   roundsTotal?: number;
+  geography?: 'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA';
+  candidateCount?: number;
 }
 
 /** POST /api/games 201 response — playerToken is issued exactly once (ADR-0011). */

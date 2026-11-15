@@ -24,6 +24,7 @@ Cached weather for a location (R03/R06/R12).
 - `playerToken?` — opaque client-held token, not a user account (decision B.6)
 - `status`, `createdAt`
 - `roundsTotal` — validated solo session length (1–20, default five; ADR-0014); challenges stay at one round.
+- `geoRegion?`, `candidateCount?` — optional continent scope and 2–4 list size (ADR-0015); null preserves world/preset defaults.
 
 ### `Round`
 Holds the authoritative actual location server-side (R01/R04/R11/R12/R13).

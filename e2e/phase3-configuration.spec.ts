@@ -15,12 +15,16 @@ test('custom solo setup controls a server-enforced one-round game', async ({ pag
   await page.getByLabel('Number of rounds').focus();
   await page.getByLabel('Number of rounds').press('Home');
   await expect(page.locator('output[for="round-count"]')).toHaveText('1');
+  await page.getByLabel('Area').selectOption('ASIA');
+  await page.getByLabel('Customize answer choices').check();
+  await page.getByLabel('Number of choices').selectOption('3');
   await page.screenshot({ path: 'docs/screenshots/phase3-mobile-setup.png', fullPage: true });
   const widths = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(widths.content).toBeLessThanOrEqual(widths.viewport);
 
   await page.getByRole('button', { name: 'Start solo game' }).click();
   await expect(page.getByText('/ 1', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('candidate-name')).toHaveCount(3);
   await page.getByTestId('candidate-name').first().click();
   await page.getByRole('button', { name: /Submit guess/ }).click();
   await page.getByRole('button', { name: 'See final results' }).click();
