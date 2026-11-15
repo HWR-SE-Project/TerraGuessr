@@ -133,6 +133,8 @@ model Game {
   difficulty            Difficulty
   status                GameStatus @default(active)
   roundsTotal           Int        @default(5)
+  geoRegion             Region?
+  candidateCount        Int?
   playerTokenHash       String // sha256(rawToken), ADR-0011
   nextLocationId        String? // prefetched next round (R12)
   nextWeatherSnapshotId String?

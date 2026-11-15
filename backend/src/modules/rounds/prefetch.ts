@@ -54,7 +54,8 @@ export async function prefetchNextRound(
     }
 
     const locations = new LocationsService(db);
-    const pool = await locations.listPool();
+    const allLocations = await locations.listPool();
+    const pool = game.geoRegion ? allLocations.filter((item) => item.region === game.geoRegion) : allLocations;
     const usedIds = new Set(await locations.usedLocationIds(gameId));
     const previousActuals = game.rounds.map((round) => ({
       lat: round.location.lat,
@@ -67,6 +68,8 @@ export async function prefetchNextRound(
       usedIds,
       previousActuals,
       rng,
+      ...(game.geoRegion ? { region: game.geoRegion } : {}),
+      ...(game.candidateCount ? { candidateCount: game.candidateCount } : {}),
     });
 
     const snapshot = await getFreshSnapshot(

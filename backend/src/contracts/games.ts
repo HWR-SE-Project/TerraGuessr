@@ -17,6 +17,11 @@ const Difficulty = Type.Union([
   Type.Literal('hard'),
 ]);
 
+const Continent = Type.Union([
+  Type.Literal('AFRICA'), Type.Literal('EUROPE'), Type.Literal('ASIA'),
+  Type.Literal('NORTH_AMERICA'), Type.Literal('SOUTH_AMERICA'), Type.Literal('OCEANIA'),
+]);
+
 const GameStatus = Type.Union([
   Type.Literal('active'),
   Type.Literal('completed'),
@@ -39,6 +44,8 @@ export const CreateGameBody = Type.Object({
   mode: GameMode,
   difficulty: Difficulty,
   roundsTotal: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+  geography: Type.Optional(Type.Union([Type.Literal('world'), Continent])),
+  candidateCount: Type.Optional(Type.Integer({ minimum: 2, maximum: 4 })),
 }, { additionalProperties: false });
 
 /** POST /api/games → 201. `playerToken` is returned exactly once (ADR-0011). */

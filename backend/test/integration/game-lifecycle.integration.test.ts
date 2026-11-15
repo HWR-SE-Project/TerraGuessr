@@ -204,4 +204,20 @@ describe('game + round lifecycle (integration)', () => {
     expect(single.statusCode).toBe(201);
     expect(single.json().roundsTotal).toBe(1);
   });
+
+  it('enforces continent scope and configured multiple-choice count on the server', async () => {
+    const created = await app.inject({ method: 'POST', url: '/api/games', payload: { mode: 'solo', difficulty: 'easy', roundsTotal: 1, geography: 'ASIA', candidateCount: 3 } });
+    expect(created.statusCode).toBe(201);
+    const gameId = created.json().gameId as string;
+    const playerToken = created.json().playerToken as string;
+    const start = await startRound(gameId, playerToken, 'list');
+    expect(start.statusCode).toBe(201);
+    const round = start.json();
+    expect(round.candidates).toHaveLength(3);
+    expect(round.candidates.every((candidate: { region: string }) => candidate.region === 'ASIA')).toBe(true);
+    expect(findLeakedActualKeys(round)).toEqual([]);
+    const persisted = await prisma.game.findUnique({ where: { id: gameId }, include: { rounds: { include: { location: true } } } });
+    expect(persisted).toMatchObject({ geoRegion: 'ASIA', candidateCount: 3, roundsTotal: 1 });
+    expect(persisted?.rounds[0]?.location.region).toBe('ASIA');
+  });
 });

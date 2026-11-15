@@ -4,7 +4,7 @@
  * SHA-256 hash is persisted (ADR-0011).
  */
 
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Region } from '@prisma/client';
 
 import { ROUNDS_PER_GAME } from '../../config/constants.js';
 import { prisma } from '../../db/prisma.js';
@@ -29,15 +29,19 @@ export async function createGame(
   db: PrismaClient = prisma,
   ownerUserId?: string,
   roundsTotal = ROUNDS_PER_GAME,
+  geography: 'world' | Region = 'world',
+  candidateCount?: number,
 ): Promise<CreateGameResponse> {
   // Async challenges have one shared location by product rule; only solo
   // sessions accept the configurable 1–20 round count.
   const appliedRoundsTotal = mode === 'solo' ? roundsTotal : 1;
+  const geoRegion = mode === 'solo' && geography !== 'world' ? geography : null;
+  const appliedCandidateCount = mode === 'solo' ? candidateCount : undefined;
   const playerToken = generatePlayerToken();
   const playerTokenHash = hashPlayerToken(playerToken);
 
   const game = await db.game.create({
-    data: { mode, difficulty, playerTokenHash, ownerUserId, roundsTotal: appliedRoundsTotal },
+    data: { mode, difficulty, playerTokenHash, ownerUserId, roundsTotal: appliedRoundsTotal, geoRegion, candidateCount: appliedCandidateCount },
   });
 
   return { gameId: game.id, playerToken, roundsTotal: game.roundsTotal ?? appliedRoundsTotal };

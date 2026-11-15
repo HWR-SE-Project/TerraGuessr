@@ -92,6 +92,8 @@ function AppShell({ dataSource }: AppShellProps) {
   const [gameSetupOpen, setGameSetupOpen] = useState(false);
   const [activeRoundsTotal, setActiveRoundsTotal] = useState(ROUNDS_PER_GAME);
   const [configuredRoundsTotal, setConfiguredRoundsTotal] = useState(ROUNDS_PER_GAME);
+  const [configuredGeography, setConfiguredGeography] = useState<'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA'>('world');
+  const [configuredCandidateCount, setConfiguredCandidateCount] = useState<number | undefined>();
   const [authConfig, setAuthConfig] = useState({ googleAvailable: false, passwordRecoveryAvailable: false });
   const [resetToken] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('token'));
   const [language, setLanguage] = useState<'en' | 'de'>('en');
@@ -134,17 +136,22 @@ function AppShell({ dataSource }: AppShellProps) {
       setAuthUser(null);
       setAccountPage(null);
       setLanguage('en');
+      setConfiguredRoundsTotal(ROUNDS_PER_GAME);
+      setConfiguredGeography('world');
+      setConfiguredCandidateCount(undefined);
     } catch (cause) {
       setError(friendlyErrorMessage(cause));
     }
   }
 
-  async function startGame(nextSelection: DifficultySelection, roundsTotal = ROUNDS_PER_GAME): Promise<void> {
+  async function startGame(nextSelection: DifficultySelection, roundsTotal = ROUNDS_PER_GAME, geography = configuredGeography, candidateCount = configuredCandidateCount): Promise<void> {
     if (busy) {
       return;
     }
     setSelection(nextSelection);
     setConfiguredRoundsTotal(roundsTotal);
+    setConfiguredGeography(geography);
+    setConfiguredCandidateCount(candidateCount);
     setStatus('loading');
     setError(null);
     setRound(null);
@@ -155,7 +162,7 @@ function AppShell({ dataSource }: AppShellProps) {
     try {
       let created: CreateGameResponse;
       try {
-        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty, roundsTotal });
+        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty, roundsTotal, geography, ...(candidateCount !== undefined ? { candidateCount } : {}) });
       } catch (cause) {
         // Dev fallback: with no backend running the UI must still be playable.
         if (isNetworkError(cause) && import.meta.env.DEV) {
@@ -166,6 +173,8 @@ function AppShell({ dataSource }: AppShellProps) {
             mode: 'solo',
             difficulty: nextSelection.difficulty,
             roundsTotal,
+            geography,
+            ...(candidateCount !== undefined ? { candidateCount } : {}),
           });
         } else {
           throw cause;
@@ -229,7 +238,7 @@ function AppShell({ dataSource }: AppShellProps) {
 
   function handleRetry(): void {
     if (phase === 'home') {
-      void startGame(selection, configuredRoundsTotal);
+      void startGame(selection, configuredRoundsTotal, configuredGeography, configuredCandidateCount);
       return;
     }
     // A failed results fetch happens after the final round was revealed.
@@ -344,7 +353,7 @@ function AppShell({ dataSource }: AppShellProps) {
         ) : null}
 
         {phase === 'home' && authUser && !accountPage && gameSetupOpen ? (
-          <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count) => { setGameSetupOpen(false); void startGame(chosen, count); }} />
+          <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} initialGeography={configuredGeography} initialCandidateCount={configuredCandidateCount} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count, geography, candidateCount) => { setGameSetupOpen(false); void startGame(chosen, count, geography, candidateCount); }} />
         ) : null}
 
         {phase === 'home' && authUser && !accountPage && !gameSetupOpen ? (

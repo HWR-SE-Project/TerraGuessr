@@ -59,6 +59,8 @@ export interface SelectRoundOptions {
    * always 'list' and Hard is always 'map'.
    */
   readonly selectionMode?: SelectionMode;
+  readonly region?: Region;
+  readonly candidateCount?: number;
 }
 
 export interface SelectionResult {
@@ -111,8 +113,9 @@ function pickActualEasy(
   pool: readonly PoolItem[],
   usedIds: ReadonlySet<string>,
   rng: Rng,
+  requestedRegion?: Region,
 ): PoolItem {
-  const region = REGIONS[sampleIndex(REGIONS.length, rng)] as Region;
+  const region = requestedRegion ?? REGIONS[sampleIndex(REGIONS.length, rng)] as Region;
   const inRegion = pool.filter(
     (item) => item.region === region && !usedIds.has(item.id),
   );
@@ -155,8 +158,9 @@ export function buildCandidates(
   usedIds: ReadonlySet<string>,
   actual: PoolItem,
   rng: Rng,
+  candidateCount?: number,
 ): readonly PoolItem[] {
-  const target = difficulty === 'easy' ? EASY_CANDIDATES : MEDIUM_CANDIDATES;
+  const target = candidateCount ?? (difficulty === 'easy' ? EASY_CANDIDATES : MEDIUM_CANDIDATES);
   const scope =
     difficulty === 'easy'
       ? pool.filter((item) => item.region === actual.region)
@@ -181,12 +185,12 @@ export function selectRound(options: SelectRoundOptions): SelectionResult {
 
   const actual =
     difficulty === 'easy'
-      ? pickActualEasy(pool, usedIds, rng)
+      ? pickActualEasy(pool, usedIds, rng, options.region)
       : pickActualWorld(pool, usedIds, previousActuals, rng);
 
   const candidates =
     selectionMode === 'list'
-      ? buildCandidates(difficulty, pool, usedIds, actual, rng)
+      ? buildCandidates(difficulty, pool, usedIds, actual, rng, options.candidateCount)
       : [];
 
   return { actual, candidates, selectionMode };
