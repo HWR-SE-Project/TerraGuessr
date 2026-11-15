@@ -34,7 +34,7 @@ describe('rate limiting (integration, Phase C)', () => {
 
   it('POST /api/games returns 429 (RATE_LIMITED) after the configured limit', async () => {
     const responses = [];
-    for (let i = 0; i < 31; i += 1) {
+    for (let i = 0; i < 121; i += 1) {
       responses.push(
         await app.inject({
           method: 'POST',
@@ -45,9 +45,9 @@ describe('rate limiting (integration, Phase C)', () => {
     }
 
     const statuses = responses.map((res) => res.statusCode);
-    expect(statuses.slice(0, 30)).toEqual(Array(30).fill(201));
-    expect(statuses[30]).toBe(429);
-    expect(responses[30]?.json()).toMatchObject({
+    expect(statuses.slice(0, 120)).toEqual(Array(120).fill(201));
+    expect(statuses[120]).toBe(429);
+    expect(responses[120]?.json()).toMatchObject({
       error: { code: 'RATE_LIMITED' },
     });
   });

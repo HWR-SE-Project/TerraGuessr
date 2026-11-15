@@ -2,7 +2,8 @@ name: terraguessr-test
 
 # Deterministic stack for CI e2e / integration tests (ADR-0012). Values are
 # hardcoded so tests never depend on a local .env file. Published ports:
-# postgres 5433, backend 3000, frontend 8080.
+# postgres 5433, backend 3000, frontend 8080 by default. Set the
+# TERRAGUESSR_TEST_*_PORT variables when another local stack owns those ports.
 services:
   postgres:
     image: postgres:16
@@ -11,7 +12,7 @@ services:
       POSTGRES_PASSWORD: terraguessr
       POSTGRES_DB: terraguessr_test
     ports:
-      - "5433:5432"
+      - "${TERRAGUESSR_TEST_POSTGRES_PORT:-5433}:5432"
     volumes:
       - pg_test_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,6 +28,8 @@ services:
     build:
       context: ./backend/test/fake-open-meteo
       dockerfile: Dockerfile
+    ports:
+      - "${TERRAGUESSR_TEST_WEATHER_PORT:-4001}:4000"
 
   backend:
     build:
@@ -40,7 +43,7 @@ services:
       OPEN_METEO_BASE_URL: http://fake-weather:4000
       LOG_LEVEL: warn
     ports:
-      - "3000:3000"
+      - "${TERRAGUESSR_TEST_BACKEND_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,7 +65,7 @@ services:
         VITE_TILE_URL: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         VITE_MAP_ATTRIBUTION: "© OpenStreetMap contributors · © Open-Meteo"
     ports:
-      - "8080:80"
+      - "${TERRAGUESSR_TEST_FRONTEND_PORT:-8080}:80"
     depends_on:
       backend:
         condition: service_healthy
