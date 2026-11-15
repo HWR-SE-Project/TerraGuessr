@@ -12,6 +12,8 @@ const BODY = JSON.stringify({
     relative_humidity_2m: 62,
     precipitation: 0.4,
     wind_speed_10m: 12.7,
+    surface_pressure: 1013.2,
+    wind_direction_10m: 245,
   },
 });
 

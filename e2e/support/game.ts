@@ -5,7 +5,7 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 export type SelectionMode = 'map' | 'list';
 
 /**
- * R15 — the exactly-four weather field labels, in their fixed order and units.
+ * R15 — required weather fields plus the available optional pressure/wind fields.
  * These mirror frontend/src/components/WeatherPanel.tsx.
  */
 export const WEATHER_FIELD_LABELS = [
@@ -13,6 +13,8 @@ export const WEATHER_FIELD_LABELS = [
   'Precipitation',
   'Humidity',
   'Wind speed',
+  'Air pressure',
+  'Wind direction',
 ] as const;
 
 /**
@@ -84,12 +86,12 @@ export async function chooseDifficulty(
   }
 }
 
-/** Assert the weather panel renders exactly the four R15 fields in order. */
+/** Assert the weather panel renders the required and optional R15 fields in order. */
 export async function expectWeatherPanel(page: Page): Promise<void> {
   const panel = page.getByTestId(testIds.weatherPanel);
   await expect(panel).toBeVisible();
   for (const label of WEATHER_FIELD_LABELS) {
     await expect(panel.getByText(label, { exact: true })).toBeVisible();
   }
-  await expect(panel.locator('dt')).toHaveCount(4);
+  await expect(panel.locator('dt')).toHaveCount(6);
 }

@@ -52,6 +52,8 @@ const WEATHER_KEYS = [
   'precipitationMm',
   'humidityPct',
   'windSpeedKmh',
+  'airPressureHpa',
+  'windDirectionDeg',
 ] as const;
 
 const CANDIDATE_KEYS = ['id', 'name', 'lat', 'lon', 'region'] as const;
@@ -167,7 +169,12 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
 
     expectExactKeys(body.weather, WEATHER_KEYS);
     for (const key of WEATHER_KEYS) {
-      expectFiniteNumber((body.weather as Record<string, unknown>)[key]);
+      const value = (body.weather as Record<string, unknown>)[key];
+      if (key === 'airPressureHpa' || key === 'windDirectionDeg') {
+        if (value !== null) expectFiniteNumber(value);
+      } else {
+        expectFiniteNumber(value);
+      }
     }
 
     expect(Array.isArray(body.candidates)).toBe(true);

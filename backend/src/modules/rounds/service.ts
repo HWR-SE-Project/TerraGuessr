@@ -335,6 +335,8 @@ export async function startRound(
       precipitationMm: snapshot.precipitationMm,
       humidityPct: snapshot.humidityPct,
       windSpeedKmh: snapshot.windSpeedKmh,
+      airPressureHpa: snapshot.airPressureHpa,
+      windDirectionDeg: snapshot.windDirectionDeg,
     },
     candidates,
   });
@@ -457,6 +459,8 @@ export async function getRoundView(
       precipitationMm: round.weatherSnapshot.precipitationMm,
       humidityPct: round.weatherSnapshot.humidityPct,
       windSpeedKmh: round.weatherSnapshot.windSpeedKmh,
+      airPressureHpa: round.weatherSnapshot.airPressureHpa,
+      windDirectionDeg: round.weatherSnapshot.windDirectionDeg,
     },
     candidates,
   });

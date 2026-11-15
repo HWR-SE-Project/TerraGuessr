@@ -45,6 +45,8 @@ export const DEFAULT_WEATHER: WeatherData = {
   precipitationMm: 0.4,
   humidityPct: 62,
   windSpeedKmh: 12.7,
+  airPressureHpa: 1013.2,
+  windDirectionDeg: 245,
 };
 
 export function resolveDatabaseUrl(): string {

@@ -23,6 +23,8 @@ export const WeatherView = Type.Object({
   precipitationMm: Type.Number(),
   humidityPct: Type.Number(),
   windSpeedKmh: Type.Number(),
+  airPressureHpa: Type.Union([Type.Number(), Type.Null()]),
+  windDirectionDeg: Type.Union([Type.Number(), Type.Null()]),
 });
 
 /**
