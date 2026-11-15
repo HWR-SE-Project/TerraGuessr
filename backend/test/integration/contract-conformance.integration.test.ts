@@ -94,7 +94,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
     return res.json() as { gameId: string; playerToken: string };
   }
 
-  it('POST /api/games -> 201 { gameId, playerToken, roundsTotal }', async () => {
+  it('POST /api/games -> 201 { gameId, playerToken, roundsTotal, attemptsPerRound }', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/games',
@@ -102,10 +102,11 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
     });
     expect(res.statusCode).toBe(201);
     const body = res.json() as Record<string, unknown>;
-    expectExactKeys(body, ['gameId', 'playerToken', 'roundsTotal']);
+    expectExactKeys(body, ['gameId', 'playerToken', 'roundsTotal', 'attemptsPerRound']);
     expect(typeof body.gameId).toBe('string');
     expect(typeof body.playerToken).toBe('string');
     expect(body.roundsTotal).toBe(5);
+    expect(body.attemptsPerRound).toBe(1);
   });
 
   it('GET /api/games/:id -> 200 GameSummary', async () => {
@@ -124,6 +125,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
       'status',
       'roundsPlayed',
       'roundsTotal',
+      'attemptsPerRound',
       'currentRound',
     ]);
     expect(body.mode).toBe('solo');
@@ -131,6 +133,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
     expect(['active', 'completed']).toContain(body.status);
     expect(Number.isInteger(body.roundsPlayed)).toBe(true);
     expect(Number.isInteger(body.roundsTotal)).toBe(true);
+    expect(Number.isInteger(body.attemptsPerRound)).toBe(true);
     if (body.currentRound === null) {
       expect(body.currentRound).toBeNull();
     } else {
@@ -151,6 +154,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
     expectExactKeys(body, [
       'roundId',
       'roundNumber',
+      'attemptsTotal',
       'difficulty',
       'selectionMode',
       'weather',
@@ -197,6 +201,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
     expectExactKeys(body, [
       'roundId',
       'roundNumber',
+      'attemptsTotal',
       'difficulty',
       'selectionMode',
       'weather',

@@ -165,7 +165,7 @@ export async function joinChallenge(
     selectionMode === 'list' ? await resolveCandidateNames(candidates, db) : undefined;
 
   const view = toRoundView({
-    round: { roundId: round.id, roundNumber: 1, difficulty, selectionMode },
+    round: { roundId: round.id, roundNumber: 1, attemptsTotal: 1, difficulty, selectionMode },
     weather: challenge.round.weatherSnapshot,
     candidates: candidateViews,
   });

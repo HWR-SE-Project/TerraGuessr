@@ -12,11 +12,23 @@ import type { GuessResultDTO, LatLon, RoundDTO, SelectionMode } from '../../api/
 export interface RoundDataSource {
   startRound(gameId: string, selectionMode?: SelectionMode): Promise<RoundDTO>;
   submitGuess(roundId: string, guess: LatLon): Promise<GuessResultDTO>;
+  submitAttempt?(roundId: string, guess: LatLon): Promise<RoundAttemptDTO>;
+  finishRound?(roundId: string): Promise<GuessResultDTO>;
+}
+
+export interface RoundAttemptDTO {
+  attemptNumber: number;
+  attemptsTotal: number;
+  attemptsRemaining: number;
+  distanceKm: number;
+  score: number;
+  result: GuessResultDTO | null;
 }
 
 const stubRound: RoundDTO = {
   roundId: 'stub-round-1',
   roundNumber: 1,
+  attemptsTotal: 1,
   difficulty: 'easy',
   selectionMode: 'list',
   weather: {

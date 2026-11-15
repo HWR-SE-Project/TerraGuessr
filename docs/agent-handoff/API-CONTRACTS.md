@@ -47,8 +47,8 @@ interface ErrorDTO { error: { code: string; message: string; details?: Record<st
 
 ### `POST /api/games`
 Create a game. No auth.
-- **Body:** `{ mode: GameMode; difficulty: Difficulty; roundsTotal?: number; geography?: 'world'|Region; candidateCount?: 2|3|4 }`; solo accepts 1–20 rounds (default 5), a world/continent pool, and optional list sizes. Challenge is always one shared round.
-- **201:** `{ gameId: string; playerToken: string; roundsTotal: number }` — `playerToken` returned **once**; client
+- **Body:** `{ mode: GameMode; difficulty: Difficulty; roundsTotal?: number; geography?: 'world'|Region; candidateCount?: 2|3|4; attemptsPerRound?: 1|2|3|4|5 }`; solo accepts 1–20 rounds (default 5), 1–5 attempts (default 1), a world/continent pool, and optional list sizes. Challenge is always one shared round with one attempt.
+- **201:** `{ gameId: string; playerToken: string; roundsTotal: number; attemptsPerRound: number }` — `playerToken` returned **once**; client
   stores it and sends it as `X-Player-Token` thereafter (ADR-0011).
 - Errors: `400 VALIDATION_ERROR`.
 
@@ -57,7 +57,7 @@ Game summary. Auth: `X-Player-Token`.
 - **200:**
   ```ts
   { gameId: string; mode: GameMode; difficulty: Difficulty;
-    status: 'active'|'completed'; roundsPlayed: number; roundsTotal: number;
+    status: 'active'|'completed'; roundsPlayed: number; roundsTotal: number; attemptsPerRound: number;
     currentRound: { roundId: string; roundNumber: number; status: 'active'|'completed' } | null }
   ```
 - Errors: `404 NOT_FOUND`.
@@ -72,7 +72,7 @@ Start the next round. Auth: `X-Player-Token`.
   Easy (forced `list`) and Hard (forced `map`).
 - **201:**
   ```ts
-  { roundId: string; roundNumber: number; difficulty: Difficulty;
+  { roundId: string; roundNumber: number; attemptsTotal: number; difficulty: Difficulty;
     selectionMode: SelectionMode;
     weather: WeatherDTO;
     candidates?: CandidateDTO[] }      // present iff selectionMode === 'list'
@@ -87,12 +87,27 @@ Idempotent re-fetch of the same shape as the `POST` 201 (minus re-running select
 `X-Player-Token`. Same R04 guarantee. Errors: `404 NOT_FOUND`.
 
 ### `POST /api/rounds/{roundId}/guess` (R08/R09/R10/R11)
-Final submit. Auth: `X-Player-Token`. One per round.
+Final submit for one-attempt rounds. Auth: `X-Player-Token`. One per round. Multi-attempt games
+must use the attempt endpoints below; this legacy endpoint returns `409 CONFLICT` for them.
 - **Body:** `{ lat: number; lon: number }`
 - **200:** `{ distanceKm: number; score: number; actual: LatLon; resultId: string }` — reveal
   happens **only here** (R11).
 - Errors: `404 NOT_FOUND`; `409 CONFLICT` (round not active / already guessed); `400
   VALIDATION_ERROR` (coords out of range).
+
+### `POST /api/rounds/{roundId}/attempts`
+Submit one of the configured 1–5 attempts. Auth: `X-Player-Token`.
+- **Body:** `{ lat: number; lon: number }`
+- **200:** `{ attemptNumber, attemptsTotal, attemptsRemaining, distanceKm, score, result }`. For
+  intermediate attempts `result` is `null` and no actual-location fields are returned. The last
+  configured attempt finalizes the round and returns the normal revealed result in `result`.
+- Scores and distance are retained per attempt. Finishing early selects the highest score, then
+  shortest distance, earliest submission, and ID as deterministic tie-breakers.
+
+### `POST /api/rounds/{roundId}/finish`
+Finish after at least one attempt, using the best saved attempt and reveal its result. Auth:
+`X-Player-Token`. Returns the normal guess-result shape. Returns `409 CONFLICT` if no attempts
+exist or the round has already finished.
 
 ---
 

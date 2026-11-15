@@ -46,7 +46,7 @@ describe('games module', () => {
 
   describe('createGame', () => {
     it('returns the raw token once and stores only its hash', async () => {
-      const create = vi.fn().mockResolvedValue({ id: 'game1', roundsTotal: ROUNDS_PER_GAME });
+      const create = vi.fn().mockResolvedValue({ id: 'game1', roundsTotal: ROUNDS_PER_GAME, attemptsPerRound: 1 });
       const db = { game: { create } } as unknown as PrismaLike;
 
       const result = await createGame('solo', 'easy', db);
@@ -92,6 +92,7 @@ describe('games module', () => {
         status: 'active',
         roundsPlayed: 2,
         roundsTotal: ROUNDS_PER_GAME,
+        attemptsPerRound: 1,
         currentRound: { roundId: 'r3', roundNumber: 3, status: 'active' },
       });
     });
@@ -265,6 +266,7 @@ describe('games module', () => {
           status: 'active',
           roundsPlayed: 1,
           roundsTotal: ROUNDS_PER_GAME,
+          attemptsPerRound: 1,
           currentRound: { roundId: 'r2', roundNumber: 2, status: 'active' },
         });
       } finally {

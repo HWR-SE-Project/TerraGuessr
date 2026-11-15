@@ -29,6 +29,7 @@ import {
 import { OpenMeteoClient } from '../weather/client.js';
 import type { WeatherClient } from '../weather/types.js';
 import { submitGuess } from './guess.js';
+import { finishRoundAttempts, submitRoundAttempt } from './attempts.js';
 import { getRoundView, startRound } from './service.js';
 
 interface RoundIdRouteParams {
@@ -124,4 +125,21 @@ export function registerRoundsRoutes(
       return submitGuess(roundId, body, db);
     },
   );
+
+  app.post('/api/rounds/:roundId/attempts', {
+    onRequest: requireRoundOwner(db),
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: { params: RoundIdParams, body: SubmitGuessBody },
+  }, async (request) => {
+    const { roundId } = request.params as RoundIdParams;
+    return submitRoundAttempt(roundId, request.body as SubmitGuessBody, db);
+  });
+
+  app.post('/api/rounds/:roundId/finish', {
+    onRequest: requireRoundOwner(db),
+    schema: { params: RoundIdParams },
+  }, async (request) => {
+    const { roundId } = request.params as RoundIdParams;
+    return finishRoundAttempts(roundId, db);
+  });
 }

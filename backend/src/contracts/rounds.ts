@@ -46,6 +46,7 @@ export const StartRoundBody = Type.Object({
 export const RoundView = Type.Object({
   roundId: Type.String(),
   roundNumber: Type.Integer(),
+  attemptsTotal: Type.Integer({ minimum: 1, maximum: 5 }),
   difficulty: Difficulty,
   selectionMode: SelectionMode,
   weather: WeatherView,

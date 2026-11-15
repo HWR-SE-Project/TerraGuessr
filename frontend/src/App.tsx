@@ -2,7 +2,7 @@
 // home (difficulty) -> ROUNDS_PER_GAME rounds (weather + map/list + submit + reveal)
 // -> results. All server I/O goes through src/api/gameDataSource.ts, which in
 // turn uses src/api/client.ts; session state lives in the gameStore context.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiFetch, setPlayerToken } from './api/client';
 import { mapApiError } from './api/errorMessages';
 import {
@@ -92,6 +92,8 @@ function AppShell({ dataSource }: AppShellProps) {
   const [gameSetupOpen, setGameSetupOpen] = useState(false);
   const [activeRoundsTotal, setActiveRoundsTotal] = useState(ROUNDS_PER_GAME);
   const [configuredRoundsTotal, setConfiguredRoundsTotal] = useState(ROUNDS_PER_GAME);
+  const [configuredAttemptsPerRound, setConfiguredAttemptsPerRound] = useState(1);
+  const [attemptProgress, setAttemptProgress] = useState({ current: 1, total: 1 });
   const [configuredGeography, setConfiguredGeography] = useState<'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA'>('world');
   const [configuredCandidateCount, setConfiguredCandidateCount] = useState<number | undefined>();
   const [dailyMode, setDailyMode] = useState(false);
@@ -112,6 +114,7 @@ function AppShell({ dataSource }: AppShellProps) {
     : { help: 'Help', settings: 'Settings', profile: 'Profile', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeEyebrow: 'A world of clues, one great guess', homeTitleA: 'Read the sky.', homeTitleB: 'Find the place.', homeCopy: 'Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', learn: 'Learn the signals' };
 
   const busy = status === 'loading';
+  const handleAttemptChange = useCallback((current: number, total: number) => setAttemptProgress({ current, total }), []);
 
   async function loadRound(
     active: GameDataSource,
@@ -140,6 +143,7 @@ function AppShell({ dataSource }: AppShellProps) {
       setAccountPage(null);
       setLanguage('en');
       setConfiguredRoundsTotal(ROUNDS_PER_GAME);
+      setConfiguredAttemptsPerRound(1);
       setConfiguredGeography('world');
       setConfiguredCandidateCount(undefined);
     } catch (cause) {
@@ -147,12 +151,13 @@ function AppShell({ dataSource }: AppShellProps) {
     }
   }
 
-  async function startGame(nextSelection: DifficultySelection, roundsTotal = ROUNDS_PER_GAME, geography = configuredGeography, candidateCount = configuredCandidateCount): Promise<void> {
+  async function startGame(nextSelection: DifficultySelection, roundsTotal = ROUNDS_PER_GAME, geography = configuredGeography, candidateCount = configuredCandidateCount, attemptsPerRound = configuredAttemptsPerRound): Promise<void> {
     if (busy) {
       return;
     }
     setSelection(nextSelection);
     setConfiguredRoundsTotal(roundsTotal);
+    setConfiguredAttemptsPerRound(attemptsPerRound);
     setConfiguredGeography(geography);
     setConfiguredCandidateCount(candidateCount);
     setStatus('loading');
@@ -166,7 +171,7 @@ function AppShell({ dataSource }: AppShellProps) {
     try {
       let created: CreateGameResponse;
       try {
-        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty, roundsTotal, geography, ...(candidateCount !== undefined ? { candidateCount } : {}) });
+        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty, roundsTotal, geography, ...(candidateCount !== undefined ? { candidateCount } : {}), attemptsPerRound });
       } catch (cause) {
         // Dev fallback: with no backend running the UI must still be playable.
         if (isNetworkError(cause) && import.meta.env.DEV) {
@@ -179,6 +184,7 @@ function AppShell({ dataSource }: AppShellProps) {
             roundsTotal,
             geography,
             ...(candidateCount !== undefined ? { candidateCount } : {}),
+            attemptsPerRound,
           });
         } else {
           throw cause;
@@ -194,6 +200,8 @@ function AppShell({ dataSource }: AppShellProps) {
       setPlayerToken(created.playerToken);
       setActiveGameId(created.gameId);
       setActiveRoundsTotal(created.roundsTotal ?? roundsTotal);
+      setConfiguredAttemptsPerRound(created.attemptsPerRound ?? attemptsPerRound);
+      setAttemptProgress({ current: 1, total: created.attemptsPerRound ?? attemptsPerRound });
       dispatch({
         type: 'game/created',
         gameId: created.gameId,
@@ -214,7 +222,7 @@ function AppShell({ dataSource }: AppShellProps) {
     setStatus('loading'); setError(null); setDailyMode(true); setDailyLeaderboard(null); setRevealed(null); setResults(null);
     try {
       const response = await apiFetch<{ date: string; status: 'open' | 'completed'; round: RoundDTO; result?: GuessResultDTO }>('/daily/today');
-      setDailyDate(response.date); setRound(response.round); setActiveGameId(response.date); setActiveRoundsTotal(1); setPhase('playing'); setStatus('idle');
+      setDailyDate(response.date); setRound(response.round); setActiveGameId(response.date); setActiveRoundsTotal(1); setAttemptProgress({ current: 1, total: 1 }); setPhase('playing'); setStatus('idle');
       if (response.result) setRevealed(response.result);
       dispatch({ type: 'game/created', gameId: response.date, playerToken: '', difficulty: 'hard', mode: 'solo' });
       if (response.status === 'completed') {
@@ -312,6 +320,16 @@ function AppShell({ dataSource }: AppShellProps) {
           throw new Error(friendlyErrorMessage(cause));
         }
       },
+      async submitAttempt(roundId, guess) {
+        const response = await apiFetch<{ attemptNumber: number; attemptsTotal: number; attemptsRemaining: number; distanceKm: number; score: number; result: GuessResultDTO | null }>(`/rounds/${encodeURIComponent(roundId)}/attempts`, { method: 'POST', body: guess });
+        if (response.result) setRevealed(response.result);
+        return response;
+      },
+      async finishRound(roundId) {
+        const result = await apiFetch<GuessResultDTO>(`/rounds/${encodeURIComponent(roundId)}/finish`, { method: 'POST' });
+        setRevealed(result);
+        return result;
+      },
     };
   }, [round, source, dailyMode, dailyDate]);
 
@@ -381,7 +399,7 @@ function AppShell({ dataSource }: AppShellProps) {
         ) : null}
 
         {phase === 'home' && authUser && !accountPage && gameSetupOpen ? (
-          <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} initialGeography={configuredGeography} initialCandidateCount={configuredCandidateCount} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count, geography, candidateCount) => { setGameSetupOpen(false); void startGame(chosen, count, geography, candidateCount); }} />
+          <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} initialAttemptsPerRound={configuredAttemptsPerRound} initialGeography={configuredGeography} initialCandidateCount={configuredCandidateCount} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count, geography, candidateCount, attempts) => { setGameSetupOpen(false); void startGame(chosen, count, geography, candidateCount, attempts); }} />
         ) : null}
 
         {phase === 'home' && authUser && !accountPage && !gameSetupOpen ? (
@@ -435,6 +453,7 @@ function AppShell({ dataSource }: AppShellProps) {
               <div className="tg-game-stats">
                 <div className="tg-stat"><span className="tg-stat-label">Round</span><span className="tg-stat-value">{round?.roundNumber ?? '-'} <span className="tg-muted">/ {activeRoundsTotal}</span></span></div>
                 <div className="tg-stat"><span className="tg-stat-label">Difficulty</span><span className="tg-stat-value" style={{ textTransform: 'capitalize' }}>{state.difficulty}</span></div>
+                {round && round.attemptsTotal > 1 ? <div className="tg-stat"><span className="tg-stat-label">Attempt</span><span className="tg-stat-value">{attemptProgress.current} <span className="tg-muted">/ {attemptProgress.total}</span></span></div> : null}
                 <div className="tg-stat"><span className="tg-stat-label">Score</span><span className="tg-stat-value mono">{revealed?.score ?? '—'}</span></div>
               </div>
               <span className="tg-chip"><span className="tg-dot" />{round?.selectionMode === 'list' ? 'Choice mode' : 'Map mode'}</span>
@@ -446,6 +465,7 @@ function AppShell({ dataSource }: AppShellProps) {
                   key={round.roundId}
                   dataSource={roundSource}
                   gameId={activeGameId ?? undefined}
+                  onAttemptChange={handleAttemptChange}
                 />
                 {dailyMode && revealed ? <section className="tg-panel" aria-label="Daily leaderboard" style={{ margin: '14px 0 80px', padding: 20 }}><div className="tg-eyebrow">{dailyDate} · UTC daily leaderboard</div><h2 style={{ marginTop: 8 }}>Your placement: {dailyLeaderboard?.myRank ? `#${dailyLeaderboard.myRank}` : '—'}</h2><ol>{dailyLeaderboard?.entries.map((entry) => <li key={entry.rank}>{entry.rank}. {entry.displayName} · {entry.score} pts · {entry.distanceKm.toFixed(1)} km</li>)}</ol></section> : null}
                 {revealed ? (

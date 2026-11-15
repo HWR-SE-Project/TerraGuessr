@@ -5,17 +5,19 @@ import type { DifficultySelection } from '../difficulty';
 interface GameSetupProps {
   initialSelection: DifficultySelection;
   initialRoundsTotal: number;
+  initialAttemptsPerRound: number;
   initialGeography: 'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA';
   initialCandidateCount?: number;
   language: 'en' | 'de';
   loading: boolean;
   onBack: () => void;
-  onStart: (selection: DifficultySelection, roundsTotal: number, geography: GameSetupProps['initialGeography'], candidateCount?: number) => void;
+  onStart: (selection: DifficultySelection, roundsTotal: number, geography: GameSetupProps['initialGeography'], candidateCount?: number, attemptsPerRound?: number) => void;
 }
 
-export function GameSetup({ initialSelection, initialRoundsTotal, initialGeography, initialCandidateCount, language, loading, onBack, onStart }: GameSetupProps) {
+export function GameSetup({ initialSelection, initialRoundsTotal, initialAttemptsPerRound, initialGeography, initialCandidateCount, language, loading, onBack, onStart }: GameSetupProps) {
   const [selection, setSelection] = useState(initialSelection);
   const [roundsTotal, setRoundsTotal] = useState(initialRoundsTotal);
+  const [attemptsPerRound, setAttemptsPerRound] = useState(initialAttemptsPerRound);
   const [geography, setGeography] = useState<GameSetupProps['initialGeography']>(initialGeography);
   const [customizeCandidateCount, setCustomizeCandidateCount] = useState(initialCandidateCount !== undefined);
   const [candidateCount, setCandidateCount] = useState(initialCandidateCount ?? 4);
@@ -52,7 +54,13 @@ export function GameSetup({ initialSelection, initialRoundsTotal, initialGeograp
         <input className="tg-range" id="round-count" aria-label={de ? 'Anzahl Runden' : 'Number of rounds'} type="range" min="1" max="20" step="1" value={roundsTotal} disabled={loading} onChange={(event) => setRoundsTotal(Number(event.target.value))} />
         <div className="tg-range-ends"><span>1</span><span>20</span></div>
       </div>
-      <button type="button" className="tg-button tg-button-primary" disabled={loading} onClick={() => onStart(selection, roundsTotal, geography, customizeCandidateCount && selection.selectionMode === 'list' ? candidateCount : undefined)}>{loading ? (de ? 'Wird vorbereitet…' : 'Preparing…') : (de ? 'Solo-Spiel starten' : 'Start solo game')}</button>
+      <div className="tg-setup-section">
+        <div className="tg-setup-round-label"><h2>{de ? 'Versuche pro Runde' : 'Attempts per round'}</h2><output htmlFor="attempt-count">{attemptsPerRound}</output></div>
+        <input className="tg-range" id="attempt-count" aria-label={de ? 'Versuche pro Runde' : 'Attempts per round'} type="range" min="1" max="5" step="1" value={attemptsPerRound} disabled={loading} onChange={(event) => setAttemptsPerRound(Number(event.target.value))} />
+        <div className="tg-range-ends"><span>1</span><span>5</span></div>
+        <p className="tg-muted tg-setup-note">{de ? 'Zwischenergebnisse zeigen Distanz und Punkte. Die Lösung erscheint erst beim Beenden der Runde.' : 'Intermediate feedback shows distance and points. The location is revealed when you finish the round.'}</p>
+      </div>
+      <button type="button" className="tg-button tg-button-primary" disabled={loading} onClick={() => onStart(selection, roundsTotal, geography, customizeCandidateCount && selection.selectionMode === 'list' ? candidateCount : undefined, attemptsPerRound)}>{loading ? (de ? 'Wird vorbereitet…' : 'Preparing…') : (de ? 'Solo-Spiel starten' : 'Start solo game')}</button>
     </section>
   );
 }

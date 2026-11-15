@@ -10,6 +10,7 @@ Captured from the running application using Chromium against an isolated Docker 
 - `phase2-desktop-dashboard.png` — 1440px authenticated dashboard after email registration.
 - `phase2-mobile-settings-de.png` — 375px settings page with the persisted German interface preference.
 - `phase3-mobile-setup.png` — 390px game setup with the configurable solo round count.
+- `phase3-mobile-attempt-result.png` — 390px intermediate attempt feedback with the answer still hidden.
 - `phase4-daily-dashboard.png` — 1440px authenticated dashboard with the shared UTC challenge.
 - `phase4-daily-game.png` — 1440px Daily Challenge with Open-Meteo values and map guessing.
 - `phase4-daily-result.png` — 1440px submitted result, revealed location and persisted daily placement.

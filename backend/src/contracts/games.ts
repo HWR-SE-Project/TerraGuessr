@@ -46,6 +46,7 @@ export const CreateGameBody = Type.Object({
   roundsTotal: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
   geography: Type.Optional(Type.Union([Type.Literal('world'), Continent])),
   candidateCount: Type.Optional(Type.Integer({ minimum: 2, maximum: 4 })),
+  attemptsPerRound: Type.Optional(Type.Integer({ minimum: 1, maximum: 5 })),
 }, { additionalProperties: false });
 
 /** POST /api/games → 201. `playerToken` is returned exactly once (ADR-0011). */
@@ -53,6 +54,7 @@ export const CreateGameResponse = Type.Object({
   gameId: Type.String(),
   playerToken: Type.String(),
   roundsTotal: Type.Integer({ minimum: 1, maximum: 20 }),
+  attemptsPerRound: Type.Integer({ minimum: 1, maximum: 5 }),
 });
 
 /** GET /api/games/:gameId path params. */
@@ -66,6 +68,7 @@ export const GameSummary = Type.Object({
   mode: GameMode,
   difficulty: Difficulty,
   roundsTotal: Type.Integer({ minimum: 1, maximum: 20 }),
+  attemptsPerRound: Type.Integer({ minimum: 1, maximum: 5 }),
   status: GameStatus,
   roundsPlayed: Type.Integer(),
   currentRound: Type.Union([CurrentRound, Type.Null()]),

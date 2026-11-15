@@ -163,6 +163,7 @@ model Game {
   difficulty            Difficulty
   status                GameStatus @default(active)
   roundsTotal           Int        @default(5)
+  attemptsPerRound      Int        @default(1)
   geoRegion             Region?
   candidateCount        Int?
   playerTokenHash       String // sha256(rawToken), ADR-0011
@@ -192,6 +193,7 @@ model Round {
   startedAt         DateTime        @default(now())
   completedAt       DateTime?
   guess             Guess?
+  attempts          RoundAttempt[]
   result            Result?
   challenge         Challenge?
 
@@ -206,6 +208,21 @@ model Guess {
   lat         Float
   lon         Float
   submittedAt DateTime @default(now())
+}
+
+model RoundAttempt {
+  id          String   @id @default(cuid())
+  roundId     String
+  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  attemptNumber Int
+  guessLat    Float
+  guessLon    Float
+  distanceKm  Float
+  score       Int
+  createdAt   DateTime @default(now())
+
+  @@unique([roundId, attemptNumber])
+  @@index([roundId, score, distanceKm])
 }
 
 model Result {

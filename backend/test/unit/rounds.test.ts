@@ -45,6 +45,8 @@ interface GameLike {
   mode: 'solo' | 'challenge';
   difficulty: 'easy' | 'medium' | 'hard';
   status: 'active' | 'completed';
+  roundsTotal: number;
+  attemptsPerRound: number;
   playerTokenHash: string;
   rounds: RoundLike[];
 }
@@ -79,6 +81,8 @@ function gameWith(overrides: Partial<GameLike> = {}): GameLike {
     mode: 'solo',
     difficulty: 'medium',
     status: 'active',
+    roundsTotal: 5,
+    attemptsPerRound: 1,
     playerTokenHash: 'some-hash',
     rounds: [],
     ...overrides,

@@ -48,7 +48,7 @@ export async function submitGuess(
     include: {
       location: { select: { lat: true, lon: true } },
       guess: true,
-      game: { select: { id: true, mode: true, roundsTotal: true } },
+      game: { select: { id: true, mode: true, roundsTotal: true, attemptsPerRound: true } },
     },
   });
 
@@ -60,6 +60,10 @@ export async function submitGuess(
   // both mean the guess can no longer be submitted.
   if (round.status !== 'active' || round.guess !== null) {
     throw new GuessConflictError();
+  }
+
+  if (round.game.attemptsPerRound > 1) {
+    throw new GuessConflictError('This round requires the configured attempt workflow');
   }
 
   const actual = { lat: round.location.lat, lon: round.location.lon };
