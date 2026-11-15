@@ -25,7 +25,9 @@ Work is on the recoverable `feature/terraguessr-v2` branch. The preserved R01–
 - Frontend Vitest: 40 passing.
 - Frontend typecheck, lint and production build: passed.
 - Backend unit tests: 154 passing; backend typecheck, lint and build: passed.
+- Backend integration tests against isolated PostgreSQL: 20 passing.
 - Playwright: 3 passing (desktop candidate round, 375px mobile no-overflow, map marker and confirmation interaction).
+- Full Playwright E2E suite against a clean isolated Docker Compose stack: 17 passing (including R04 network checks, weather fallback, async multiplayer challenge, and round/map flows).
 - Screenshots reviewed at 1440px and 375px. No raw coordinate fields or duplicate Easy labels; map and candidate submission are functional.
 
 ## Baseline

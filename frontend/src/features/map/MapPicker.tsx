@@ -1,4 +1,5 @@
 import type { DragEndEvent, LeafletMouseEvent, Marker as LeafletMarker } from 'leaflet';
+import { divIcon } from 'leaflet';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import type { LatLon } from '../../api/types';
 import 'leaflet/dist/leaflet.css';
@@ -20,6 +21,14 @@ export const DEFAULT_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.
 export const DEFAULT_MAP_ATTRIBUTION = '© OpenStreetMap contributors';
 export const DEFAULT_MAP_CENTER: LatLon = { lat: 20, lon: 0 };
 export const DEFAULT_MAP_ZOOM = 2;
+
+/** Inline marker avoids broken default Leaflet image URLs in production builds. */
+const GUESS_MARKER_ICON = divIcon({
+  className: 'tg-map-pin',
+  html: '<span aria-hidden="true"></span>',
+  iconSize: [28, 38],
+  iconAnchor: [14, 36],
+});
 
 /** WGS84 LatLon -> Leaflet LatLngTuple ([lat, lng]). */
 function toTuple({ lat, lon }: LatLon): [number, number] {
@@ -80,6 +89,7 @@ export function MapPicker({
         {guess ? (
           <Marker
             position={toTuple(guess)}
+            icon={GUESS_MARKER_ICON}
             draggable
             eventHandlers={{ dragend: handleMarkerDragEnd }}
           />

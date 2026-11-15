@@ -3,14 +3,6 @@ import { mkdir } from 'node:fs/promises';
 
 const evidence = 'docs/screenshots';
 
-test.beforeEach(async ({ page }) => {
-  // Offline API fallback remains a supported developer path and provides a
-  // deterministic real UI without requiring credentials or a Docker stack.
-  await page.route('**/*', (route) =>
-    new URL(route.request().url()).pathname.startsWith('/api/') ? route.abort() : route.continue(),
-  );
-});
-
 test('desktop landing and easy round', async ({ page }) => {
   await mkdir(evidence, { recursive: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -57,6 +49,7 @@ test('map mode confirms guesses from the map without coordinate form fields', as
   await expect(submit).toBeDisabled();
   await map.click({ position: { x: 180, y: 140 } });
   await expect(submit).toBeEnabled();
+  await expect(map.locator('.tg-map-pin')).toBeVisible();
   await expect(page.getByLabel('Latitude')).toHaveCount(0);
   await expect(page.getByLabel('Longitude')).toHaveCount(0);
   await page.screenshot({ path: `${evidence}/phase1-desktop-map.png`, fullPage: true });

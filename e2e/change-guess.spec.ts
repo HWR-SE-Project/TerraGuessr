@@ -42,12 +42,14 @@ test.describe('guess can be changed before final submit (R08)', () => {
     await expect(map).toBeVisible();
 
     await map.click({ position: { x: 150, y: 120 } });
-    const latAfterFirst = await page.locator('#guess-latitude').inputValue();
+    const marker = map.locator('.leaflet-marker-icon');
+    await expect(marker).toHaveCount(1);
+    const markerAfterFirst = await marker.getAttribute('style');
 
     // Change the guess to a different point before submitting.
     await map.click({ position: { x: 320, y: 220 } });
-    const latAfterSecond = await page.locator('#guess-latitude').inputValue();
-    expect(latAfterSecond).not.toBe(latAfterFirst);
+    const markerAfterSecond = await marker.getAttribute('style');
+    expect(markerAfterSecond).not.toBe(markerAfterFirst);
 
     await page.getByRole('button', { name: 'Submit guess' }).click();
     await expect(page.getByTestId(testIds.revealView)).toBeVisible();
