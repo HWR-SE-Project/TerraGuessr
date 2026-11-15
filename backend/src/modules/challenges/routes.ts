@@ -106,7 +106,7 @@ export function registerChallengesRoutes(
     {
       // Phase C: anonymous resource creation that may also trigger an
       // Open-Meteo call via joinChallenge's round build — bound abuse.
-      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
       schema: {
         params: ChallengeIdParams,
         body: JoinChallengeBody,

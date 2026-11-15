@@ -72,7 +72,7 @@ export function registerRoundsRoutes(
     {
       onRequest: requirePlayerToken(db),
       // Phase C: calls the external Open-Meteo API — expensive, bound abuse.
-      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
       schema: {
         params: GameIdParams,
         body: StartRoundBody,

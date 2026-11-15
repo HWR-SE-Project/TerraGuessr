@@ -15,8 +15,45 @@ const BODY = JSON.stringify({
   },
 });
 
+let failuresRemaining = 0;
+let failuresServed = 0;
+let forecastsServed = 0;
+let lastFailedCoordinates = null;
+
 const server = createServer((req, res) => {
+  // Test-only control endpoint. CI and local Playwright use the mock's
+  // separately published port to trigger one upstream failure deterministically.
+  if (req.method === 'POST' && req.url?.startsWith('/__test__/fail-next')) {
+    const count = Number(new URL(req.url, 'http://localhost').searchParams.get('count') ?? '1');
+    if (!Number.isInteger(count) || count < 1 || count > 10) {
+      res.writeHead(400);
+      res.end();
+      return;
+    }
+    failuresRemaining += count;
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+  if (req.method === 'GET' && req.url === '/__test__/stats') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ failuresRemaining, failuresServed, forecastsServed, lastFailedCoordinates }));
+    return;
+  }
   if (req.url && req.url.startsWith('/v1/forecast')) {
+    forecastsServed += 1;
+    if (failuresRemaining > 0) {
+      failuresRemaining -= 1;
+      failuresServed += 1;
+      const query = new URL(req.url, 'http://localhost').searchParams;
+      lastFailedCoordinates = {
+        lat: Number(query.get('latitude')),
+        lon: Number(query.get('longitude')),
+      };
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'simulated weather failure' }));
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(BODY);
     return;

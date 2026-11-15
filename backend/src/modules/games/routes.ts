@@ -26,7 +26,7 @@ export function registerGamesRoutes(
     {
       // Phase C: anonymous resource creation — bound abuse (global rate-limit
       // plugin is registered opt-in only; see app.ts).
-      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
       schema: {
         body: CreateGameBody,
         response: { 201: CreateGameResponse },
