@@ -50,6 +50,15 @@ routes, which require authentication (decision B.14) — not yet designed in thi
   100; ranking is score descending, distance ascending, submission time ascending, ID ascending.
   Includes the caller's overall placement even when outside the requested page.
 
+## Player statistics and leaderboards
+
+- `GET /statistics?mode=solo|multiplayer|ranked|daily&limit=20&offset=0` — authenticated,
+  paginated persisted history and per-mode average score/distance. `multiplayer` currently reports
+  completed account-owned asynchronous challenge games. Ranked returns `available: false` until
+  the server-ranked mode exists.
+- `GET /leaderboards/ranked` — authenticated; returns 503 until real ranked ratings exist.
+- Daily history/standings use `/statistics?mode=daily` and `/daily/{date}/leaderboard`.
+
 ## Admin (decision B.14 — authenticated only, design deferred to Phase 1)
 
 - `POST /admin/locations/refresh` — regenerate/validate the candidate pool.

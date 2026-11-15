@@ -153,6 +153,24 @@ Attach a completed result (for the challenge's fixed round) to the leaderboard. 
   Entries are only for this challenge's fixed round/location (tested — TESTING-CHECKLIST R16).
 - Errors: `404 NOT_FOUND`.
 
+## 4.1 Account statistics and leaderboards
+
+### `GET /api/statistics?mode=solo|multiplayer|ranked|daily&limit=20&offset=0`
+Cookie-authenticated account history, paginated to 100 rows maximum.
+- **200:** `{ mode, available, entries, total, offset, limit, averageScore, averageDistanceKm }`. Each
+  completed entry includes date, round number, actual/guess coordinates, score, distance, and
+  result timestamp. `multiplayer` currently covers account-owned asynchronous challenge games;
+  ranked returns `{ available: false, entries: [], total: 0 }` until ranked exists.
+- Errors: `401 UNAUTHORIZED`; `400 VALIDATION_ERROR`.
+
+### `GET /api/daily/{date}/leaderboard?limit=20&offset=0`
+Cookie-authenticated, globally ranked UTC Daily table. Entries include public display name,
+score, distance, rank, and `isCurrentUser`; `myRank` is global even when outside the page.
+
+### `GET /api/leaderboards/ranked`
+Cookie-authenticated. Returns `503 SERVICE_UNAVAILABLE` until the real ranked queue and ratings
+are implemented; the API does not fabricate rows.
+
 ---
 
 ## 5. Admin (B.14, ADR-0011) — `Authorization: Bearer` required

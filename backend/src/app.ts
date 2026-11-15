@@ -12,6 +12,7 @@ import { registerGamesRoutes } from './modules/games/routes.js';
 import { registerResultsRoutes } from './modules/results/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerDailyRoutes } from './modules/daily/routes.js';
+import { registerStatisticsRoutes } from './modules/statistics/routes.js';
 import { registerRoundsRoutes } from './modules/rounds/routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -39,6 +40,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(cors, { origin: config.corsOrigin });
   registerAuthRoutes(app, { config });
   registerDailyRoutes(app, { config });
+  registerStatisticsRoutes(app);
   registerChallengesRoutes(app);
   registerGamesRoutes(app);
   registerRoundsRoutes(app);
