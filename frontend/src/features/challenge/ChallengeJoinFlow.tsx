@@ -5,7 +5,8 @@
 // original), plays that one round through the existing RoundScreen, then
 // hands off to ChallengePanel for entry submission + the public leaderboard.
 import { useEffect, useMemo, useState } from 'react';
-import { ApiError, setPlayerToken } from '../../api/client';
+import { setPlayerToken } from '../../api/client';
+import { mapApiError } from '../../api/errorMessages';
 import type { GuessResultDTO, RoundDTO } from '../../api/types';
 import { RoundScreen } from '../game';
 import type { RoundDataSource } from '../game';
@@ -23,17 +24,10 @@ type Status = 'joining' | 'ready' | 'error';
 
 /** ADR-0009 codes -> copy a player can act on. */
 function joinErrorMessage(cause: unknown): string {
-  if (cause instanceof ApiError) {
-    switch (cause.code) {
-      case 'NOT_FOUND':
-        return 'This challenge link is invalid or no longer available.';
-      case 'NETWORK_ERROR':
-        return 'Could not reach the game server. Check your connection and try again.';
-      default:
-        return cause.message;
-    }
-  }
-  return cause instanceof Error ? cause.message : 'Something went wrong.';
+  return mapApiError(cause, {
+    NOT_FOUND: 'This challenge link is invalid or no longer available.',
+    NETWORK_ERROR: 'Could not reach the game server. Check your connection and try again.',
+  });
 }
 
 export function ChallengeJoinFlow({
