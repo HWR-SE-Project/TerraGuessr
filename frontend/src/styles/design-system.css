@@ -165,18 +165,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ---------- Landing ---------- */
 .tg-landing { position: relative; min-height: calc(100vh - 68px); overflow: hidden; background: radial-gradient(ellipse at 72% 30%, rgb(84 224 199 / 16%), transparent 36%), radial-gradient(ellipse at 28% 80%, rgb(123 83 230 / 26%), transparent 42%); }
 .tg-landing::before { content: ''; position: absolute; inset: 0; opacity: .14; pointer-events: none; background-image: linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px); background-size: 64px 64px; mask-image: linear-gradient(transparent, black 28%, transparent 88%); }
-.tg-hero { position: relative; z-index: 1; width: min(1370px, 100%); min-height: calc(100vh - 68px); margin: 0 auto; padding: clamp(46px, 8vh, 100px) clamp(20px, 6vw, 88px); display: grid; grid-template-columns: 1.2fr .8fr; align-items: center; gap: 7vw; }
-.tg-hero h1 { max-width: 760px; margin: 20px 0; font-family: var(--tg-font-display); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: clamp(44px, 6.6vw, 84px); line-height: .98; letter-spacing: -.015em; }
-.tg-hero h1 span { color: var(--tg-green); }
-.tg-hero-copy { max-width: 555px; color: #cfc9ee; font-size: clamp(16px, 1.45vw, 19px); line-height: 1.7; }
-.tg-hero-cta { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 12px; }
-.tg-hero-orbit { position: relative; min-height: 430px; display: grid; place-items: center; }
-.tg-globe { width: min(31vw, 390px); aspect-ratio: 1; position: relative; border: 1px solid rgb(84 224 199 / 30%); border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgb(111 178 255 / 25%), transparent 26%), radial-gradient(circle at 65% 70%, rgb(84 224 199 / 20%), transparent 36%), #1a1440; box-shadow: inset -22px -20px 90px #0a0820, 0 0 110px rgb(123 216 74 / 12%); overflow: hidden; }
-.tg-globe::before, .tg-globe::after { content: ''; position: absolute; inset: 11% 0; border: 1px solid rgb(84 224 199 / 22%); border-radius: 50%; }
-.tg-globe::after { inset: 0 26%; }
-.tg-globe-grid { position: absolute; inset: 0; opacity: .6; background: repeating-linear-gradient(0deg, transparent 0 38px, rgb(84 224 199 / 10%) 39px 40px), repeating-linear-gradient(90deg, transparent 0 38px, rgb(84 224 199 / 8%) 39px 40px); border-radius: 50%; }
-.tg-orbit-tag { position: absolute; padding: 10px 13px; border: 1px solid var(--tg-glass-border); border-radius: var(--tg-radius-md); background: rgb(28 23 68 / 60%); backdrop-filter: var(--tg-glass-blur-sm); -webkit-backdrop-filter: var(--tg-glass-blur-sm); color: #d8d2f5; font-size: 12px; box-shadow: var(--tg-shadow); }
-.tg-orbit-tag.one { top: 11%; left: 1%; }.tg-orbit-tag.two { right: -4%; top: 39%; }.tg-orbit-tag.three { left: 2%; bottom: 12%; }
+/* Hero — matches Figma node 53:1000 (desktop) / 53:1254 (390w) 1:1: a
+   full-bleed tinted background with the content block vertically centered
+   and left-aligned (not the previous two-column + orbiting-globe layout).
+   The Figma frame uses GeoGuessr's own photo/logo/horror-mode art and
+   fabricated stats (100M players, 4.5-star rating, multi-platform
+   availability) — those are swapped for a CSS-only backdrop, TerraGuessr's
+   own wordmark, and truthful copy about what this game actually does,
+   everything else (positions, type scale, spacing) matches 1:1. */
+.tg-hero-fig { position: relative; z-index: 1; min-height: calc(100vh - 68px); overflow: hidden; isolation: isolate; }
+.tg-hero-fig-bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(ellipse 55% 50% at 78% 24%, rgb(151 232 81 / 12%), transparent 60%), radial-gradient(ellipse 65% 55% at 18% 86%, rgb(84 224 199 / 12%), transparent 58%), linear-gradient(160deg, #4a3f8a 0%, #2c2560 30%, #1c1744 60%, #110d2c 100%); }
+.tg-hero-fig-rings { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(circle, transparent 0 58%, rgb(255 255 255 / 6%) 58.4% 59.4%, transparent 59.8%), radial-gradient(circle, transparent 0 73%, rgb(255 255 255 / 4%) 73.4% 74.4%, transparent 74.8%); background-position: 76% 40%, 76% 40%; background-size: 62vmin 62vmin, 88vmin 88vmin; background-repeat: no-repeat; }
+.tg-hero-fig-overlay { position: absolute; inset: 0; z-index: 1; background: rgb(16 16 28 / 40%); }
+.tg-hero-fig-content { position: absolute; z-index: 2; top: 50%; left: clamp(20px, 18.33vw, 352px); right: clamp(20px, 15vw, 290px); transform: translateY(-50%); max-width: min(701px, 36.5vw); }
+.tg-hero-fig-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+.tg-hero-fig-wordmark { font-family: var(--tg-font-display); font-weight: 800; font-style: italic; text-transform: uppercase; letter-spacing: -.02em; font-size: 19px; color: #fff; }
+.tg-hero-fig-wordmark span { color: var(--tg-green); }
+.tg-hero-fig-title { margin: 0 0 20px; font-family: var(--tg-font-display); font-weight: 900; font-style: italic; text-transform: uppercase; color: #fff; font-size: clamp(30px, 3.41vw, 65.5px); line-height: 1.1; letter-spacing: -.01em; text-shadow: 0 2px 4px rgb(16 16 28 / 60%), 0 1px 2px rgb(16 16 28 / 60%), 0 1px 1px rgb(16 16 28 / 60%); }
+.tg-hero-fig-copy { margin: 0 0 26px; color: rgb(255 255 255 / 80%); font-size: clamp(14px, .9vw, 17.3px); line-height: 1.3; }
+.tg-hero-fig-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 26px; }
+.tg-hero-fig-meta-item { display: inline-flex; align-items: center; gap: 7px; color: rgb(255 255 255 / 60%); font-size: 11.5px; }
+.tg-hero-fig-meta-divider { width: 0; height: 32px; border-left: 1px dashed rgb(255 255 255 / 14%); }
+.tg-hero-fig .tg-hero-cta { margin-top: 4px; margin-bottom: 6px; }
+.tg-hero-fig-card { position: absolute; z-index: 2; left: 32px; bottom: 32px; width: 220px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 16px; border: 2px solid var(--tg-mint); border-radius: 12px; background: #1a1a26; box-shadow: 0 8px 20px rgb(26 26 46 / 85%); color: var(--tg-mint); text-align: left; font: inherit; cursor: pointer; transition: transform var(--tg-motion); }
+.tg-hero-fig-card:hover { transform: translateY(-2px); }
+.tg-hero-fig-card-title { font-family: var(--tg-font-display); font-weight: 700; font-style: italic; text-transform: uppercase; font-size: 12.5px; line-height: 1.3; letter-spacing: .01em; }
+.tg-hero-fig-card-arrow { flex: 0 0 auto; font-size: 18px; }
 
 /* ---------- Dashboard (authenticated home) ---------- */
 .tg-dashboard { max-width: 1180px; margin: clamp(28px, 7vh, 72px) auto; }
@@ -386,13 +400,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-switch.is-on span { transform: translateX(21px); background: #ddffd8; }
 .tg-settings-note { margin-top: 22px; font-size: 12px; line-height: 1.6; }
 
+/* Figma's 390w hero (node 53:1254) centers everything and moves the promo
+   card above the headline instead of floating bottom-left — matched here
+   by switching the section to a centered flex column and letting document
+   order (card markup comes after content in JSX) do the rest via `order`. */
 @media (max-width: 900px) {
   .tg-nav .tg-nav-label { display: none; }
   .tg-nav a, .tg-nav button { padding: 0 9px; }
-  .tg-hero { grid-template-columns: 1fr; gap: 18px; padding-top: 56px; }
-  .tg-hero-orbit { min-height: 300px; }
-  .tg-globe { width: min(54vw, 300px); }
-  .tg-orbit-tag.two { right: 8%; }
+  .tg-hero-fig { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: auto; padding: 88px 20px 36px; gap: 24px; }
+  .tg-hero-fig-content { position: static; order: 2; transform: none; max-width: 480px; text-align: center; left: auto; right: auto; }
+  .tg-hero-fig-logo, .tg-hero-fig-meta { justify-content: center; }
+  .tg-hero-fig-meta { row-gap: 8px; }
+  .tg-hero-fig-meta-divider { display: none; }
+  .tg-hero-fig-card { position: static; order: 1; width: 100%; max-width: 480px; left: auto; bottom: auto; }
   .tg-hud { width: min(260px, calc(100vw - 24px)); }
 }
 @media (max-width: 640px) {
@@ -402,13 +422,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tg-nav { gap: 1px; }
   .tg-nav a, .tg-nav button { min-height: 34px; width: 34px; padding: 0; font-size: 14px; }
   .tg-main { padding: 18px 14px; }
-  .tg-hero { min-height: calc(100vh - 60px); padding: 46px 22px; }
-  .tg-hero h1 { font-size: clamp(42px, 13vw, 64px); }
-  .tg-hero-orbit { min-height: 250px; }
-  .tg-globe { width: min(66vw, 250px); }
-  .tg-orbit-tag { font-size: 10px; padding: 8px; }
-  .tg-orbit-tag.one { left: 0; }
-  .tg-orbit-tag.two { right: 0; }
+  .tg-hero-fig { padding: 80px 16px 28px; gap: 20px; }
+  .tg-hero-fig-title { font-size: clamp(30px, 10.5vw, 43.7px); line-height: 1.19; }
   .tg-game { min-height: calc(100vh - 60px); }
   .tg-game-top { align-items: flex-start; padding: 10px 13px; }
   .tg-game-stats { gap: 7px; }

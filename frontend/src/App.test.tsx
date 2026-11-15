@@ -28,7 +28,7 @@ describe('App solo flow', () => {
     renderApp();
 
     // Home: choose Medium + list mode, then start.
-    expect(screen.getByRole('heading', { level: 1, name: 'Read the sky. Find the place.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /explore the\s*world!/i })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('difficulty-medium'));
     fireEvent.click(await screen.findByTestId('mode-option-list'));
     fireEvent.click(screen.getByTestId('start-game'));
