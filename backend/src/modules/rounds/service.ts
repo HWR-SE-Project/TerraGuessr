@@ -60,12 +60,13 @@ export class ServiceUnavailableError extends Error {
 }
 
 /** A challenge game has exactly one shared round (ADR-0005/ADR-0008). */
-export function roundCap(mode: GameMode): number {
-  return mode === 'solo' ? ROUNDS_PER_GAME : 1;
+export function roundCap(mode: GameMode, roundsTotal = ROUNDS_PER_GAME): number {
+  return mode === 'solo' ? roundsTotal : 1;
 }
 
 interface LoadedGame {
   mode: GameMode;
+  roundsTotal: number;
   status: 'active' | 'completed';
   rounds: ReadonlyArray<{ status: 'active' | 'completed' }>;
 }
@@ -77,7 +78,7 @@ function enforceStateMachine(game: LoadedGame): void {
   if (game.rounds.some((round) => round.status === 'active')) {
     throw new RoundConflictError('Game already has an active round');
   }
-  if (game.rounds.length >= roundCap(game.mode)) {
+  if (game.rounds.length >= roundCap(game.mode, game.roundsTotal)) {
     throw new RoundConflictError('Game has reached its round limit');
   }
 }
@@ -331,7 +332,7 @@ export async function startRound(
 
   // Prefetch the next round (R12, best-effort, fire-and-forget) — only when a
   // next round actually exists.
-  if (roundNumber < roundCap(game.mode)) {
+  if (roundNumber < roundCap(game.mode, game.roundsTotal)) {
     void prefetchNextRound(gameId, db, weatherClient, rng);
   }
 

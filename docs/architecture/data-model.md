@@ -23,6 +23,7 @@ Cached weather for a location (R03/R06/R12).
 - `id`, `mode: 'solo' | 'challenge'`, `difficulty: 'easy' | 'medium' | 'hard'`
 - `playerToken?` — opaque client-held token, not a user account (decision B.6)
 - `status`, `createdAt`
+- `roundsTotal` — validated solo session length (1–20, default five; ADR-0014); challenges stay at one round.
 
 ### `Round`
 Holds the authoritative actual location server-side (R01/R04/R11/R12/R13).

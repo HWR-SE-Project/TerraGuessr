@@ -10,7 +10,6 @@
 
 import type { PrismaClient } from '@prisma/client';
 
-import { ROUNDS_PER_GAME } from '../../config/constants.js';
 import { selectRound } from '../../domain/selection.js';
 import type { Rng } from '../../domain/selection.js';
 import { LocationsService } from '../locations/service.js';
@@ -18,8 +17,8 @@ import { getFreshSnapshot } from '../weather/cache.js';
 import type { WeatherClient } from '../weather/types.js';
 
 /** A challenge game has exactly one shared round (ADR-0005/ADR-0008). */
-function roundCap(mode: 'solo' | 'challenge'): number {
-  return mode === 'solo' ? ROUNDS_PER_GAME : 1;
+function roundCap(mode: 'solo' | 'challenge', roundsTotal: number): number {
+  return mode === 'solo' ? roundsTotal : 1;
 }
 
 /**
@@ -50,7 +49,7 @@ export async function prefetchNextRound(
       return;
     }
     // No next round exists once the game is at/over its round cap.
-    if (game.rounds.length >= roundCap(game.mode)) {
+    if (game.rounds.length >= roundCap(game.mode, game.roundsTotal)) {
       return;
     }
 

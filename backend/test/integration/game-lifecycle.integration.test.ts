@@ -178,4 +178,30 @@ describe('game + round lifecycle (integration)', () => {
     const extra = await startRound(gameId, playerToken);
     expect(extra.statusCode).toBe(409);
   });
+
+  it('enforces a configured two-round solo limit on the server', async () => {
+    const created = await app.inject({ method: 'POST', url: '/api/games', payload: { mode: 'solo', difficulty: 'medium', roundsTotal: 2 } });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().roundsTotal).toBe(2);
+    const { gameId, playerToken } = created.json() as { gameId: string; playerToken: string };
+    for (let roundNumber = 1; roundNumber <= 2; roundNumber += 1) {
+      const start = await startRound(gameId, playerToken);
+      expect(start.statusCode).toBe(201);
+      expect(start.json().roundNumber).toBe(roundNumber);
+      expect((await submitGuess(start.json().roundId, playerToken, { lat: 0, lon: 0 })).statusCode).toBe(200);
+    }
+    const summary = await app.inject({ method: 'GET', url: '/api/games/' + gameId, headers: { 'x-player-token': playerToken } });
+    expect(summary.json()).toMatchObject({ status: 'completed', roundsPlayed: 2, roundsTotal: 2 });
+    expect((await startRound(gameId, playerToken)).statusCode).toBe(409);
+  });
+
+  it('validates a configured solo round count from 1 through 20', async () => {
+    for (const roundsTotal of [0, 21, 1.5]) {
+      const invalid = await app.inject({ method: 'POST', url: '/api/games', payload: { mode: 'solo', difficulty: 'easy', roundsTotal } });
+      expect(invalid.statusCode).toBe(400);
+    }
+    const single = await app.inject({ method: 'POST', url: '/api/games', payload: { mode: 'solo', difficulty: 'easy', roundsTotal: 1 } });
+    expect(single.statusCode).toBe(201);
+    expect(single.json().roundsTotal).toBe(1);
+  });
 });

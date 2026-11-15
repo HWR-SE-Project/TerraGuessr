@@ -47,8 +47,8 @@ interface ErrorDTO { error: { code: string; message: string; details?: Record<st
 
 ### `POST /api/games`
 Create a game. No auth.
-- **Body:** `{ mode: GameMode; difficulty: Difficulty }`
-- **201:** `{ gameId: string; playerToken: string }` — `playerToken` returned **once**; client
+- **Body:** `{ mode: GameMode; difficulty: Difficulty; roundsTotal?: number }`; solo accepts 1–20 (default 5), challenge is always one round.
+- **201:** `{ gameId: string; playerToken: string; roundsTotal: number }` — `playerToken` returned **once**; client
   stores it and sends it as `X-Player-Token` thereafter (ADR-0011).
 - Errors: `400 VALIDATION_ERROR`.
 
