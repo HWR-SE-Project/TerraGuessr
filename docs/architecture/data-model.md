@@ -47,8 +47,11 @@ value is persisted).
 ### `ChallengeEntry`
 - `id`, `challengeId` (FK), `resultId` (FK), `displayName?` (no account required — decision B.6)
 
-No `User`/`Player` account entity in this release — anonymous play only (decision B.6).
-Introducing accounts is an explicit future decision, not assumed.
+Guest play continues to use the anonymous per-game player token (decision B.6).
+TerraGuessr 2.0 ADR-0013 adds optional `User`, `AuthSession`,
+`PasswordResetToken`, and `UserPreference` records. New authenticated games may
+store nullable `ownerUserId`; account deletion sets it to null while R18 result
+retention remains unchanged. See [ADR-0013](adr/0013-account-sessions.md).
 
 ---
 

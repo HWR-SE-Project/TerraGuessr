@@ -6,6 +6,13 @@ export interface Env {
   adminApiToken: string;
   openMeteoBaseUrl: string;
   logLevel: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
+  googleRedirectUri?: string;
+  appBaseUrl?: string;
+  smtpUrl?: string;
+  smtpFrom?: string;
+  sessionCookieSecure: boolean;
 }
 
 const DEFAULT_PORT = 3000;
@@ -37,5 +44,13 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     openMeteoBaseUrl:
       env.OPEN_METEO_BASE_URL?.trim() || DEFAULT_OPEN_METEO_BASE_URL,
     logLevel: env.LOG_LEVEL?.trim() || DEFAULT_LOG_LEVEL,
+    googleClientId: env.GOOGLE_CLIENT_ID?.trim() || undefined,
+    googleClientSecret: env.GOOGLE_CLIENT_SECRET?.trim() || undefined,
+    googleRedirectUri: env.GOOGLE_REDIRECT_URI?.trim() || undefined,
+    appBaseUrl: env.APP_BASE_URL?.trim() || undefined,
+    smtpUrl: env.SMTP_URL?.trim() || undefined,
+    smtpFrom: env.SMTP_FROM?.trim() || undefined,
+    sessionCookieSecure:
+      env.NODE_ENV === 'production' || env.SESSION_COOKIE_SECURE === 'true',
   };
 }

@@ -138,6 +138,7 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
       method,
       headers: requestHeaders,
       body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: 'include',
       signal,
     });
   } catch (cause) {

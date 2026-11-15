@@ -25,3 +25,8 @@ the sandbox — they require a live database.
   `RoundStatus`, `LocationSrc`, `WeatherSrc`; models `Location`,
   `WeatherSnapshot`, `Game`, `Round`, `Guess`, `Result`, `Challenge`,
   `ChallengeEntry`.
+
+Account migration `20261115150000_user_auth` is additive. Existing games keep their
+anonymous player-token hashes and receive a nullable `ownerUserId`; account deletion
+sets that relation to null and cascades only identity, sessions, reset tokens, and
+preferences. Existing games/results remain under R18 retention.

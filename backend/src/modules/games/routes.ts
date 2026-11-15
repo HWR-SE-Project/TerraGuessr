@@ -15,6 +15,7 @@ import {
   GameSummary,
 } from '../../contracts/games.js';
 import { createGame, getGameSummary } from './service.js';
+import { optionalSessionUserId } from '../auth/routes.js';
 
 /** Register the games routes. `db` is injectable for tests. */
 export function registerGamesRoutes(
@@ -34,7 +35,8 @@ export function registerGamesRoutes(
     },
     async (request, reply) => {
       const body = request.body as CreateGameBody;
-      const result = await createGame(body.mode, body.difficulty, db);
+      const ownerUserId = await optionalSessionUserId(request, db);
+      const result = await createGame(body.mode, body.difficulty, db, ownerUserId);
       reply.code(201);
       return result;
     },

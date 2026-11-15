@@ -6,9 +6,9 @@ Status reflects this feature branch as of the Phase 1 slice. Existing R01–R20 
 |---|---|---|
 | Design tokens, TerraGuessr identity, responsive landing | DONE | Phase 1; screenshots in `docs/screenshots/`. |
 | Existing Solo game, Easy candidates, map placement, weather, results | DONE | Existing API/state machine preserved; coordinate inputs removed. |
-| Persistent signed-in navigation and English/German localization | NOT STARTED | No signed-in identity or localization system exists yet. |
-| Google and email authentication, sessions, account recovery | NOT STARTED | No user or session schema/routes exist. Requires Google OAuth client settings and an email delivery provider for safe recovery. |
-| Dashboard, profile, settings, statistics, leaderboards | NOT STARTED | No persisted user profile/preferences or ranked progression. |
+| Persistent signed-in navigation and English/German localization | IN PROGRESS | Signed-in settings/profile/logout navigation and actual English/German landing, dashboard, navigation and account-page text. Statistics/leaderboards links await their real data/API. |
+| Google and email authentication, sessions, account recovery | IN PROGRESS | Email registration/login, hashed scrypt passwords, revocable HttpOnly sessions, one-time hashed reset tokens and Google OIDC flow implemented. Google and SMTP end-to-end blocked pending real credentials. |
+| Dashboard, profile, settings, statistics, leaderboards | IN PROGRESS | Authenticated solo dashboard, rename, email/provider identity, safe deletion, language and fullscreen settings. Statistics and leaderboards remain unimplemented. |
 | Game setup, custom rules, live multiplayer rooms | NOT STARTED | Current challenge is asynchronous and remains preserved. |
 | Ranked 1v1 and matchmaking | NOT STARTED | No ranked match state or scoring policy implemented. |
 | Daily challenge and streaks | NOT STARTED | No UTC challenge schedule or account-linked participation data. |
@@ -27,7 +27,7 @@ Status reflects this feature branch as of the Phase 1 slice. Existing R01–R20 
 | Phase | Status |
 |---|---|
 | 1 — Product design system and existing-game UX | DONE |
-| 2 — Authentication and player dashboard | NOT STARTED |
+| 2 — Authentication and player dashboard | IN PROGRESS |
 | 3 — Game configuration and multiplayer rooms | NOT STARTED |
 | 4 — Daily, ranked, statistics and leaderboards | NOT STARTED |
 | 5 — Environmental intelligence | NOT STARTED |
