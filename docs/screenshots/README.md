@@ -1,4 +1,4 @@
-# Phase 1 browser evidence
+# Browser evidence
 
 Captured from the running application using Chromium against an isolated Docker Compose stack with deterministic test weather.
 
@@ -7,3 +7,5 @@ Captured from the running application using Chromium against an isolated Docker 
 - `phase1-desktop-map.png` — 1440px Hard mode after placing a map marker.
 - `phase1-mobile-home.png` — 375px landing page.
 - `phase1-mobile-game.png` — 375px Easy mode.
+- `phase2-desktop-dashboard.png` — 1440px authenticated dashboard after email registration.
+- `phase2-mobile-settings-de.png` — 375px settings page with the persisted German interface preference.

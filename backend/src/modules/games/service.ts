@@ -27,12 +27,13 @@ export async function createGame(
   mode: CreateGameBody['mode'],
   difficulty: CreateGameBody['difficulty'],
   db: PrismaClient = prisma,
+  ownerUserId?: string,
 ): Promise<CreateGameResponse> {
   const playerToken = generatePlayerToken();
   const playerTokenHash = hashPlayerToken(playerToken);
 
   const game = await db.game.create({
-    data: { mode, difficulty, playerTokenHash },
+    data: { mode, difficulty, playerTokenHash, ownerUserId },
   });
 
   return { gameId: game.id, playerToken };

@@ -16,6 +16,7 @@ interface ErrorEnvelope {
 const STATUS_CODE_MAP: Record<number, string> = {
   400: 'VALIDATION_ERROR',
   401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
   404: 'NOT_FOUND',
   409: 'CONFLICT',
   429: 'RATE_LIMITED',

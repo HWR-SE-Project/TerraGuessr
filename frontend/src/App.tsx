@@ -2,8 +2,8 @@
 // home (difficulty) -> ROUNDS_PER_GAME rounds (weather + map/list + submit + reveal)
 // -> results. All server I/O goes through src/api/gameDataSource.ts, which in
 // turn uses src/api/client.ts; session state lives in the gameStore context.
-import { useMemo, useState } from 'react';
-import { ApiError, setPlayerToken } from './api/client';
+import { useEffect, useMemo, useState } from 'react';
+import { ApiError, apiFetch, setPlayerToken } from './api/client';
 import { mapApiError } from './api/errorMessages';
 import {
   ROUNDS_PER_GAME,
@@ -18,11 +18,15 @@ import type { DifficultySelection } from './features/difficulty';
 import { RoundScreen } from './features/game';
 import type { RoundDataSource } from './features/game';
 import { TutorialDialog } from './features/tutorial';
+import { AuthDialog } from './features/auth/AuthDialog';
+import type { AuthUser } from './features/auth/AuthDialog';
+import { AccountPages } from './features/auth/AccountPages';
 import { GameStoreProvider, useGameStore } from './state/gameStore';
 
 type Phase = 'home' | 'playing' | 'results';
 
 type LoadStatus = 'idle' | 'loading' | 'error';
+type AccountPage = 'profile' | 'settings' | null;
 
 /** Shared-link challenges land on shareUrl = '/challenge/:id' (P0-3). */
 function parseChallengeId(pathname: string): string | null {
@@ -81,6 +85,22 @@ function AppShell({ dataSource }: AppShellProps) {
   const [revealed, setRevealed] = useState<GuessResultDTO | null>(null);
   const [results, setResults] = useState<GameResultsDTO | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [accountPage, setAccountPage] = useState<AccountPage>(null);
+  const [authConfig, setAuthConfig] = useState({ googleAvailable: false, passwordRecoveryAvailable: false });
+  const [resetToken] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('token'));
+  const [language, setLanguage] = useState<'en' | 'de'>('en');
+
+  useEffect(() => {
+    void apiFetch<{ user: AuthUser | null; preferences?: { language?: 'en' | 'de' } | null }>('/auth/session').then((result) => { setAuthUser(result.user); if (result.preferences?.language) setLanguage(result.preferences.language); }).catch(() => undefined);
+    void apiFetch<typeof authConfig>('/auth/config').then(setAuthConfig).catch(() => undefined);
+    if (resetToken) setAuthOpen(true);
+  }, [resetToken]);
+  useEffect(() => { document.documentElement.lang = language; }, [language]);
+  const copy = language === 'de'
+    ? { help: 'Hilfe', settings: 'Einstellungen', profile: 'Profil', signIn: 'Anmelden', signOut: 'Abmelden', welcome: 'Willkommen zurück', dashboard: 'Wähle dein nächstes Abenteuer', solo: 'Solo-Expedition', soloCopy: 'Lies das Wetter, setze deinen Tipp und finde in fünf Runden heraus, wie nah du liegst.', create: 'Solo-Spiel starten', preparing: 'Wird vorbereitet…', homeEyebrow: 'Eine Welt voller Hinweise, ein guter Tipp', homeTitleA: 'Lies den Himmel.', homeTitleB: 'Finde den Ort.', homeCopy: 'Jede Runde beginnt an einem anderen Ort der Erde. Untersuche das Wetter, vertraue deinem Gefühl und setze deine Markierung.', start: 'Solo-Expedition starten', learn: 'Hinweise kennenlernen' }
+    : { help: 'Help', settings: 'Settings', profile: 'Profile', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeEyebrow: 'A world of clues, one great guess', homeTitleA: 'Read the sky.', homeTitleB: 'Find the place.', homeCopy: 'Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', learn: 'Learn the signals' };
 
   const busy = status === 'loading';
 
@@ -101,6 +121,17 @@ function AppShell({ dataSource }: AppShellProps) {
     } catch (cause) {
       setError(friendlyErrorMessage(cause));
       setStatus('error');
+    }
+  }
+
+  async function handleSignOut(): Promise<void> {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+      setAuthUser(null);
+      setAccountPage(null);
+      setLanguage('en');
+    } catch (cause) {
+      setError(friendlyErrorMessage(cause));
     }
   }
 
@@ -262,7 +293,13 @@ function AppShell({ dataSource }: AppShellProps) {
       <header className="tg-topbar">
         <a className="tg-brand" href="/" onClick={(event) => { if (phase !== 'home') { event.preventDefault(); handlePlayAgain(); } }}><span className="tg-brand-mark" aria-hidden="true">⌖</span><span className="tg-brand-name">Terra<span>Guessr</span></span></a>
         <nav className="tg-nav" aria-label="Main navigation">
-          {phase === 'home' ? <button type="button" onClick={() => setTutorialOpen(true)} data-testid="how-to-play"><span aria-hidden="true">ⓘ</span><span className="tg-nav-label">How to play</span></button> : <span className="tg-chip"><span className="tg-dot" />Solo expedition</span>}
+          {phase !== 'home' ? <span className="tg-chip"><span className="tg-dot" />Solo expedition</span> : null}
+          <button type="button" onClick={() => setTutorialOpen(true)} data-testid="how-to-play"><span aria-hidden="true">ⓘ</span><span className="tg-nav-label">{copy.help}</span></button>
+          {authUser && phase === 'home' ? <>
+            <button type="button" aria-label={copy.settings} onClick={() => setAccountPage('settings')}>{copy.settings}</button>
+            <button type="button" aria-label={copy.profile} onClick={() => setAccountPage('profile')}>{copy.profile}</button>
+            <button type="button" aria-label={copy.signOut} onClick={() => void handleSignOut()}>{copy.signOut}</button>
+          </> : phase === 'home' ? <button type="button" onClick={() => setAuthOpen(true)}>{copy.signIn}</button> : null}
         </nav>
       </header>
       <main className={phase === 'playing' ? 'tg-game' : phase === 'home' ? 'tg-landing' : 'tg-main'}>
@@ -294,12 +331,28 @@ function AppShell({ dataSource }: AppShellProps) {
           </div>
         ) : null}
 
-        {phase === 'home' ? (
+        {phase === 'home' && accountPage && authUser ? (
+          <AccountPages page={accountPage} user={authUser} onBack={() => setAccountPage(null)} onDeleted={() => { setAuthUser(null); setAccountPage(null); }} onProfileUpdated={(displayName) => setAuthUser({ ...authUser, displayName })} onLanguageChange={setLanguage} />
+        ) : null}
+
+        {phase === 'home' && authUser && !accountPage ? (
+          <section className="tg-dashboard" aria-labelledby="dashboard-heading">
+            <div className="tg-eyebrow">{copy.welcome}, {authUser.displayName}</div>
+            <h1 id="dashboard-heading">{copy.dashboard}</h1>
+            <p className="tg-muted">Your account is ready. Solo expeditions are available now; other modes will appear as their server features are completed.</p>
+            <div className="tg-dashboard-grid">
+              <article className="tg-dashboard-card tg-panel"><span className="tg-eyebrow">Explore at your pace</span><h2>{copy.solo}</h2><p>{copy.soloCopy}</p><button type="button" onClick={() => void startGame(selection)} disabled={busy} className="tg-button tg-button-primary">{busy ? copy.preparing : copy.create}</button><div style={{ marginTop: 24 }}><DifficultyPicker value={selection} onChange={setSelection} disabled={busy} /></div></article>
+              <article className="tg-dashboard-card tg-panel tg-mode-unavailable"><span className="tg-eyebrow">Coming in later phases</span><h2>Multiplayer · Ranked · Daily</h2><p>Live rooms, matchmaking, and shared daily challenges are not enabled yet.</p></article>
+            </div>
+          </section>
+        ) : null}
+
+        {phase === 'home' && !authUser ? (
           <section aria-labelledby="home-heading" className="tg-hero">
             <div>
-              <div className="tg-eyebrow">A world of clues, one great guess</div>
-              <h1 id="home-heading">Read the sky.<br /><span>Find the place.</span></h1>
-              <p className="tg-hero-copy">Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.</p>
+              <div className="tg-eyebrow">{copy.homeEyebrow}</div>
+              <h1 id="home-heading">{copy.homeTitleA}<br /><span>{copy.homeTitleB}</span></h1>
+              <p className="tg-hero-copy">{copy.homeCopy}</p>
               <div className="tg-hero-cta">
               <button
                 type="button"
@@ -308,9 +361,9 @@ function AppShell({ dataSource }: AppShellProps) {
                 data-testid="start-game"
                 className="tg-button tg-button-primary"
               >
-                {busy ? 'Preparing expedition…' : '◉  Start solo expedition'}
+                {busy ? copy.preparing : `◉  ${copy.start}`}
               </button>
-                <button type="button" onClick={() => setTutorialOpen(true)} data-testid="hero-tutorial" className="tg-button tg-button-quiet">Learn the signals</button>
+                <button type="button" onClick={() => setTutorialOpen(true)} data-testid="hero-tutorial" className="tg-button tg-button-quiet">{copy.learn}</button>
               </div>
               <div style={{ marginTop: 30 }}>
                 <div className="tg-eyebrow" style={{ marginBottom: 10 }}>Choose your challenge</div>
@@ -383,6 +436,7 @@ function AppShell({ dataSource }: AppShellProps) {
         ) : null}
       </main>
       <TutorialDialog open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+      <AuthDialog open={authOpen} googleAvailable={authConfig.googleAvailable} recoveryAvailable={authConfig.passwordRecoveryAvailable} resetToken={resetToken} onClose={() => setAuthOpen(false)} onAuthenticated={(user) => { setAuthUser(user); setAccountPage(null); setPhase('home'); }} />
     </div>
   );
 }
