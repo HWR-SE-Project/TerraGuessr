@@ -11,6 +11,7 @@ import { registerAdminRoutes } from './modules/admin/routes.js';
 import { registerGamesRoutes } from './modules/games/routes.js';
 import { registerResultsRoutes } from './modules/results/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
+import { registerDailyRoutes } from './modules/daily/routes.js';
 import { registerRoundsRoutes } from './modules/rounds/routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -37,6 +38,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // An unset CORS_ORIGIN resolves to false (same-origin only).
   await app.register(cors, { origin: config.corsOrigin });
   registerAuthRoutes(app, { config });
+  registerDailyRoutes(app, { config });
   registerChallengesRoutes(app);
   registerGamesRoutes(app);
   registerRoundsRoutes(app);

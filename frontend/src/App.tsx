@@ -94,6 +94,9 @@ function AppShell({ dataSource }: AppShellProps) {
   const [configuredRoundsTotal, setConfiguredRoundsTotal] = useState(ROUNDS_PER_GAME);
   const [configuredGeography, setConfiguredGeography] = useState<'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA'>('world');
   const [configuredCandidateCount, setConfiguredCandidateCount] = useState<number | undefined>();
+  const [dailyMode, setDailyMode] = useState(false);
+  const [dailyDate, setDailyDate] = useState<string | null>(null);
+  const [dailyLeaderboard, setDailyLeaderboard] = useState<{ entries: Array<{ rank: number; displayName: string; score: number; distanceKm: number }>; myRank: number | null } | null>(null);
   const [authConfig, setAuthConfig] = useState({ googleAvailable: false, passwordRecoveryAvailable: false });
   const [resetToken] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('token'));
   const [language, setLanguage] = useState<'en' | 'de'>('en');
@@ -157,6 +160,7 @@ function AppShell({ dataSource }: AppShellProps) {
     setRound(null);
     setRevealed(null);
     setResults(null);
+    setDailyMode(false);
 
     let active = source;
     try {
@@ -205,6 +209,21 @@ function AppShell({ dataSource }: AppShellProps) {
     }
   }
 
+  async function startDaily(): Promise<void> {
+    if (busy || !authUser) return;
+    setStatus('loading'); setError(null); setDailyMode(true); setDailyLeaderboard(null); setRevealed(null); setResults(null);
+    try {
+      const response = await apiFetch<{ date: string; status: 'open' | 'completed'; round: RoundDTO; result?: GuessResultDTO }>('/daily/today');
+      setDailyDate(response.date); setRound(response.round); setActiveGameId(response.date); setActiveRoundsTotal(1); setPhase('playing'); setStatus('idle');
+      if (response.result) setRevealed(response.result);
+      dispatch({ type: 'game/created', gameId: response.date, playerToken: '', difficulty: 'hard', mode: 'solo' });
+      if (response.status === 'completed') {
+        const board = await apiFetch<{ entries: Array<{ rank: number; displayName: string; score: number; distanceKm: number }>; myRank: number | null }>(`/daily/${response.date}/leaderboard`);
+        setDailyLeaderboard(board);
+      }
+    } catch (cause) { setDailyMode(false); setStatus('error'); setError(friendlyErrorMessage(cause)); }
+  }
+
   async function loadResults(): Promise<void> {
     if (!activeGameId) {
       return;
@@ -226,6 +245,7 @@ function AppShell({ dataSource }: AppShellProps) {
     if (!round) {
       return;
     }
+    if (dailyMode) { handlePlayAgain(); return; }
     if (round.roundNumber >= activeRoundsTotal) {
       await loadResults();
       return;
@@ -262,6 +282,9 @@ function AppShell({ dataSource }: AppShellProps) {
     setRevealed(null);
     setResults(null);
     setGameSetupOpen(false);
+    setDailyMode(false);
+    setDailyDate(null);
+    setDailyLeaderboard(null);
   }
 
   // RoundScreen fetches through this seam; App already holds the round, so the
@@ -277,15 +300,20 @@ function AppShell({ dataSource }: AppShellProps) {
       },
       async submitGuess(roundId, guess) {
         try {
-          const result = await source.submitGuess(roundId, guess);
+          const result = dailyMode
+            ? (await apiFetch<{ result: GuessResultDTO }>('/daily/today/guess', { method: 'POST', body: guess })).result
+            : await source.submitGuess(roundId, guess);
           setRevealed(result);
+          if (dailyMode && dailyDate) {
+            void apiFetch<{ entries: Array<{ rank: number; displayName: string; score: number; distanceKm: number }>; myRank: number | null }>(`/daily/${dailyDate}/leaderboard`).then(setDailyLeaderboard).catch(() => undefined);
+          }
           return result;
         } catch (cause) {
           throw new Error(friendlyErrorMessage(cause));
         }
       },
     };
-  }, [round, source]);
+  }, [round, source, dailyMode, dailyDate]);
 
   const isFinalRound = round !== null && round.roundNumber >= activeRoundsTotal;
   // R16: the challenge replays the last completed round with the player's result.
@@ -310,7 +338,7 @@ function AppShell({ dataSource }: AppShellProps) {
       <header className="tg-topbar">
         <a className="tg-brand" href="/" onClick={(event) => { if (phase !== 'home') { event.preventDefault(); handlePlayAgain(); } }}><span className="tg-brand-mark" aria-hidden="true">⌖</span><span className="tg-brand-name">Terra<span>Guessr</span></span></a>
         <nav className="tg-nav" aria-label="Main navigation">
-          {phase !== 'home' ? <span className="tg-chip"><span className="tg-dot" />Solo expedition</span> : null}
+          {phase !== 'home' ? <span className="tg-chip"><span className="tg-dot" />{dailyMode ? `Daily · ${dailyDate ?? 'UTC'}` : 'Solo expedition'}</span> : null}
           <button type="button" onClick={() => setTutorialOpen(true)} data-testid="how-to-play"><span aria-hidden="true">ⓘ</span><span className="tg-nav-label">{copy.help}</span></button>
           {authUser && phase === 'home' ? <>
             <button type="button" aria-label={copy.settings} onClick={() => setAccountPage('settings')}>{copy.settings}</button>
@@ -360,10 +388,11 @@ function AppShell({ dataSource }: AppShellProps) {
           <section className="tg-dashboard" aria-labelledby="dashboard-heading">
             <div className="tg-eyebrow">{copy.welcome}, {authUser.displayName}</div>
             <h1 id="dashboard-heading">{copy.dashboard}</h1>
-            <p className="tg-muted">Your account is ready. Solo expeditions are available now; other modes will appear as their server features are completed.</p>
+            <p className="tg-muted">Your account is ready. Take a solo expedition or join today’s shared UTC challenge.</p>
             <div className="tg-dashboard-grid">
               <article className="tg-dashboard-card tg-panel"><span className="tg-eyebrow">Explore at your pace</span><h2>{copy.solo}</h2><p>{copy.soloCopy}</p><button type="button" onClick={() => setGameSetupOpen(true)} disabled={busy} className="tg-button tg-button-primary">{copy.create}</button></article>
-              <article className="tg-dashboard-card tg-panel tg-mode-unavailable"><span className="tg-eyebrow">Coming in later phases</span><h2>Multiplayer · Ranked · Daily</h2><p>Live rooms, matchmaking, and shared daily challenges are not enabled yet.</p></article>
+              <article className="tg-dashboard-card tg-panel"><span className="tg-eyebrow">One shared location · resets at 00:00 UTC</span><h2>Daily Challenge</h2><p>Everyone gets the same location each UTC day. Submit one guess, then compare your score on the global table.</p><button type="button" onClick={() => void startDaily()} disabled={busy} className="tg-button tg-button-primary">{busy ? 'Preparing…' : 'Play today’s challenge'}</button></article>
+              <article className="tg-dashboard-card tg-panel tg-mode-unavailable"><span className="tg-eyebrow">Coming in later phases</span><h2>Multiplayer · Ranked</h2><p>Live rooms and server matchmaking are still in development.</p></article>
             </div>
           </section>
         ) : null}
@@ -418,6 +447,7 @@ function AppShell({ dataSource }: AppShellProps) {
                   dataSource={roundSource}
                   gameId={activeGameId ?? undefined}
                 />
+                {dailyMode && revealed ? <section className="tg-panel" aria-label="Daily leaderboard" style={{ margin: '14px 0 80px', padding: 20 }}><div className="tg-eyebrow">{dailyDate} · UTC daily leaderboard</div><h2 style={{ marginTop: 8 }}>Your placement: {dailyLeaderboard?.myRank ? `#${dailyLeaderboard.myRank}` : '—'}</h2><ol>{dailyLeaderboard?.entries.map((entry) => <li key={entry.rank}>{entry.rank}. {entry.displayName} · {entry.score} pts · {entry.distanceKm.toFixed(1)} km</li>)}</ol></section> : null}
                 {revealed ? (
                   <p style={{ position: 'absolute', top: 82, right: 24, zIndex: 10, margin: 0 }}>
                     <button
