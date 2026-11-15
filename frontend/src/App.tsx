@@ -113,8 +113,8 @@ function AppShell({ dataSource }: AppShellProps) {
   }, [resetToken]);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
   const copy = language === 'de'
-    ? { help: 'Hilfe', settings: 'Einstellungen', profile: 'Profil', statistics: 'Statistik', leaderboard: 'Bestenliste', signIn: 'Anmelden', signOut: 'Abmelden', welcome: 'Willkommen zurück', dashboard: 'Wähle dein nächstes Abenteuer', solo: 'Solo-Expedition', soloCopy: 'Lies das Wetter, setze deinen Tipp und finde in fünf Runden heraus, wie nah du liegst.', create: 'Solo-Spiel starten', preparing: 'Wird vorbereitet…', homeEyebrow: 'Eine Welt voller Hinweise, ein guter Tipp', homeTitleA: 'Lies den Himmel.', homeTitleB: 'Finde den Ort.', homeCopy: 'Jede Runde beginnt an einem anderen Ort der Erde. Untersuche das Wetter, vertraue deinem Gefühl und setze deine Markierung.', start: 'Solo-Expedition starten', startHover: 'Bereit zum Abheben!', learn: 'Hinweise kennenlernen' }
-    : { help: 'Help', settings: 'Settings', profile: 'Profile', statistics: 'Statistics', leaderboard: 'Leaderboard', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeEyebrow: 'A world of clues, one great guess', homeTitleA: 'Read the sky.', homeTitleB: 'Find the place.', homeCopy: 'Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', startHover: 'Taking off!', learn: 'Learn the signals' };
+    ? { help: 'Hilfe', settings: 'Einstellungen', profile: 'Profil', statistics: 'Statistik', leaderboard: 'Bestenliste', signIn: 'Anmelden', signOut: 'Abmelden', welcome: 'Willkommen zurück', dashboard: 'Wähle dein nächstes Abenteuer', solo: 'Solo-Expedition', soloCopy: 'Lies das Wetter, setze deinen Tipp und finde in fünf Runden heraus, wie nah du liegst.', create: 'Solo-Spiel starten', preparing: 'Wird vorbereitet…', homeTitleA: 'Entdecke die', homeTitleB: 'Welt!', homeCopy: 'Jede Runde beginnt an einem anderen Ort der Erde – ganz ohne Street-View-Fotos. Lies das Wetter, vertraue deinem Gefühl und setze deine Markierung.', start: 'Solo-Expedition starten', startHover: 'Bereit zum Abheben!', learn: 'Hinweise kennenlernen', playInBrowser: 'Direkt im Browser spielen', weatherOnly: 'Kein Kamerabild – nur Wetterdaten', chooseChallenge: 'Wähle deine Herausforderung', learnCardTitle: 'So funktionieren die Hinweise' }
+    : { help: 'Help', settings: 'Settings', profile: 'Profile', statistics: 'Statistics', leaderboard: 'Leaderboard', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeTitleA: 'Explore the', homeTitleB: 'world!', homeCopy: 'Every round drops you somewhere on Earth with no street-view photo at all. Read the live weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', startHover: 'Taking off!', learn: 'Learn the signals', playInBrowser: 'Play free in your browser', weatherOnly: 'No camera view — weather clues only', chooseChallenge: 'Choose your challenge', learnCardTitle: 'Learn how the clues work' };
 
   const busy = status === 'loading';
   const handleAttemptChange = useCallback((current: number, total: number) => setAttemptProgress({ current, total }), []);
@@ -432,45 +432,53 @@ function AppShell({ dataSource }: AppShellProps) {
         ) : null}
 
         {phase === 'home' && !authUser ? (
-          <section aria-labelledby="home-heading" className="tg-hero">
-            <div>
-              <div className="tg-eyebrow">{copy.homeEyebrow}</div>
-              <h1 id="home-heading">{copy.homeTitleA}<br /><span>{copy.homeTitleB}</span></h1>
-              <p className="tg-hero-copy">{copy.homeCopy}</p>
+          <section aria-labelledby="home-heading" className="tg-hero-fig">
+            <div className="tg-hero-fig-bg" aria-hidden="true"><div className="tg-hero-fig-rings" /></div>
+            <div className="tg-hero-fig-overlay" aria-hidden="true" />
+            <div className="tg-hero-fig-content">
+              <div className="tg-hero-fig-logo">
+                <span className="tg-brand-mark" aria-hidden="true">⌖</span>
+                <span className="tg-hero-fig-wordmark">Terra<span>Guessr</span></span>
+              </div>
+              <h1 id="home-heading" className="tg-hero-fig-title">{copy.homeTitleA}<br />{copy.homeTitleB}</h1>
+              <p className="tg-hero-fig-copy">{copy.homeCopy}</p>
+              <div className="tg-hero-fig-meta">
+                <span className="tg-hero-fig-meta-item"><span aria-hidden="true">🌐</span>{copy.playInBrowser}</span>
+                <span className="tg-hero-fig-meta-divider" aria-hidden="true" />
+                <span className="tg-hero-fig-meta-item"><span aria-hidden="true">⌖</span>{copy.weatherOnly}</span>
+              </div>
               <div className="tg-hero-cta">
-              <button
-                type="button"
-                onClick={() => void startGame(selection)}
-                disabled={busy}
-                data-testid="start-game"
-                aria-label={busy ? copy.preparing : copy.start}
-                className="tg-button tg-button-primary tg-fly-button"
-              >
-                {busy ? (
-                  copy.preparing
-                ) : (
-                  <>
-                    <span className="tg-fly-plane" aria-hidden="true">✈</span>
-                    <span className="tg-fly-text" aria-hidden="true">
-                      <span className="tg-fly-text-a">{copy.start}</span>
-                      <span className="tg-fly-text-b">{copy.startHover}</span>
-                    </span>
-                  </>
-                )}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => void startGame(selection)}
+                  disabled={busy}
+                  data-testid="start-game"
+                  aria-label={busy ? copy.preparing : copy.start}
+                  className="tg-button tg-button-primary tg-fly-button"
+                >
+                  {busy ? (
+                    copy.preparing
+                  ) : (
+                    <>
+                      <span className="tg-fly-plane" aria-hidden="true">✈</span>
+                      <span className="tg-fly-text" aria-hidden="true">
+                        <span className="tg-fly-text-a">{copy.start}</span>
+                        <span className="tg-fly-text-b">{copy.startHover}</span>
+                      </span>
+                    </>
+                  )}
+                </button>
                 <button type="button" onClick={() => setTutorialOpen(true)} data-testid="hero-tutorial" className="tg-button tg-button-quiet">{copy.learn}</button>
               </div>
               <div className="tg-mt-6">
-                <div className="tg-eyebrow tg-mb-3">Choose your challenge</div>
+                <div className="tg-eyebrow tg-mb-3">{copy.chooseChallenge}</div>
                 <DifficultyPicker value={selection} onChange={setSelection} disabled={busy} />
               </div>
             </div>
-            <div className="tg-hero-orbit" aria-hidden="true">
-              <div className="tg-globe"><div className="tg-globe-grid" /></div>
-              <div className="tg-orbit-tag one">◌ &nbsp; Weather is your compass</div>
-              <div className="tg-orbit-tag two">⌖ &nbsp; Five locations. One world.</div>
-              <div className="tg-orbit-tag three">↗ &nbsp; Every kilometer counts</div>
-            </div>
+            <button type="button" className="tg-hero-fig-card" onClick={() => setTutorialOpen(true)}>
+              <span className="tg-hero-fig-card-title">{copy.learnCardTitle}</span>
+              <span className="tg-hero-fig-card-arrow" aria-hidden="true">↗</span>
+            </button>
           </section>
         ) : null}
 

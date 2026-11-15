@@ -7,7 +7,7 @@ test('desktop landing and easy round', async ({ page }) => {
   await mkdir(evidence, { recursive: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /read the sky/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /explore the/i })).toBeVisible();
   await page.screenshot({ path: `${evidence}/phase1-desktop-home.png`, fullPage: true });
 
   await page.getByTestId('start-game').click();
@@ -28,7 +28,7 @@ test('mobile landing and game fit the viewport', async ({ page }) => {
   await mkdir(evidence, { recursive: true });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /read the sky/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /explore the/i })).toBeVisible();
   await page.screenshot({ path: `${evidence}/phase1-mobile-home.png`, fullPage: true });
 
   await page.getByTestId('start-game').click();
