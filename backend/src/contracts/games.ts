@@ -38,12 +38,14 @@ const CurrentRound = Type.Object({
 export const CreateGameBody = Type.Object({
   mode: GameMode,
   difficulty: Difficulty,
-});
+  roundsTotal: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+}, { additionalProperties: false });
 
 /** POST /api/games → 201. `playerToken` is returned exactly once (ADR-0011). */
 export const CreateGameResponse = Type.Object({
   gameId: Type.String(),
   playerToken: Type.String(),
+  roundsTotal: Type.Integer({ minimum: 1, maximum: 20 }),
 });
 
 /** GET /api/games/:gameId path params. */
@@ -56,9 +58,9 @@ export const GameSummary = Type.Object({
   gameId: Type.String(),
   mode: GameMode,
   difficulty: Difficulty,
+  roundsTotal: Type.Integer({ minimum: 1, maximum: 20 }),
   status: GameStatus,
   roundsPlayed: Type.Integer(),
-  roundsTotal: Type.Integer(),
   currentRound: Type.Union([CurrentRound, Type.Null()]),
 });
 

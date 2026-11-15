@@ -1,0 +1,2 @@
+ALTER TABLE "Game" ADD COLUMN "roundsTotal" INTEGER NOT NULL DEFAULT 5
+    CHECK ("roundsTotal" BETWEEN 1 AND 20);

@@ -21,6 +21,7 @@ import { TutorialDialog } from './features/tutorial';
 import { AuthDialog } from './features/auth/AuthDialog';
 import type { AuthUser } from './features/auth/AuthDialog';
 import { AccountPages } from './features/auth/AccountPages';
+import { GameSetup } from './features/setup/GameSetup';
 import { GameStoreProvider, useGameStore } from './state/gameStore';
 
 type Phase = 'home' | 'playing' | 'results';
@@ -88,6 +89,9 @@ function AppShell({ dataSource }: AppShellProps) {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [accountPage, setAccountPage] = useState<AccountPage>(null);
+  const [gameSetupOpen, setGameSetupOpen] = useState(false);
+  const [activeRoundsTotal, setActiveRoundsTotal] = useState(ROUNDS_PER_GAME);
+  const [configuredRoundsTotal, setConfiguredRoundsTotal] = useState(ROUNDS_PER_GAME);
   const [authConfig, setAuthConfig] = useState({ googleAvailable: false, passwordRecoveryAvailable: false });
   const [resetToken] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('token'));
   const [language, setLanguage] = useState<'en' | 'de'>('en');
@@ -135,11 +139,12 @@ function AppShell({ dataSource }: AppShellProps) {
     }
   }
 
-  async function startGame(nextSelection: DifficultySelection): Promise<void> {
+  async function startGame(nextSelection: DifficultySelection, roundsTotal = ROUNDS_PER_GAME): Promise<void> {
     if (busy) {
       return;
     }
     setSelection(nextSelection);
+    setConfiguredRoundsTotal(roundsTotal);
     setStatus('loading');
     setError(null);
     setRound(null);
@@ -150,7 +155,7 @@ function AppShell({ dataSource }: AppShellProps) {
     try {
       let created: CreateGameResponse;
       try {
-        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty });
+        created = await active.createGame({ mode: 'solo', difficulty: nextSelection.difficulty, roundsTotal });
       } catch (cause) {
         // Dev fallback: with no backend running the UI must still be playable.
         if (isNetworkError(cause) && import.meta.env.DEV) {
@@ -160,6 +165,7 @@ function AppShell({ dataSource }: AppShellProps) {
           created = await active.createGame({
             mode: 'solo',
             difficulty: nextSelection.difficulty,
+            roundsTotal,
           });
         } else {
           throw cause;
@@ -174,6 +180,7 @@ function AppShell({ dataSource }: AppShellProps) {
       // localStorage/React timing altogether.
       setPlayerToken(created.playerToken);
       setActiveGameId(created.gameId);
+      setActiveRoundsTotal(created.roundsTotal ?? roundsTotal);
       dispatch({
         type: 'game/created',
         gameId: created.gameId,
@@ -210,23 +217,23 @@ function AppShell({ dataSource }: AppShellProps) {
     if (!round) {
       return;
     }
-    if (round.roundNumber >= ROUNDS_PER_GAME) {
+    if (round.roundNumber >= activeRoundsTotal) {
       await loadResults();
       return;
     }
     if (!activeGameId) {
       return;
     }
-    await loadRound(source, activeGameId, selection.selectionMode);
+      await loadRound(source, activeGameId, selection.selectionMode);
   }
 
   function handleRetry(): void {
     if (phase === 'home') {
-      void startGame(selection);
+      void startGame(selection, configuredRoundsTotal);
       return;
     }
     // A failed results fetch happens after the final round was revealed.
-    if (round && round.roundNumber >= ROUNDS_PER_GAME) {
+    if (round && round.roundNumber >= activeRoundsTotal) {
       void loadResults();
       return;
     }
@@ -245,6 +252,7 @@ function AppShell({ dataSource }: AppShellProps) {
     setRound(null);
     setRevealed(null);
     setResults(null);
+    setGameSetupOpen(false);
   }
 
   // RoundScreen fetches through this seam; App already holds the round, so the
@@ -270,7 +278,7 @@ function AppShell({ dataSource }: AppShellProps) {
     };
   }, [round, source]);
 
-  const isFinalRound = round !== null && round.roundNumber >= ROUNDS_PER_GAME;
+  const isFinalRound = round !== null && round.roundNumber >= activeRoundsTotal;
   // R16: the challenge replays the last completed round with the player's result.
   const lastResult = results ? (results.results[results.results.length - 1] ?? null) : null;
 
@@ -335,13 +343,17 @@ function AppShell({ dataSource }: AppShellProps) {
           <AccountPages page={accountPage} user={authUser} onBack={() => setAccountPage(null)} onDeleted={() => { setAuthUser(null); setAccountPage(null); }} onProfileUpdated={(displayName) => setAuthUser({ ...authUser, displayName })} onLanguageChange={setLanguage} />
         ) : null}
 
-        {phase === 'home' && authUser && !accountPage ? (
+        {phase === 'home' && authUser && !accountPage && gameSetupOpen ? (
+          <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count) => { setGameSetupOpen(false); void startGame(chosen, count); }} />
+        ) : null}
+
+        {phase === 'home' && authUser && !accountPage && !gameSetupOpen ? (
           <section className="tg-dashboard" aria-labelledby="dashboard-heading">
             <div className="tg-eyebrow">{copy.welcome}, {authUser.displayName}</div>
             <h1 id="dashboard-heading">{copy.dashboard}</h1>
             <p className="tg-muted">Your account is ready. Solo expeditions are available now; other modes will appear as their server features are completed.</p>
             <div className="tg-dashboard-grid">
-              <article className="tg-dashboard-card tg-panel"><span className="tg-eyebrow">Explore at your pace</span><h2>{copy.solo}</h2><p>{copy.soloCopy}</p><button type="button" onClick={() => void startGame(selection)} disabled={busy} className="tg-button tg-button-primary">{busy ? copy.preparing : copy.create}</button><div style={{ marginTop: 24 }}><DifficultyPicker value={selection} onChange={setSelection} disabled={busy} /></div></article>
+              <article className="tg-dashboard-card tg-panel"><span className="tg-eyebrow">Explore at your pace</span><h2>{copy.solo}</h2><p>{copy.soloCopy}</p><button type="button" onClick={() => setGameSetupOpen(true)} disabled={busy} className="tg-button tg-button-primary">{copy.create}</button></article>
               <article className="tg-dashboard-card tg-panel tg-mode-unavailable"><span className="tg-eyebrow">Coming in later phases</span><h2>Multiplayer · Ranked · Daily</h2><p>Live rooms, matchmaking, and shared daily challenges are not enabled yet.</p></article>
             </div>
           </section>
@@ -383,7 +395,7 @@ function AppShell({ dataSource }: AppShellProps) {
           <section>
             <div className="tg-game-top">
               <div className="tg-game-stats">
-                <div className="tg-stat"><span className="tg-stat-label">Round</span><span className="tg-stat-value">{round?.roundNumber ?? '-'} <span className="tg-muted">/ {ROUNDS_PER_GAME}</span></span></div>
+                <div className="tg-stat"><span className="tg-stat-label">Round</span><span className="tg-stat-value">{round?.roundNumber ?? '-'} <span className="tg-muted">/ {activeRoundsTotal}</span></span></div>
                 <div className="tg-stat"><span className="tg-stat-label">Difficulty</span><span className="tg-stat-value" style={{ textTransform: 'capitalize' }}>{state.difficulty}</span></div>
                 <div className="tg-stat"><span className="tg-stat-label">Score</span><span className="tg-stat-value mono">{revealed?.score ?? '—'}</span></div>
               </div>

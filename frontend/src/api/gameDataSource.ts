@@ -20,12 +20,14 @@ export const ROUNDS_PER_GAME = 5;
 export interface CreateGameInput {
   mode: GameMode;
   difficulty: Difficulty;
+  roundsTotal?: number;
 }
 
 /** POST /api/games 201 response — playerToken is issued exactly once (ADR-0011). */
 export interface CreateGameResponse {
   gameId: string;
   playerToken: string;
+  roundsTotal: number;
 }
 
 /** Server I/O seam for the whole solo loop; tests inject a deterministic stub. */
@@ -122,17 +124,19 @@ function roughDistanceKm(a: LatLon, b: LatLon): number {
  */
 export function createStubGameDataSource(): GameDataSource {
   let roundsStarted = 0;
+  let roundsTotal = ROUNDS_PER_GAME;
   const results: ResultDTO[] = [];
 
   return {
-    async createGame() {
+    async createGame(input) {
       roundsStarted = 0;
       results.length = 0;
-      return { gameId: STUB_GAME_ID, playerToken: STUB_PLAYER_TOKEN };
+      roundsTotal = input.roundsTotal ?? ROUNDS_PER_GAME;
+      return { gameId: STUB_GAME_ID, playerToken: STUB_PLAYER_TOKEN, roundsTotal };
     },
 
     async startRound(_gameId, selectionMode = 'list') {
-      if (roundsStarted >= ROUNDS_PER_GAME) {
+      if (roundsStarted >= roundsTotal) {
         throw new ApiError('CONFLICT', 'All rounds of this game are complete.', 409);
       }
       roundsStarted += 1;

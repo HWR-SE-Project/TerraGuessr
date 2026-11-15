@@ -46,7 +46,7 @@ describe('games module', () => {
 
   describe('createGame', () => {
     it('returns the raw token once and stores only its hash', async () => {
-      const create = vi.fn().mockResolvedValue({ id: 'game1' });
+      const create = vi.fn().mockResolvedValue({ id: 'game1', roundsTotal: ROUNDS_PER_GAME });
       const db = { game: { create } } as unknown as PrismaLike;
 
       const result = await createGame('solo', 'easy', db);
@@ -55,11 +55,12 @@ describe('games module', () => {
       expect(result.playerToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
       const call = create.mock.calls[0] as unknown as [
-        { data: { mode: string; difficulty: string; playerTokenHash: string } },
+        { data: { mode: string; difficulty: string; playerTokenHash: string; roundsTotal: number } },
       ];
       const { data } = call[0];
       expect(data.mode).toBe('solo');
       expect(data.difficulty).toBe('easy');
+      expect(data.roundsTotal).toBe(ROUNDS_PER_GAME);
       expect(data.playerTokenHash).toBe(hashPlayerToken(result.playerToken));
       expect(data.playerTokenHash).not.toBe(result.playerToken);
     });

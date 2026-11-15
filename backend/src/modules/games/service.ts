@@ -28,15 +28,19 @@ export async function createGame(
   difficulty: CreateGameBody['difficulty'],
   db: PrismaClient = prisma,
   ownerUserId?: string,
+  roundsTotal = ROUNDS_PER_GAME,
 ): Promise<CreateGameResponse> {
+  // Async challenges have one shared location by product rule; only solo
+  // sessions accept the configurable 1–20 round count.
+  const appliedRoundsTotal = mode === 'solo' ? roundsTotal : 1;
   const playerToken = generatePlayerToken();
   const playerTokenHash = hashPlayerToken(playerToken);
 
   const game = await db.game.create({
-    data: { mode, difficulty, playerTokenHash, ownerUserId },
+    data: { mode, difficulty, playerTokenHash, ownerUserId, roundsTotal: appliedRoundsTotal },
   });
 
-  return { gameId: game.id, playerToken };
+  return { gameId: game.id, playerToken, roundsTotal: game.roundsTotal ?? appliedRoundsTotal };
 }
 
 /**
@@ -67,7 +71,7 @@ export async function getGameSummary(
     difficulty: game.difficulty,
     status: game.status,
     roundsPlayed,
-    roundsTotal: ROUNDS_PER_GAME,
+    roundsTotal: game.roundsTotal ?? ROUNDS_PER_GAME,
     currentRound: activeRound
       ? {
           roundId: activeRound.id,

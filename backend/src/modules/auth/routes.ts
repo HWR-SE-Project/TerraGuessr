@@ -20,13 +20,13 @@ import {
   verifyPassword,
   AuthError,
 } from './service.js';
+import { readSessionToken } from './session.js';
 import {
   clearGoogleFlowCookie,
   clearSessionCookie,
   createGoogleFlowState,
   OAUTH_COOKIE_NAME,
   readCookie,
-  SESSION_COOKIE_NAME,
   setGoogleFlowCookie,
   setSessionCookie,
   verifyGoogleFlowCookie,
@@ -56,11 +56,6 @@ interface GoogleQuery {
   code?: string;
   error?: string;
 }
-
-function sessionToken(request: FastifyRequest): string | undefined {
-  return readCookie(request.headers.cookie, SESSION_COOKIE_NAME);
-}
-
 function googleCookie(request: FastifyRequest): string | undefined {
   return readCookie(request.headers.cookie, OAUTH_COOKIE_NAME);
 }
@@ -74,7 +69,7 @@ function recoveryConfigured(config: Env): boolean {
 }
 
 async function requireUser(request: FastifyRequest, db: PrismaClient) {
-  const user = await findSessionUser(db, sessionToken(request));
+  const user = await findSessionUser(db, readSessionToken(request));
   if (!user) throw new AuthError(401, 'Sign in to continue');
   return user;
 }
@@ -109,7 +104,7 @@ export function registerAuthRoutes(
   }));
 
   app.get('/api/auth/session', async (request) => {
-    const user = await findSessionUser(db, sessionToken(request));
+    const user = await findSessionUser(db, readSessionToken(request));
     if (!user) return { user: null };
     const preferences = await db.userPreference.findUnique({ where: { userId: user.id } });
     return { user: toPublicUser(user), preferences };
@@ -137,7 +132,7 @@ export function registerAuthRoutes(
   });
 
   app.post('/api/auth/logout', { onRequest: sameSiteMutation }, async (request, reply) => {
-    await revokeSession(db, sessionToken(request));
+    await revokeSession(db, readSessionToken(request));
     clearSessionCookie(reply, config.sessionCookieSecure);
     reply.code(204);
   });
@@ -285,9 +280,4 @@ export function registerAuthRoutes(
     setSessionCookie(reply, await createUserSession(db, user.id), config.sessionCookieSecure);
     return reply.redirect(config.appBaseUrl ?? '/');
   });
-}
-
-/** Optional account owner for newly created games; no auth is required for guests. */
-export async function optionalSessionUserId(request: FastifyRequest, db: PrismaClient = prisma): Promise<string | undefined> {
-  return (await findSessionUser(db, sessionToken(request)))?.id;
 }
