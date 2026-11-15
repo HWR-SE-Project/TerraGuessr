@@ -12,7 +12,7 @@ routes, which require authentication (decision B.14) — not yet designed in thi
 ## Rounds (R01/R03/R04/R06/R08)
 
 - `POST /games/{gameId}/rounds` — start next round →
-  `{roundId, attemptsTotal, difficulty, selectionMode: 'map'|'list', candidates?: Location[], weather: {temperatureC, precipitationMm, humidityPct, windSpeedKmh, airPressureHpa: number|null, windDirectionDeg: number|null}}`.
+  `{roundId, attemptsTotal, difficulty, selectionMode: 'map'|'list', candidates?: Location[], weather: {temperatureC, precipitationMm, humidityPct, windSpeedKmh, airPressureHpa: number|null, windDirectionDeg: number|null, uvIndex: number|null, sunshineDurationSeconds: number|null, localTime: string|null}}`.
   **MUST NOT include actual coordinates** (R04). `candidates` present only in list mode.
 - `GET /rounds/{roundId}` — idempotent re-fetch of the same shape.
 - `POST /rounds/{roundId}/guess` — final submit `{lat, lon}` →

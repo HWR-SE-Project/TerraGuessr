@@ -16,7 +16,7 @@ Cached weather for a location (R03/R06/R12).
 - `id`, `locationId` (FK → Location)
 - `fetchedAt` — drives the ≤1h staleness check (decision B.11)
 - `temperatureC`, `precipitationMm`, `humidityPct`, `windSpeedKmh` — mandatory (R03)
-- `airPressureHpa?`, `windDirectionDeg?` — optional nullable Open-Meteo metrics (ADR-0018)
+- `airPressureHpa?`, `windDirectionDeg?`, `uvIndex?`, `sunshineDurationSeconds?`, `localTime?` — optional nullable Open-Meteo metrics (ADR-0018)
 - `extra?: jsonb` — optional additional fields (decision B.2: optional indicators allowed but never required)
 - `source`
 
@@ -59,8 +59,8 @@ retention remains unchanged. See [ADR-0013](adr/0013-account-sessions.md).
 Later additive migrations extend this Phase 1 schema: ADR-0014 adds configurable
 `Game.roundsTotal`; ADR-0015 adds `geoRegion` and `candidateCount`; ADR-0016 adds
 UTC `DailyChallenge` and account-scoped `DailySubmission`; ADR-0017 adds
-`Game.attemptsPerRound` and `RoundAttempt`; ADR-0018 adds nullable pressure and
-wind-direction fields to weather snapshots. These are appended to the live Prisma
+`Game.attemptsPerRound` and `RoundAttempt`; ADR-0018 adds nullable pressure, wind,
+UV, sunshine-duration, and local-time fields to weather snapshots. These are appended to the live Prisma
 schema and do not remove existing game or result rows.
 
 ---

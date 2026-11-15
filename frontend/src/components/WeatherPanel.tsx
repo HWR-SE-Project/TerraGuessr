@@ -10,6 +10,11 @@ const WEATHER_FIELDS = [
   { key: 'airPressureHpa', label: 'Air pressure', unit: ' hPa' },
   { key: 'windDirectionDeg', label: 'Wind direction', unit: '°' },
 ] as const;
+const SKY_FIELDS = [
+  { key: 'uvIndex', label: 'UV index', unit: '' },
+  { key: 'sunshineDurationSeconds', label: 'Sunshine today', unit: '' },
+  { key: 'localTime', label: 'Local time', unit: '' },
+] as const;
 
 export interface WeatherPanelProps {
   weather: WeatherDTO;
@@ -29,6 +34,20 @@ export function WeatherPanel({ weather }: WeatherPanelProps) {
           </div>
         ))}
       </dl>
+      <details className="tg-weather-extra">
+        <summary>Sun &amp; local time</summary>
+        <dl className="tg-weather-grid tg-weather-extra-grid">
+          {SKY_FIELDS.map(({ key, label }) => {
+            const value = weather[key];
+            const formatted = value == null ? '—' : key === 'sunshineDurationSeconds'
+              ? `${(Number(value) / 3600).toFixed(1)} h`
+              : key === 'uvIndex' ? Number(value).toFixed(1)
+                : key === 'localTime' ? (String(value).match(/T(\d{2}:\d{2})/)?.[1] ?? String(value))
+                  : String(value);
+            return <div key={key} className="tg-weather-cell"><dt className="tg-weather-label">{label}</dt><dd className="tg-weather-value" style={{ margin: 0 }}>{formatted}</dd></div>;
+          })}
+        </dl>
+      </details>
       <p className="tg-attribution">Cached for up to one hour. Optional measurements may be unavailable. <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo</a>.</p>
     </section>
   );

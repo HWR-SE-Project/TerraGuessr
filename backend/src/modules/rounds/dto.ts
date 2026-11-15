@@ -33,6 +33,9 @@ export interface RoundWeather {
   windSpeedKmh: number;
   airPressureHpa?: number | null;
   windDirectionDeg?: number | null;
+  uvIndex?: number | null;
+  sunshineDurationSeconds?: number | null;
+  localTime?: string | null;
 }
 
 /** Everything the DTO needs to build a round response. */
@@ -58,6 +61,9 @@ export function toRoundView(input: RoundViewInput): RoundView {
       windSpeedKmh: input.weather.windSpeedKmh,
       airPressureHpa: input.weather.airPressureHpa ?? null,
       windDirectionDeg: input.weather.windDirectionDeg ?? null,
+      uvIndex: input.weather.uvIndex ?? null,
+      sunshineDurationSeconds: input.weather.sunshineDurationSeconds ?? null,
+      localTime: input.weather.localTime ?? null,
     },
   };
 

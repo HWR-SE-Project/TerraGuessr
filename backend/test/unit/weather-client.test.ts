@@ -24,7 +24,10 @@ describe('OpenMeteoClient', () => {
           wind_speed_10m: 8.1,
           surface_pressure: 1013.2,
           wind_direction_10m: 245,
+          uv_index: 3.1,
+          time: '2026-11-17T12:00',
         },
+        daily: { sunshine_duration: [7200] },
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -39,6 +42,9 @@ describe('OpenMeteoClient', () => {
       windSpeedKmh: 8.1,
       airPressureHpa: 1013.2,
       windDirectionDeg: 245,
+      uvIndex: 3.1,
+      sunshineDurationSeconds: 7200,
+      localTime: '2026-11-17T12:00',
     });
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -47,15 +53,21 @@ describe('OpenMeteoClient', () => {
     expect(url).toContain('longitude=20');
     expect(url).toContain('surface_pressure');
     expect(url).toContain('wind_direction_10m');
+    expect(url).toContain('uv_index');
+    expect(url).toContain('daily=sunshine_duration');
+    expect(url).toContain('timezone=auto');
     // Phase C: every request carries a bounded timeout, never hangs forever.
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('keeps optional provider measurements unavailable without failing base weather', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ current: {
-      temperature_2m: 12, relative_humidity_2m: 50, precipitation: 0, wind_speed_10m: 3,
-      surface_pressure: null, wind_direction_10m: 'unknown',
-    } })));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      current: {
+        temperature_2m: 12, relative_humidity_2m: 50, precipitation: 0, wind_speed_10m: 3,
+        surface_pressure: null, wind_direction_10m: 'unknown', uv_index: null, time: null,
+      },
+      daily: { sunshine_duration: [null] },
+    })));
     await expect(new OpenMeteoClient('https://fake.example').getCurrent(1, 2)).resolves.toEqual({
       temperatureC: 12, humidityPct: 50, precipitationMm: 0, windSpeedKmh: 3,
     });

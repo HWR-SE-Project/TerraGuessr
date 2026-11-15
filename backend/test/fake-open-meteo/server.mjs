@@ -14,7 +14,10 @@ const BODY = JSON.stringify({
     wind_speed_10m: 12.7,
     surface_pressure: 1013.2,
     wind_direction_10m: 245,
+    uv_index: 3.1,
+    time: '2026-11-17T12:00',
   },
+  daily: { time: ['2026-11-17'], sunshine_duration: [7200] },
 });
 
 let failuresRemaining = 0;
