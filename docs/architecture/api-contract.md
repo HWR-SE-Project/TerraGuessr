@@ -35,6 +35,17 @@ routes, which require authentication (decision B.14) — not yet designed in thi
 - `GET /challenges/{challengeId}/leaderboard` — ranked entries, `displayName` only, no account
   data (decision B.6).
 
+## Daily Challenge (ADR-0016)
+
+- `GET /daily/today` — authenticated; returns the shared current UTC date and map round with
+  Open-Meteo weather. Actual coordinates are omitted until the caller submits. Reopening after
+  completion returns that account's persisted result.
+- `POST /daily/today/guess` — authenticated `{lat, lon}`; one submission per user and UTC date,
+  enforced by a database unique constraint. Returns distance, score, guess and actual coordinates.
+- `GET /daily/{YYYY-MM-DD}/leaderboard?limit=20&offset=0` — authenticated, page size capped at
+  100; ranking is score descending, distance ascending, submission time ascending, ID ascending.
+  Includes the caller's overall placement even when outside the requested page.
+
 ## Admin (decision B.14 — authenticated only, design deferred to Phase 1)
 
 - `POST /admin/locations/refresh` — regenerate/validate the candidate pool.

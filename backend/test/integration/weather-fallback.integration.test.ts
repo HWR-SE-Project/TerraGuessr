@@ -21,6 +21,9 @@ describe('R13 weather fallback (integration)', () => {
     // suites must go before the game/round cascade-delete below, exactly like
     // the production purge job (scheduler/purge.ts) already has to.
     await prisma.challenge.deleteMany();
+    // Daily snapshots are pinned for leaderboard history until the disposable
+    // integration fixture removes their challenge rows.
+    await prisma.dailyChallenge.deleteMany();
     await prisma.game.deleteMany();
     await prisma.weatherSnapshot.deleteMany();
     // Every candidate's weather fetch fails -> the R13 fallback must surface a

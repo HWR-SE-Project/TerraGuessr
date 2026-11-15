@@ -20,7 +20,7 @@ import {
   verifyPassword,
   AuthError,
 } from './service.js';
-import { readSessionToken } from './session.js';
+import { assertSameSiteMutation, readSessionToken, requireSessionUser } from './session.js';
 import {
   clearGoogleFlowCookie,
   clearSessionCookie,
@@ -68,12 +68,6 @@ function recoveryConfigured(config: Env): boolean {
   return Boolean(config.smtpUrl && config.smtpFrom && config.appBaseUrl);
 }
 
-async function requireUser(request: FastifyRequest, db: PrismaClient) {
-  const user = await findSessionUser(db, readSessionToken(request));
-  if (!user) throw new AuthError(401, 'Sign in to continue');
-  return user;
-}
-
 /**
  * Cookie-based account endpoints. Anonymous game tokens remain supported by
  * the existing game API and are intentionally not changed by this module.
@@ -84,19 +78,7 @@ export function registerAuthRoutes(
 ): void {
   const { config } = options;
   const db = options.db ?? prisma;
-  const sameSiteMutation = async (request: FastifyRequest) => {
-    if (request.headers['sec-fetch-site'] === 'cross-site') throw new AuthError(403, 'Cross-site account request rejected');
-    const origin = request.headers.origin;
-    if (!origin) return;
-    const host = request.headers.host;
-    const forwardedHost = request.headers['x-forwarded-host'];
-    const forwardedProto = request.headers['x-forwarded-proto'];
-    const effectiveHost = typeof forwardedHost === 'string' ? forwardedHost : host;
-    const effectiveProto = typeof forwardedProto === 'string' ? forwardedProto.split(',')[0]!.trim() : request.protocol;
-    const requestOrigin = effectiveHost ? `${effectiveProto}://${effectiveHost}` : '';
-    const allowed = new Set([config.appBaseUrl, typeof config.corsOrigin === 'string' ? config.corsOrigin : undefined].filter(Boolean).map((value) => new URL(value!).origin));
-    if (origin !== requestOrigin && !allowed.has(origin)) throw new AuthError(403, 'Cross-site account request rejected');
-  };
+  const sameSiteMutation = (request: FastifyRequest) => assertSameSiteMutation(request, config);
 
   app.get('/api/auth/config', async () => ({
     googleAvailable: googleConfigured(config),
@@ -141,7 +123,7 @@ export function registerAuthRoutes(
     onRequest: sameSiteMutation,
     schema: { body: ProfileBody },
   }, async (request) => {
-    const user = await requireUser(request, db);
+    const user = await requireSessionUser(request, db);
     const { displayName } = request.body as { displayName: string };
     const updated = await db.user.update({
       where: { id: user.id },
@@ -154,7 +136,7 @@ export function registerAuthRoutes(
     onRequest: sameSiteMutation,
     schema: { body: PreferencesBody },
   }, async (request) => {
-    const user = await requireUser(request, db);
+    const user = await requireSessionUser(request, db);
     const changes = request.body as {
       language?: 'en' | 'de'; soundFxVolume?: number; musicVolume?: number; fullscreen?: boolean;
     };
@@ -170,7 +152,7 @@ export function registerAuthRoutes(
     onRequest: sameSiteMutation,
     schema: { body: DeleteBody },
   }, async (request, reply) => {
-    const user = await requireUser(request, db);
+    const user = await requireSessionUser(request, db);
     const { currentPassword } = request.body as { confirmation: 'DELETE'; currentPassword?: string };
     if (user.passwordHash && !(await verifyPassword(currentPassword ?? '', user.passwordHash))) {
       throw new AuthError(401, 'Current password is incorrect');

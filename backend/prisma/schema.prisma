@@ -60,6 +60,7 @@ model User {
   resetTokens     PasswordResetToken[]
   preferences     UserPreference?
   games           Game[]
+  dailySubmissions DailySubmission[]
 }
 
 model AuthSession {
@@ -96,6 +97,33 @@ model UserPreference {
   updatedAt     DateTime @updatedAt
 }
 
+model DailyChallenge {
+  date              String             @id @db.VarChar(10)
+  locationId        String
+  location          Location           @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  weatherSnapshotId String
+  weatherSnapshot   WeatherSnapshot    @relation(fields: [weatherSnapshotId], references: [id], onDelete: Restrict)
+  createdAt         DateTime           @default(now())
+  submissions       DailySubmission[]
+}
+
+model DailySubmission {
+  id         String         @id @default(cuid())
+  date       String         @db.VarChar(10)
+  challenge  DailyChallenge @relation(fields: [date], references: [date], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guessLat   Float
+  guessLon   Float
+  distanceKm Float
+  score      Int
+  createdAt  DateTime       @default(now())
+
+  @@unique([date, userId])
+  @@index([date, score, distanceKm])
+  @@index([userId, date])
+}
+
 model Location {
   id        String            @id @default(cuid())
   lat       Float
@@ -107,6 +135,7 @@ model Location {
   createdAt DateTime          @default(now())
   snapshots WeatherSnapshot[]
   rounds    Round[]
+  dailyChallenges DailyChallenge[]
 
   @@index([region])
 }
@@ -123,6 +152,7 @@ model WeatherSnapshot {
   extra           Json? // decision B.2: optional, never required
   source          WeatherSrc @default(open_meteo)
   rounds          Round[]
+  dailyChallenges DailyChallenge[]
 
   @@index([locationId, fetchedAt]) // drives <=1h staleness lookup (B.11)
 }
