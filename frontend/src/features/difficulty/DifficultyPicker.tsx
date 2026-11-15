@@ -118,9 +118,10 @@ export function DifficultyPicker({
       data-testid="difficulty-picker"
       aria-describedby={isMedium ? undefined : hintId}
       disabled={disabled}
+      className="tg-difficulty-picker"
       style={{ border: 'none', margin: 0, padding: 0 }}
     >
-      <legend style={{ marginBottom: '0.5rem', fontWeight: 700 }}>{legend}</legend>
+      <legend style={{ marginBottom: '12px', fontWeight: 800, fontSize: 14 }}>{legend}</legend>
 
       <div role="radiogroup" aria-label={legend} style={{ display: 'flex', gap: '0.5rem' }}>
         {DIFFICULTY_OPTIONS.map((option) => {
@@ -129,16 +130,19 @@ export function DifficultyPicker({
             <label
               key={option.value}
               data-testid={`difficulty-option-${option.value}`}
+              className={`tg-difficulty-card${selected ? ' is-selected' : ''}`}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.125rem',
                 padding: '0.5rem 0.75rem',
-                border: '1px solid currentColor',
-                borderRadius: '0.375rem',
+                border: '1px solid var(--tg-line)',
+                borderRadius: '14px',
+                background: selected ? 'rgb(112 224 192 / 9%)' : 'var(--tg-surface)',
+                color: 'var(--tg-text)',
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 fontWeight: selected ? 700 : 400,
-                outline: selected ? '2px solid currentColor' : undefined,
+                outline: selected ? '1px solid var(--tg-mint)' : undefined,
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -152,7 +156,7 @@ export function DifficultyPicker({
                 />
                 <span>{option.label}</span>
               </span>
-              <span style={{ fontSize: '0.75rem' }}>{option.description}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--tg-muted)', lineHeight: 1.4 }}>{option.description}</span>
             </label>
           );
         })}

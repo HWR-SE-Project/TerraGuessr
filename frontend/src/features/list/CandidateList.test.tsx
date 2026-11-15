@@ -5,7 +5,6 @@ import type { CandidateDTO } from '../../api/types';
 import {
   CandidateList,
   EMPTY_CANDIDATES_MESSAGE,
-  UNNAMED_CANDIDATE_LABEL,
   formatRegion,
 } from './CandidateList';
 
@@ -68,14 +67,25 @@ describe('CandidateList', () => {
     expect(items[2]).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('falls back to a neutral label when a candidate has no name', () => {
+  it('falls back to a meaningful geographic sector when a candidate has no name', () => {
     const unnamed: CandidateDTO[] = [
       { id: 'c4', name: null, lat: 0, lon: 0, region: 'AFRICA' },
     ];
     render(<CandidateList candidates={unnamed} onChange={vi.fn()} />);
 
-    expect(screen.getByText(UNNAMED_CANDIDATE_LABEL)).toBeInTheDocument();
+    expect(screen.getByText(/Africa · 0°N \/ 0°E sector/)).toBeInTheDocument();
     expect(screen.getByText('Africa')).toBeInTheDocument();
+  });
+
+  it('gives repeated null-name candidates distinguishable labels without exposing an answer flag', () => {
+    const unnamed: CandidateDTO[] = [
+      { id: 'c4', name: null, lat: 0, lon: 0, region: 'AFRICA' },
+      { id: 'c5', name: null, lat: 1, lon: 1, region: 'AFRICA' },
+    ];
+    render(<CandidateList candidates={unnamed} onChange={vi.fn()} />);
+    const names = screen.getAllByTestId('candidate-name');
+    expect(names[0]?.textContent).not.toBe(names[1]?.textContent);
+    expect(screen.queryByText(/correct answer/i)).not.toBeInTheDocument();
   });
 
   it('formats region codes as readable labels', () => {

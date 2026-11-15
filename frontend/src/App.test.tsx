@@ -28,7 +28,7 @@ describe('App solo flow', () => {
     renderApp();
 
     // Home: choose Medium + list mode, then start.
-    expect(screen.getByRole('heading', { level: 2, name: 'Home' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Read the sky. Find the place.' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('difficulty-medium'));
     fireEvent.click(await screen.findByTestId('mode-option-list'));
     fireEvent.click(screen.getByTestId('start-game'));
@@ -37,8 +37,8 @@ describe('App solo flow', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Round 1' }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('weather-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('candidate-list')).toBeInTheDocument();
+    expect(await screen.findByTestId('weather-panel')).toBeInTheDocument();
+    expect(await screen.findByTestId('candidate-list')).toBeInTheDocument();
 
     // Submit a guess -> reveal (distance, score, actual location).
     pickFirstCandidateAndSubmit();
@@ -63,6 +63,7 @@ describe('App solo flow', () => {
         await screen.findByRole('heading', { level: 2, name: `Round ${roundNumber}` }),
       ).toBeInTheDocument();
 
+      await screen.findByTestId('candidate-list');
       pickFirstCandidateAndSubmit();
       await screen.findByTestId('reveal-view');
 
