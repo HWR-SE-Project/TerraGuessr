@@ -19,6 +19,7 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
 import { registerErrorHandler } from '../../../src/plugins/errorHandler.js';
+import { registerChallengesRoutes } from '../../../src/modules/challenges/routes.js';
 import { registerGamesRoutes } from '../../../src/modules/games/routes.js';
 import { registerRoundsRoutes } from '../../../src/modules/rounds/routes.js';
 import { registerResultsRoutes } from '../../../src/modules/results/routes.js';
@@ -157,6 +158,7 @@ export function buildTestApp(
   registerGamesRoutes(app, prisma);
   registerRoundsRoutes(app, prisma, weatherClient);
   registerResultsRoutes(app, prisma);
+  registerChallengesRoutes(app, prisma);
   return app;
 }
 

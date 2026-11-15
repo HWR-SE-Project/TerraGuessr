@@ -58,10 +58,18 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         working-directory: backend
         run: npm run lint --if-present
+      - name: Typecheck and production build
+        if: steps.check.outputs.exists == 'true'
+        working-directory: backend
+        run: npm run typecheck && npm run build
       - name: Test (Vitest)
         if: steps.check.outputs.exists == 'true'
         working-directory: backend
         run: npm test --if-present
+      - name: Test (Vitest integration)
+        if: steps.check.outputs.exists == 'true'
+        working-directory: backend
+        run: npm run test:integration --if-present
       - name: Skip (backend not scaffolded yet)
         if: steps.check.outputs.exists == 'false'
         run: echo "backend/ does not exist yet — Phase 1 has not started. Nothing to check."
@@ -88,6 +96,10 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         working-directory: frontend
         run: npm run lint --if-present
+      - name: Typecheck and production build
+        if: steps.check.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm run typecheck && npm run build
       - name: Test (Vitest)
         if: steps.check.outputs.exists == 'true'
         working-directory: frontend

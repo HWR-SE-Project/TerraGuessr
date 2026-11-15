@@ -17,7 +17,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // The deterministic weather mock has mutable failure injection used by
+  // R13; one worker keeps that scenario isolated from other browser games.
+  workers: 1,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL,

@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError } from '../../api/client';
+import { mapApiError } from '../../api/errorMessages';
 import type { ChallengeDTO } from '../../api/types';
 import { ChallengeLeaderboard } from './ChallengeLeaderboard';
 import { apiChallengeDataSource } from './challengeDataSource';
@@ -23,21 +23,12 @@ type RequestState = 'idle' | 'loading' | 'done';
 
 /** ADR-0009 codes -> copy a player can act on. */
 function challengeErrorMessage(cause: unknown): string {
-  if (cause instanceof ApiError) {
-    switch (cause.code) {
-      case 'NETWORK_ERROR':
-        return 'Could not reach the game server. Check your connection and try again.';
-      case 'NOT_FOUND':
-        return 'That challenge or result could not be found.';
-      case 'CONFLICT':
-        return 'That result was already entered, or it is not from this challenge round.';
-      case 'VALIDATION_ERROR':
-        return 'That result or display name was not accepted.';
-      default:
-        return cause.message;
-    }
-  }
-  return cause instanceof Error ? cause.message : 'Something went wrong.';
+  return mapApiError(cause, {
+    NETWORK_ERROR: 'Could not reach the game server. Check your connection and try again.',
+    NOT_FOUND: 'That challenge or result could not be found.',
+    CONFLICT: 'That result was already entered, or it is not from this challenge round.',
+    VALIDATION_ERROR: 'That result or display name was not accepted.',
+  });
 }
 
 /**
@@ -115,7 +106,7 @@ export function ChallengePanel({
     setJoinState('loading');
     setJoinError(null);
     try {
-      const entry = await dataSource.joinChallenge(
+      const entry = await dataSource.submitEntry(
         challengeId,
         trimmedName.length > 0 ? { resultId, displayName: trimmedName } : { resultId },
       );

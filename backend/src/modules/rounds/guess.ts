@@ -5,12 +5,13 @@
  * location is revealed ONLY in the returned guess result (R11).
  */
 
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 
-import { ROUNDS_PER_GAME } from '../../config/constants.js';
 import { GameNotFoundError } from '../../plugins/auth.js';
 import { haversineKm } from '../../domain/distance.js';
 import { scoreForDistance } from '../../domain/scoring.js';
+import { roundCap } from './service.js';
 import type {
   GuessResultResponse,
   SubmitGuessBody,
@@ -65,40 +66,54 @@ export async function submitGuess(
   const distanceKm = haversineKm(guess, actual);
   const score = scoreForDistance(distanceKm);
   const completedAt = new Date();
-  const isFinalSoloRound =
-    round.game.mode === 'solo' && round.roundNumber === ROUNDS_PER_GAME;
+  const isFinalRound = round.roundNumber === roundCap(round.game.mode);
 
-  const created = await db.$transaction(async (tx) => {
-    await tx.guess.create({
-      data: { roundId, lat: guess.lat, lon: guess.lon },
-    });
-
-    const result = await tx.result.create({
-      data: {
-        roundId,
-        actualLat: actual.lat,
-        actualLon: actual.lon,
-        guessLat: guess.lat,
-        guessLon: guess.lon,
-        distanceKm,
-        score,
-      },
-    });
-
-    await tx.round.update({
-      where: { id: roundId },
-      data: { status: 'completed', completedAt },
-    });
-
-    if (isFinalSoloRound) {
-      await tx.game.update({
-        where: { id: round.game.id },
-        data: { status: 'completed' },
+  let created;
+  try {
+    created = await db.$transaction(async (tx) => {
+      await tx.guess.create({
+        data: { roundId, lat: guess.lat, lon: guess.lon },
       });
-    }
 
-    return result;
-  });
+      const result = await tx.result.create({
+        data: {
+          roundId,
+          actualLat: actual.lat,
+          actualLon: actual.lon,
+          guessLat: guess.lat,
+          guessLon: guess.lon,
+          distanceKm,
+          score,
+        },
+      });
+
+      await tx.round.update({
+        where: { id: roundId },
+        data: { status: 'completed', completedAt },
+      });
+
+      if (isFinalRound) {
+        await tx.game.update({
+          where: { id: round.game.id },
+          data: { status: 'completed' },
+        });
+      }
+
+      return result;
+    });
+  } catch (error) {
+    // Phase C: two concurrent requests for the same round can both pass the
+    // read-time check above before either commits. The loser hits Guess's
+    // unique(roundId) constraint — surface the documented 409, not a raw
+    // 500 from an unhandled unique-constraint violation.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new GuessConflictError();
+    }
+    throw error;
+  }
 
   return {
     resultId: created.id,

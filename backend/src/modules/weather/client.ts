@@ -1,3 +1,4 @@
+import { WEATHER_FETCH_TIMEOUT_MS } from '../../config/constants.js';
 import type { WeatherClient, WeatherData } from './types.js';
 
 const DEFAULT_OPEN_METEO_BASE_URL = 'https://api.open-meteo.com';
@@ -31,7 +32,10 @@ export class OpenMeteoClient implements WeatherClient {
       '&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m' +
       '&wind_speed_unit=kmh&temperature_unit=celsius&precipitation_unit=mm';
 
-    const response = await fetch(url);
+    // Phase C hardening: never let a stuck upstream hang a round-start — the
+    // R13 fallback (selectWithWeatherFallback) treats any rejection here the
+    // same way, timeout or otherwise, and tries the next candidate location.
+    const response = await fetch(url, { signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS) });
 
     if (!response.ok) {
       throw new Error('Open-Meteo request failed with status ' + response.status);

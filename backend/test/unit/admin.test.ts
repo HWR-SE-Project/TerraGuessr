@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
 import { registerAdminRoutes } from '../../src/modules/admin/routes.js';
 import {
+  refreshLocations,
   regeneratePool,
   warmWeatherCache,
 } from '../../src/modules/admin/service.js';
@@ -12,6 +13,28 @@ import type { LandGeoJson } from '../../src/modules/locations/pool.js';
 import type { WeatherClient, WeatherData } from '../../src/modules/weather/types.js';
 
 const ADMIN_API_TOKEN = 'test-admin-token';
+
+/** A single land square in EUROPE, big enough for a handful of sample points. */
+const europeSquare: LandGeoJson = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [5, 48],
+            [15, 48],
+            [15, 55],
+            [5, 55],
+            [5, 48],
+          ],
+        ],
+      },
+    },
+  ],
+};
 
 const validData: WeatherData = {
   temperatureC: 21.5,
@@ -198,28 +221,56 @@ describe('warmWeatherCache', () => {
   });
 });
 
-describe('regeneratePool', () => {
-  const europeSquare: LandGeoJson = {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [5, 48],
-              [15, 48],
-              [15, 55],
-              [5, 55],
-              [5, 48],
-            ],
-          ],
-        },
-      },
-    ],
-  };
+describe('refreshLocations', () => {
+  it('returns a jobId immediately and logs completion with it (log-correlation id, no poll endpoint)', async () => {
+    const upsert = vi.fn().mockResolvedValue({});
+    const db = { location: { upsert } } as unknown as DbLike;
+    const logger = { info: vi.fn(), error: vi.fn() };
 
+    const { jobId } = refreshLocations(db, {
+      landGeoJson: europeSquare,
+      rng: () => 0.5,
+      targetPoints: 6,
+      logger,
+    });
+
+    expect(typeof jobId).toBe('string');
+    expect(jobId.length).toBeGreaterThan(0);
+    // The background job is fire-and-forget; let its microtasks settle.
+    await vi.waitFor(() => {
+      expect(logger.info).toHaveBeenCalled();
+    });
+    expect(logger.info).toHaveBeenCalledWith(
+      { jobId, count: 1 },
+      'admin pool refresh completed',
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('logs a failure with the same jobId instead of throwing', async () => {
+    const upsert = vi.fn().mockRejectedValue(new Error('db unavailable'));
+    const db = { location: { upsert } } as unknown as DbLike;
+    const logger = { info: vi.fn(), error: vi.fn() };
+
+    const { jobId } = refreshLocations(db, {
+      landGeoJson: europeSquare,
+      rng: () => 0.5,
+      targetPoints: 6,
+      logger,
+    });
+
+    await vi.waitFor(() => {
+      expect(logger.error).toHaveBeenCalled();
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: expect.any(Error), jobId },
+      'admin pool refresh failed',
+    );
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+});
+
+describe('regeneratePool', () => {
   it('re-runs the seed logic and upserts sampled land points', async () => {
     const upsert = vi.fn().mockResolvedValue({});
     const db = { location: { upsert } } as unknown as DbLike;

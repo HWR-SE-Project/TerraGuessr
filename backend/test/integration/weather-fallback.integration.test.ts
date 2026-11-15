@@ -17,7 +17,10 @@ describe('R13 weather fallback (integration)', () => {
   beforeAll(async () => {
     prisma = await setupDatabase();
     // Clear cached snapshots from other suites (1h cache would short-circuit).
-    // Rounds reference snapshots, so delete games first (cascades rounds).
+    // Challenge.round has no cascade (data-model.md), so challenges from other
+    // suites must go before the game/round cascade-delete below, exactly like
+    // the production purge job (scheduler/purge.ts) already has to.
+    await prisma.challenge.deleteMany();
     await prisma.game.deleteMany();
     await prisma.weatherSnapshot.deleteMany();
     // Every candidate's weather fetch fails -> the R13 fallback must surface a
