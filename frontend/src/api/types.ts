@@ -13,6 +13,8 @@ export interface WeatherDTO {
   precipitationMm: number;
   humidityPct: number;
   windSpeedKmh: number;
+  airPressureHpa?: number | null;
+  windDirectionDeg?: number | null;
 }
 
 /** List mode only; never reveals which candidate is the actual location (R04). */

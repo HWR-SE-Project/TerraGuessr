@@ -9,6 +9,8 @@ interface OpenMeteoResponse {
     relative_humidity_2m?: unknown;
     precipitation?: unknown;
     wind_speed_10m?: unknown;
+    surface_pressure?: unknown;
+    wind_direction_10m?: unknown;
   };
 }
 
@@ -29,7 +31,7 @@ export class OpenMeteoClient implements WeatherClient {
       '/v1/forecast' +
       '?latitude=' + lat +
       '&longitude=' + lon +
-      '&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m' +
+      '&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,surface_pressure,wind_direction_10m' +
       '&wind_speed_unit=kmh&temperature_unit=celsius&precipitation_unit=mm';
 
     // Phase C hardening: never let a stuck upstream hang a round-start — the
@@ -54,6 +56,8 @@ export class OpenMeteoClient implements WeatherClient {
       humidityPct: current.relative_humidity_2m as number,
       precipitationMm: current.precipitation as number,
       windSpeedKmh: current.wind_speed_10m as number,
+      ...(typeof current.surface_pressure === 'number' && Number.isFinite(current.surface_pressure) ? { airPressureHpa: current.surface_pressure } : {}),
+      ...(typeof current.wind_direction_10m === 'number' && Number.isFinite(current.wind_direction_10m) ? { windDirectionDeg: current.wind_direction_10m } : {}),
     };
   }
 }

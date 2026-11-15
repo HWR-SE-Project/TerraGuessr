@@ -24,11 +24,13 @@ type Difficulty = 'easy' | 'medium' | 'hard';
 type GameMode   = 'solo' | 'challenge';
 type SelectionMode = 'map' | 'list';
 
-interface WeatherDTO {              // R03/R06 — exactly these four, always present
+interface WeatherDTO {              // R03/R06 — four required metrics plus optional provider metrics
   temperatureC: number;
   precipitationMm: number;
   humidityPct: number;
   windSpeedKmh: number;
+  airPressureHpa: number | null;    // Open-Meteo surface pressure in hPa
+  windDirectionDeg: number | null;  // 10 m direction, degrees clockwise from north
 }
 interface CandidateDTO {            // list mode only; NEVER reveals which one is actual (R04)
   id: string;

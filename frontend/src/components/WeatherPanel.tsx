@@ -7,6 +7,8 @@ const WEATHER_FIELDS = [
   { key: 'precipitationMm', label: 'Precipitation', unit: ' mm' },
   { key: 'humidityPct', label: 'Humidity', unit: '%' },
   { key: 'windSpeedKmh', label: 'Wind speed', unit: ' km/h' },
+  { key: 'airPressureHpa', label: 'Air pressure', unit: ' hPa' },
+  { key: 'windDirectionDeg', label: 'Wind direction', unit: '°' },
 ] as const;
 
 export interface WeatherPanelProps {
@@ -23,11 +25,11 @@ export function WeatherPanel({ weather }: WeatherPanelProps) {
         {WEATHER_FIELDS.map(({ key, label, unit }) => (
           <div key={key} className="tg-weather-cell">
             <dt className="tg-weather-label" data-icon={key === 'temperatureC' ? '☼' : key === 'precipitationMm' ? '⌁' : key === 'humidityPct' ? '◌' : '↗'}>{label}</dt>
-            <dd className="tg-weather-value" style={{ margin: 0 }}>{weather[key]}{unit}</dd>
+            <dd className="tg-weather-value" style={{ margin: 0 }}>{weather[key] == null ? '—' : `${weather[key]}${unit}`}</dd>
           </div>
         ))}
       </dl>
-      <p className="tg-attribution">Weather data is cached for up to one hour. Measurements may be unavailable for some locations.</p>
+      <p className="tg-attribution">Cached for up to one hour. Optional measurements may be unavailable. <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo</a>.</p>
     </section>
   );
 }

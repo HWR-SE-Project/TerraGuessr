@@ -101,6 +101,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-weather-label { color: #9eacbd; font-size: 11px; }.tg-weather-value { color: #f5f7fb; font-size: 20px; line-height: 1; font-weight: 800; letter-spacing: -.04em; }.tg-weather-value small { color: #a8b6c6; font-size: 11px; font-weight: 600; letter-spacing: 0; }
 .tg-weather-label::after { content: attr(data-icon); float: right; color: var(--tg-mint); font-size: 16px; }
 .tg-attribution { margin-top: 16px; color: var(--tg-soft); font-size: 10px; line-height: 1.5; }
+.tg-attribution a { color: var(--tg-mint); text-decoration-color: rgb(112 224 192 / 45%); text-underline-offset: 2px; }
+.tg-attribution a:hover { color: var(--tg-text); }
 .tg-game-area { position: relative; z-index: 2; min-width: 0; min-height: 540px; padding: 24px; display: flex; align-items: flex-end; justify-content: flex-end; }
 .tg-map-dock { width: min(460px, 52vw); height: 300px; border: 1px solid rgb(255 255 255 / 18%); border-radius: 18px; overflow: hidden; background: #111b25; box-shadow: 0 20px 70px rgb(0 0 0 / 45%); transition: width 220ms ease, height 220ms ease; }
 .tg-map-dock:focus-within, .tg-map-dock:hover { width: min(580px, 64vw); height: 380px; }

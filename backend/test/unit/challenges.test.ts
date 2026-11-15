@@ -86,6 +86,8 @@ describe('challenges service', () => {
         precipitationMm: 0,
         humidityPct: 50,
         windSpeedKmh: 5,
+        airPressureHpa: null,
+        windDirectionDeg: null,
       });
 
       // The new round is pinned to the challenge's location/weather, not a

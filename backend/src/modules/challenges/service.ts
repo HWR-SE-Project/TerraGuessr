@@ -117,6 +117,8 @@ export async function joinChallenge(
               precipitationMm: true,
               humidityPct: true,
               windSpeedKmh: true,
+              airPressureHpa: true,
+              windDirectionDeg: true,
             },
           },
         },

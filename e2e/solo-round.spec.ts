@@ -10,14 +10,14 @@ import { chooseDifficulty, expectWeatherPanel, testIds } from './support/game';
  * frontend/src/features/**); this spec drives them via their stable testids.
  */
 test.describe('solo round (R01/R06/R08/R09/R10/R11/R15)', () => {
-  test('plays a round: 4 weather fields -> map guess -> submit -> reveal', async ({ page }) => {
+  test('plays a round: weather HUD -> map guess -> submit -> reveal', async ({ page }) => {
     await page.goto('/');
 
     // Hard is map-only, which is the map-guess surface this spec covers.
     await chooseDifficulty(page, 'hard');
     await page.getByRole('button', { name: /start/i }).click();
 
-    // R15: exactly the four weather fields in the consistent layout.
+    // R15: mandatory and available optional weather fields share the HUD.
     await expectWeatherPanel(page);
 
     // R07 map mode: click the Leaflet map to drop the guess marker.

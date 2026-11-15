@@ -75,7 +75,7 @@ the frontend proxy.
 
 | Action | Expected result |
 | --- | --- |
-| Open a fresh private browser window, choose **Easy**, and start | Round 1 shows four weather fields and a location list. |
+| Open a fresh private browser window, choose **Easy**, and start | Round 1 shows temperature, precipitation, humidity, wind speed, and optional pressure/wind direction where available, plus a location list. Missing optional weather values show as unavailable. |
 | Select one list entry, then a different one | The selected entry changes. Submit reveals the actual location, distance, and score. |
 | Advance through all five rounds | The result screen shows five results and a total score. |
 | Start **Medium** | Both map and list selection are available. Switch between them and submit a guess. |

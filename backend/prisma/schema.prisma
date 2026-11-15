@@ -149,6 +149,8 @@ model WeatherSnapshot {
   precipitationMm Float // R03 mandatory
   humidityPct     Float // R03 mandatory
   windSpeedKmh    Float // R03 mandatory
+  airPressureHpa  Float?
+  windDirectionDeg Float?
   extra           Json? // decision B.2: optional, never required
   source          WeatherSrc @default(open_meteo)
   rounds          Round[]

@@ -79,6 +79,8 @@ export async function getFreshSnapshot(
           precipitationMm: data.precipitationMm,
           humidityPct: data.humidityPct,
           windSpeedKmh: data.windSpeedKmh,
+          ...(data.airPressureHpa !== undefined ? { airPressureHpa: data.airPressureHpa } : {}),
+          ...(data.windDirectionDeg !== undefined ? { windDirectionDeg: data.windDirectionDeg } : {}),
           source: 'open_meteo',
         },
       });
