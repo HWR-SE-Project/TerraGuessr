@@ -39,10 +39,14 @@ RUN apk add --no-cache openssl
 
 # node_modules is copied in full so the prisma CLI is available for the
 # migration step below (intentional: image size is traded for correctness).
+# src is also needed at runtime: prisma/seed.ts imports from ../src/... and is
+# executed via tsx (not the compiled dist/), so it must resolve here too (P0-1).
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/src ./src
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/tsconfig.json ./tsconfig.json
 
 EXPOSE 3000
 
