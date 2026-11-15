@@ -58,6 +58,10 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         working-directory: backend
         run: npm run lint --if-present
+      - name: Typecheck and production build
+        if: steps.check.outputs.exists == 'true'
+        working-directory: backend
+        run: npm run typecheck && npm run build
       - name: Test (Vitest)
         if: steps.check.outputs.exists == 'true'
         working-directory: backend
@@ -92,6 +96,10 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         working-directory: frontend
         run: npm run lint --if-present
+      - name: Typecheck and production build
+        if: steps.check.outputs.exists == 'true'
+        working-directory: frontend
+        run: npm run typecheck && npm run build
       - name: Test (Vitest)
         if: steps.check.outputs.exists == 'true'
         working-directory: frontend

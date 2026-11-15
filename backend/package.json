@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "dev": "tsx watch src/server.ts",
     "test": "vitest run --exclude '**/integration/**'",
     "lint": "eslint .",
