@@ -20,6 +20,14 @@ services:
       timeout: 5s
       retries: 12
 
+  # Deterministic stand-in for Open-Meteo (ADR-0012) — e2e must never depend
+  # on live egress or real weather data. backend's OPEN_METEO_BASE_URL points
+  # here instead of the real API.
+  fake-weather:
+    build:
+      context: ./backend/test/fake-open-meteo
+      dockerfile: Dockerfile
+
   backend:
     build:
       context: ./backend
@@ -29,13 +37,15 @@ services:
       PORT: "3000"
       CORS_ORIGIN: http://localhost:8080
       ADMIN_API_TOKEN: test-admin-token
-      OPEN_METEO_BASE_URL: https://api.open-meteo.com
+      OPEN_METEO_BASE_URL: http://fake-weather:4000
       LOG_LEVEL: warn
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
+      fake-weather:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
       interval: 10s
