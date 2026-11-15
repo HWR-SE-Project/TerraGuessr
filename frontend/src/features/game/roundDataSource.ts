@@ -1,32 +1,20 @@
-import { apiFetch } from '../../api/client';
 import type { GuessResultDTO, LatLon, RoundDTO, SelectionMode } from '../../api/types';
 
 /**
- * Injectable data source for the round screen (W-02). The real implementation
- * talks to B-06/B-07 once those endpoints exist; the stub lets the UI and tests
- * run without a backend.
+ * Injectable data source for the round screen (W-02). RoundScreen never
+ * talks to the network itself — every real caller (App.tsx's solo loop,
+ * ChallengeJoinFlow) wraps its own game-state-aware data source and passes
+ * it in explicitly, so there is no standalone "apiRoundDataSource": that
+ * would just re-POST /games/:gameId/rounds and /rounds/:id/guess a second
+ * time, duplicating api/gameDataSource.ts's apiGameDataSource for no caller.
+ * The stub below exists for RoundScreen's own isolated tests.
  */
 export interface RoundDataSource {
   startRound(gameId: string, selectionMode?: SelectionMode): Promise<RoundDTO>;
   submitGuess(roundId: string, guess: LatLon): Promise<GuessResultDTO>;
 }
 
-export const apiRoundDataSource: RoundDataSource = {
-  async startRound(gameId, selectionMode) {
-    return apiFetch<RoundDTO>('/games/' + gameId + '/rounds', {
-      method: 'POST',
-      body: selectionMode ? { selectionMode } : {},
-    });
-  },
-  async submitGuess(roundId, guess) {
-    return apiFetch<GuessResultDTO>('/rounds/' + roundId + '/guess', {
-      method: 'POST',
-      body: guess,
-    });
-  },
-};
-
-export const stubRound: RoundDTO = {
+const stubRound: RoundDTO = {
   roundId: 'stub-round-1',
   roundNumber: 1,
   difficulty: 'easy',
@@ -46,7 +34,7 @@ export const stubRound: RoundDTO = {
   ],
 };
 
-export const stubResult: GuessResultDTO = {
+const stubResult: GuessResultDTO = {
   distanceKm: 877.2,
   score: 3225,
   actual: { lat: 48.8566, lon: 2.3522 },

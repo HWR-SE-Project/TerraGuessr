@@ -4,6 +4,7 @@
 // turn uses src/api/client.ts; session state lives in the gameStore context.
 import { useMemo, useState } from 'react';
 import { ApiError, setPlayerToken } from './api/client';
+import { mapApiError } from './api/errorMessages';
 import {
   ROUNDS_PER_GAME,
   apiGameDataSource,
@@ -52,23 +53,13 @@ function parseChallengeId(pathname: string): string | null {
 
 /** ADR-0009 codes -> copy a player can act on. */
 function friendlyErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.code) {
-      case 'NETWORK_ERROR':
-        return 'Could not reach the game server. Check your connection and try again.';
-      case 'NOT_FOUND':
-        return 'That game could not be found. Start a new game.';
-      case 'CONFLICT':
-        return 'That action is not available right now. Start a new game or try the next round.';
-      case 'VALIDATION_ERROR':
-        return 'That guess was not accepted. Check the coordinates and try again.';
-      case 'SERVICE_UNAVAILABLE':
-        return 'The weather service is busy right now. Please try again in a moment.';
-      default:
-        return error.message;
-    }
-  }
-  return error instanceof Error ? error.message : 'Something went wrong.';
+  return mapApiError(error, {
+    NETWORK_ERROR: 'Could not reach the game server. Check your connection and try again.',
+    NOT_FOUND: 'That game could not be found. Start a new game.',
+    CONFLICT: 'That action is not available right now. Start a new game or try the next round.',
+    VALIDATION_ERROR: 'That guess was not accepted. Check the coordinates and try again.',
+    SERVICE_UNAVAILABLE: 'The weather service is busy right now. Please try again in a moment.',
+  });
 }
 
 function isNetworkError(error: unknown): boolean {

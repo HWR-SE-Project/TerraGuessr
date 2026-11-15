@@ -6,13 +6,17 @@ import { CandidateList } from '../list/CandidateList';
 import { MapPicker } from '../map/MapPicker';
 import { useGameState } from '../../state/gameStore';
 import { RevealView } from './RevealView';
-import { apiRoundDataSource } from './roundDataSource';
 import type { RoundDataSource } from './roundDataSource';
 import { createInitialRoundState, roundReducer } from './roundReducer';
 
 export interface RoundScreenProps {
-  /** Injectable data source (W-02). Defaults to the real API client. */
-  dataSource?: RoundDataSource;
+  /**
+   * Every caller wraps its own game-state-aware data source and passes it
+   * explicitly (App.tsx's solo loop, ChallengeJoinFlow) — there is no
+   * standalone default that talks to the API on its own (see
+   * roundDataSource.ts).
+   */
+  dataSource: RoundDataSource;
   /** Overrides the gameId read from the game store (test/dev seam). */
   gameId?: string;
 }
@@ -33,7 +37,7 @@ function isLongitude(value: number): boolean {
   return value >= -180 && value <= 180;
 }
 
-export function RoundScreen({ dataSource = apiRoundDataSource, gameId }: RoundScreenProps) {
+export function RoundScreen({ dataSource, gameId }: RoundScreenProps) {
   const { gameId: storeGameId } = useGameState();
   const effectiveGameId = gameId ?? storeGameId;
 
