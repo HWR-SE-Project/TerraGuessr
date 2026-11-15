@@ -1,45 +1,54 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Archivo:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,700;1,800;1,900&display=swap');
 
 :root {
-  font-family: 'Manrope', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #f3f1ff;
-  background: #130f2e;
+  background: #171235;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  /* Core surface scale — deep indigo/purple, measured from reference. */
-  --tg-bg: #130f2e;
-  --tg-bg-rgb: 19 15 46;
+  /* Core surface scale — exact values pulled from the Figma file
+     (sIKTjQ2LtnU5acvpcwZELG), not estimated from the live site. */
+  --tg-bg: #171235;
+  --tg-bg-rgb: 23 18 53;
   --tg-surface: #1c1744;
-  --tg-panel: #221c4e;
-  --tg-raised: #2c2563;
+  --tg-panel: #211a4c;
+  --tg-raised: #393273;
   --tg-line: rgb(255 255 255 / 14%);
   --tg-text: #f3f1ff;
   --tg-muted: #b7aedb;
   --tg-soft: #8d84b8;
 
-  /* Accent system: green = primary action, teal/mint = info & focus, violet = highlight. */
-  --tg-green: #7bd84a;
-  --tg-green-dark: #3f8a33;
+  /* Accent system: green = primary action, gold = highlight/rank,
+     teal/mint = info & focus, rank-tier colors match the Figma Duels ladder. */
+  --tg-green: #97e851;
+  --tg-green-dark: #479440;
   --tg-green-ink: #0d2a08;
+  --tg-gold: #ffc628;
   --tg-mint: #54e0c7;
+  --tg-teal: #3ae8bd;
   --tg-violet: #a78bfa;
   --tg-blue: #6fb2ff;
   --tg-danger: #ff6b6b;
-  --tg-danger-strong: #e23b50;
+  --tg-danger-strong: #e94555;
+  --tg-rank-champion: #00a2fe;
+  --tg-rank-master: #e94555;
+  --tg-rank-gold: #ffc628;
+  --tg-rank-silver: #ffffff;
+  --tg-rank-bronze: #ffa43d;
 
   --tg-radius-sm: 10px;
   --tg-radius-md: 16px;
-  --tg-radius-lg: 26px;
+  --tg-radius-lg: 24px;
   --tg-radius-pill: 999px;
 
   --tg-shadow: 0 24px 64px rgb(5 3 20 / 46%);
-  --tg-shadow-pop: 0 4px 16px rgb(5 3 20 / 45%), inset 0 1px 0 rgb(255 255 255 / 22%), inset 0 -2px 0 rgb(0 0 0 / 26%);
+  --tg-shadow-pop: 0 4px 9px rgb(0 0 0 / 25%), inset 0 1px 0 rgb(255 255 255 / 20%), inset 0 -2px 0 rgb(0 0 0 / 30%);
   --tg-glass-blur: blur(26px) saturate(160%);
   --tg-glass-blur-sm: blur(14px) saturate(140%);
-  --tg-glass-bg: linear-gradient(155deg, rgb(55 46 110 / 46%), rgb(19 15 46 / 62%));
+  --tg-glass-bg: linear-gradient(155deg, rgb(57 50 115 / 46%), rgb(23 18 53 / 62%));
   --tg-glass-bg-soft: rgb(44 37 92 / 38%);
-  --tg-glass-bg-strong: linear-gradient(155deg, rgb(58 49 118 / 76%), rgb(17 13 40 / 86%));
+  --tg-glass-bg-strong: linear-gradient(155deg, rgb(57 50 115 / 76%), rgb(17 13 40 / 86%));
   --tg-glass-border: rgb(255 255 255 / 14%);
   --tg-glass-highlight: inset 0 1px 0 rgb(255 255 255 / 10%);
 
@@ -51,7 +60,8 @@
   --tg-space-8: 32px;
   --tg-motion: 160ms ease;
 
-  --tg-font-display: 'Archivo', 'Manrope', sans-serif;
+  /* Figma: Inter Black Italic for headings, Inter Bold Italic for emphasis/buttons. */
+  --tg-font-display: 'Inter', ui-sans-serif, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -73,7 +83,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-topbar-compact .tg-brand-name { font-size: 15px; }
 .tg-topbar-compact .tg-brand-mark { width: 28px; height: 28px; font-size: 14px; }
 .tg-brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; white-space: nowrap; }
-.tg-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: #0d2a08; background: linear-gradient(160deg, #9af06a, var(--tg-green-dark)); font-size: 17px; box-shadow: var(--tg-shadow-pop); }
+.tg-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--tg-green-ink); background: linear-gradient(160deg, var(--tg-green), var(--tg-green-dark)); font-size: 17px; box-shadow: var(--tg-shadow-pop); }
 .tg-brand-name { font-family: var(--tg-font-display); font-weight: 800; font-style: italic; letter-spacing: -.02em; font-size: 19px; text-transform: uppercase; }
 .tg-brand-name span { color: var(--tg-green); }
 .tg-nav { display: flex; align-items: center; gap: 5px; }
@@ -88,11 +98,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-panel { border: 1px solid var(--tg-glass-border); border-radius: var(--tg-radius-md); background: var(--tg-glass-bg); backdrop-filter: var(--tg-glass-blur); -webkit-backdrop-filter: var(--tg-glass-blur); box-shadow: var(--tg-shadow), var(--tg-glass-highlight); }
 
 /* ---------- Buttons: glossy pill system (measured shadow recipe) ---------- */
-.tg-button { min-height: 46px; padding: 0 22px; display: inline-flex; justify-content: center; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: var(--tg-radius-pill); background: var(--tg-raised); color: var(--tg-text); font-size: 14px; font-weight: 800; cursor: pointer; transition: transform var(--tg-motion), filter var(--tg-motion), border-color var(--tg-motion), box-shadow var(--tg-motion); box-shadow: var(--tg-shadow-pop); }
+.tg-button { min-height: 46px; padding: 0 22px; display: inline-flex; justify-content: center; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: var(--tg-radius-pill); background: var(--tg-raised); color: var(--tg-text); font-family: var(--tg-font-display); font-style: italic; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: -.005em; cursor: pointer; transition: transform var(--tg-motion), filter var(--tg-motion), border-color var(--tg-motion), box-shadow var(--tg-motion); box-shadow: var(--tg-shadow-pop); }
 .tg-button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
 .tg-button:active:not(:disabled) { transform: translateY(0); filter: brightness(0.98); }
 .tg-button:disabled { opacity: .48; cursor: not-allowed; }
-.tg-button-primary { color: var(--tg-green-ink); background: linear-gradient(180deg, #9af06a 0%, var(--tg-green-dark) 100%); }
+.tg-button-primary { color: #fff; text-shadow: 0 1px 2px var(--tg-bg); background: linear-gradient(180deg, var(--tg-green) 0%, var(--tg-green-dark) 100%); }
 .tg-button-secondary { color: var(--tg-text); background: linear-gradient(180deg, rgb(189 181 255 / 20%) 0%, rgb(143 134 230 / 20%) 100%); border-color: rgb(255 255 255 / 16%); }
 .tg-button-quiet { background: transparent; border-color: var(--tg-line); color: var(--tg-muted); box-shadow: none; }
 .tg-button-quiet:hover:not(:disabled) { background: rgb(255 255 255 / 6%); }
@@ -101,7 +111,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-difficulty-picker [role='radiogroup'] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .tg-difficulty-card { position: relative; min-height: 112px; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 16px; border: 1px solid var(--tg-line); border-radius: var(--tg-radius-md); background: var(--tg-surface); color: var(--tg-text); font-weight: 400; cursor: pointer; overflow: hidden; transition: border-color var(--tg-motion), background var(--tg-motion), transform var(--tg-motion); }
 .tg-difficulty-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--tg-tier-color, var(--tg-line)); opacity: .9; }
-.tg-difficulty-card[data-testid='difficulty-option-easy'] { --tg-tier-color: linear-gradient(90deg, #7bd84a, #54e0c7); }
+.tg-difficulty-card[data-testid='difficulty-option-easy'] { --tg-tier-color: linear-gradient(90deg, var(--tg-green), var(--tg-mint)); }
 .tg-difficulty-card[data-testid='difficulty-option-medium'] { --tg-tier-color: linear-gradient(90deg, #ffd166, #ff9f43); }
 .tg-difficulty-card[data-testid='difficulty-option-hard'] { --tg-tier-color: linear-gradient(90deg, #ff6b6b, #e23b50); }
 .tg-difficulty-card:hover { border-color: rgb(255 255 255 / 30%); transform: translateY(-2px); }
@@ -171,8 +181,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ---------- Dashboard (authenticated home) ---------- */
 .tg-dashboard { max-width: 1180px; margin: clamp(28px, 7vh, 72px) auto; }
 .tg-dashboard h1 { margin: 8px 0; font-family: var(--tg-font-display); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: clamp(34px, 5.4vw, 54px); letter-spacing: -.015em; }
-.tg-dashboard-card { max-width: 520px; margin-top: 28px; padding: clamp(22px, 4vw, 34px); transition: transform var(--tg-motion), border-color var(--tg-motion); }
+.tg-dashboard-card { position: relative; max-width: 520px; margin-top: 28px; padding: clamp(22px, 4vw, 34px); transition: transform var(--tg-motion), border-color var(--tg-motion); }
 .tg-dashboard-card p { color: var(--tg-muted); line-height: 1.65; }
+.tg-dashboard-card-icon { position: absolute; top: clamp(18px, 3vw, 26px); right: clamp(18px, 3vw, 26px); width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: var(--tg-glass-bg-soft); border: 1px solid var(--tg-glass-border); font-size: 19px; }
 .tg-dashboard-user { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border: 1px solid var(--tg-line); border-radius: var(--tg-radius-pill); color: var(--tg-muted); font-size: 12px; }
 .tg-avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: var(--tg-green-ink); background: var(--tg-green); font-weight: 800; }
 .tg-dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 18px; align-items: stretch; }
@@ -256,7 +267,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-candidate:hover { border-color: rgb(255 255 255 / 32%); transform: translateY(-2px); }
 .tg-candidate[aria-pressed='true'] { border-color: var(--tg-green); background: rgb(123 216 74 / 12%); box-shadow: inset 0 0 0 1px rgb(123 216 74 / 24%); }
 .tg-candidate-index { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 11px; color: #0b0a18; font-family: var(--tg-font-display); font-style: italic; font-size: 14px; font-weight: 800; }
-.tg-candidate-list li:nth-child(4n+1) .tg-candidate-index { background: linear-gradient(160deg, #9af06a, var(--tg-green-dark)); }
+.tg-candidate-list li:nth-child(4n+1) .tg-candidate-index { background: linear-gradient(160deg, var(--tg-green), var(--tg-green-dark)); }
 .tg-candidate-list li:nth-child(4n+2) .tg-candidate-index { background: linear-gradient(160deg, #7fe8d4, #2fae97); }
 .tg-candidate-list li:nth-child(4n+3) .tg-candidate-index { background: linear-gradient(160deg, #ffd166, #e8942f); }
 .tg-candidate-list li:nth-child(4n+4) .tg-candidate-index { background: linear-gradient(160deg, #c3b2ff, #7b53e6); }
@@ -357,7 +368,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-setup-subsection summary::-webkit-details-marker { display: none; }
 .tg-setup-subsection[open] summary { margin-bottom: 14px; }
 .tg-setup-label { display: grid; gap: 8px; color: #e3deff; font-size: 12px; font-weight: 800; }
-.tg-setup-label select { width: 100%; min-height: 45px; padding: 0 12px; border: 1px solid #45406e; border-radius: var(--tg-radius-sm); color: var(--tg-text); background: #130f2e; }
+.tg-setup-label select { width: 100%; min-height: 45px; padding: 0 12px; border: 1px solid #45406e; border-radius: var(--tg-radius-sm); color: var(--tg-text); background: var(--tg-bg); }
 .tg-setup-checkbox { display: inline-flex; align-items: center; gap: 10px; color: #e3deff; font-size: 12px; font-weight: 700; }
 .tg-setup-checkbox input { width: 18px; height: 18px; accent-color: var(--tg-green); }
 .tg-account-form, .tg-delete-confirm { margin-top: 20px; display: grid; justify-items: start; gap: 13px; }
@@ -467,24 +478,38 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tg-leaderboard-table td:nth-child(3)::before { content: 'PTS '; color: var(--tg-muted); font-size: 9px; }
   .tg-leaderboard-table td:nth-child(4)::before { content: 'KM '; color: var(--tg-muted); font-size: 9px; }
 }
-.tg-challenge-panel { margin-top: 24px; padding: clamp(18px, 3vw, 26px); }
-.tg-challenge-panel h2 { margin: 0 0 4px; font-family: var(--tg-font-display); font-weight: 800; font-style: italic; text-transform: uppercase; font-size: 21px; letter-spacing: -.01em; }
-.tg-challenge-panel > p.tg-muted { margin: 0 0 14px; font-size: 13px; line-height: 1.6; }
+/* Challenge ("async duel") — reskinned against the Figma Duels lobby frame:
+   big italic uppercase heading, pill tabs/badges, rank-tiered leaderboard. */
+.tg-challenge-panel { position: relative; margin-top: 24px; padding: clamp(22px, 4vw, 34px); border-radius: var(--tg-radius-lg); overflow: hidden; }
+.tg-challenge-panel::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--tg-rank-champion), var(--tg-rank-gold), var(--tg-rank-master), var(--tg-blue)); opacity: .8; }
+.tg-challenge-panel h2 { margin: 0 0 6px; font-family: var(--tg-font-display); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: clamp(22px, 3vw, 30px); letter-spacing: -.015em; }
+.tg-challenge-panel > p.tg-muted { margin: 0 0 16px; font-size: 13px; line-height: 1.6; max-width: 46ch; }
 .tg-challenge-share { margin-top: 14px; }
-.tg-challenge-share label, .tg-challenge-join label { display: block; margin-bottom: 7px; color: #e3deff; font-size: 12px; font-weight: 800; }
+.tg-challenge-share label, .tg-challenge-join label { display: block; margin-bottom: 7px; color: #e3deff; font-size: 12px; font-weight: 700; font-style: italic; text-transform: uppercase; letter-spacing: .02em; }
 .tg-challenge-row { display: flex; gap: 8px; }
-.tg-challenge-row input { flex: 1; min-width: 0; min-height: 42px; padding: 0 12px; border: 1px solid #45406e; border-radius: var(--tg-radius-sm); background: #140f30; color: var(--tg-text); font: inherit; }
+.tg-challenge-row input { flex: 1; min-width: 0; min-height: 44px; padding: 0 14px; border: 1px solid #45406e; border-radius: var(--tg-radius-sm); background: #140f30; color: var(--tg-text); font: inherit; }
 .tg-challenge-row input:focus { border-color: var(--tg-mint); }
 .tg-challenge-join { margin-top: 18px; }
-.tg-challenge-status { margin: 8px 0 0; color: var(--tg-mint); font-size: 12px; }
+.tg-challenge-status { margin: 8px 0 0; color: var(--tg-teal); font-size: 12px; font-weight: 700; }
 .tg-challenge-error { margin: 8px 0 0; color: #ffd2d2; font-size: 12px; }
-.tg-challenge-leaderboard { margin-top: 18px; }
-.tg-challenge-leaderboard h3 { margin: 0 0 10px; font-size: 14px; color: var(--tg-text); }
-.tg-challenge-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--tg-line); border-radius: 12px; }
+.tg-challenge-leaderboard { margin-top: 22px; }
+.tg-challenge-leaderboard h3 { margin: 0 0 12px; font-family: var(--tg-font-display); font-weight: 800; font-style: italic; text-transform: uppercase; letter-spacing: .02em; font-size: 13px; color: var(--tg-soft); }
+.tg-challenge-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--tg-line); border-radius: 14px; }
 .tg-challenge-table { width: 100%; min-width: 420px; border-collapse: collapse; font-size: 13px; }
-.tg-challenge-table th, .tg-challenge-table td { padding: 10px 12px; border-bottom: 1px solid var(--tg-line); text-align: left; }
+.tg-challenge-table th, .tg-challenge-table td { padding: 11px 14px; border-bottom: 1px solid var(--tg-line); text-align: left; }
 .tg-challenge-table th { color: var(--tg-muted); background: #1a1640; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .tg-challenge-table tr:last-child td { border-bottom: 0; }
 .tg-challenge-loading, .tg-challenge-empty { color: var(--tg-muted); font-size: 13px; }
 .tg-challenge-join-page { max-width: 760px; margin: 30px auto; padding: clamp(22px, 4vw, 36px); }
+
+/* Rank badge — small bordered circle + colour-coded label, matching the
+   Figma Duels rank ladder (Champion/Master/Gold/Silver/Bronze markers). */
+.tg-rank-cell { display: flex; align-items: center; gap: 9px; }
+.tg-rank-badge { width: 20px; height: 20px; flex: 0 0 20px; border-radius: 6px; border: 2px solid var(--tg-line); background: var(--tg-bg); display: grid; place-items: center; font-family: var(--tg-font-display); font-style: italic; font-size: 10px; font-weight: 800; color: var(--tg-muted); }
+.tg-challenge-table tr[data-tier='1'] .tg-rank-badge { border-color: var(--tg-rank-gold); color: var(--tg-rank-gold); }
+.tg-challenge-table tr[data-tier='2'] .tg-rank-badge { border-color: var(--tg-rank-silver); color: var(--tg-rank-silver); }
+.tg-challenge-table tr[data-tier='3'] .tg-rank-badge { border-color: var(--tg-rank-bronze); color: var(--tg-rank-bronze); }
+.tg-challenge-table tr[data-tier='1'] td:nth-child(2) { color: var(--tg-rank-gold); font-weight: 800; }
+.tg-challenge-table tr[data-tier='2'] td:nth-child(2) { color: var(--tg-rank-silver); font-weight: 800; }
+.tg-challenge-table tr[data-tier='3'] td:nth-child(2) { color: var(--tg-rank-bronze); font-weight: 800; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

@@ -115,9 +115,12 @@ export function ChallengeLeaderboard({
                 <tr
                   key={entry.rank + '-' + (entry.displayName ?? 'anonymous') + '-' + index}
                   data-testid="leaderboard-row"
+                  data-tier={entry.rank <= 3 ? entry.rank : undefined}
                 >
                   <td data-testid="leaderboard-rank">
-                    {entry.rank}
+                    <span className="tg-rank-cell">
+                      <span className="tg-rank-badge">{entry.rank}</span>
+                    </span>
                   </td>
                   <td data-testid="leaderboard-name">
                     {formatDisplayName(entry)}
