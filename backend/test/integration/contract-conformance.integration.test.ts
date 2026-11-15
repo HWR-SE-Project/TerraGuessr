@@ -165,6 +165,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
       'selectionMode',
       'weather',
       'candidates',
+      'additionalData',
     ]);
     expect(typeof body.roundId).toBe('string');
     expect(Number.isInteger(body.roundNumber)).toBe(true);
@@ -218,6 +219,7 @@ describe('API contract conformance (API-CONTRACTS.md)', () => {
       'selectionMode',
       'weather',
       'candidates',
+      'additionalData',
     ]);
     expect(findLeakedActualKeys(body)).toEqual([]);
   });

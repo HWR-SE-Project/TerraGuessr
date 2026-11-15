@@ -129,7 +129,7 @@ describe('games module', () => {
 
   describe('games routes', () => {
     it('POST /api/games creates a game (201) and returns the token once', async () => {
-      const create = vi.fn().mockResolvedValue({ id: 'game1' });
+      const create = vi.fn().mockResolvedValue({ id: 'game1', roundsTotal: ROUNDS_PER_GAME, attemptsPerRound: 1, additionalDataUnlockMode: 'immediate', additionalDataUnlockCost: null });
       const db = {
         game: { create, findUnique: vi.fn() },
       } as unknown as PrismaLike;

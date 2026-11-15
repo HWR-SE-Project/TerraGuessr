@@ -46,8 +46,8 @@ export async function createGame(
   const appliedCandidateCount = mode === 'solo' ? candidateCount : undefined;
   const appliedUnlockMode = mode === 'solo' ? additionalDataUnlockMode : 'immediate';
   const appliedUnlockCost = appliedUnlockMode === 'immediate' ? null : additionalDataUnlockCost ?? (appliedUnlockMode === 'time' ? 30 : 500);
-  if (appliedUnlockMode === 'time' && (appliedUnlockCost < 10 || appliedUnlockCost > 60)) throw new GameRulesValidationError('Time unlock cost must be between 10 and 60 seconds');
-  if (appliedUnlockMode === 'points' && (appliedUnlockCost < 100 || appliedUnlockCost > 4000)) throw new GameRulesValidationError('Points unlock cost must be between 100 and 4000');
+  if (appliedUnlockMode === 'time' && appliedUnlockCost != null && (appliedUnlockCost < 10 || appliedUnlockCost > 60)) throw new GameRulesValidationError('Time unlock cost must be between 10 and 60 seconds');
+  if (appliedUnlockMode === 'points' && appliedUnlockCost != null && (appliedUnlockCost < 100 || appliedUnlockCost > 4000)) throw new GameRulesValidationError('Points unlock cost must be between 100 and 4000');
   const playerToken = generatePlayerToken();
   const playerTokenHash = hashPlayerToken(playerToken);
 
