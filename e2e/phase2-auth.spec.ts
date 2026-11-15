@@ -26,6 +26,8 @@ test('email registration, account dashboard, German preference, and safe account
 
   await page.getByRole('button', { name: 'Profil' }).click();
   await expect(page.getByRole('heading', { name: 'Profil' })).toBeVisible();
+  await expect(page.getByText('Aktuelle tägliche Serie')).toBeVisible();
+  await expect(page.getByText('Längste tägliche Serie')).toBeVisible();
   await page.getByRole('button', { name: 'Konto löschen…' }).click();
   await page.getByLabel('Zur Bestätigung DELETE eingeben').fill('DELETE');
   await page.getByLabel('Aktuelles Passwort').fill('secure browser password 2026');
