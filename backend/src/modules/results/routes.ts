@@ -1,7 +1,8 @@
 /**
  * Results routes (B-07). Registered by `registerResultsRoutes` from app.ts.
  * The list is auth'd by game ownership; the single result is auth'd by result
- * ownership (parent game). Actual coordinates are never returned here (R11).
+ * ownership (parent game). Coordinates are returned only for already
+ * completed guesses (R11); pre-submit round responses omit them (R04).
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';

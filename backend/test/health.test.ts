@@ -29,4 +29,34 @@ describe('GET /api/health', () => {
       await app.close();
     }
   });
+
+  it('omits CORS headers by default and permits only an explicitly configured origin', async () => {
+    const previous = process.env.CORS_ORIGIN;
+    try {
+      delete process.env.CORS_ORIGIN;
+      const closedApp = await buildApp();
+      try {
+        const response = await closedApp.inject({
+          method: 'GET', url: '/api/health', headers: { origin: 'https://other.example' },
+        });
+        expect(response.headers['access-control-allow-origin']).toBeUndefined();
+      } finally {
+        await closedApp.close();
+      }
+
+      process.env.CORS_ORIGIN = 'https://allowed.example';
+      const configuredApp = await buildApp();
+      try {
+        const response = await configuredApp.inject({
+          method: 'GET', url: '/api/health', headers: { origin: 'https://allowed.example' },
+        });
+        expect(response.headers['access-control-allow-origin']).toBe('https://allowed.example');
+      } finally {
+        await configuredApp.close();
+      }
+    } finally {
+      if (previous === undefined) delete process.env.CORS_ORIGIN;
+      else process.env.CORS_ORIGIN = previous;
+    }
+  });
 });
