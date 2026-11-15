@@ -32,14 +32,13 @@ describe('RoundScreen', () => {
     expect(screen.getByText('14.3 km/h')).toBeInTheDocument();
   });
 
-  it('reveals score and distance after submit', async () => {
+  it('uses candidate selection without raw coordinate fields and reveals score after submit', async () => {
     renderRoundScreen();
 
     await screen.findByText('Temperature');
-
-    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '48.85' } });
-    fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '2.35' } });
-
+    expect(screen.queryByLabelText('Latitude')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Longitude')).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByTestId('candidate-item')[0]!);
     const submit = screen.getByRole('button', { name: 'Submit guess' });
     expect(submit).toBeEnabled();
 

@@ -25,8 +25,8 @@ describe('ChallengeJoinFlow', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Round 1' }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('weather-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('candidate-list')).toBeInTheDocument();
+    expect(await screen.findByTestId('weather-panel')).toBeInTheDocument();
+    expect(await screen.findByTestId('candidate-list')).toBeInTheDocument();
 
     const [candidate] = screen.getAllByTestId('candidate-item');
     if (!candidate) {

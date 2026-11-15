@@ -46,7 +46,7 @@ export function Tutorial({ headingId, onClose }: TutorialProps) {
         ) : null}
       </div>
 
-      <section data-testid="tutorial-mechanics" style={{ marginBottom: '1rem' }}>
+      <section data-testid="tutorial-mechanics" className="tg-tutorial-section">
         <h3 style={{ marginBottom: '0.25rem' }}>The mechanics</h3>
         <p style={{ marginTop: 0 }}>
           Each round gives you the current weather at a secret place — temperature, conditions and
@@ -58,7 +58,7 @@ export function Tutorial({ headingId, onClose }: TutorialProps) {
         </p>
       </section>
 
-      <section data-testid="tutorial-selection-modes" style={{ marginBottom: '1rem' }}>
+      <section data-testid="tutorial-selection-modes" className="tg-tutorial-section">
         <h3 style={{ marginBottom: '0.25rem' }}>Two ways to guess</h3>
         <ul style={{ marginTop: 0 }}>
           <li>
@@ -76,7 +76,7 @@ export function Tutorial({ headingId, onClose }: TutorialProps) {
         </p>
       </section>
 
-      <section data-testid="tutorial-scoring">
+      <section data-testid="tutorial-scoring" className="tg-tutorial-section">
         <h3 style={{ marginBottom: '0.25rem' }}>How scoring works</h3>
         <p style={{ marginTop: 0 }}>
           Scoring is distance-based: the closer your guess is to the real location, the higher the
@@ -126,6 +126,7 @@ export function TutorialDialog({ open, onClose }: TutorialDialogProps) {
   return (
     <div
       data-testid="tutorial-overlay"
+      className="tg-tutorial-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -147,6 +148,7 @@ export function TutorialDialog({ open, onClose }: TutorialDialogProps) {
         aria-modal="true"
         aria-labelledby={headingId}
         data-testid="tutorial-dialog"
+        className="tg-tutorial-dialog tg-panel"
         style={{
           background: '#ffffff',
           color: '#1c1c1c',

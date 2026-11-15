@@ -20,27 +20,6 @@ import type { RoundDataSource } from './features/game';
 import { TutorialDialog } from './features/tutorial';
 import { GameStoreProvider, useGameStore } from './state/gameStore';
 
-const shellStyle = {
-  minHeight: '100vh',
-  display: 'flex',
-  flexDirection: 'column',
-  fontFamily: 'system-ui, -apple-system, sans-serif',
-  color: '#1c1c1c',
-  background: '#f6f5f2',
-} as const;
-
-const mainStyle = {
-  flex: 1,
-  padding: '24px 20px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-  maxWidth: '900px',
-  width: '100%',
-  boxSizing: 'border-box',
-  margin: '0 auto',
-} as const;
-
 type Phase = 'home' | 'playing' | 'results';
 
 type LoadStatus = 'idle' | 'loading' | 'error';
@@ -269,11 +248,9 @@ function AppShell({ dataSource }: AppShellProps) {
   // original creator, and never touches that player's game/token.
   if (challengeId) {
     return (
-      <div style={shellStyle}>
-        <header style={{ padding: '12px 20px', borderBottom: '1px solid #d9d6d0' }}>
-          <h1 style={{ margin: 0, fontSize: '20px' }}>TerraGuessr</h1>
-        </header>
-        <main style={mainStyle}>
+      <div className="tg-shell">
+        <header className="tg-topbar"><a className="tg-brand" href="/"><span className="tg-brand-mark" aria-hidden="true">⌖</span><span className="tg-brand-name">Terra<span>Guessr</span></span></a></header>
+        <main className="tg-main">
           <ChallengeJoinFlow challengeId={challengeId} />
         </main>
       </div>
@@ -281,16 +258,19 @@ function AppShell({ dataSource }: AppShellProps) {
   }
 
   return (
-    <div style={shellStyle}>
-      <header style={{ padding: '12px 20px', borderBottom: '1px solid #d9d6d0' }}>
-        <h1 style={{ margin: 0, fontSize: '20px' }}>TerraGuessr</h1>
+    <div className="tg-shell">
+      <header className="tg-topbar">
+        <a className="tg-brand" href="/" onClick={(event) => { if (phase !== 'home') { event.preventDefault(); handlePlayAgain(); } }}><span className="tg-brand-mark" aria-hidden="true">⌖</span><span className="tg-brand-name">Terra<span>Guessr</span></span></a>
+        <nav className="tg-nav" aria-label="Main navigation">
+          {phase === 'home' ? <button type="button" onClick={() => setTutorialOpen(true)} data-testid="how-to-play"><span aria-hidden="true">ⓘ</span><span className="tg-nav-label">How to play</span></button> : <span className="tg-chip"><span className="tg-dot" />Solo expedition</span>}
+        </nav>
       </header>
-      <main style={mainStyle}>
+      <main className={phase === 'playing' ? 'tg-game' : phase === 'home' ? 'tg-landing' : 'tg-main'}>
         {demoMode ? (
           <p
             role="status"
             data-testid="demo-notice"
-            style={{ margin: 0, padding: '8px 12px', background: '#fff4d6', borderRadius: '6px' }}
+            className="tg-chip"
           >
             Backend unavailable - running in offline demo mode.
           </p>
@@ -300,14 +280,14 @@ function AppShell({ dataSource }: AppShellProps) {
           <div
             role="alert"
             data-testid="error-banner"
-            style={{ padding: '10px 12px', background: '#fdecec', borderRadius: '6px' }}
+            className="tg-error"
           >
             <p style={{ margin: '0 0 8px' }}>{error}</p>
-            <button type="button" onClick={handleRetry}>
+              <button type="button" className="tg-button tg-button-secondary" onClick={handleRetry}>
               Try again
             </button>
             {phase !== 'home' ? (
-              <button type="button" onClick={handlePlayAgain} style={{ marginLeft: '8px' }}>
+              <button type="button" className="tg-button tg-button-quiet" onClick={handlePlayAgain} style={{ marginLeft: '8px' }}>
                 Back to home
               </button>
             ) : null}
@@ -315,36 +295,47 @@ function AppShell({ dataSource }: AppShellProps) {
         ) : null}
 
         {phase === 'home' ? (
-          <section aria-labelledby="home-heading">
-            <h2 id="home-heading" style={{ marginTop: 0 }}>
-              Home
-            </h2>
-            <p>Guess the place from its weather. Five rounds, one score.</p>
-            <DifficultyPicker value={selection} onChange={setSelection} disabled={busy} />
-            <p style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+          <section aria-labelledby="home-heading" className="tg-hero">
+            <div>
+              <div className="tg-eyebrow">A world of clues, one great guess</div>
+              <h1 id="home-heading">Read the sky.<br /><span>Find the place.</span></h1>
+              <p className="tg-hero-copy">Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.</p>
+              <div className="tg-hero-cta">
               <button
                 type="button"
                 onClick={() => void startGame(selection)}
                 disabled={busy}
                 data-testid="start-game"
+                className="tg-button tg-button-primary"
               >
-                {busy ? 'Starting...' : 'Start game'}
+                {busy ? 'Preparing expedition…' : '◉  Explore solo'}
               </button>
-              <button type="button" onClick={() => setTutorialOpen(true)} data-testid="how-to-play">
-                How to play
-              </button>
-            </p>
+                <button type="button" onClick={() => setTutorialOpen(true)} data-testid="hero-tutorial" className="tg-button tg-button-quiet">Learn the signals</button>
+              </div>
+              <div style={{ marginTop: 30 }}>
+                <div className="tg-eyebrow" style={{ marginBottom: 10 }}>Choose your challenge</div>
+                <DifficultyPicker value={selection} onChange={setSelection} disabled={busy} />
+              </div>
+            </div>
+            <div className="tg-hero-orbit" aria-hidden="true">
+              <div className="tg-globe"><div className="tg-globe-grid" /></div>
+              <div className="tg-orbit-tag one">◌ &nbsp; Weather is your compass</div>
+              <div className="tg-orbit-tag two">⌖ &nbsp; Five locations. One world.</div>
+              <div className="tg-orbit-tag three">↗ &nbsp; Every kilometer counts</div>
+            </div>
           </section>
         ) : null}
 
         {phase === 'playing' ? (
-          <section aria-labelledby="game-heading">
-            <h2 id="game-heading" style={{ marginTop: 0 }}>
-              Solo game
-            </h2>
-            <p style={{ marginTop: 0 }}>
-              Round {round?.roundNumber ?? '-'} of {ROUNDS_PER_GAME} - difficulty: {state.difficulty}
-            </p>
+          <section>
+            <div className="tg-game-top">
+              <div className="tg-game-stats">
+                <div className="tg-stat"><span className="tg-stat-label">Round</span><span className="tg-stat-value">{round?.roundNumber ?? '-'} <span className="tg-muted">/ {ROUNDS_PER_GAME}</span></span></div>
+                <div className="tg-stat"><span className="tg-stat-label">Difficulty</span><span className="tg-stat-value" style={{ textTransform: 'capitalize' }}>{state.difficulty}</span></div>
+                <div className="tg-stat"><span className="tg-stat-label">Score</span><span className="tg-stat-value mono">{revealed?.score ?? '—'}</span></div>
+              </div>
+              <span className="tg-chip"><span className="tg-dot" />{round?.selectionMode === 'list' ? 'Choice mode' : 'Map mode'}</span>
+            </div>
             {busy && !round ? <p role="status">Loading round...</p> : null}
             {round && roundSource ? (
               <>
@@ -354,12 +345,13 @@ function AppShell({ dataSource }: AppShellProps) {
                   gameId={activeGameId ?? undefined}
                 />
                 {revealed ? (
-                  <p style={{ marginTop: '16px' }}>
+                  <p style={{ position: 'absolute', top: 82, right: 24, zIndex: 10, margin: 0 }}>
                     <button
                       type="button"
                       onClick={() => void handleAdvance()}
                       disabled={busy}
                       data-testid="advance"
+                      className="tg-button tg-button-secondary"
                     >
                       {isFinalRound ? 'See final results' : 'Next round'}
                     </button>
@@ -371,23 +363,19 @@ function AppShell({ dataSource }: AppShellProps) {
         ) : null}
 
         {phase === 'results' && results ? (
-          <section aria-labelledby="results-heading" data-testid="results-view">
-            <h2 id="results-heading" style={{ marginTop: 0 }}>
-              Results
-            </h2>
-            <p>
-              Total score: <strong data-testid="total-score">{results.totalScore}</strong>
-            </p>
+          <section aria-labelledby="results-heading" data-testid="results-view" className="tg-panel tg-results">
+            <div className="tg-eyebrow">Expedition complete</div>
+            <h2 id="results-heading" style={{ margin: '8px 0', fontSize: 38, letterSpacing: '-.06em' }}>Your journey</h2>
+            <p className="tg-muted">Total score</p>
+            <p className="tg-result-score"><strong data-testid="total-score">{results.totalScore}</strong><span style={{ fontSize: 15, color: 'var(--tg-muted)', letterSpacing: 0 }}> pts</span></p>
             <ol data-testid="result-list">
               {results.results.map((entry) => (
-                <li key={entry.resultId} data-testid="result-row">
-                  Round {entry.roundNumber}: {entry.score} points, {entry.distanceKm} km away
+                <li key={entry.resultId} data-testid="result-row" className="tg-result-row">
+                  <span>Round {entry.roundNumber}</span><span><strong style={{ color: 'var(--tg-text)' }}>{entry.score} pts</strong> · {entry.distanceKm} km</span>
                 </li>
               ))}
             </ol>
-            <button type="button" onClick={handlePlayAgain} data-testid="play-again">
-              Play again
-            </button>
+            <button type="button" onClick={handlePlayAgain} data-testid="play-again" className="tg-button tg-button-primary">↻ &nbsp; Play again</button>
             {round && lastResult ? (
               <ChallengePanel roundId={round.roundId} resultId={lastResult.resultId} />
             ) : null}

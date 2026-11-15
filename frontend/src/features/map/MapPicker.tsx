@@ -68,7 +68,7 @@ export function MapPicker({
     // absolutely positioned and overflow their collapsed parent) but it
     // desynced Leaflet's internal pixel origin from the real screen position,
     // so clicks landed on whatever sat behind the map instead of the map.
-    <div data-testid="map-picker" style={{ height: '400px', width: '100%' }}>
+    <div data-testid="map-picker" style={{ height: '100%', minHeight: '250px', width: '100%' }}>
       <MapContainer
         center={toTuple(center)}
         zoom={zoom}
