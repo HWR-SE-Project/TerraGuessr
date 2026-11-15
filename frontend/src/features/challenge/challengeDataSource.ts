@@ -116,6 +116,7 @@ export function createStubChallengeDataSource(
         round: {
           roundId: 'stub-joined-round-' + joinedRounds,
           roundNumber: 1,
+          attemptsTotal: 1,
           difficulty: 'easy',
           selectionMode,
           weather: { temperatureC: 18, precipitationMm: 0, humidityPct: 55, windSpeedKmh: 7 },

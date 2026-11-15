@@ -36,7 +36,7 @@ export function registerGamesRoutes(
     async (request, reply) => {
       const body = request.body as CreateGameBody;
       const ownerUserId = await optionalSessionUserId(request, db);
-      const result = await createGame(body.mode, body.difficulty, db, ownerUserId, body.roundsTotal, body.geography, body.candidateCount);
+      const result = await createGame(body.mode, body.difficulty, db, ownerUserId, body.roundsTotal, body.geography, body.candidateCount, body.attemptsPerRound);
       reply.code(201);
       return result;
     },

@@ -15,6 +15,10 @@ test('custom solo setup controls a server-enforced one-round game', async ({ pag
   await page.getByLabel('Number of rounds').focus();
   await page.getByLabel('Number of rounds').press('Home');
   await expect(page.locator('output[for="round-count"]')).toHaveText('1');
+  await page.getByLabel('Attempts per round').focus();
+  await page.getByLabel('Attempts per round').press('Home');
+  await page.getByLabel('Attempts per round').press('ArrowRight');
+  await expect(page.locator('output[for="attempt-count"]')).toHaveText('2');
   await page.getByLabel('Area').selectOption('ASIA');
   await page.getByLabel('Customize answer choices').check();
   await page.getByLabel('Number of choices').selectOption('3');
@@ -27,6 +31,15 @@ test('custom solo setup controls a server-enforced one-round game', async ({ pag
   await expect(page.getByTestId('candidate-name')).toHaveCount(3);
   await page.getByTestId('candidate-name').first().click();
   await page.getByRole('button', { name: /Submit guess/ }).click();
+  await expect(page.getByTestId('attempt-result')).toBeVisible();
+  await expect(page.getByText(/location stays hidden/i)).toBeVisible();
+  await page.screenshot({ path: 'docs/screenshots/phase3-mobile-attempt-result.png', fullPage: true });
+  const gameWidths = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
+  expect(gameWidths.content).toBeLessThanOrEqual(gameWidths.viewport);
+  await page.getByTestId('next-attempt').click();
+  await page.getByTestId('candidate-name').nth(1).click();
+  await page.getByRole('button', { name: /Submit guess/ }).click();
+  await expect(page.getByText('LOCATION REVEALED')).toBeVisible();
   await page.getByRole('button', { name: 'See final results' }).click();
   await expect(page.getByTestId('results-view')).toBeVisible();
   await expect(page.getByTestId('result-row')).toHaveCount(1);

@@ -23,6 +23,7 @@ export interface CreateGameInput {
   roundsTotal?: number;
   geography?: 'world' | 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA';
   candidateCount?: number;
+  attemptsPerRound?: number;
 }
 
 /** POST /api/games 201 response — playerToken is issued exactly once (ADR-0011). */
@@ -30,6 +31,7 @@ export interface CreateGameResponse {
   gameId: string;
   playerToken: string;
   roundsTotal: number;
+  attemptsPerRound: number;
 }
 
 /** Server I/O seam for the whole solo loop; tests inject a deterministic stub. */
@@ -134,7 +136,7 @@ export function createStubGameDataSource(): GameDataSource {
       roundsStarted = 0;
       results.length = 0;
       roundsTotal = input.roundsTotal ?? ROUNDS_PER_GAME;
-      return { gameId: STUB_GAME_ID, playerToken: STUB_PLAYER_TOKEN, roundsTotal };
+      return { gameId: STUB_GAME_ID, playerToken: STUB_PLAYER_TOKEN, roundsTotal, attemptsPerRound: input.attemptsPerRound ?? 1 };
     },
 
     async startRound(_gameId, selectionMode = 'list') {
@@ -146,6 +148,7 @@ export function createStubGameDataSource(): GameDataSource {
       const round: RoundDTO = {
         roundId: `stub-round-${roundsStarted}`,
         roundNumber: roundsStarted,
+        attemptsTotal: 1,
         difficulty: 'easy',
         selectionMode,
         weather,

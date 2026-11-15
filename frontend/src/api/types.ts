@@ -47,6 +47,7 @@ export interface GameSummary {
   status: 'active' | 'completed';
   roundsPlayed: number;
   roundsTotal: number;
+  attemptsPerRound: number;
   currentRound: {
     roundId: string;
     roundNumber: number;
@@ -58,6 +59,7 @@ export interface GameSummary {
 export interface RoundDTO {
   roundId: string;
   roundNumber: number;
+  attemptsTotal: number;
   difficulty: Difficulty;
   selectionMode: SelectionMode;
   weather: WeatherDTO;

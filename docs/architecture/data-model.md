@@ -55,6 +55,12 @@ TerraGuessr 2.0 ADR-0013 adds optional `User`, `AuthSession`,
 store nullable `ownerUserId`; account deletion sets it to null while R18 result
 retention remains unchanged. See [ADR-0013](adr/0013-account-sessions.md).
 
+Later additive migrations extend this Phase 1 schema: ADR-0014 adds configurable
+`Game.roundsTotal`; ADR-0015 adds `geoRegion` and `candidateCount`; ADR-0016 adds
+UTC `DailyChallenge` and account-scoped `DailySubmission`; ADR-0017 adds
+`Game.attemptsPerRound` and `RoundAttempt`. These are appended to the live Prisma
+schema and do not remove existing game or result rows.
+
 ---
 
 ## Finalized Prisma schema (Phase 1 authoritative)

@@ -31,6 +31,7 @@ export async function createGame(
   roundsTotal = ROUNDS_PER_GAME,
   geography: 'world' | Region = 'world',
   candidateCount?: number,
+  attemptsPerRound = 1,
 ): Promise<CreateGameResponse> {
   // Async challenges have one shared location by product rule; only solo
   // sessions accept the configurable 1–20 round count.
@@ -41,10 +42,10 @@ export async function createGame(
   const playerTokenHash = hashPlayerToken(playerToken);
 
   const game = await db.game.create({
-    data: { mode, difficulty, playerTokenHash, ownerUserId, roundsTotal: appliedRoundsTotal, geoRegion, candidateCount: appliedCandidateCount },
+    data: { mode, difficulty, playerTokenHash, ownerUserId, roundsTotal: appliedRoundsTotal, attemptsPerRound: mode === 'solo' ? attemptsPerRound : 1, geoRegion, candidateCount: appliedCandidateCount },
   });
 
-  return { gameId: game.id, playerToken, roundsTotal: game.roundsTotal ?? appliedRoundsTotal };
+  return { gameId: game.id, playerToken, roundsTotal: game.roundsTotal ?? appliedRoundsTotal, attemptsPerRound: game.attemptsPerRound ?? 1 };
 }
 
 /**
@@ -76,6 +77,7 @@ export async function getGameSummary(
     status: game.status,
     roundsPlayed,
     roundsTotal: game.roundsTotal ?? ROUNDS_PER_GAME,
+    attemptsPerRound: game.attemptsPerRound ?? 1,
     currentRound: activeRound
       ? {
           roundId: activeRound.id,

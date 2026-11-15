@@ -70,7 +70,7 @@ export function registerDailyRoutes(
     const submission = await db.dailySubmission.findUnique({ where: { date_userId: { date: challenge.date, userId: user.id } } });
     const snapshot = await db.weatherSnapshot.findUniqueOrThrow({ where: { id: challenge.weatherSnapshotId } });
     const round = {
-      roundId: challenge.date, roundNumber: 1, difficulty: 'hard', selectionMode: 'map',
+      roundId: challenge.date, roundNumber: 1, attemptsTotal: 1, difficulty: 'hard', selectionMode: 'map',
       weather: { temperatureC: snapshot.temperatureC, precipitationMm: snapshot.precipitationMm, humidityPct: snapshot.humidityPct, windSpeedKmh: snapshot.windSpeedKmh },
     };
     if (submission) {

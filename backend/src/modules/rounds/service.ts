@@ -66,6 +66,7 @@ export function roundCap(mode: GameMode, roundsTotal = ROUNDS_PER_GAME): number 
 interface LoadedGame {
   mode: GameMode;
   roundsTotal: number;
+  attemptsPerRound?: number;
   status: 'active' | 'completed';
   rounds: ReadonlyArray<{ status: 'active' | 'completed' }>;
 }
@@ -325,6 +326,7 @@ export async function startRound(
     round: {
       roundId: round.id,
       roundNumber,
+      attemptsTotal: game.attemptsPerRound ?? 1,
       difficulty: game.difficulty,
       selectionMode: selection.selectionMode,
     },
@@ -446,6 +448,7 @@ export async function getRoundView(
     round: {
       roundId: round.id,
       roundNumber: round.roundNumber,
+      attemptsTotal: round.game.attemptsPerRound,
       difficulty: round.difficulty,
       selectionMode,
     },

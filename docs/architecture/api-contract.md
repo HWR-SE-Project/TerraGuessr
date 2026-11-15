@@ -6,19 +6,23 @@ routes, which require authentication (decision B.14) — not yet designed in thi
 
 ## Game lifecycle
 
-- `POST /games` — `{mode: 'solo'|'challenge', difficulty: 'easy'|'medium'|'hard'}` → `{gameId, playerToken}`
+- `POST /games` — `{mode, difficulty, roundsTotal?, geography?, candidateCount?, attemptsPerRound?}` → `{gameId, playerToken, roundsTotal, attemptsPerRound}`. Solo accepts 1–5 attempts (default 1); challenge stays at one.
 - `GET /games/{gameId}` — game + current round summary (requires `playerToken`)
 
 ## Rounds (R01/R03/R04/R06/R08)
 
 - `POST /games/{gameId}/rounds` — start next round →
-  `{roundId, difficulty, selectionMode: 'map'|'list', candidates?: Location[], weather: {temperatureC, precipitationMm, humidityPct, windSpeedKmh}}`.
+  `{roundId, attemptsTotal, difficulty, selectionMode: 'map'|'list', candidates?: Location[], weather: {temperatureC, precipitationMm, humidityPct, windSpeedKmh}}`.
   **MUST NOT include actual coordinates** (R04). `candidates` present only in list mode.
 - `GET /rounds/{roundId}` — idempotent re-fetch of the same shape.
 - `POST /rounds/{roundId}/guess` — final submit `{lat, lon}` →
   `{distanceKm, score, actual: {lat, lon}}` (R09/R10/R11). One guess per round; subsequent
   submits for the same round are rejected (R08's "modify before submit" is enforced client-side
   until this call).
+- `POST /rounds/{roundId}/attempts` and `/finish` — configured multi-attempt workflow. Intermediate
+  submissions return distance and score only; the best persisted attempt is selected at finish and
+  the actual location is revealed only in the final result. Database constraints and row locking
+  enforce the attempt limit under concurrent requests.
 
 ## Results (R11/R18)
 

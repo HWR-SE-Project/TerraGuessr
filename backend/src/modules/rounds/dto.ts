@@ -20,6 +20,7 @@ export interface RoundCandidate {
 export interface RoundMeta {
   roundId: string;
   roundNumber: number;
+  attemptsTotal: number;
   difficulty: Difficulty;
   selectionMode: SelectionMode;
 }
@@ -45,6 +46,7 @@ export function toRoundView(input: RoundViewInput): RoundView {
   const view: RoundView = {
     roundId: input.round.roundId,
     roundNumber: input.round.roundNumber,
+    attemptsTotal: input.round.attemptsTotal,
     difficulty: input.round.difficulty,
     selectionMode: input.round.selectionMode,
     weather: {
