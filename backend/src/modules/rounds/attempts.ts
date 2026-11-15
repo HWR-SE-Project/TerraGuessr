@@ -21,7 +21,7 @@ async function finishFromAttempt(tx: Prisma.TransactionClient, round: AttemptRou
     guessLat: attempt.guessLat,
     guessLon: attempt.guessLon,
     distanceKm: attempt.distanceKm,
-    score: attempt.score,
+    score: Math.max(0, attempt.score - round.additionalDataPointsSpent),
   } });
   await tx.guess.create({ data: { roundId: round.id, lat: attempt.guessLat, lon: attempt.guessLon } });
   await tx.round.update({ where: { id: round.id }, data: { status: 'completed', completedAt: new Date() } });
@@ -55,12 +55,12 @@ export async function submitRoundAttempt(roundId: string, guess: SubmitGuessBody
       if (attemptNumber > round.game.attemptsPerRound) throw new AttemptConflictError('Attempt limit reached');
       await tx.roundAttempt.create({ data: { roundId, attemptNumber, guessLat: guess.lat, guessLon: guess.lon, distanceKm, score } });
       const attemptsRemaining = round.game.attemptsPerRound - attemptNumber;
-      if (attemptsRemaining > 0) return { attemptNumber, attemptsTotal: round.game.attemptsPerRound, attemptsRemaining, distanceKm, score, result: null };
+      if (attemptsRemaining > 0) return { attemptNumber, attemptsTotal: round.game.attemptsPerRound, attemptsRemaining, distanceKm, score: Math.max(0, score - round.additionalDataPointsSpent), result: null };
       const prior = await tx.roundAttempt.findMany({ where: { roundId }, orderBy: [{ score: 'desc' }, { distanceKm: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] });
       const best = prior[0];
       if (!best) throw new AttemptConflictError('No attempt is available to finish this round');
       const result = await finishFromAttempt(tx, round, best);
-      return { attemptNumber, attemptsTotal: round.game.attemptsPerRound, attemptsRemaining: 0, distanceKm, score, result };
+      return { attemptNumber, attemptsTotal: round.game.attemptsPerRound, attemptsRemaining: 0, distanceKm, score: Math.max(0, score - round.additionalDataPointsSpent), result };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2034')) throw new AttemptConflictError('Another attempt was submitted at the same time; retry the action');

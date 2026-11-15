@@ -23,15 +23,8 @@ export function Tutorial({ headingId, onClose }: TutorialProps) {
 
   return (
     <div data-testid="tutorial">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: '1rem',
-        }}
-      >
-        <h2 id={id} style={{ marginTop: 0 }}>
+      <div className="tg-tutorial-header">
+        <h2 id={id}>
           How to play
         </h2>
         {onClose ? (
@@ -39,6 +32,7 @@ export function Tutorial({ headingId, onClose }: TutorialProps) {
             type="button"
             onClick={onClose}
             data-testid="tutorial-close"
+            className="tg-button tg-button-quiet"
             aria-label="Close how to play"
           >
             Close
@@ -47,20 +41,20 @@ export function Tutorial({ headingId, onClose }: TutorialProps) {
       </div>
 
       <section data-testid="tutorial-mechanics" className="tg-tutorial-section">
-        <h3 style={{ marginBottom: '0.25rem' }}>The mechanics</h3>
-        <p style={{ marginTop: 0 }}>
+        <h3 className="tg-mb-1">The mechanics</h3>
+        <p>
           Each round gives you the current weather at a secret place — temperature, conditions and
           wind — but not where it is. Read the weather and guess the location on the globe.
         </p>
-        <p style={{ marginTop: 0 }}>
+        <p className="tg-mt-2">
           A solo game is five rounds. You get one guess per round; after you submit it the real
           location is revealed and you move on to the next round.
         </p>
       </section>
 
       <section data-testid="tutorial-selection-modes" className="tg-tutorial-section">
-        <h3 style={{ marginBottom: '0.25rem' }}>Two ways to guess</h3>
-        <ul style={{ marginTop: 0 }}>
+        <h3 className="tg-mb-1">Two ways to guess</h3>
+        <ul>
           <li>
             <strong>Map</strong> — click anywhere on the world map to drop your pin. Best when you
             have a rough idea of the region.
@@ -70,20 +64,20 @@ export function Tutorial({ headingId, onClose }: TutorialProps) {
             you want to compare a few specific cities.
           </li>
         </ul>
-        <p style={{ marginTop: 0 }}>
+        <p className="tg-mt-2">
           Easy uses the list, Hard uses the map, and Medium lets you switch between both before
           starting a game.
         </p>
       </section>
 
       <section data-testid="tutorial-scoring" className="tg-tutorial-section">
-        <h3 style={{ marginBottom: '0.25rem' }}>How scoring works</h3>
-        <p style={{ marginTop: 0 }}>
+        <h3 className="tg-mb-1">How scoring works</h3>
+        <p>
           Scoring is distance-based: the closer your guess is to the real location, the higher the
           score. Every kilometre away costs points, and the drop-off is steep at first and flattens
           out for very distant guesses.
         </p>
-        <p style={{ marginTop: 0 }}>
+        <p className="tg-mt-2">
           The formula is <code>score = round(5000 × e^(−distanceKm / 2000))</code>, so a perfect
           guess scores {MAX_SCORE_PER_ROUND} points and a guess 2000 km away scores about 1839.
           Scores are always between 0 and {MAX_SCORE_PER_ROUND} per round, and the five round scores
@@ -127,16 +121,6 @@ export function TutorialDialog({ open, onClose }: TutorialDialogProps) {
     <div
       data-testid="tutorial-overlay"
       className="tg-tutorial-overlay"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.45)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
-        zIndex: 1000,
-      }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -149,18 +133,6 @@ export function TutorialDialog({ open, onClose }: TutorialDialogProps) {
         aria-labelledby={headingId}
         data-testid="tutorial-dialog"
         className="tg-tutorial-dialog tg-panel"
-        style={{
-          background: '#ffffff',
-          color: '#1c1c1c',
-          borderRadius: '0.5rem',
-          border: '1px solid #d9d6d0',
-          padding: '1.25rem 1.5rem',
-          maxWidth: '560px',
-          width: '100%',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          boxSizing: 'border-box',
-        }}
       >
         <Tutorial headingId={headingId} onClose={onClose} />
       </div>

@@ -71,6 +71,7 @@ export function registerDailyRoutes(
     const snapshot = await db.weatherSnapshot.findUniqueOrThrow({ where: { id: challenge.weatherSnapshotId } });
     const round = {
       roundId: challenge.date, roundNumber: 1, attemptsTotal: 1, difficulty: 'hard', selectionMode: 'map',
+      additionalData: { mode: 'immediate', cost: null, availableAt: null, unlocked: true },
       weather: { temperatureC: snapshot.temperatureC, precipitationMm: snapshot.precipitationMm, humidityPct: snapshot.humidityPct, windSpeedKmh: snapshot.windSpeedKmh, airPressureHpa: snapshot.airPressureHpa, windDirectionDeg: snapshot.windDirectionDeg, uvIndex: snapshot.uvIndex, sunshineDurationSeconds: snapshot.sunshineDurationSeconds, localTime: snapshot.localTime },
     };
     if (submission) {

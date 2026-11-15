@@ -31,6 +31,7 @@ import type { WeatherClient } from '../weather/types.js';
 import { submitGuess } from './guess.js';
 import { finishRoundAttempts, submitRoundAttempt } from './attempts.js';
 import { getRoundView, startRound } from './service.js';
+import { unlockAdditionalData } from './unlock.js';
 
 interface RoundIdRouteParams {
   roundId?: string;
@@ -133,6 +134,15 @@ export function registerRoundsRoutes(
   }, async (request) => {
     const { roundId } = request.params as RoundIdParams;
     return submitRoundAttempt(roundId, request.body as SubmitGuessBody, db);
+  });
+
+  app.post('/api/rounds/:roundId/intelligence/unlock', {
+    onRequest: requireRoundOwner(db),
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    schema: { params: RoundIdParams, response: { 200: RoundView } },
+  }, async (request) => {
+    const { roundId } = request.params as RoundIdParams;
+    return unlockAdditionalData(roundId, db);
   });
 
   app.post('/api/rounds/:roundId/finish', {

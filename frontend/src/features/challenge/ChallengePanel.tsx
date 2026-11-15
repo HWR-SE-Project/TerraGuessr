@@ -123,21 +123,15 @@ export function ChallengePanel({
     <section
       aria-labelledby={headingId}
       data-testid="challenge-panel"
-      style={{
-        marginTop: '24px',
-        padding: '16px',
-        background: '#ffffff',
-        border: '1px solid #d9d6d0',
-        borderRadius: '8px',
-      }}
+      className="tg-panel tg-challenge-panel"
     >
-      <h2 id={headingId} style={{ marginTop: 0 }}>
+      <h2 id={headingId}>
         Challenge a friend
       </h2>
 
       {!challengeId && roundId ? (
         <>
-          <p style={{ marginTop: 0 }}>
+          <p className="tg-muted">
             Share this round as an async challenge. Friends play the same location and land on one
             leaderboard.
           </p>
@@ -146,6 +140,7 @@ export function ChallengePanel({
             onClick={() => void handleCreate()}
             disabled={creating}
             data-testid="create-challenge"
+            className="tg-button tg-button-primary"
           >
             {creating ? 'Creating challenge...' : 'Challenge a friend'}
           </button>
@@ -153,36 +148,35 @@ export function ChallengePanel({
       ) : null}
 
       {createError ? (
-        <p role="alert" data-testid="challenge-error" style={{ marginBottom: 0 }}>
+        <p role="alert" data-testid="challenge-error" className="tg-challenge-error">
           {createError}
         </p>
       ) : null}
 
       {challenge ? (
-        <div data-testid="challenge-share" style={{ marginTop: '12px' }}>
-          <label htmlFor={shareInputId} style={{ display: 'block', fontWeight: 600 }}>
+        <div data-testid="challenge-share" className="tg-challenge-share">
+          <label htmlFor={shareInputId}>
             Share link
           </label>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          <div className="tg-challenge-row">
             <input
               id={shareInputId}
               data-testid="share-url"
               value={challenge.shareUrl}
               readOnly
               onFocus={(event) => event.currentTarget.select()}
-              style={{ flex: 1, padding: '6px 8px', font: 'inherit' }}
             />
-            <button type="button" onClick={() => void handleCopy()} data-testid="copy-share-url">
+            <button type="button" onClick={() => void handleCopy()} data-testid="copy-share-url" className="tg-button tg-button-secondary">
               Copy link
             </button>
           </div>
           {copyState === 'copied' ? (
-            <p role="status" data-testid="share-status" style={{ margin: '6px 0 0' }}>
+            <p role="status" data-testid="share-status" className="tg-challenge-status">
               Link copied to clipboard.
             </p>
           ) : null}
           {copyState === 'failed' ? (
-            <p role="status" data-testid="share-status" style={{ margin: '6px 0 0' }}>
+            <p role="status" data-testid="share-status" className="tg-challenge-status">
               Copy failed - select the link and copy it manually.
             </p>
           ) : null}
@@ -193,12 +187,12 @@ export function ChallengePanel({
         <form
           onSubmit={(event) => void handleJoin(event)}
           data-testid="join-form"
-          style={{ marginTop: '16px' }}
+          className="tg-challenge-join"
         >
-          <label htmlFor={nameInputId} style={{ display: 'block', fontWeight: 600 }}>
+          <label htmlFor={nameInputId}>
             Display name (optional)
           </label>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          <div className="tg-challenge-row">
             <input
               id={nameInputId}
               data-testid="display-name"
@@ -206,19 +200,18 @@ export function ChallengePanel({
               maxLength={40}
               autoComplete="nickname"
               onChange={(event) => setDisplayName(event.target.value)}
-              style={{ flex: 1, padding: '6px 8px', font: 'inherit' }}
             />
-            <button type="submit" data-testid="join-challenge" disabled={joining || joined}>
+            <button type="submit" data-testid="join-challenge" disabled={joining || joined} className="tg-button tg-button-primary">
               {joining ? 'Adding...' : joined ? 'Score added' : 'Add my score'}
             </button>
           </div>
           {joinRank !== null ? (
-            <p role="status" data-testid="join-result" style={{ margin: '6px 0 0' }}>
+            <p role="status" data-testid="join-result" className="tg-challenge-status">
               You are ranked #{joinRank} on this challenge.
             </p>
           ) : null}
           {joinError ? (
-            <p role="alert" data-testid="join-error" style={{ margin: '6px 0 0' }}>
+            <p role="alert" data-testid="join-error" className="tg-challenge-error">
               {joinError}
             </p>
           ) : null}
@@ -226,7 +219,7 @@ export function ChallengePanel({
       ) : null}
 
       {challengeId ? (
-        <div style={{ marginTop: '16px' }}>
+        <div className="tg-challenge-leaderboard">
           <ChallengeLeaderboard
             challengeId={challengeId}
             dataSource={dataSource}

@@ -4,7 +4,7 @@
  * `RoundView` structurally cannot leak `actualLat`/`actualLon`.
  */
 
-import type { RoundView } from '../../contracts/rounds.js';
+import type { AdditionalDataAccess, RoundView } from '../../contracts/rounds.js';
 import type { Difficulty, SelectionMode } from '../../domain/selection.js';
 
 /** A list-mode candidate as exposed to the client (R07). */
@@ -23,6 +23,7 @@ export interface RoundMeta {
   attemptsTotal: number;
   difficulty: Difficulty;
   selectionMode: SelectionMode;
+  additionalData: AdditionalDataAccess;
 }
 
 /** Weather values exposed on the round (R03/R06). */
@@ -61,10 +62,11 @@ export function toRoundView(input: RoundViewInput): RoundView {
       windSpeedKmh: input.weather.windSpeedKmh,
       airPressureHpa: input.weather.airPressureHpa ?? null,
       windDirectionDeg: input.weather.windDirectionDeg ?? null,
-      uvIndex: input.weather.uvIndex ?? null,
-      sunshineDurationSeconds: input.weather.sunshineDurationSeconds ?? null,
-      localTime: input.weather.localTime ?? null,
+      uvIndex: input.round.additionalData.unlocked ? input.weather.uvIndex ?? null : null,
+      sunshineDurationSeconds: input.round.additionalData.unlocked ? input.weather.sunshineDurationSeconds ?? null : null,
+      localTime: input.round.additionalData.unlocked ? input.weather.localTime ?? null : null,
     },
+    additionalData: input.round.additionalData,
   };
 
   if (input.candidates !== undefined) {

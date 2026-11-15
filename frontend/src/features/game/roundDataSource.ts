@@ -14,6 +14,7 @@ export interface RoundDataSource {
   submitGuess(roundId: string, guess: LatLon): Promise<GuessResultDTO>;
   submitAttempt?(roundId: string, guess: LatLon): Promise<RoundAttemptDTO>;
   finishRound?(roundId: string): Promise<GuessResultDTO>;
+  unlockAdditionalData?(roundId: string): Promise<RoundDTO>;
 }
 
 export interface RoundAttemptDTO {
@@ -37,6 +38,7 @@ const stubRound: RoundDTO = {
     humidityPct: 64,
     windSpeedKmh: 14.3,
   },
+  additionalData: { mode: 'immediate', cost: null, availableAt: null, unlocked: true },
   candidates: [
     { id: 'c-berlin', name: 'Berlin', lat: 52.52, lon: 13.405, region: 'Europe' },
     { id: 'c-paris', name: 'Paris', lat: 48.8566, lon: 2.3522, region: 'Europe' },

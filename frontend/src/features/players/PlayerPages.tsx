@@ -65,7 +65,7 @@ export function PlayerPages({ page, language, onBack }: { page: Page; language: 
   return (
     <section className="tg-account-page tg-panel tg-player-page" aria-labelledby="player-page-heading">
       <button className="tg-button tg-button-quiet" type="button" onClick={onBack}>← {de ? 'Zurück' : 'Back'}</button>
-      <div className="tg-eyebrow" style={{ marginTop: 24 }}>{page === 'statistics' ? (de ? 'Dein Spielverlauf' : 'Your game history') : (de ? 'TerraGuessr-Ranglisten' : 'TerraGuessr leaderboards')}</div>
+      <div className="tg-eyebrow tg-mt-6">{page === 'statistics' ? (de ? 'Dein Spielverlauf' : 'Your game history') : (de ? 'TerraGuessr-Ranglisten' : 'TerraGuessr leaderboards')}</div>
       <h1 id="player-page-heading">{page === 'statistics' ? (de ? 'Statistik' : 'Statistics') : (de ? 'Bestenlisten' : 'Leaderboards')}</h1>
       {page === 'statistics' ? <>
         <label className="tg-setup-label">{de ? 'Spielmodus' : 'Game mode'}<select aria-label={de ? 'Spielmodus' : 'Game mode'} value={mode} onChange={(event) => { setMode(event.target.value as Mode); setOffset(0); }}><option value="solo">Solo</option><option value="multiplayer">{de ? 'Mehrspieler' : 'Multiplayer'}</option><option value="ranked">Ranked</option><option value="daily">Daily</option></select></label>

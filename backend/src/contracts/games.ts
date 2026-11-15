@@ -17,6 +17,10 @@ const Difficulty = Type.Union([
   Type.Literal('hard'),
 ]);
 
+const AdditionalDataUnlockMode = Type.Union([
+  Type.Literal('immediate'), Type.Literal('time'), Type.Literal('points'),
+]);
+
 const Continent = Type.Union([
   Type.Literal('AFRICA'), Type.Literal('EUROPE'), Type.Literal('ASIA'),
   Type.Literal('NORTH_AMERICA'), Type.Literal('SOUTH_AMERICA'), Type.Literal('OCEANIA'),
@@ -47,6 +51,8 @@ export const CreateGameBody = Type.Object({
   geography: Type.Optional(Type.Union([Type.Literal('world'), Continent])),
   candidateCount: Type.Optional(Type.Integer({ minimum: 2, maximum: 4 })),
   attemptsPerRound: Type.Optional(Type.Integer({ minimum: 1, maximum: 5 })),
+  additionalDataUnlockMode: Type.Optional(AdditionalDataUnlockMode),
+  additionalDataUnlockCost: Type.Optional(Type.Integer({ minimum: 10, maximum: 4000 })),
 }, { additionalProperties: false });
 
 /** POST /api/games → 201. `playerToken` is returned exactly once (ADR-0011). */
@@ -55,6 +61,8 @@ export const CreateGameResponse = Type.Object({
   playerToken: Type.String(),
   roundsTotal: Type.Integer({ minimum: 1, maximum: 20 }),
   attemptsPerRound: Type.Integer({ minimum: 1, maximum: 5 }),
+  additionalDataUnlockMode: AdditionalDataUnlockMode,
+  additionalDataUnlockCost: Type.Union([Type.Integer({ minimum: 10, maximum: 4000 }), Type.Null()]),
 });
 
 /** GET /api/games/:gameId path params. */

@@ -119,11 +119,10 @@ export function DifficultyPicker({
       aria-describedby={isMedium ? undefined : hintId}
       disabled={disabled}
       className="tg-difficulty-picker"
-      style={{ border: 'none', margin: 0, padding: 0 }}
     >
-      <legend style={{ marginBottom: '12px', fontWeight: 800, fontSize: 14 }}>{legend}</legend>
+      <legend>{legend}</legend>
 
-      <div role="radiogroup" aria-label={legend} style={{ display: 'flex', gap: '0.5rem' }}>
+      <div role="radiogroup" aria-label={legend}>
         {DIFFICULTY_OPTIONS.map((option) => {
           const selected = option.value === selection.difficulty;
           return (
@@ -131,21 +130,8 @@ export function DifficultyPicker({
               key={option.value}
               data-testid={`difficulty-option-${option.value}`}
               className={`tg-difficulty-card${selected ? ' is-selected' : ''}`}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.125rem',
-                padding: '0.5rem 0.75rem',
-                border: '1px solid var(--tg-line)',
-                borderRadius: '14px',
-                background: selected ? 'rgb(112 224 192 / 9%)' : 'var(--tg-surface)',
-                color: 'var(--tg-text)',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                fontWeight: selected ? 700 : 400,
-                outline: selected ? '1px solid var(--tg-mint)' : undefined,
-              }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span className="tg-difficulty-card-row">
                 <input
                   type="radio"
                   name={`${idPrefix}-difficulty`}
@@ -156,19 +142,18 @@ export function DifficultyPicker({
                 />
                 <span>{option.label}</span>
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--tg-muted)', lineHeight: 1.4 }}>{option.description}</span>
+              <span className="tg-difficulty-card-desc">{option.description}</span>
             </label>
           );
         })}
       </div>
 
-      <div style={{ marginTop: '0.5rem' }}>
+      <div className="tg-mt-2">
         {isMedium ? (
           <div
             data-testid="mode-toggle"
             role="group"
             aria-label="Selection mode"
-            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
           >
             <span>Selection mode:</span>
             <button
@@ -176,7 +161,6 @@ export function DifficultyPicker({
               data-testid="mode-option-map"
               aria-pressed={selection.selectionMode === 'map'}
               onClick={() => handleModeChange('map')}
-              style={{ fontWeight: selection.selectionMode === 'map' ? 700 : 400 }}
             >
               Map
             </button>
@@ -185,13 +169,12 @@ export function DifficultyPicker({
               data-testid="mode-option-list"
               aria-pressed={selection.selectionMode === 'list'}
               onClick={() => handleModeChange('list')}
-              style={{ fontWeight: selection.selectionMode === 'list' ? 700 : 400 }}
             >
               List
             </button>
           </div>
         ) : (
-          <p id={hintId} data-testid="selection-mode-locked" style={{ margin: 0 }}>
+          <p id={hintId} data-testid="selection-mode-locked">
             {selection.difficulty === 'easy'
               ? 'Easy uses list selection only.'
               : 'Hard uses map selection only.'}

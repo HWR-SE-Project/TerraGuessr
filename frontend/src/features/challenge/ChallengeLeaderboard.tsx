@@ -69,77 +69,73 @@ export function ChallengeLeaderboard({
 
   return (
     <section aria-labelledby={headingId} data-testid="challenge-leaderboard">
-      <h3 id={headingId} style={{ marginBottom: '8px' }}>
+      <h3 id={headingId}>
         Leaderboard
       </h3>
 
       {state.status === 'loading' ? (
-        <p role="status" data-testid="leaderboard-loading" style={{ margin: 0 }}>
+        <p role="status" data-testid="leaderboard-loading" className="tg-challenge-loading">
           Loading leaderboard...
         </p>
       ) : null}
 
       {state.status === 'error' ? (
-        <p role="alert" data-testid="leaderboard-error" style={{ margin: 0 }}>
+        <p role="alert" data-testid="leaderboard-error" className="tg-challenge-error">
           {state.message}
         </p>
       ) : null}
 
       {state.status === 'ready' && rows.length === 0 ? (
-        <p data-testid="leaderboard-empty" style={{ margin: 0 }}>
+        <p data-testid="leaderboard-empty" className="tg-challenge-empty">
           {EMPTY_LEADERBOARD_MESSAGE}
         </p>
       ) : null}
 
       {state.status === 'ready' && rows.length > 0 ? (
-        <table data-testid="leaderboard-table" style={{ borderCollapse: 'collapse', width: '100%' }}>
-          <thead>
-            <tr>
-              <th scope="col" style={cellStyle}>
-                Rank
-              </th>
-              <th scope="col" style={cellStyle}>
-                Player
-              </th>
-              <th scope="col" style={cellStyle}>
-                Score
-              </th>
-              <th scope="col" style={cellStyle}>
-                Distance
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((entry, index) => (
-              <tr
-                key={entry.rank + '-' + (entry.displayName ?? 'anonymous') + '-' + index}
-                data-testid="leaderboard-row"
-              >
-                <td style={cellStyle} data-testid="leaderboard-rank">
-                  {entry.rank}
-                </td>
-                <td style={cellStyle} data-testid="leaderboard-name">
-                  {formatDisplayName(entry)}
-                </td>
-                <td style={cellStyle} data-testid="leaderboard-score">
-                  {entry.score}
-                </td>
-                <td style={cellStyle} data-testid="leaderboard-distance">
-                  {entry.distanceKm} km
-                </td>
+        <div className="tg-challenge-table-wrap">
+          <table data-testid="leaderboard-table" className="tg-challenge-table">
+            <thead>
+              <tr>
+                <th scope="col">
+                  Rank
+                </th>
+                <th scope="col">
+                  Player
+                </th>
+                <th scope="col">
+                  Score
+                </th>
+                <th scope="col">
+                  Distance
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((entry, index) => (
+                <tr
+                  key={entry.rank + '-' + (entry.displayName ?? 'anonymous') + '-' + index}
+                  data-testid="leaderboard-row"
+                >
+                  <td data-testid="leaderboard-rank">
+                    {entry.rank}
+                  </td>
+                  <td data-testid="leaderboard-name">
+                    {formatDisplayName(entry)}
+                  </td>
+                  <td data-testid="leaderboard-score">
+                    {entry.score}
+                  </td>
+                  <td data-testid="leaderboard-distance">
+                    {entry.distanceKm} km
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
     </section>
   );
 }
-
-const cellStyle = {
-  padding: '6px 8px',
-  borderBottom: '1px solid #e2dfd8',
-  textAlign: 'left',
-} as const;
 
 export default ChallengeLeaderboard;
