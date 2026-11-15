@@ -3,7 +3,7 @@
 // -> results. All server I/O goes through src/api/gameDataSource.ts, which in
 // turn uses src/api/client.ts; session state lives in the gameStore context.
 import { useMemo, useState } from 'react';
-import { ApiError } from './api/client';
+import { ApiError, setPlayerToken } from './api/client';
 import {
   ROUNDS_PER_GAME,
   apiGameDataSource,
@@ -109,13 +109,14 @@ function AppShell({ dataSource }: AppShellProps) {
     active: GameDataSource,
     gameId: string,
     selectionMode: SelectionMode,
+    playerToken?: string,
   ): Promise<void> {
     setStatus('loading');
     setError(null);
     setRound(null);
     setRevealed(null);
     try {
-      const next = await active.startRound(gameId, selectionMode);
+      const next = await active.startRound(gameId, selectionMode, playerToken);
       setRound(next);
       setStatus('idle');
     } catch (cause) {
@@ -155,6 +156,13 @@ function AppShell({ dataSource }: AppShellProps) {
         }
       }
 
+      // Persist the token synchronously, before anything else runs: the
+      // player-token useEffect pattern this used to rely on only commits
+      // after this render, which raced the startRound call right below
+      // (P0-2). The explicit `created.playerToken` argument to loadRound
+      // closes the same gap for this specific request, independent of
+      // localStorage/React timing altogether.
+      setPlayerToken(created.playerToken);
       setActiveGameId(created.gameId);
       dispatch({
         type: 'game/created',
@@ -164,7 +172,7 @@ function AppShell({ dataSource }: AppShellProps) {
         mode: 'solo',
       });
       setPhase('playing');
-      await loadRound(active, created.gameId, nextSelection.selectionMode);
+      await loadRound(active, created.gameId, nextSelection.selectionMode, created.playerToken);
     } catch (cause) {
       setError(friendlyErrorMessage(cause));
       setStatus('error');
@@ -218,6 +226,7 @@ function AppShell({ dataSource }: AppShellProps) {
   }
 
   function handlePlayAgain(): void {
+    setPlayerToken(null);
     dispatch({ type: 'game/reset' });
     setPhase('home');
     setStatus('idle');
