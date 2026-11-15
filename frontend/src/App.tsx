@@ -308,7 +308,7 @@ function AppShell({ dataSource }: AppShellProps) {
                 data-testid="start-game"
                 className="tg-button tg-button-primary"
               >
-                {busy ? 'Preparing expedition…' : '◉  Explore solo'}
+                {busy ? 'Preparing expedition…' : '◉  Start solo expedition'}
               </button>
                 <button type="button" onClick={() => setTutorialOpen(true)} data-testid="hero-tutorial" className="tg-button tg-button-quiet">Learn the signals</button>
               </div>
