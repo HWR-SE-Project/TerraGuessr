@@ -22,8 +22,9 @@ import type { WeatherClient } from '../weather/types.js';
 export const POOL_TARGET_POINTS = 2000;
 export const POOL_RNG_SEED = 20261114;
 
-/** A minimal logger surface used for the background refresh error path. */
+/** A minimal logger surface used for the background refresh job. */
 export interface RefreshLogger {
+  info(obj: unknown, message?: string): void;
   error(obj: unknown, message?: string): void;
 }
 
@@ -114,8 +115,15 @@ export interface RefreshLocationsOptions extends RegenerateOptions {
 
 /**
  * Start an asynchronous pool regeneration and return its tracking id
- * immediately (API-CONTRACTS.md §5 → 202 { jobId }). Failures are logged and
- * never leak into the HTTP response.
+ * immediately (API-CONTRACTS.md §5 → 202 { jobId }).
+ *
+ * This is intentionally fire-and-forget, not a pollable job: there is no
+ * `GET .../refresh/:jobId` status endpoint and no job registry (in-memory or
+ * DB-backed). `jobId` exists purely as a log-correlation id — both the
+ * completion and failure log lines below carry it, so an operator who saved
+ * the id from the 202 response can confirm what happened by grepping server
+ * logs for it. If this ever needs to be genuinely pollable, that requires an
+ * actual job table/registry, not just the id.
  */
 export function refreshLocations(
   db: PrismaClient,
@@ -125,6 +133,9 @@ export function refreshLocations(
 
   void Promise.resolve()
     .then(() => regeneratePool(db, options))
+    .then((count) => {
+      options.logger?.info({ jobId, count }, 'admin pool refresh completed');
+    })
     .catch((error: unknown) => {
       options.logger?.error({ err: error, jobId }, 'admin pool refresh failed');
     });
