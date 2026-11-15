@@ -38,7 +38,7 @@ services:
       OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "${BACKEND_HOST_PORT:-3000}:${PORT:-3000}"
     depends_on:
       postgres:
         condition: service_healthy
