@@ -6,6 +6,8 @@
 
 import { Type, type Static } from '@sinclair/typebox';
 
+import { RoundView } from './rounds.js';
+
 /** POST /api/challenges request body. */
 export const CreateChallengeBody = Type.Object({
   roundId: Type.String(),
@@ -34,6 +36,25 @@ export const CreateEntryResponse = Type.Object({
   rank: Type.Integer(),
 });
 
+/**
+ * POST /api/challenges/:challengeId/join request body (P0-3). No auth: this is
+ * the entry point for an independent participant, analogous to POST /api/games.
+ */
+export const JoinChallengeBody = Type.Object({
+  selectionMode: Type.Optional(Type.Union([Type.Literal('map'), Type.Literal('list')])),
+});
+
+/**
+ * POST /api/challenges/:challengeId/join → 201. Issues a fresh player token
+ * (ADR-0011) for this participant and a Round pinned to the challenge's
+ * location/weather snapshot, ready to guess via the normal rounds endpoints.
+ */
+export const JoinChallengeResponse = Type.Object({
+  gameId: Type.String(),
+  playerToken: Type.String(),
+  round: RoundView,
+});
+
 /** A single public leaderboard entry (R16, B.6). */
 export const LeaderboardEntry = Type.Object({
   rank: Type.Integer(),
@@ -51,6 +72,8 @@ export const LeaderboardResponse = Type.Object({
 export type CreateChallengeBody = Static<typeof CreateChallengeBody>;
 export type CreateChallengeResponse = Static<typeof CreateChallengeResponse>;
 export type ChallengeIdParams = Static<typeof ChallengeIdParams>;
+export type JoinChallengeBody = Static<typeof JoinChallengeBody>;
+export type JoinChallengeResponse = Static<typeof JoinChallengeResponse>;
 export type CreateEntryBody = Static<typeof CreateEntryBody>;
 export type CreateEntryResponse = Static<typeof CreateEntryResponse>;
 export type LeaderboardEntry = Static<typeof LeaderboardEntry>;

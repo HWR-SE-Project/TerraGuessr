@@ -8,10 +8,16 @@
 
 import type { PrismaClient } from '@prisma/client';
 
-import { GameNotFoundError } from '../../plugins/auth.js';
+import { GameNotFoundError, generatePlayerToken, hashPlayerToken } from '../../plugins/auth.js';
+import { buildCandidates, resolveSelectionMode } from '../../domain/selection.js';
+import type { PoolItem, SelectionMode } from '../../domain/selection.js';
+import { LocationsService } from '../locations/service.js';
+import { resolveCandidateNames } from '../rounds/service.js';
+import { toRoundView } from '../rounds/dto.js';
 import type {
   CreateChallengeResponse,
   CreateEntryResponse,
+  JoinChallengeResponse,
   LeaderboardResponse,
 } from '../../contracts/challenges.js';
 
@@ -84,36 +90,132 @@ export async function createChallenge(
 }
 
 /**
- * Attach a completed result to a challenge leaderboard. The result must belong
- * to the challenge's fixed round (409 otherwise) and may only be entered once
- * (409 on duplicate). Ownership of the result is enforced upstream.
+ * Join a challenge as an independent participant (P0-3). Issues a fresh
+ * player token and game (mode 'challenge'), and a Round pinned to the exact
+ * same locationId/weatherSnapshotId as the challenge's original round — so
+ * every participant faces the identical location and weather, never a
+ * re-rolled one. Ownership of this new round belongs solely to the new
+ * token; it never touches the original creator's game or round.
  */
-export async function addEntry(
+export async function joinChallenge(
   challengeId: string,
-  input: { resultId: string; displayName?: string },
+  input: { selectionMode?: SelectionMode },
   db: PrismaClient,
-): Promise<CreateEntryResponse> {
+): Promise<JoinChallengeResponse> {
   const challenge = await db.challenge.findUnique({
     where: { id: challengeId },
+    include: {
+      round: {
+        select: {
+          difficulty: true,
+          locationId: true,
+          weatherSnapshotId: true,
+          location: { select: { lat: true, lon: true, region: true } },
+          weatherSnapshot: {
+            select: {
+              temperatureC: true,
+              precipitationMm: true,
+              humidityPct: true,
+              windSpeedKmh: true,
+            },
+          },
+        },
+      },
+    },
   });
   if (!challenge) {
     throw new GameNotFoundError();
   }
 
-  const result = await db.result.findUnique({ where: { id: input.resultId } });
+  const { difficulty } = challenge.round;
+  const playerToken = generatePlayerToken();
+  const playerTokenHash = hashPlayerToken(playerToken);
+
+  const game = await db.game.create({
+    data: { mode: 'challenge', difficulty, playerTokenHash },
+  });
+
+  const selectionMode = resolveSelectionMode(difficulty, input.selectionMode);
+  const actual: PoolItem = {
+    id: challenge.round.locationId,
+    lat: challenge.round.location.lat,
+    lon: challenge.round.location.lon,
+    region: challenge.round.location.region,
+  };
+
+  let candidates: readonly PoolItem[] = [];
+  if (selectionMode === 'list') {
+    const pool = await new LocationsService(db).listPool();
+    candidates = buildCandidates(difficulty, pool, new Set(), actual, Math.random);
+  }
+
+  const round = await db.round.create({
+    data: {
+      gameId: game.id,
+      locationId: challenge.round.locationId,
+      weatherSnapshotId: challenge.round.weatherSnapshotId,
+      roundNumber: 1,
+      difficulty,
+      selectionMode,
+      status: 'active',
+    },
+  });
+
+  const candidateViews =
+    selectionMode === 'list' ? await resolveCandidateNames(candidates, db) : undefined;
+
+  const view = toRoundView({
+    round: { roundId: round.id, roundNumber: 1, difficulty, selectionMode },
+    weather: challenge.round.weatherSnapshot,
+    candidates: candidateViews,
+  });
+
+  return { gameId: game.id, playerToken, round: view };
+}
+
+/**
+ * Attach a completed result to a challenge leaderboard. The result must be
+ * for the challenge's pinned location (409 otherwise — not a literal roundId
+ * match, since every participant plays their own round, see joinChallenge
+ * above) and a player may enter at most once per challenge, whether by
+ * resubmitting the same result or joining again under the same token (409 on
+ * either). Ownership of the result is enforced upstream.
+ */
+export async function addEntry(
+  challengeId: string,
+  input: { resultId: string; displayName?: string },
+  db: PrismaClient,
+  rawPlayerToken: string,
+): Promise<CreateEntryResponse> {
+  const challenge = await db.challenge.findUnique({
+    where: { id: challengeId },
+    include: { round: { select: { locationId: true } } },
+  });
+  if (!challenge) {
+    throw new GameNotFoundError();
+  }
+
+  const result = await db.result.findUnique({
+    where: { id: input.resultId },
+    include: { round: { select: { locationId: true } } },
+  });
   if (!result) {
     throw new GameNotFoundError();
   }
 
-  if (result.roundId !== challenge.roundId) {
-    throw new ChallengeConflictError('Result is not for this challenge round');
+  if (result.round.locationId !== challenge.round.locationId) {
+    throw new ChallengeConflictError('Result is not for this challenge location');
   }
 
+  const playerTokenHash = hashPlayerToken(rawPlayerToken);
+
   const existing = await db.challengeEntry.findFirst({
-    where: { challengeId, resultId: input.resultId },
+    where: { challengeId, OR: [{ resultId: input.resultId }, { playerTokenHash }] },
   });
   if (existing) {
-    throw new ChallengeConflictError('Result already entered');
+    throw new ChallengeConflictError(
+      'Result already entered, or this player already has an entry for this challenge',
+    );
   }
 
   const existingEntries = await db.challengeEntry.findMany({
@@ -136,6 +238,7 @@ export async function addEntry(
       challengeId,
       resultId: input.resultId,
       displayName: normalizeDisplayName(input.displayName),
+      playerTokenHash,
     },
   });
 

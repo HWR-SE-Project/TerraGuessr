@@ -144,12 +144,14 @@ model Challenge {
 }
 
 model ChallengeEntry {
-  id          String    @id @default(cuid())
-  challengeId String
-  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  resultId    String
-  result      Result    @relation(fields: [resultId], references: [id], onDelete: Cascade)
-  displayName String?                                // no account (B.6)
+  id              String    @id @default(cuid())
+  challengeId     String
+  challenge       Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  resultId        String
+  result          Result    @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  displayName     String?                                // no account (B.6)
+  playerTokenHash String                                  // sha256(rawToken), ADR-0011 — one entry per player per challenge (P0-3)
   @@unique([challengeId, resultId])
+  @@unique([challengeId, playerTokenHash])
   @@index([challengeId])
 }

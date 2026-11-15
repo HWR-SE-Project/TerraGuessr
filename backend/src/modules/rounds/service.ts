@@ -60,7 +60,7 @@ export class ServiceUnavailableError extends Error {
 }
 
 /** A challenge game has exactly one shared round (ADR-0005/ADR-0008). */
-function roundCap(mode: GameMode): number {
+export function roundCap(mode: GameMode): number {
   return mode === 'solo' ? ROUNDS_PER_GAME : 1;
 }
 
@@ -148,8 +148,12 @@ async function selectWithWeatherFallback(
   return { snapshot, selection };
 }
 
-/** Attach nullable location names to a list of selected candidates. */
-async function resolveCandidateNames(
+/**
+ * Attach nullable location names to a list of selected candidates. Exported
+ * so other round-shaped flows (e.g. joining an async challenge, B-10) can
+ * build a RoundView through the same path instead of re-deriving names.
+ */
+export async function resolveCandidateNames(
   candidates: readonly PoolItem[],
   db: PrismaClient,
 ): Promise<RoundCandidate[]> {

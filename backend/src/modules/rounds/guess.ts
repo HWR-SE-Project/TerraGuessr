@@ -7,10 +7,10 @@
 
 import type { PrismaClient } from '@prisma/client';
 
-import { ROUNDS_PER_GAME } from '../../config/constants.js';
 import { GameNotFoundError } from '../../plugins/auth.js';
 import { haversineKm } from '../../domain/distance.js';
 import { scoreForDistance } from '../../domain/scoring.js';
+import { roundCap } from './service.js';
 import type {
   GuessResultResponse,
   SubmitGuessBody,
@@ -65,8 +65,7 @@ export async function submitGuess(
   const distanceKm = haversineKm(guess, actual);
   const score = scoreForDistance(distanceKm);
   const completedAt = new Date();
-  const isFinalSoloRound =
-    round.game.mode === 'solo' && round.roundNumber === ROUNDS_PER_GAME;
+  const isFinalRound = round.roundNumber === roundCap(round.game.mode);
 
   const created = await db.$transaction(async (tx) => {
     await tx.guess.create({
@@ -90,7 +89,7 @@ export async function submitGuess(
       data: { status: 'completed', completedAt },
     });
 
-    if (isFinalSoloRound) {
+    if (isFinalRound) {
       await tx.game.update({
         where: { id: round.game.id },
         data: { status: 'completed' },
