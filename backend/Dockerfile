@@ -41,12 +41,15 @@ RUN apk add --no-cache openssl
 # migration step below (intentional: image size is traded for correctness).
 # src is also needed at runtime: prisma/seed.ts imports from ../src/... and is
 # executed via tsx (not the compiled dist/), so it must resolve here too (P0-1).
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/src ./src
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/tsconfig.json ./tsconfig.json
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/src ./src
+COPY --from=build --chown=node:node /app/prisma ./prisma
+COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --from=build --chown=node:node /app/tsconfig.json ./tsconfig.json
+
+# Run as the non-root `node` user baked into the base image (Phase C).
+USER node
 
 EXPOSE 3000
 
