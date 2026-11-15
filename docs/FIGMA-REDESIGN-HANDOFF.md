@@ -118,3 +118,58 @@ Playwright screenshots from this session's manual verification live under
 the session scratchpad, not in the repo. Re-run them anytime with:
 `docker compose up -d --build frontend && npx playwright test` (default
 `docker-compose.yml`, backend on 3004, frontend on 8080).
+
+## Follow-up session — full breakpoint sweep + regression re-verification
+
+Continued on the same branch (`figma/visual-fidelity`, still unmerged).
+Checked `get_metadata` on page `0:1` again — the file still only has the
+same three `html.to.design` sections listed above; no new frames to pick up.
+
+New work this session:
+
+- **`docs/screenshots/qa/*.png`** — a full breakpoint sweep (1920×1080,
+  1440×900, 768×1024, 390×844) for the five screens the brief calls out as
+  highest priority and hardest to get right responsively: landing/difficulty
+  picker, the map-guess game view, the list/"Easy" candidate game view, the
+  round-reveal screen, and the final-results screen. Captured against the
+  already-running `docker-compose.yml` stack (frontend on 8080) with a
+  throwaway Playwright spec (not committed — written, run, and deleted in
+  this session) that also asserted
+  `document.documentElement.scrollWidth === clientWidth` at every size.
+  Result: zero horizontal overflow at any of the 20 screen×breakpoint
+  combinations; no default browser form controls or raw lat/lon text
+  visible anywhere. Existing `e2e/*.spec.ts` suites only exercised
+  1440×1000/960 and 375×812/390×844 — this fills the 1920×1080 and
+  768×1024 gap the brief specifically asks for.
+- Re-verified against the real Duels frame screenshot (`get_screenshot` on
+  node `53:12`): the dark-navy background, white italic "DUELS"-style
+  heading treatment, gold subtitle color, green pill CTA, and
+  Champion/Master/Gold/Silver/Bronze rank ladder colors still match what's
+  implemented in `ChallengePanel`/`ChallengeLeaderboard`. The Figma frame's
+  3D player avatars are GeoGuessr-proprietary art and were correctly never
+  replicated — TerraGuessr's challenge UI only reuses the color/type system
+  and rank-badge convention, not the illustration.
+- **Regression suite**: ran the full `e2e/` suite twice — once against the
+  long-lived dev stack on port 8080, once against a freshly built, isolated
+  `docker-compose.test.yml` stack (custom ports to avoid clashing with other
+  stacks already running on this machine). On the fresh stack, 19/20 pass
+  outright; the 20th (`00-weather-fallback.spec.ts`, R13) fails only because
+  its `weatherUrl` default (`localhost:4001`) doesn't match the custom
+  `TERRAGUESSR_TEST_WEATHER_PORT` used for this run — passing
+  `PLAYWRIGHT_WEATHER_URL` pointed at the correct port makes it 20/20. This
+  reconfirms last session's note that this is a test-fixture port mismatch,
+  not a frontend regression. On the long-lived shared stack, the same test
+  plus both `phase1-visual.spec.ts` cases failed on the first pass because
+  the shared Postgres has accumulated rounds/weather-mock counter state from
+  unrelated runs across this machine's session history; a second pass
+  against the clean, isolated stack confirmed these are pre-existing
+  environment artifacts, not something this session's changes caused.
+  `npm run typecheck`, `npm run lint`, `npm test` (42/42), and `npm run
+  build` all stayed green with zero frontend source changes needed.
+- No code changes were required this session — the prior session's
+  token/component work already held up under the wider breakpoint matrix
+  and a clean-stack regression run. The three deferred items from the list
+  above (ad cards/notifications, mobile bottom tab bar, dashboard flyout
+  reuse) remain deliberate scope calls, not oversights: TerraGuessr has no
+  backing feature for the first two, and the third is a real enhancement
+  candidate for a future session, not a defect.
