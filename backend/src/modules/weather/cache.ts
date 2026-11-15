@@ -81,6 +81,9 @@ export async function getFreshSnapshot(
           windSpeedKmh: data.windSpeedKmh,
           ...(data.airPressureHpa !== undefined ? { airPressureHpa: data.airPressureHpa } : {}),
           ...(data.windDirectionDeg !== undefined ? { windDirectionDeg: data.windDirectionDeg } : {}),
+          ...(data.uvIndex !== undefined ? { uvIndex: data.uvIndex } : {}),
+          ...(data.sunshineDurationSeconds !== undefined ? { sunshineDurationSeconds: data.sunshineDurationSeconds } : {}),
+          ...(data.localTime !== undefined ? { localTime: data.localTime } : {}),
           source: 'open_meteo',
         },
       });

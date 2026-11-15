@@ -14,6 +14,9 @@ test('authenticated player submits the shared UTC Daily Challenge once', async (
   await page.getByRole('button', { name: "Play today’s challenge" }).click();
   await expect(page.getByText(/Daily · \d{4}-\d{2}-\d{2}/)).toBeVisible();
   await expect(page.getByTestId('map-picker')).toBeVisible();
+  await page.getByText('Sun & local time', { exact: true }).click();
+  await expect(page.getByText('Local time', { exact: true })).toBeVisible();
+  await expect(page.locator('.tg-weather-extra-grid dd').nth(2)).toContainText(/^(—|\d{2}:\d{2})$/);
   await page.screenshot({ path: 'docs/screenshots/phase4-daily-game.png', fullPage: true });
   const map = page.getByTestId('map-picker');
   await map.click({ position: { x: 150, y: 130 } });

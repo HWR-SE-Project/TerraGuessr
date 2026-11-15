@@ -47,6 +47,9 @@ export const DEFAULT_WEATHER: WeatherData = {
   windSpeedKmh: 12.7,
   airPressureHpa: 1013.2,
   windDirectionDeg: 245,
+  uvIndex: 3.1,
+  sunshineDurationSeconds: 7200,
+  localTime: '2026-11-17T12:00',
 };
 
 export function resolveDatabaseUrl(): string {

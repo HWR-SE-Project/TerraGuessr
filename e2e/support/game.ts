@@ -93,5 +93,5 @@ export async function expectWeatherPanel(page: Page): Promise<void> {
   for (const label of WEATHER_FIELD_LABELS) {
     await expect(panel.getByText(label, { exact: true })).toBeVisible();
   }
-  await expect(panel.locator('dt')).toHaveCount(6);
+  await expect(panel.locator(':scope > dl dt')).toHaveCount(6);
 }

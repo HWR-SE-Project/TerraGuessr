@@ -14,6 +14,9 @@ export interface WeatherData {
   windSpeedKmh: number;
   airPressureHpa?: number;
   windDirectionDeg?: number;
+  uvIndex?: number;
+  sunshineDurationSeconds?: number;
+  localTime?: string;
 }
 
 /** Injectable weather provider interface (ADR-0012, architecture.md §11). */

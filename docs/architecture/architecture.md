@@ -157,14 +157,16 @@ All config via environment (never committed). `.env.example` is the authoritativ
 ### 11. Weather provider call (R03/R06/R13) — exact
 
 `GET {OPEN_METEO_BASE_URL}/v1/forecast?latitude={lat}&longitude={lon}`
-`&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,surface_pressure,wind_direction_10m`
-`&wind_speed_unit=kmh&temperature_unit=celsius&precipitation_unit=mm`
+`&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,surface_pressure,wind_direction_10m,uv_index`
+`&daily=sunshine_duration&timezone=auto&wind_speed_unit=kmh&temperature_unit=celsius&precipitation_unit=mm`
 
 Field mapping: `current.temperature_2m→temperatureC`, `current.relative_humidity_2m→humidityPct`,
 `current.precipitation→precipitationMm`, `current.wind_speed_10m→windSpeedKmh`,
-`current.surface_pressure→airPressureHpa`, and `current.wind_direction_10m→windDirectionDeg`.
+`current.surface_pressure→airPressureHpa`, `current.wind_direction_10m→windDirectionDeg`,
+`current.uv_index→uvIndex`, `daily.sunshine_duration[0]→sunshineDurationSeconds`, and
+`current.time→localTime` (`timezone=auto`).
 **Mandatory validation:** the four base fields must be present and finite numbers. Pressure and
-wind direction are optional nullable values and do not block a round. On mandatory-field failure: retry `3×` with backoff
+the additional solar/local-time fields are optional nullable values and do not block a round. On mandatory-field failure: retry `3×` with backoff
 `250/500/1000 ms`; if still incomplete, drop the location and select another (R13). A location is
 never served with an incomplete mandatory set. The weather client is an **injectable interface**
 (`WeatherClient`) so tests stub it (ADR-0012).

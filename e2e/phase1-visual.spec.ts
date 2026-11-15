@@ -14,6 +14,9 @@ test('desktop landing and easy round', async ({ page }) => {
   await expect(page.getByTestId('candidate-list')).toBeVisible();
   await expect(page.getByText('1013.2 hPa')).toBeVisible();
   await expect(page.getByText('245°')).toBeVisible();
+  await page.getByText('Sun & local time').click();
+  await expect(page.getByText('UV index')).toBeVisible();
+  await expect(page.getByText('3.1')).toBeVisible();
   const labels = await page.getByTestId('candidate-name').allTextContents();
   expect(new Set(labels).size).toBe(labels.length);
   await page.screenshot({ path: `${evidence}/phase1-desktop-game.png`, fullPage: true });
@@ -32,6 +35,8 @@ test('mobile landing and game fit the viewport', async ({ page }) => {
   await expect(page.getByTestId('candidate-list')).toBeVisible();
   await expect(page.getByText('1013.2 hPa')).toBeVisible();
   await expect(page.getByText('245°')).toBeVisible();
+  await page.getByText('Sun & local time').click();
+  await expect(page.getByText('Sunshine today')).toBeVisible();
   await page.screenshot({ path: `${evidence}/phase1-mobile-game.png`, fullPage: true });
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,

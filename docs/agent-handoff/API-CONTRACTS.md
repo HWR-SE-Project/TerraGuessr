@@ -31,6 +31,9 @@ interface WeatherDTO {              // R03/R06 — four required metrics plus op
   windSpeedKmh: number;
   airPressureHpa: number | null;    // Open-Meteo surface pressure in hPa
   windDirectionDeg: number | null;  // 10 m direction, degrees clockwise from north
+  uvIndex: number | null;
+  sunshineDurationSeconds: number | null;
+  localTime: string | null;         // provider-local ISO 8601 current time
 }
 interface CandidateDTO {            // list mode only; NEVER reveals which one is actual (R04)
   id: string;

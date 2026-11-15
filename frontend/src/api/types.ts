@@ -15,6 +15,9 @@ export interface WeatherDTO {
   windSpeedKmh: number;
   airPressureHpa?: number | null;
   windDirectionDeg?: number | null;
+  uvIndex?: number | null;
+  sunshineDurationSeconds?: number | null;
+  localTime?: string | null;
 }
 
 /** List mode only; never reveals which candidate is the actual location (R04). */

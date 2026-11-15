@@ -11,8 +11,8 @@ Rejecting a location for a missing extra field would unnecessarily block a round
 
 ## Decision
 
-Request surface pressure (hPa) and 10 m wind direction (degrees clockwise from north) from the
-existing Open-Meteo adapter. Persist them as nullable columns on `WeatherSnapshot`, return explicit
+Request surface pressure (hPa), 10 m wind direction (degrees clockwise from north), UV index,
+daily sunshine duration (seconds), and provider-local current time from the existing Open-Meteo adapter. Persist them as nullable columns on `WeatherSnapshot`, return explicit
 `null` values when unavailable, and render an unavailable marker in the HUD. Keep the original
 temperature, precipitation, humidity, and wind-speed requirements unchanged and mandatory.
 Preserve snapshots already stored before this migration; the migration only adds nullable fields.
@@ -23,7 +23,7 @@ commercial plan; TerraGuessr does not activate a paid endpoint or key automatica
 
 ## Consequences
 
-- Missing pressure/direction never makes a location ineligible and is never replaced with invented data.
+- Missing optional measurements never make a location ineligible and are never replaced with invented data.
 - Round and Daily Challenge responses carry the same available snapshot values.
 - The data-source register records provider, units, cache age, attribution/license, restrictions,
   and outage behavior.

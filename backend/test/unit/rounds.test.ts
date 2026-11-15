@@ -231,7 +231,7 @@ describe('rounds service', () => {
       expect(view.roundNumber).toBe(1);
       expect(view.difficulty).toBe('medium');
       expect(view.selectionMode).toBe('list');
-      expect(view.weather).toEqual({ ...validWeather, airPressureHpa: null, windDirectionDeg: null });
+      expect(view.weather).toEqual({ ...validWeather, airPressureHpa: null, windDirectionDeg: null, uvIndex: null, sunshineDurationSeconds: null, localTime: null });
       expect(view.candidates).toHaveLength(MEDIUM_CANDIDATES);
       expect(findLeakedActualKeys(view)).toEqual([]);
     });

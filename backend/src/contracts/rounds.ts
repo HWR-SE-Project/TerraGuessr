@@ -25,6 +25,9 @@ export const WeatherView = Type.Object({
   windSpeedKmh: Type.Number(),
   airPressureHpa: Type.Union([Type.Number(), Type.Null()]),
   windDirectionDeg: Type.Union([Type.Number(), Type.Null()]),
+  uvIndex: Type.Union([Type.Number(), Type.Null()]),
+  sunshineDurationSeconds: Type.Union([Type.Number(), Type.Null()]),
+  localTime: Type.Union([Type.String(), Type.Null()]),
 });
 
 /**
