@@ -120,6 +120,7 @@ export function createStubChallengeDataSource(
           difficulty: 'easy',
           selectionMode,
           weather: { temperatureC: 18, precipitationMm: 0, humidityPct: 55, windSpeedKmh: 7 },
+          additionalData: { mode: 'immediate', cost: null, availableAt: null, unlocked: true },
           candidates:
             selectionMode === 'list'
               ? [{ id: 'c-rome', name: 'Rome', lat: 41.9028, lon: 12.4964, region: 'EUROPE' }]

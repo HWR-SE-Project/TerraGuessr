@@ -33,7 +33,8 @@ interface RoundForGuess {
   status: 'active' | 'completed';
   location: { lat: number; lon: number };
   guess: { id: string } | null;
-  game: { id: string; mode: 'solo' | 'challenge' };
+  additionalDataPointsSpent: number;
+  game: { id: string; mode: 'solo' | 'challenge'; roundsTotal: number; attemptsPerRound: number };
 }
 
 function roundForGuess(overrides: Partial<RoundForGuess> = {}): RoundForGuess {
@@ -43,7 +44,8 @@ function roundForGuess(overrides: Partial<RoundForGuess> = {}): RoundForGuess {
     status: 'active',
     location: { lat: BERLIN.lat, lon: BERLIN.lon },
     guess: null,
-    game: { id: 'game-1', mode: 'solo' },
+    additionalDataPointsSpent: 0,
+    game: { id: 'game-1', mode: 'solo', roundsTotal: ROUNDS_PER_GAME, attemptsPerRound: 1 },
     ...overrides,
   };
 }
@@ -190,7 +192,7 @@ describe('submitGuess', () => {
     const { db, gameUpdate } = buildGuessDb(
       roundForGuess({
         roundNumber: ROUNDS_PER_GAME,
-        game: { id: 'game-1', mode: 'solo' },
+        game: { id: 'game-1', mode: 'solo', roundsTotal: ROUNDS_PER_GAME, attemptsPerRound: 1 },
       }),
     );
 

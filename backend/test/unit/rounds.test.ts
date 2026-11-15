@@ -49,6 +49,8 @@ interface GameLike {
   attemptsPerRound: number;
   playerTokenHash: string;
   rounds: RoundLike[];
+  additionalDataUnlockMode: 'immediate' | 'time' | 'points';
+  additionalDataUnlockCost: number | null;
 }
 
 /** Enough locations for a full list-mode candidate set in the AFRICA region. */
@@ -85,6 +87,8 @@ function gameWith(overrides: Partial<GameLike> = {}): GameLike {
     attemptsPerRound: 1,
     playerTokenHash: 'some-hash',
     rounds: [],
+    additionalDataUnlockMode: 'immediate',
+    additionalDataUnlockCost: null,
     ...overrides,
   };
 }

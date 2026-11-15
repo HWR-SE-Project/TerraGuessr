@@ -48,7 +48,6 @@ export async function submitGuess(
     include: {
       location: { select: { lat: true, lon: true } },
       guess: true,
-      additionalDataPointsSpent: true,
       game: { select: { id: true, mode: true, roundsTotal: true, attemptsPerRound: true } },
     },
   });
