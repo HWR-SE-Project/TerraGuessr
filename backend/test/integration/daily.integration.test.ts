@@ -47,6 +47,8 @@ describe('Daily Challenge (integration)', () => {
     expect(a.statusCode).toBe(201);
     expect(b.statusCode).toBe(201);
     expect(a.json().result.actual).toEqual(b.json().result.actual);
+    const adaSession = await app.inject({ url: '/api/auth/session', headers: { cookie: ada } });
+    expect(adaSession.json().dailyStreak).toEqual({ current: 1, longest: 1 });
     expect((await app.inject({ method: 'POST', url: '/api/daily/today/guess', headers: { cookie: ada }, payload: { lat: 0, lon: 0 } })).statusCode).toBe(409);
     const board = await app.inject({ url: `/api/daily/${first.json().date}/leaderboard?limit=1`, headers: { cookie: ada } });
     expect(board.statusCode).toBe(200);
