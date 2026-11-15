@@ -1,6 +1,6 @@
 # Phase 1 browser evidence
 
-Captured from the running Vite application using Chromium. The game screenshots use the application's explicit offline development data source because no backend stack was running during capture.
+Captured from the running application using Chromium against an isolated Docker Compose stack with deterministic test weather.
 
 - `phase1-desktop-home.png` — 1440px landing page.
 - `phase1-desktop-game.png` — 1440px Easy mode with five distinguishable choices.

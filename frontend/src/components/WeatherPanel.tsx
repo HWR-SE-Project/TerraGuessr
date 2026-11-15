@@ -22,7 +22,7 @@ export function WeatherPanel({ weather }: WeatherPanelProps) {
       <dl className="tg-weather-grid">
         {WEATHER_FIELDS.map(({ key, label, unit }) => (
           <div key={key} className="tg-weather-cell">
-            <dt className="tg-weather-label">{label}<span className="tg-weather-icon" aria-hidden="true">{key === 'temperatureC' ? '☼' : key === 'precipitationMm' ? '⌁' : key === 'humidityPct' ? '◌' : '↗'}</span></dt>
+            <dt className="tg-weather-label" data-icon={key === 'temperatureC' ? '☼' : key === 'precipitationMm' ? '⌁' : key === 'humidityPct' ? '◌' : '↗'}>{label}</dt>
             <dd className="tg-weather-value" style={{ margin: 0 }}>{weather[key]}{unit}</dd>
           </div>
         ))}
