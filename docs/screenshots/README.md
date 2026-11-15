@@ -14,6 +14,9 @@ Captured from the running application using Chromium against an isolated Docker 
 - `phase4-daily-dashboard.png` — 1440px authenticated dashboard with the shared UTC challenge.
 - `phase4-daily-game.png` — 1440px Daily Challenge with Open-Meteo values and map guessing.
 - `phase4-daily-result.png` — 1440px submitted result, revealed location and persisted daily placement.
+- `phase4-daily-statistics.png` — 1440px account-owned Daily history and average score/distance.
+- `phase4-daily-leaderboard.png` — 1440px date-selectable Daily leaderboard and current placement.
+- `phase4-mobile-daily-leaderboard.png` — 375px Daily leaderboard layout with no page overflow.
 
 The isolated browser environment does not guarantee external OpenStreetMap tile access; a blank
 tile layer in its game capture is a provider/network limitation, while map selection and guess

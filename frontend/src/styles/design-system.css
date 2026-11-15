@@ -150,4 +150,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tg-game-area { min-height: 420px; padding: 14px; align-items: flex-end; }.tg-map-dock, .tg-map-dock:hover, .tg-map-dock:focus-within { width: 100%; height: min(48vh, 330px); }.tg-map-label { padding: 9px 11px; }.tg-guess-footer { position: absolute; right: 14px; bottom: auto; top: 12px; }.tg-selection-panel { margin: 12px 0; padding: 16px; }.tg-candidate-list { grid-template-columns: 1fr; gap: 7px; margin-top: 12px; }.tg-candidate { min-height: 64px; padding: 10px; }.tg-submit-row { align-items: stretch; flex-direction: column; }.tg-submit-row .tg-button { width: 100%; }
 }
 @media (max-width: 640px) { .tg-nav .tg-nav-label { display: none; }.tg-nav button[aria-label] { width: 36px; padding: 0; font-size: 0; }.tg-nav button[aria-label="Settings"]::before, .tg-nav button[aria-label="Einstellungen"]::before { content: '⚙'; font-size: 15px; }.tg-nav button[aria-label="Profile"]::before, .tg-nav button[aria-label="Profil"]::before { content: '◉'; font-size: 15px; }.tg-nav button[aria-label="Sign out"]::before, .tg-nav button[aria-label="Abmelden"]::before { content: '⇥'; font-size: 15px; }.tg-nav button[aria-label="Sign in"]::before, .tg-nav button[aria-label="Anmelden"]::before { content: '↪'; font-size: 15px; } }
+
+.tg-player-page { max-width: 1040px; }
+.tg-player-page h1 { margin: 8px 0 24px; font-size: clamp(34px, 5vw, 52px); letter-spacing: -.06em; }
+.tg-player-page > .tg-setup-label { display: grid; gap: 8px; max-width: 300px; margin-bottom: 20px; color: var(--tg-muted); font-size: 13px; font-weight: 700; }
+.tg-player-page select, .tg-player-toolbar input[type="date"] { min-height: 42px; padding: 0 36px 0 12px; border: 1px solid #46546a; border-radius: 10px; color: var(--tg-text); background: #172130; color-scheme: dark; }
+.tg-player-toolbar { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 18px; }
+.tg-player-toolbar label { display: grid; gap: 7px; color: var(--tg-muted); font-size: 13px; font-weight: 700; }
+.tg-player-toolbar select, .tg-player-toolbar input { min-height: 42px; padding: 0 12px; border: 1px solid #46546a; border-radius: 10px; color: var(--tg-text); background: #172130; color-scheme: dark; }
+.tg-stats-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 18px 0 24px; }
+.tg-stats-summary > div { display: grid; gap: 7px; padding: 16px; border: 1px solid var(--tg-line); border-radius: 13px; background: #141d2a; }
+.tg-stats-summary span { color: var(--tg-muted); font-size: 12px; }.tg-stats-summary strong { color: var(--tg-mint); font-size: 22px; }
+.tg-player-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--tg-line); border-radius: 13px; }
+.tg-player-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 13px; }
+.tg-player-table th, .tg-player-table td { padding: 13px 14px; border-bottom: 1px solid var(--tg-line); text-align: left; vertical-align: top; }
+.tg-player-table th { color: var(--tg-muted); background: #121a26; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.tg-player-table tr:last-child td { border-bottom: 0; }.tg-player-table summary { color: var(--tg-mint); cursor: pointer; font-weight: 700; }.tg-player-table details p { margin: 8px 0 0; color: var(--tg-muted); white-space: nowrap; }
+.tg-player-table tr.tg-current-player td { color: var(--tg-mint); background: rgba(104, 224, 190, .08); font-weight: 700; }
+.tg-form-actions > span { align-self: center; color: var(--tg-muted); font-size: 13px; }
+.tg-nav button[aria-label="Statistics"]::before, .tg-nav button[aria-label="Statistik"]::before { content: '▤'; font-size: 15px; }
+.tg-nav button[aria-label="Leaderboard"]::before, .tg-nav button[aria-label="Bestenliste"]::before { content: '▥'; font-size: 15px; }
+@media (max-width: 640px) {
+  .tg-stats-summary { grid-template-columns: 1fr; }.tg-player-toolbar { display: grid; }.tg-player-table { min-width: 620px; }
+  .tg-player-table.tg-leaderboard-table { min-width: 0; table-layout: fixed; font-size: 11px; }
+  .tg-leaderboard-table thead { display: none; }
+  .tg-leaderboard-table tbody tr { display: grid; grid-template-columns: 26px minmax(70px, 1fr) 66px 74px; align-items: stretch; }
+  .tg-leaderboard-table td { padding: 10px 4px; overflow-wrap: anywhere; }
+  .tg-leaderboard-table td:nth-child(3)::before { content: 'PTS '; color: var(--tg-muted); font-size: 9px; }
+  .tg-leaderboard-table td:nth-child(4)::before { content: 'KM '; color: var(--tg-muted); font-size: 9px; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

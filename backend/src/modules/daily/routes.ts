@@ -132,6 +132,6 @@ export function registerDailyRoutes(
       { score: own.score, distanceKm: own.distanceKm, createdAt: { lt: own.createdAt } },
       { score: own.score, distanceKm: own.distanceKm, createdAt: own.createdAt, id: { lt: own.id } },
     ] } });
-    return { date, entries: rows.map((row, index) => ({ rank: offset + index + 1, displayName: row.user.displayName, score: row.score, distanceKm: row.distanceKm })), total, offset, limit, myRank };
+    return { date, entries: rows.map((row, index) => ({ rank: offset + index + 1, displayName: row.user.displayName, score: row.score, distanceKm: row.distanceKm, isCurrentUser: row.userId === user.id })), total, offset, limit, myRank };
   });
 }

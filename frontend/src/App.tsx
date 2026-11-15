@@ -22,12 +22,13 @@ import { AuthDialog } from './features/auth/AuthDialog';
 import type { AuthUser } from './features/auth/AuthDialog';
 import { AccountPages } from './features/auth/AccountPages';
 import { GameSetup } from './features/setup/GameSetup';
+import { PlayerPages } from './features/players/PlayerPages';
 import { GameStoreProvider, useGameStore } from './state/gameStore';
 
 type Phase = 'home' | 'playing' | 'results';
 
 type LoadStatus = 'idle' | 'loading' | 'error';
-type AccountPage = 'profile' | 'settings' | null;
+type AccountPage = 'profile' | 'settings' | 'statistics' | 'leaderboard' | null;
 
 /** Shared-link challenges land on shareUrl = '/challenge/:id' (P0-3). */
 function parseChallengeId(pathname: string): string | null {
@@ -110,8 +111,8 @@ function AppShell({ dataSource }: AppShellProps) {
   }, [resetToken]);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
   const copy = language === 'de'
-    ? { help: 'Hilfe', settings: 'Einstellungen', profile: 'Profil', signIn: 'Anmelden', signOut: 'Abmelden', welcome: 'Willkommen zurück', dashboard: 'Wähle dein nächstes Abenteuer', solo: 'Solo-Expedition', soloCopy: 'Lies das Wetter, setze deinen Tipp und finde in fünf Runden heraus, wie nah du liegst.', create: 'Solo-Spiel starten', preparing: 'Wird vorbereitet…', homeEyebrow: 'Eine Welt voller Hinweise, ein guter Tipp', homeTitleA: 'Lies den Himmel.', homeTitleB: 'Finde den Ort.', homeCopy: 'Jede Runde beginnt an einem anderen Ort der Erde. Untersuche das Wetter, vertraue deinem Gefühl und setze deine Markierung.', start: 'Solo-Expedition starten', learn: 'Hinweise kennenlernen' }
-    : { help: 'Help', settings: 'Settings', profile: 'Profile', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeEyebrow: 'A world of clues, one great guess', homeTitleA: 'Read the sky.', homeTitleB: 'Find the place.', homeCopy: 'Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', learn: 'Learn the signals' };
+    ? { help: 'Hilfe', settings: 'Einstellungen', profile: 'Profil', statistics: 'Statistik', leaderboard: 'Bestenliste', signIn: 'Anmelden', signOut: 'Abmelden', welcome: 'Willkommen zurück', dashboard: 'Wähle dein nächstes Abenteuer', solo: 'Solo-Expedition', soloCopy: 'Lies das Wetter, setze deinen Tipp und finde in fünf Runden heraus, wie nah du liegst.', create: 'Solo-Spiel starten', preparing: 'Wird vorbereitet…', homeEyebrow: 'Eine Welt voller Hinweise, ein guter Tipp', homeTitleA: 'Lies den Himmel.', homeTitleB: 'Finde den Ort.', homeCopy: 'Jede Runde beginnt an einem anderen Ort der Erde. Untersuche das Wetter, vertraue deinem Gefühl und setze deine Markierung.', start: 'Solo-Expedition starten', learn: 'Hinweise kennenlernen' }
+    : { help: 'Help', settings: 'Settings', profile: 'Profile', statistics: 'Statistics', leaderboard: 'Leaderboard', signIn: 'Sign in', signOut: 'Sign out', welcome: 'Welcome back', dashboard: 'Choose your next expedition', solo: 'Solo expedition', soloCopy: 'Read the weather, place your guess, and see how close you get across five rounds.', create: 'Create solo game', preparing: 'Preparing…', homeEyebrow: 'A world of clues, one great guess', homeTitleA: 'Read the sky.', homeTitleB: 'Find the place.', homeCopy: 'Every round begins with a different corner of the Earth. Study its weather, trust your instincts, and drop your pin where you think you are.', start: 'Start solo expedition', learn: 'Learn the signals' };
 
   const busy = status === 'loading';
   const handleAttemptChange = useCallback((current: number, total: number) => setAttemptProgress({ current, total }), []);
@@ -359,6 +360,8 @@ function AppShell({ dataSource }: AppShellProps) {
           {phase !== 'home' ? <span className="tg-chip"><span className="tg-dot" />{dailyMode ? `Daily · ${dailyDate ?? 'UTC'}` : 'Solo expedition'}</span> : null}
           <button type="button" onClick={() => setTutorialOpen(true)} data-testid="how-to-play"><span aria-hidden="true">ⓘ</span><span className="tg-nav-label">{copy.help}</span></button>
           {authUser && phase === 'home' ? <>
+            <button type="button" aria-label={copy.statistics} onClick={() => setAccountPage('statistics')}>{copy.statistics}</button>
+            <button type="button" aria-label={copy.leaderboard} onClick={() => setAccountPage('leaderboard')}>{copy.leaderboard}</button>
             <button type="button" aria-label={copy.settings} onClick={() => setAccountPage('settings')}>{copy.settings}</button>
             <button type="button" aria-label={copy.profile} onClick={() => setAccountPage('profile')}>{copy.profile}</button>
             <button type="button" aria-label={copy.signOut} onClick={() => void handleSignOut()}>{copy.signOut}</button>
@@ -394,9 +397,11 @@ function AppShell({ dataSource }: AppShellProps) {
           </div>
         ) : null}
 
-        {phase === 'home' && accountPage && authUser ? (
+        {phase === 'home' && (accountPage === 'profile' || accountPage === 'settings') && authUser ? (
           <AccountPages page={accountPage} user={authUser} onBack={() => setAccountPage(null)} onDeleted={() => { setAuthUser(null); setAccountPage(null); }} onProfileUpdated={(displayName) => setAuthUser({ ...authUser, displayName })} onLanguageChange={setLanguage} />
         ) : null}
+
+        {phase === 'home' && (accountPage === 'statistics' || accountPage === 'leaderboard') ? <PlayerPages page={accountPage} language={language} onBack={() => setAccountPage(null)} /> : null}
 
         {phase === 'home' && authUser && !accountPage && gameSetupOpen ? (
           <GameSetup initialSelection={selection} initialRoundsTotal={configuredRoundsTotal} initialAttemptsPerRound={configuredAttemptsPerRound} initialGeography={configuredGeography} initialCandidateCount={configuredCandidateCount} language={language} loading={busy} onBack={() => setGameSetupOpen(false)} onStart={(chosen, count, geography, candidateCount, attempts) => { setGameSetupOpen(false); void startGame(chosen, count, geography, candidateCount, attempts); }} />

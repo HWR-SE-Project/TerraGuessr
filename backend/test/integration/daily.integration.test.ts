@@ -6,6 +6,7 @@ import type { PrismaClient } from '@prisma/client';
 import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
 import { registerAuthRoutes } from '../../src/modules/auth/routes.js';
 import { registerDailyRoutes } from '../../src/modules/daily/routes.js';
+import { registerStatisticsRoutes } from '../../src/modules/statistics/routes.js';
 import { setupDatabase, StubWeatherClient, teardownDatabase } from './helpers/database.js';
 
 describe('Daily Challenge (integration)', () => {
@@ -18,6 +19,7 @@ describe('Daily Challenge (integration)', () => {
     const config = { databaseUrl: process.env.DATABASE_URL!, port: 3000, corsOrigin: false as const, adminApiToken: '', openMeteoBaseUrl: 'https://api.open-meteo.com', logLevel: 'silent', sessionCookieSecure: false };
     registerAuthRoutes(app, { db, config });
     registerDailyRoutes(app, { db, config, weatherClient: new StubWeatherClient() });
+    registerStatisticsRoutes(app, db);
   });
   afterAll(async () => { await app.close(); await teardownDatabase(db); });
 
@@ -49,6 +51,12 @@ describe('Daily Challenge (integration)', () => {
     expect(a.json().result.actual).toEqual(b.json().result.actual);
     const adaSession = await app.inject({ url: '/api/auth/session', headers: { cookie: ada } });
     expect(adaSession.json().dailyStreak).toEqual({ current: 1, longest: 1 });
+    const stats = await app.inject({ url: '/api/statistics?mode=daily', headers: { cookie: ada } });
+    expect(stats.statusCode).toBe(200);
+    expect(stats.json()).toMatchObject({ mode: 'daily', total: 1, averageScore: a.json().result.score });
+    expect(stats.json().entries[0].actual).toEqual(a.json().result.actual);
+    const ranked = await app.inject({ url: '/api/statistics?mode=ranked', headers: { cookie: ada } });
+    expect(ranked.json()).toMatchObject({ mode: 'ranked', available: false, total: 0, entries: [], averageScore: null });
     expect((await app.inject({ method: 'POST', url: '/api/daily/today/guess', headers: { cookie: ada }, payload: { lat: 0, lon: 0 } })).statusCode).toBe(409);
     const board = await app.inject({ url: `/api/daily/${first.json().date}/leaderboard?limit=1`, headers: { cookie: ada } });
     expect(board.statusCode).toBe(200);
@@ -56,6 +64,8 @@ describe('Daily Challenge (integration)', () => {
     expect(board.json().myRank).toBeGreaterThanOrEqual(1);
     expect(board.json().myRank).toBeLessThanOrEqual(before + 2);
     expect(board.json().entries).toHaveLength(1);
+    const fullBoard = await app.inject({ url: `/api/daily/${first.json().date}/leaderboard?limit=100`, headers: { cookie: ada } });
+    expect(fullBoard.json().entries.find((entry: { isCurrentUser: boolean }) => entry.isCurrentUser)).toBeTruthy();
     const reopened = await app.inject({ url: '/api/daily/today', headers: { cookie: ada } });
     expect(reopened.json().status).toBe('completed');
     expect(reopened.json().result.actual).toEqual(a.json().result.actual);
