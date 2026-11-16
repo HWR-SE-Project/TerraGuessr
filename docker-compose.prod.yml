@@ -16,10 +16,12 @@ name: terraguessr-prod
 #   cp .env.example .env        # then fill in the production values
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
-# Required in .env: POSTGRES_PASSWORD, ADMIN_API_TOKEN, DOMAIN, ACME_EMAIL,
-# and VITE_TILE_URL (build-time tile endpoint, see ADR-0007).
+# Required in .env: POSTGRES_PASSWORD, ADMIN_API_TOKEN, DOMAIN, ACME_EMAIL.
 # NEVER commit .env. Do not purchase a domain or publish this stack without
 # Product Owner approval (decision B.7).
+#
+# Frontend service removed pending rebuild — Caddy currently only proxies
+# /api/* to backend; see Caddyfile.
 
 x-logging: &default-logging
   driver: json-file
@@ -82,32 +84,6 @@ services:
       start_period: 30s
     logging: *default-logging
 
-  frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-      args:
-        # Vite inlines these at build time — changing one requires a rebuild.
-        VITE_API_BASE_URL: "${VITE_API_BASE_URL:-/api}"
-        # Required: the XYZ template contains {z}/{x}/{y}, which compose's
-        # ${...} parser cannot carry in a default value (first "}" ends it).
-        VITE_TILE_URL: "${VITE_TILE_URL:?VITE_TILE_URL is required — see ADR-0007 and docs/deploy.md}"
-        VITE_MAP_ATTRIBUTION: "${VITE_MAP_ATTRIBUTION:-© OpenStreetMap contributors · © Open-Meteo}"
-    restart: unless-stopped
-    # No published ports: Caddy proxies everything except /api to this service.
-    expose:
-      - "80"
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 15s
-    logging: *default-logging
-
   # TLS termination + reverse proxy. Caddy obtains and renews Let's Encrypt
   # certificates automatically for ${DOMAIN} (see Caddyfile).
   caddy:
@@ -125,8 +101,6 @@ services:
       - caddy_data:/data # certificates + ACME account (must persist)
       - caddy_config:/config
     depends_on:
-      frontend:
-        condition: service_healthy
       backend:
         condition: service_healthy
     logging: *default-logging
