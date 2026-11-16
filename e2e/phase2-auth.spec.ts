@@ -5,7 +5,8 @@ test('email registration, account dashboard, German preference, and safe account
   await page.goto('/');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.locator('.tg-google-button')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('.tg-auth-provider-google')).toHaveAttribute('aria-disabled', 'true');
+  await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByRole('button', { name: 'Create an account' }).click();
   await page.getByLabel('Display name').fill('Browser Explorer');
   await page.getByLabel('Email address').fill(`browser-${Date.now()}@example.test`);

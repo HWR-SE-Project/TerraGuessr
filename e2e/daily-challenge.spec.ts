@@ -4,6 +4,7 @@ test('authenticated player submits the shared UTC Daily Challenge once', async (
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByRole('button', { name: 'Create an account' }).click();
   await page.getByLabel('Display name').fill('Daily Explorer');
   await page.getByLabel('Email address').fill(`daily-browser-${Date.now()}@example.test`);
