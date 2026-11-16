@@ -2,8 +2,10 @@ name: terraguessr-test
 
 # Deterministic stack for CI e2e / integration tests (ADR-0012). Values are
 # hardcoded so tests never depend on a local .env file. Published ports:
-# postgres 5433, backend 3000, frontend 8080 by default. Set the
-# TERRAGUESSR_TEST_*_PORT variables when another local stack owns those ports.
+# postgres 5433, backend 3000 by default. Set the TERRAGUESSR_TEST_*_PORT
+# variables when another local stack owns those ports.
+# Frontend service removed pending rebuild — e2e specs that depend on the
+# SPA will not run against this stack until the frontend is reintroduced.
 services:
   postgres:
     image: postgres:16
@@ -55,25 +57,6 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
-
-  frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-      args:
-        VITE_API_BASE_URL: /api
-        VITE_TILE_URL: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        VITE_MAP_ATTRIBUTION: "© OpenStreetMap contributors · © Open-Meteo"
-    ports:
-      - "${TERRAGUESSR_TEST_FRONTEND_PORT:-8080}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
 
 volumes:
   pg_test_data:

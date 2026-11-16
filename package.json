@@ -2,7 +2,7 @@
   "name": "terraguessr",
   "version": "0.1.0",
   "private": true,
-  "description": "TerraGuessr — modular monolith (React SPA + Fastify REST API + PostgreSQL).",
+  "description": "TerraGuessr — modular monolith (Fastify REST API + PostgreSQL); frontend removed pending rebuild.",
   "scripts": {
     "test:e2e": "playwright test"
   },

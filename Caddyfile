@@ -3,7 +3,10 @@
 # =============================================================================
 # Caddy terminates TLS (automatic Let's Encrypt certificates) and routes:
 #   /api/*  -> backend:3000   (Fastify REST API)
-#   /*      -> frontend:80    (nginx serving the built SPA)
+#
+# The frontend service and its catch-all route are removed pending a
+# rebuilt frontend; reintroduce the `handle { reverse_proxy frontend:80 }`
+# block (and the matching compose service) once it exists.
 #
 # The site address comes from the DOMAIN environment variable, so no real
 # domain is hardcoded or committed. Example value (placeholder only):
@@ -29,11 +32,6 @@
 	# REST API — proxied straight to the backend service.
 	handle /api/* {
 		reverse_proxy backend:3000
-	}
-
-	# Everything else — the SPA served by nginx (SPA fallback lives there).
-	handle {
-		reverse_proxy frontend:80
 	}
 
 	header {
