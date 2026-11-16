@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('authenticated player submits the shared UTC Daily Challenge once', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('link', { name: 'Sign in' }).click();
   await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByRole('button', { name: 'Create an account' }).click();
   await page.getByLabel('Display name').fill('Daily Explorer');
@@ -27,13 +27,13 @@ test('authenticated player submits the shared UTC Daily Challenge once', async (
   await expect(page.getByRole('button', { name: 'See final results' })).toBeVisible();
   await page.screenshot({ path: 'docs/screenshots/phase4-daily-result.png', fullPage: true });
   await page.getByRole('button', { name: 'See final results' }).click();
-  await page.getByRole('button', { name: 'Statistics' }).click();
+  await page.getByRole('link', { name: 'Statistics' }).click();
   await expect(page.getByRole('heading', { name: 'Statistics' })).toBeVisible();
   await page.getByLabel('Game mode').selectOption('daily');
   await expect(page.locator('.tg-player-table tbody tr')).toHaveCount(1);
   await page.screenshot({ path: 'docs/screenshots/phase4-daily-statistics.png', fullPage: true });
   await page.getByRole('button', { name: 'Back' }).click();
-  await page.getByRole('button', { name: 'Leaderboard' }).click();
+  await page.getByRole('link', { name: 'Leaderboard' }).click();
   await expect(page.getByRole('heading', { name: 'Leaderboards' })).toBeVisible();
   await expect(page.getByText(/Your placement:/)).toBeVisible();
   await expect(page.locator('.tg-current-player')).toBeVisible();

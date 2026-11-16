@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 test('email registration, account dashboard, German preference, and safe account deletion', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('link', { name: 'Sign in' }).click();
+  await expect(page.getByRole('heading', { name: 'Log in to play' })).toBeVisible();
   await expect(page.locator('.tg-auth-provider-google')).toHaveAttribute('aria-disabled', 'true');
   await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByRole('button', { name: 'Create an account' }).click();
@@ -15,7 +15,7 @@ test('email registration, account dashboard, German preference, and safe account
   await expect(page.getByRole('heading', { name: 'Choose your next expedition' })).toBeVisible({ timeout: 15000 });
   await page.screenshot({ path: 'docs/screenshots/phase2-desktop-dashboard.png', fullPage: true });
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('link', { name: 'Settings' }).click();
   await page.getByLabel('Language').selectOption('de');
   await expect(page.getByRole('heading', { name: 'Einstellungen' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
@@ -25,7 +25,7 @@ test('email registration, account dashboard, German preference, and safe account
   const widths = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(widths.content).toBeLessThanOrEqual(widths.viewport);
 
-  await page.getByRole('button', { name: 'Profil' }).click();
+  await page.getByRole('link', { name: 'Profil' }).click();
   await expect(page.getByRole('heading', { name: 'Profil' })).toBeVisible();
   await expect(page.getByText('Aktuelle tägliche Serie')).toBeVisible();
   await expect(page.getByText('Längste tägliche Serie')).toBeVisible();
@@ -33,5 +33,5 @@ test('email registration, account dashboard, German preference, and safe account
   await page.getByLabel('Zur Bestätigung DELETE eingeben').fill('DELETE');
   await page.getByLabel('Aktuelles Passwort').fill('secure browser password 2026');
   await page.getByRole('button', { name: 'Dauerhaft löschen' }).click();
-  await expect(page.getByRole('button', { name: 'Anmelden' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Anmelden' })).toBeVisible();
 });
