@@ -4,6 +4,7 @@ test('custom solo setup controls a server-enforced one-round game', async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByRole('button', { name: 'Create an account' }).click();
   await page.getByLabel('Display name').fill('Rules Tester');
   await page.getByLabel('Email address').fill(`rules-${Date.now()}@example.test`);
