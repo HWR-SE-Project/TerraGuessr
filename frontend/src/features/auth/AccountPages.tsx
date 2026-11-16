@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import type { AuthUser } from './AuthDialog';
+import type { AuthUser } from './AuthPage';
 import { apiFetch } from '../../api/client';
 
 interface AccountPagesProps {

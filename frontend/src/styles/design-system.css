@@ -343,6 +343,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-auth-links { margin-top: 15px; display: flex; justify-content: space-between; gap: 10px; }
 .tg-auth-links button { padding: 5px 0; border: 0; background: none; color: var(--tg-mint); font-size: 12px; font-weight: 800; cursor: pointer; }
 
+/* ---------- Dedicated /auth page (promoted from the old modal) ---------- */
+.tg-auth-page { position: relative; min-height: calc(100vh - 68px); display: grid; place-items: center; padding: 40px 16px; overflow: hidden; isolation: isolate; }
+.tg-auth-page-bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(ellipse 55% 50% at 78% 24%, rgb(151 232 81 / 12%), transparent 60%), radial-gradient(ellipse 65% 55% at 18% 86%, rgb(84 224 199 / 12%), transparent 58%), linear-gradient(160deg, #4a3f8a 0%, #2c2560 30%, #1c1744 60%, #110d2c 100%); }
+.tg-auth-page-overlay { position: absolute; inset: 0; z-index: 1; background: rgb(16 16 28 / 40%); }
+.tg-auth-page-content { position: relative; z-index: 2; width: min(450px, 100%); }
+.tg-auth-page .tg-auth-card { position: static; width: 100%; max-height: none; }
+.tg-auth-chooser { display: grid; gap: 10px; margin-top: 18px; }
+.tg-auth-provider { width: 100%; background: #201a48; border-color: #45406e; text-decoration: none; }
+.tg-auth-provider.is-disabled { opacity: .55; cursor: not-allowed; }
+.tg-auth-provider-email { background: transparent; border: 2px solid rgb(255 255 255 / 20%); }
+.tg-auth-switch { margin-top: 16px; text-align: center; color: var(--tg-muted); font-size: 12px; }
+.tg-auth-switch button { border: 0; background: none; padding: 0 4px; color: var(--tg-mint); font-weight: 800; cursor: pointer; }
+.tg-auth-back { margin-top: 14px; width: 100%; }
+
+/* ---------- Duels (async-challenge discovery hub) ---------- */
+.tg-duels-page { display: grid; gap: 18px; max-width: 760px; }
+.tg-duels-hero { padding: clamp(22px, 4vw, 36px); }
+.tg-duels-hero .tg-lead { max-width: 56ch; }
+.tg-duels-create { padding: clamp(20px, 3.5vw, 30px); }
+.tg-duels-create p { color: var(--tg-muted); line-height: 1.65; margin: 10px 0 18px; }
+
 /* ---------- Account / setup / player pages ---------- */
 .tg-account-page { max-width: 800px; margin: 28px auto; padding: clamp(22px, 4vw, 38px); }
 .tg-account-page h1 { margin: 8px 0 24px; font-family: var(--tg-font-display); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: clamp(32px, 5.4vw, 48px); letter-spacing: -.015em; }
@@ -420,7 +441,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tg-brand-name { font-size: 13px; letter-spacing: -.005em; }
   .tg-brand-mark { width: 28px; height: 28px; font-size: 13px; }
   .tg-nav { gap: 1px; }
-  .tg-nav a, .tg-nav button { min-height: 34px; width: 34px; padding: 0; font-size: 14px; }
+  .tg-nav a, .tg-nav button { min-height: 30px; width: 30px; padding: 0; font-size: 14px; }
   .tg-main { padding: 18px 14px; }
   .tg-hero-fig { padding: 80px 16px 28px; gap: 20px; }
   .tg-hero-fig-title { font-size: clamp(30px, 10.5vw, 43.7px); line-height: 1.19; }
@@ -458,7 +479,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tg-results-actions { flex-direction: column; }
   .tg-results-actions .tg-button { width: 100%; }
 }
-@media (max-width: 640px) { .tg-nav .tg-nav-label { display: none; }.tg-nav button[aria-label] { width: 34px; padding: 0; font-size: 0; }.tg-nav button[aria-label="Settings"]::before, .tg-nav button[aria-label="Einstellungen"]::before { content: '⚙'; font-size: 15px; }.tg-nav button[aria-label="Profile"]::before, .tg-nav button[aria-label="Profil"]::before { content: '◉'; font-size: 15px; }.tg-nav button[aria-label="Sign out"]::before, .tg-nav button[aria-label="Abmelden"]::before { content: '⇥'; font-size: 15px; }.tg-nav button[aria-label="Sign in"]::before, .tg-nav button[aria-label="Anmelden"]::before { content: '↪'; font-size: 15px; } }
+@media (max-width: 640px) { .tg-nav .tg-nav-label { display: none; }.tg-nav a[aria-label], .tg-nav button[aria-label] { width: 30px; padding: 0; font-size: 0; }.tg-nav a[aria-label="Settings"]::before, .tg-nav a[aria-label="Einstellungen"]::before, .tg-nav button[aria-label="Settings"]::before, .tg-nav button[aria-label="Einstellungen"]::before { content: '⚙'; font-size: 15px; }.tg-nav a[aria-label="Profile"]::before, .tg-nav a[aria-label="Profil"]::before, .tg-nav button[aria-label="Profile"]::before, .tg-nav button[aria-label="Profil"]::before { content: '◉'; font-size: 15px; }.tg-nav button[aria-label="Sign out"]::before, .tg-nav button[aria-label="Abmelden"]::before { content: '⇥'; font-size: 15px; }.tg-nav a[aria-label="Sign in"]::before, .tg-nav a[aria-label="Anmelden"]::before { content: '↪'; font-size: 15px; } }
 
 .tg-player-page { max-width: 1040px; }
 .tg-player-page h1 { margin: 8px 0 24px; font-family: var(--tg-font-display); font-weight: 900; font-style: italic; text-transform: uppercase; font-size: clamp(30px, 5vw, 44px); letter-spacing: -.015em; }
@@ -480,8 +501,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tg-player-table details p { margin: 8px 0 0; color: var(--tg-muted); white-space: nowrap; }
 .tg-player-table tr.tg-current-player td { color: var(--tg-green); background: rgba(123, 216, 74, .1); font-weight: 700; }
 .tg-form-actions > span { align-self: center; color: var(--tg-muted); font-size: 13px; }
-.tg-nav button[aria-label="Statistics"]::before, .tg-nav button[aria-label="Statistik"]::before { content: '▤'; font-size: 15px; }
-.tg-nav button[aria-label="Leaderboard"]::before, .tg-nav button[aria-label="Bestenliste"]::before { content: '▥'; font-size: 15px; }
+.tg-nav a[aria-label="Statistics"]::before, .tg-nav a[aria-label="Statistik"]::before, .tg-nav button[aria-label="Statistics"]::before, .tg-nav button[aria-label="Statistik"]::before { content: '▤'; font-size: 15px; }
+.tg-nav a[aria-label="Leaderboard"]::before, .tg-nav a[aria-label="Bestenliste"]::before, .tg-nav button[aria-label="Leaderboard"]::before, .tg-nav button[aria-label="Bestenliste"]::before { content: '▥'; font-size: 15px; }
 @media (max-width: 640px) {
   .tg-stats-summary { grid-template-columns: 1fr; }
   .tg-player-toolbar { display: grid; }

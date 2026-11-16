@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('custom solo setup controls a server-enforced one-round game', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('link', { name: 'Sign in' }).click();
   await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByRole('button', { name: 'Create an account' }).click();
   await page.getByLabel('Display name').fill('Rules Tester');
