@@ -1,0 +1,267 @@
+import { expect, test } from '@playwright/test'
+import type { StreetResult } from '../frontend/src/api/singleplayer'
+import { mkdir, writeFile } from 'node:fs/promises'
+
+// Real Google SDK, imagery, tiles, backend and database. No route interception,
+// credentials in artifacts, seeded responses, or replacement panorama images.
+test('live Google: Home to five rounds, final results, new game, and Home', async ({
+  page,
+}) => {
+  test.skip(
+    process.env.TERRAGUESSR_LIVE_MAPS !== '1',
+    'Run npm run maps:verify with configured Google Maps credentials.',
+  )
+  test.setTimeout(300_000)
+  const out = 'docs/screenshots/playable'
+  await mkdir(out, { recursive: true })
+  const errors: string[] = []
+  const redact = (text: string) =>
+    text.replace(/AIza[0-9A-Za-z_-]+/g, '[REDACTED_KEY]')
+  page.on('pageerror', (error) => errors.push(redact(error.message)))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(redact(message.text()))
+  })
+  const report: {
+    provider: string
+    rounds: StreetResult[]
+    errors: string[]
+    cameraMoved?: boolean
+    streetNavigated?: boolean
+    restarted?: boolean
+    returnedHome?: boolean
+  } = {
+    provider: 'Google Maps JavaScript API / Google Street View',
+    rounds: [],
+    errors,
+  }
+  const waitForPanorama = async () => {
+    const viewer = page.locator('.sp-panorama')
+    // A disconnected panorama is replaced explicitly in its current round.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await expect
+        .poll(
+          async () => {
+            if ((await viewer.getAttribute('data-ready')) === 'true')
+              return 'ready'
+            return (await page
+              .getByRole('button', {
+                name: 'Try another location',
+                exact: true,
+              })
+              .isVisible())
+              ? 'unavailable'
+              : 'loading'
+          },
+          { timeout: 50_000 },
+        )
+        .not.toBe('loading')
+      if ((await viewer.getAttribute('data-ready')) === 'true') return viewer
+      await page
+        .getByRole('button', { name: 'Try another location', exact: true })
+        .click()
+    }
+    throw new Error(
+      'Three genuine panorama attempts failed; inspect provider messages.',
+    )
+  }
+  try {
+    await page.setViewportSize({ width: 1792, height: 861 })
+    await page.goto('/')
+    const config = await page.request.get('/api/singleplayer/config')
+    expect(config.ok()).toBe(true)
+    expect((await config.json()).available).toBe(true)
+    await page
+      .getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })
+      .click()
+    await expect(page).toHaveURL(/\/game\/singleplayer$/)
+    for (let number = 1; number <= 5; number++) {
+      const viewer = await waitForPanorama()
+      await expect(page.locator('.sp-welcome')).toHaveCount(0)
+      if (number === 1) {
+        await page.waitForTimeout(1500) // Allow actual imagery tiles to paint before capture.
+        await page.screenshot({ path: `${out}/active-desktop.png` })
+        const heading = await viewer.getAttribute('data-heading')
+        await page.mouse.move(600, 350)
+        await page.mouse.down()
+        await page.mouse.move(900, 350, { steps: 12 })
+        await page.mouse.up()
+        await expect
+          .poll(() => viewer.getAttribute('data-heading'))
+          .not.toBe(heading)
+        report.cameraMoved = true
+        const pano = await viewer.getAttribute('data-panorama')
+        await viewer.focus()
+        await page.keyboard.press('ArrowUp')
+        await expect
+          .poll(() => viewer.getAttribute('data-panorama'), { timeout: 15000 })
+          .not.toBe(pano)
+        report.streetNavigated = true
+        await page.setViewportSize({ width: 390, height: 844 })
+        await page.screenshot({ path: `${out}/active-mobile.png` })
+        await page.setViewportSize({ width: 1792, height: 861 })
+      }
+      const expand = page.getByRole('button', {
+        name: 'Expand map',
+        exact: true,
+      })
+      if (await expand.isVisible()) await expand.click()
+      await page.mouse.move(600, 100)
+      const world = page.locator('.sp-guess-panel .sp-google-map')
+      await expect(world.locator('img').first()).toBeVisible({ timeout: 15000 })
+      await world.click({ position: { x: 220, y: 160 } })
+      await expect(
+        page.getByRole('button', { name: 'Guess', exact: true }),
+      ).toBeEnabled()
+      if (number === 1) {
+        await page.waitForTimeout(350)
+        await page.screenshot({ path: `${out}/expanded-map.png` })
+        await page.getByRole('button', { name: 'World Explorer' }).click()
+        await expect(page.locator('#guess-map-content')).toBeHidden()
+        await page.getByRole('button', { name: 'World Explorer' }).click()
+        await expect(
+          page.getByRole('button', { name: 'Guess', exact: true }),
+        ).toBeEnabled()
+      }
+      const response = page.waitForResponse(
+        (response) =>
+          response.url().includes('/singleplayer/games/') &&
+          response.url().endsWith('/guess') &&
+          response.request().method() === 'POST',
+      )
+      await page.getByRole('button', { name: 'Guess', exact: true }).click()
+      const scored = await response
+      expect(scored.ok()).toBe(true)
+      const result = await scored.json()
+      expect(result.number).toBe(number)
+      expect(result.score).toBe(
+        Math.round(
+          Math.max(
+            0,
+            Math.min(5000, 5000 * Math.exp(-result.distanceKm / 2000)),
+          ),
+        ),
+      )
+      expect(Number.isFinite(result.actual.lat)).toBe(true)
+      report.rounds.push(result)
+      await expect(
+        page.getByRole('region', { name: 'Round results' }),
+      ).toBeVisible()
+      if (number === 1) {
+        await page.waitForTimeout(1500)
+        await page.screenshot({ path: `${out}/round-results.png` })
+      }
+      await page
+        .getByRole('button', {
+          name: number === 5 ? 'View final results' : 'Next round',
+        })
+        .click()
+    }
+    await expect(
+      page.getByRole('region', { name: 'Final results' }),
+    ).toBeVisible()
+    await expect(page.locator('.sp-round-list details')).toHaveCount(5)
+    await expect(page.getByLabel('Total distance')).toBeVisible()
+    await expect(page.locator('.sp-final .sp-earned strong')).toHaveText(
+      report.rounds
+        .reduce((sum, round) => sum + round.score, 0)
+        .toLocaleString('en-US'),
+    )
+    await page.waitForTimeout(1500)
+    await page.screenshot({ path: `${out}/final-results.png` })
+    await page.getByRole('button', { name: 'Play again' }).click()
+    await waitForPanorama()
+    report.restarted = true
+    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Return home' })
+      .click()
+    await expect(page).toHaveURL(/\/$/)
+    report.returnedHome = true
+    expect(errors).toEqual([])
+  } finally {
+    await writeFile(
+      `${out}/live-game-report.json`,
+      JSON.stringify(report, null, 2) + '\n',
+    )
+  }
+})
+
+test('live Google mobile: touch map, preserve pin through collapse and refresh, and submit', async ({
+  browser,
+  baseURL,
+}) => {
+  test.skip(
+    process.env.TERRAGUESSR_LIVE_MAPS !== '1',
+    'Requires configured live Google Maps.',
+  )
+  test.setTimeout(90_000)
+  const context = await browser.newContext({
+    baseURL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  })
+  const page = await context.newPage()
+  try {
+    await page.goto('/game/singleplayer')
+    await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
+      timeout: 40_000,
+    })
+    const viewer = page.locator('.sp-panorama')
+    const heading = await viewer.getAttribute('data-heading')
+    const touch = await context.newCDPSession(page)
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: 100, y: 240 }],
+    })
+    for (let step = 1; step <= 8; step++)
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: 100 + step * 12, y: 240 }],
+      })
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: [],
+    })
+    await expect
+      .poll(() => viewer.getAttribute('data-heading'))
+      .not.toBe(heading)
+    await page.waitForTimeout(1000)
+    await page.screenshot({
+      path: 'docs/screenshots/playable/active-mobile.png',
+    })
+    await touch.detach()
+    await page.getByRole('button', { name: 'Expand map', exact: true }).tap()
+    const map = page.locator('.sp-guess-panel .sp-google-map')
+    await map.tap({ position: { x: 150, y: 160 } })
+    await expect(
+      page.getByRole('button', { name: 'Guess', exact: true }),
+    ).toBeEnabled()
+    await page.getByRole('button', { name: 'World Explorer' }).tap()
+    await expect(page.locator('#guess-map-content')).toBeHidden()
+    await page.getByRole('button', { name: 'World Explorer' }).tap()
+    await expect(
+      page.getByRole('button', { name: 'Guess', exact: true }),
+    ).toBeEnabled()
+    const chosen = await page.locator('.sp-map-footer > span').innerText()
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page.reload()
+    await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
+      timeout: 40_000,
+    })
+    await expect(page.locator('.sp-map-footer > span')).toHaveText(chosen)
+    await page.getByRole('button', { name: 'Guess', exact: true }).tap()
+    await expect(
+      page.getByRole('region', { name: 'Round results' }),
+    ).toBeVisible()
+    await page.screenshot({
+      path: 'docs/screenshots/playable/mobile-round-results.png',
+    })
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(390)
+  } finally {
+    await context.close()
+  }
+})

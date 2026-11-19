@@ -2,9 +2,11 @@
   "name": "terraguessr",
   "version": "0.1.0",
   "private": true,
-  "description": "TerraGuessr — modular monolith (Fastify REST API + PostgreSQL); frontend removed pending rebuild.",
+  "description": "TerraGuessr — React geography gameplay and Fastify/PostgreSQL backend.",
   "scripts": {
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "maps:doctor": "node scripts/maps-doctor.mjs",
+    "maps:verify": "node scripts/verify-live-game.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0"

@@ -5,10 +5,12 @@ export function GameDialog({
   title,
   onClose,
   children,
+  className = '',
 }: {
   title: string
   onClose: () => void
   children: ReactNode
+  className?: string
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -26,8 +28,25 @@ export function GameDialog({
   return (
     <dialog
       ref={ref}
-      className="sp-dialog"
+      className={`sp-dialog ${className}`}
       aria-label={title}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return
+        const items = Array.from(
+          event.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((element) => element.getClientRects().length > 0)
+        const first = items[0]
+        const last = items.at(-1)
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first?.focus()
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault()
         onClose()

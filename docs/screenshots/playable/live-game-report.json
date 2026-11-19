@@ -1,0 +1,80 @@
+{
+  "provider": "Google Maps JavaScript API / Google Street View",
+  "rounds": [
+    {
+      "roundId": "cmwnzl0c5000esdhod46kg4yb",
+      "number": 1,
+      "actual": {
+        "lat": 37.56651320443169,
+        "lon": 126.978029624941
+      },
+      "guess": {
+        "lat": 59.1735712368309,
+        "lon": -137.8125
+      },
+      "distanceKm": 6769.354304694709,
+      "score": 169
+    },
+    {
+      "roundId": "cmwnzl6ai000gsdho75k4xvbk",
+      "number": 2,
+      "actual": {
+        "lat": 49.28259841975399,
+        "lon": -123.1207142245267
+      },
+      "guess": {
+        "lat": 59.1735712368309,
+        "lon": -137.8125
+      },
+      "distanceKm": 1450.150807901702,
+      "score": 2421
+    },
+    {
+      "roundId": "cmwnzl78x000isdho91kx8izv",
+      "number": 3,
+      "actual": {
+        "lat": 13.75631103963557,
+        "lon": 100.5017744393435
+      },
+      "guess": {
+        "lat": 59.1735712368309,
+        "lon": -137.8125
+      },
+      "distanceKm": 10372.46170536444,
+      "score": 28
+    },
+    {
+      "roundId": "cmwnzl81u000ksdhopspivlag",
+      "number": 4,
+      "actual": {
+        "lat": 51.50093964650021,
+        "lon": -0.1245828717730149
+      },
+      "guess": {
+        "lat": 59.1735712368309,
+        "lon": -137.8125
+      },
+      "distanceKm": 7132.148445824625,
+      "score": 141
+    },
+    {
+      "roundId": "cmwnzl8zf000msdhot8k0t299",
+      "number": 5,
+      "actual": {
+        "lat": -1.286352043148993,
+        "lon": 36.81720667681742
+      },
+      "guess": {
+        "lat": 59.1735712368309,
+        "lon": -137.8125
+      },
+      "distanceKm": 13561.44003046305,
+      "score": 6
+    }
+  ],
+  "errors": [],
+  "cameraMoved": true,
+  "streetNavigated": true,
+  "restarted": true,
+  "returnedHome": true
+}

@@ -6,6 +6,7 @@ export interface Env {
   corsOrigin: string | false;
   adminApiToken: string;
   openMeteoBaseUrl: string;
+  openMeteoApiKey?: string;
   logLevel: string;
   googleClientId?: string;
   googleClientSecret?: string;
@@ -45,6 +46,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     adminApiToken: env.ADMIN_API_TOKEN ?? '',
     openMeteoBaseUrl:
       env.OPEN_METEO_BASE_URL?.trim() || DEFAULT_OPEN_METEO_BASE_URL,
+    openMeteoApiKey: env.OPEN_METEO_API_KEY?.trim() || undefined,
     logLevel: env.LOG_LEVEL?.trim() || DEFAULT_LOG_LEVEL,
     googleClientId: env.GOOGLE_CLIENT_ID?.trim() || undefined,
     googleClientSecret: env.GOOGLE_CLIENT_SECRET?.trim() || undefined,

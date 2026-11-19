@@ -17,6 +17,11 @@ export function GuessMap({
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<google.maps.Map | null>(null)
   const marker = useRef<google.maps.Marker | null>(null)
+  const canSelect = useRef(interactive)
+  useEffect(() => {
+    canSelect.current = interactive
+    marker.current?.setDraggable(interactive)
+  }, [interactive])
   const callback = useRef(onChange)
   useEffect(() => {
     callback.current = onChange
@@ -38,8 +43,8 @@ export function GuessMap({
         if (cancelled || !container.current) return
         const instance = new maps.Map(container.current, {
           center: { lat: 20, lng: 0 },
-          zoom: 1,
-          minZoom: 1,
+          zoom: 0,
+          minZoom: 0,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
@@ -58,11 +63,12 @@ export function GuessMap({
               'Map tiles could not be loaded. Check your connection and retry.',
             )
         }, 20000)
-        maps.event.addListenerOnce(instance, 'tilesloaded', () =>
-          clearTimeout(tilesTimer),
-        )
+        instance.addListener('tilesloaded', () => {
+          clearTimeout(tilesTimer)
+          if (!cancelled) setError(null)
+        })
         instance.addListener('click', (event: google.maps.MapMouseEvent) => {
-          if (interactive && event.latLng)
+          if (canSelect.current && event.latLng)
             callback.current?.({
               lat: event.latLng.lat(),
               lon: event.latLng.lng(),
@@ -145,18 +151,25 @@ export function GuessMap({
       if (map.current) google.maps.event.clearInstanceListeners(map.current)
       map.current = null
     }
-  }, [interactive, retry])
-  // The map is initialized independently of the marker. The idle event handles
-  // guesses restored before the asynchronous Google loader has completed.
+  }, [retry])
+  // Synchronize the pin after map initialization, including saved guesses.
+  // Changing editability preserves the map, its zoom, and its center.
   useEffect(() => {
     let cancelled = false
-    if (!guess || !browserMapsKey()) return
+    if (!guess) {
+      marker.current?.setMap(null)
+      marker.current = null
+      return
+    }
+    if (!browserMapsKey()) return
     void loadGoogleMaps()
       .then((maps) => {
         if (cancelled || !map.current) return
         const position = { lat: guess.lat, lng: guess.lon }
-        if (marker.current) marker.current.setPosition(position)
-        else {
+        if (marker.current) {
+          marker.current.setPosition(position)
+          marker.current.setDraggable(interactive)
+        } else {
           marker.current = new maps.Marker({
             map: map.current,
             position,
@@ -174,7 +187,7 @@ export function GuessMap({
           marker.current.addListener(
             'dragend',
             (event: google.maps.MapMouseEvent) => {
-              if (event.latLng)
+              if (canSelect.current && event.latLng)
                 callback.current?.({
                   lat: event.latLng.lat(),
                   lon: event.latLng.lng(),
@@ -203,7 +216,7 @@ export function GuessMap({
         <div className="sp-map-unavailable">
           <span aria-hidden="true">◎</span>
           <strong>World map</strong>
-          <small>Map provider not configured</small>
+          <small>Google Maps browser key is missing</small>
         </div>
       )}
       {error && (

@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
+import { ApiError } from '../../api/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { singleplayerApi } from '../../api/singleplayer'
 import { useGameSession } from './useGameSession'
@@ -11,6 +13,7 @@ vi.mock('../../api/singleplayer', () => ({
     session: vi.fn(),
     next: vi.fn(),
     guess: vi.fn(),
+    retry: vi.fn(),
   },
 }))
 vi.mock('./googleMaps', () => ({
@@ -29,7 +32,11 @@ beforeEach(() => {
   vi.resetAllMocks()
   sessionStorage.clear()
   vi.mocked(browserMapsKey).mockReturnValue('test-only-key')
-  vi.mocked(singleplayerApi.config).mockResolvedValue({ available: true })
+  vi.mocked(singleplayerApi.config).mockResolvedValue({
+    available: true,
+    provider: 'google',
+    serverKeyConfigured: true,
+  })
   vi.mocked(singleplayerApi.create).mockResolvedValue({
     id: 'test-game',
     playerToken: 'test-token',
@@ -211,5 +218,89 @@ describe('recovery and complete expedition', () => {
     expect(singleplayerApi.create).toHaveBeenCalledTimes(2)
     expect(result.current.session.totalScore).toBe(0)
     expect(result.current.showFinal).toBe(false)
+  })
+})
+
+describe('configured gameplay recovery', () => {
+  it('reports both missing credentials instead of skipping the backend check', async () => {
+    vi.mocked(browserMapsKey).mockReturnValue('')
+    vi.mocked(singleplayerApi.config).mockResolvedValue({
+      available: false,
+      provider: 'google',
+      serverKeyConfigured: false,
+    })
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.checking).toBe(false))
+    expect(singleplayerApi.config).toHaveBeenCalledOnce()
+    expect(result.current.setupIssues).toHaveLength(2)
+    expect(result.current.setupIssues.join(' ')).toContain(
+      'VITE_GOOGLE_MAPS_API_KEY',
+    )
+    expect(result.current.setupIssues.join(' ')).toContain(
+      'GOOGLE_MAPS_SERVER_API_KEY',
+    )
+  })
+  it('starts one session automatically from Play Solo, including StrictMode', async () => {
+    const { result } = renderHook(() => useGameSession(true), {
+      wrapper: ({ children }) => <StrictMode>{children}</StrictMode>,
+    })
+    await waitFor(() =>
+      expect(result.current.session.activeRound).toEqual(round),
+    )
+    expect(singleplayerApi.create).toHaveBeenCalledTimes(1)
+    expect(singleplayerApi.next).toHaveBeenCalledTimes(1)
+  })
+  it('restores the selected pin on refresh', async () => {
+    sessionStorage.setItem(
+      'terraguessr.streetSession.v1',
+      JSON.stringify({ id: 'test-game', playerToken: 'test-token' }),
+    )
+    sessionStorage.setItem(
+      'terraguessr.streetGuess.v1',
+      JSON.stringify({
+        gameId: 'test-game',
+        roundId: round.id,
+        guess: { lat: 12, lon: 34 },
+      }),
+    )
+    const { result } = renderHook(useGameSession)
+    await waitFor(() =>
+      expect(result.current.session.activeRound).toEqual(round),
+    )
+    expect(result.current.guess).toEqual({ lat: 12, lon: 34 })
+  })
+  it('replaces a failed panorama without skipping or scoring the round', async () => {
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next())
+    act(() => result.current.setGuess({ lat: 12, lon: 34 }))
+    vi.mocked(singleplayerApi.retry).mockResolvedValueOnce({
+      ...round,
+      panoId: 'replacement-panorama',
+    })
+    await act(() => result.current.retryLocation())
+    expect(result.current.session.activeRound).toEqual({
+      ...round,
+      panoId: 'replacement-panorama',
+    })
+    expect(result.current.session.results).toHaveLength(0)
+    expect(result.current.guess).toBeNull()
+    expect(singleplayerApi.guess).not.toHaveBeenCalled()
+  })
+  it('lets an expired expedition start again instead of remaining stuck', async () => {
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next())
+    act(() => {
+      result.current.setGuess({ lat: 12, lon: 34 })
+      result.current.setPanoramaReady(true)
+    })
+    const expired = new ApiError('NOT_FOUND', 'Game not found', 404)
+    vi.mocked(singleplayerApi.guess).mockRejectedValueOnce(expired)
+    vi.mocked(singleplayerApi.session).mockRejectedValueOnce(expired)
+    await act(() => result.current.submit())
+    expect(result.current.session.id).toBe('')
+    expect(result.current.error).toContain('expired')
+    expect(sessionStorage.getItem('terraguessr.streetSession.v1')).toBeNull()
   })
 })

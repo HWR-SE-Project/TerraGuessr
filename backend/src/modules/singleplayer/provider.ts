@@ -1,6 +1,8 @@
 import { randomInt } from 'node:crypto';
 import type { LatLon } from '../../domain/distance.js';
 import { haversineKm } from '../../domain/distance.js';
+import { PanoramaError, providerFailure } from './providerErrors.js';
+export { PanoramaError } from './providerErrors.js';
 
 // Independently selected road coordinates, not a catalogue of Google imagery.
 // Coverage is checked live. A failed lookup is never treated as a panorama.
@@ -37,13 +39,6 @@ export const ROAD_TARGETS = [
   [6.5244, 3.3792],
 ] as const;
 
-export class PanoramaError extends Error {
-  readonly statusCode = 503;
-  constructor(readonly reason: string) {
-    super(reason);
-  }
-}
-
 export interface PanoramaTarget {
   panoId: string;
   targetIndex: number;
@@ -57,11 +52,15 @@ export function googlePanoramaProvider(
   fetcher: typeof fetch = fetch,
 ): PanoramaProvider {
   return async (used) => {
-    if (!key) throw new PanoramaError('Street View is not configured.');
+    if (!key)
+      throw new PanoramaError(
+        'GOOGLE_MAPS_SERVER_API_KEY is missing. Configure the server Street View key and restart the backend.',
+        'MISSING_SERVER_KEY',
+      );
     const candidates = ROAD_TARGETS.map((_, i) => i).filter(
       (i) => !used.includes(i),
     );
-    for (let attempt = 0; attempt < 6 && candidates.length; attempt++) {
+    for (let attempt = 0; attempt < 12 && candidates.length; attempt++) {
       const index = candidates.splice(randomInt(candidates.length), 1)[0]!;
       const [lat, lon] = ROAD_TARGETS[index]!;
       const url = new URL(
@@ -73,41 +72,18 @@ export function googlePanoramaProvider(
         source: 'outdoor',
         key,
       }).toString();
-      let response: Response;
-      try {
-        response = await fetcher(url, { signal: AbortSignal.timeout(8000) });
-      } catch {
-        throw new PanoramaError(
-          'Street View provider could not be reached. Please retry.',
-        );
-      }
-      if (!response.ok)
-        throw new PanoramaError(
-          'Street View provider is unavailable. Please retry.',
-        );
-      let data: {
-        status?: string;
-        pano_id?: string;
-        location?: { lat: number; lng: number };
-      };
-      try {
-        data = (await response.json()) as typeof data;
-      } catch {
-        throw new PanoramaError(
-          'Street View provider returned an invalid response.',
-        );
-      }
+      const data = await metadata(url, fetcher);
       if (data.status === 'ZERO_RESULTS' || data.status === 'NOT_FOUND')
         continue;
       if (data.status !== 'OK')
-        throw new PanoramaError(
-          'Street View access was denied or its quota is exhausted. Check the server API configuration.',
-        );
+        throw providerFailure(data.status, data.error_message);
+      // The metadata endpoint can return contributor photospheres despite an
+      // outdoor query. Those often have no street links and cannot be played.
+      if (!/(?:^|[\s©])Google(?: LLC)?$/.test(data.copyright ?? '')) continue;
       if (
         data.pano_id &&
         data.location &&
-        Number.isFinite(data.location.lat) &&
-        Number.isFinite(data.location.lng) &&
+        validPosition(data.location) &&
         haversineKm(
           { lat, lon },
           { lat: data.location.lat, lon: data.location.lng },
@@ -129,32 +105,72 @@ export function googlePanoramaLocator(
   fetcher: typeof fetch = fetch,
 ) {
   return async (panoId: string): Promise<LatLon> => {
-    if (!key) throw new PanoramaError('Street View is not configured.');
+    if (!key)
+      throw new PanoramaError(
+        'GOOGLE_MAPS_SERVER_API_KEY is missing. Configure the server Street View key and restart the backend.',
+        'MISSING_SERVER_KEY',
+      );
     const url = new URL(
       'https://maps.googleapis.com/maps/api/streetview/metadata',
     );
     url.search = new URLSearchParams({ pano: panoId, key }).toString();
-    try {
-      const response = await fetcher(url, {
-        signal: AbortSignal.timeout(8000),
-      });
-      const data = (await response.json()) as {
-        status?: string;
-        location?: { lat: number; lng: number };
-      };
-      if (
-        response.ok &&
-        data.status === 'OK' &&
-        data.location &&
-        Number.isFinite(data.location.lat) &&
-        Number.isFinite(data.location.lng)
-      )
-        return { lat: data.location.lat, lon: data.location.lng };
-    } catch {
-      /* Do not log request URLs or provider responses containing keys. */
-    }
-    throw new PanoramaError(
-      'The panorama position could not be verified. Please retry.',
-    );
+    const data = await metadata(url, fetcher);
+    if (data.status !== 'OK')
+      throw providerFailure(data.status, data.error_message);
+    if (!data.location || !validPosition(data.location))
+      throw new PanoramaError(
+        'The panorama position could not be verified. Please retry.',
+        'PROVIDER_INVALID_RESPONSE',
+      );
+    return { lat: data.location.lat, lon: data.location.lng };
   };
+}
+
+interface Metadata {
+  copyright?: string;
+  status?: string;
+  error_message?: string;
+  pano_id?: string;
+  location?: { lat: number; lng: number };
+}
+function validPosition(point: { lat: number; lng: number }): boolean {
+  return (
+    Number.isFinite(point.lat) &&
+    Number.isFinite(point.lng) &&
+    Math.abs(point.lat) <= 90 &&
+    Math.abs(point.lng) <= 180
+  );
+}
+async function metadata(url: URL, fetcher: typeof fetch): Promise<Metadata> {
+  let response: Response;
+  try {
+    response = await fetcher(url, { signal: AbortSignal.timeout(8000) });
+  } catch {
+    throw new PanoramaError(
+      'Street View provider could not be reached. Check the server network connection and retry.',
+      'PROVIDER_NETWORK_ERROR',
+    );
+  }
+  if (response.status === 429) throw providerFailure('OVER_QUERY_LIMIT');
+  if (response.status >= 500)
+    throw new PanoramaError(
+      'Google Street View is temporarily unavailable. Please retry.',
+      'PROVIDER_NETWORK_ERROR',
+    );
+  let data: Metadata;
+  try {
+    data = (await response.json()) as Metadata;
+  } catch {
+    throw new PanoramaError(
+      'Street View provider returned an invalid response. Please retry.',
+      'PROVIDER_INVALID_RESPONSE',
+    );
+  }
+  if (!data || typeof data !== 'object' || typeof data.status !== 'string')
+    throw new PanoramaError(
+      'Street View provider returned an invalid response. Please retry.',
+      'PROVIDER_INVALID_RESPONSE',
+    );
+  if (!response.ok) throw providerFailure(data.status, data.error_message);
+  return data;
 }

@@ -21,7 +21,7 @@ interface OpenMeteoResponse {
 export class OpenMeteoClient implements WeatherClient {
   private readonly baseUrl: string;
 
-  constructor(baseUrl?: string) {
+  constructor(baseUrl?: string, private readonly apiKey = process.env.OPEN_METEO_API_KEY?.trim()) {
     const raw =
       baseUrl ?? process.env.OPEN_METEO_BASE_URL ?? DEFAULT_OPEN_METEO_BASE_URL;
     this.baseUrl = raw.replace(/\/+$/, '');
@@ -35,7 +35,8 @@ export class OpenMeteoClient implements WeatherClient {
       '?latitude=' + lat +
       '&longitude=' + lon +
       '&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,surface_pressure,wind_direction_10m,uv_index' +
-      '&daily=sunshine_duration&timezone=auto&wind_speed_unit=kmh&temperature_unit=celsius&precipitation_unit=mm';
+      '&daily=sunshine_duration&timezone=auto&wind_speed_unit=kmh&temperature_unit=celsius&precipitation_unit=mm' +
+      (this.apiKey ? '&apikey=' + encodeURIComponent(this.apiKey) : '');
 
     // Phase C hardening: never let a stuck upstream hang a round-start — the
     // R13 fallback (selectWithWeatherFallback) treats any rejection here the

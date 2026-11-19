@@ -51,13 +51,17 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
     registerSingleplayerRoutes(unavailable, { db });
     expect(
       (await unavailable.inject('/api/singleplayer/config')).json(),
-    ).toEqual({ available: false });
+    ).toEqual({
+      available: false,
+      provider: 'google',
+      serverKeyConfigured: false,
+    });
     const response = await unavailable.inject({
       method: 'POST',
       url: '/api/singleplayer/games',
     });
     expect(response.statusCode).toBe(503);
-    expect(response.json().error.code).toBe('STREET_VIEW_UNAVAILABLE');
+    expect(response.json().error.code).toBe('MISSING_SERVER_KEY');
     await unavailable.close();
   });
   it('plays five rounds, reveals answers only after guessing, and persists exact geodesic scores', async () => {
@@ -292,7 +296,7 @@ describe('Street View scoring availability (real database; provider doubles)', (
     const failed = await app.inject(request);
     expect(failed.statusCode).toBe(503);
     expect(failed.json().error).toEqual({
-      code: 'STREET_VIEW_UNAVAILABLE',
+      code: 'PANORAMA_UNAVAILABLE',
       message: 'The panorama position could not be verified. Please retry.',
     });
     expect(
@@ -300,5 +304,112 @@ describe('Street View scoring availability (real database; provider doubles)', (
         .score,
     ).toBeNull();
     expect((await app.inject(request)).statusCode).toBe(200);
+  });
+});
+
+describe('replacing unavailable Street View locations (database integration)', () => {
+  const db = new PrismaClient();
+  const app = Fastify();
+  const ids: string[] = [];
+  let release: (() => void) | undefined;
+  let locating: (() => void) | undefined;
+  let pauseLookup = false;
+  beforeAll(() => {
+    registerErrorHandler(app);
+    registerSingleplayerRoutes(app, {
+      db,
+      provider: async (used) => ({
+        panoId: `retry-test-pano-${used.length}`,
+        targetIndex: used.length,
+        lat: 50,
+        lon: 10,
+      }),
+      locate: async () => {
+        if (pauseLookup) {
+          locating?.();
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+        return { lat: 50, lon: 10 };
+      },
+    });
+  });
+  afterAll(async () => {
+    release?.();
+    await app.close();
+    await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.$disconnect();
+  });
+  async function start() {
+    const auth = (
+      await app.inject({ method: 'POST', url: '/api/singleplayer/games' })
+    ).json();
+    ids.push(auth.id);
+    const base = `/api/singleplayer/games/${auth.id}`;
+    const headers = { 'x-player-token': auth.playerToken };
+    const round = (
+      await app.inject({ method: 'POST', url: `${base}/rounds`, headers })
+    ).json();
+    return { base, headers, round };
+  }
+  it('replaces the image in the same round, hides its answer, and rejects replacements after scoring', async () => {
+    const { base, headers, round } = await start();
+    const url = `${base}/rounds/${round.id}/retry`;
+    expect((await app.inject({ method: 'POST', url })).statusCode).toBe(404);
+    const retried = await app.inject({ method: 'POST', url, headers });
+    expect(retried.statusCode).toBe(200);
+    expect(retried.json()).toEqual({
+      id: round.id,
+      number: 1,
+      panoId: 'retry-test-pano-1',
+    });
+    const before = (await app.inject({ url: base, headers })).json();
+    expect(before.results).toEqual([]);
+    expect(before.totalScore).toBe(0);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `${base}/rounds/${round.id}/guess`,
+          headers,
+          payload: { lat: 50, lon: 10 },
+        })
+      ).json().score,
+    ).toBe(5000);
+    expect(
+      (await app.inject({ method: 'POST', url, headers })).statusCode,
+    ).toBe(409);
+  });
+  it('cannot score an old image while a replacement commits concurrently', async () => {
+    const { base, headers, round } = await start();
+    pauseLookup = true;
+    const lookupStarted = new Promise<void>((resolve) => {
+      locating = resolve;
+    });
+    const guess = app
+      .inject({
+        method: 'POST',
+        url: `${base}/rounds/${round.id}/guess`,
+        headers,
+        payload: { lat: 50, lon: 10 },
+      })
+      .then((response) => response);
+    await lookupStarted;
+    const retried = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/${round.id}/retry`,
+      headers,
+    });
+    expect(retried.statusCode).toBe(200);
+    release?.();
+    const scored = await guess;
+    expect(scored.statusCode).toBe(409);
+    const persisted = await db.streetRound.findUniqueOrThrow({
+      where: { id: round.id },
+    });
+    expect(persisted.score).toBeNull();
+    expect(persisted.panoId).toBe('retry-test-pano-1');
+    pauseLookup = false;
   });
 });

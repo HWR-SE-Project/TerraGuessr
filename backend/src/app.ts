@@ -1,3 +1,4 @@
+import { createIntelligenceProvider } from './modules/intelligence/service.js';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import { Type } from '@sinclair/typebox';
@@ -44,7 +45,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerStatisticsRoutes(app);
   registerChallengesRoutes(app);
   registerGamesRoutes(app);
-  registerSingleplayerRoutes(app, { key: config.googleMapsServerKey });
+  registerSingleplayerRoutes(app, {
+    key: config.googleMapsServerKey,
+    intelligence: createIntelligenceProvider({
+      baseUrl: config.openMeteoBaseUrl,
+      apiKey: config.openMeteoApiKey,
+    }),
+  });
   registerRoundsRoutes(app);
   registerResultsRoutes(app);
   registerAdminRoutes(app, { adminApiToken: config.adminApiToken });

@@ -73,6 +73,13 @@ describe('OpenMeteoClient', () => {
     });
   });
 
+  it('supports the server-only commercial key without changing existing weather modes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ current: { temperature_2m: 12, relative_humidity_2m: 50, precipitation: 0, wind_speed_10m: 3 } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await new OpenMeteoClient('https://customer-api.open-meteo.com', 'test-only-key').getCurrent(1, 2);
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('apikey')).toBe('test-only-key');
+  });
+
   it('throws when the response is not ok', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({}, false, 503)));
     const client = new OpenMeteoClient('https://fake.example');

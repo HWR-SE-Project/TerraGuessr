@@ -2,7 +2,9 @@
 
 Local page: **http://127.0.0.1:5173/game/singleplayer**
 
-Implementation checkpoint: `fe35d43`. Nothing was pushed. The approved Home layout is unchanged: only its Solo card and Singleplayer link destinations changed. Auth, Duels, daily challenges, and the original weather game at `/play` remain separate.
+Current gameplay reliability checkpoint: `26d08d6` (original implementation checkpoint: `fe35d43`). Nothing was pushed. The approved Home layout is unchanged: only its Solo card and Singleplayer link destinations changed. Auth, Duels, daily challenges, and the original weather game at `/play` remain separate.
+
+Real Google Street View and map gameplay are now configured and verified end to end. See [current setup and diagnosis](GOOGLE_MAPS_SETUP.md) and [verification](VERIFICATION.md).
 
 ## Implemented
 
@@ -16,7 +18,7 @@ Implementation checkpoint: `fe35d43`. Nothing was pushed. The approved Home layo
 
 ## Required API configuration
 
-Two **different** keys are required. OAuth client credentials are unrelated and are not reused.
+Two environment entries are required; use **separate restricted keys for deployment**. The supplied local credential currently works for both services. See [current setup](GOOGLE_MAPS_SETUP.md). OAuth client credentials are unrelated and are not reused.
 
 1. In the root `.env`, set `GOOGLE_MAPS_SERVER_API_KEY`. Enable **Street View Static API** on its Google Cloud project. Restrict this key to that API and the backend's outbound IP addresses. It is used only by the backend for official metadata requests, never for downloading images. Do not put it in any `VITE_*` variable.
 2. Copy `frontend/.env.example` to `frontend/.env.local`. Set `VITE_GOOGLE_MAPS_API_KEY`. Enable **Maps JavaScript API**, configure billing, restrict this browser key to that API and exact HTTP referrers such as `http://127.0.0.1:5173/*`, `http://localhost:5173/*`, and the production origin. Browser keys are intentionally public; the operator must apply restrictions in Google Cloud. Application code cannot set those restrictions.
@@ -51,7 +53,7 @@ Start the frontend from the application repository in another:
 VITE_DEV_API_PROXY_TARGET=http://127.0.0.1:3005 npm run dev --prefix frontend -- --host 127.0.0.1 --port 5173
 ```
 
-Vite proxies `/api` without rewriting Host, preserving existing same-site authentication behavior. The public URL above is already running in this workspace. Without the two Maps keys, it shows the actual unavailable state and disables guessing.
+Vite proxies `/api` without rewriting Host, preserving existing same-site authentication behavior. The public URL above is already running in this workspace. The supplied local credential now enables actual gameplay. On installations without keys, the page reports exactly which configuration is missing and disables guessing.
 
 ## API and scoring
 
@@ -63,11 +65,12 @@ New, isolated endpoints:
 | `POST /api/singleplayer/games` | Create a five-round session; return an opaque player token once |
 | `GET /api/singleplayer/games/:gameId` | Resume active round and retrieve completed results/total |
 | `POST /api/singleplayer/games/:gameId/rounds` | Start next round, or return the existing active round on retry |
+| `POST /api/singleplayer/games/:gameId/rounds/:roundId/retry` | Replace unavailable imagery in the same unscored round |
 | `POST /api/singleplayer/games/:gameId/rounds/:roundId/guess` | Submit `{lat, lon}` and receive the locked result |
 
 Owned requests require `X-Player-Token`; only its SHA-256 hash is stored. Wrong/missing tokens and expired sessions return 404. Session/round/result responses carry `Cache-Control: no-store`. Resource creation, round creation, reads, and scoring are rate limited. Sessions expire after 24 hours; expired sessions are lazily removed on new session creation, cascading their rounds.
 
-Locations come from 30 independently authored worldwide road targets. Each round randomly tries up to six unused targets against Google's live outdoor coverage, accepting a panorama only within 50 m of the target. Repeated target indices are excluded within an expedition. This is a bounded curated pool, not unrestricted random worldwide sampling.
+Locations come from 30 independently authored worldwide road targets. Each round randomly tries up to twelve unused targets against Google's live outdoor coverage, accepting a panorama only within 50 m of the target. Repeated target indices are excluded within an expedition. This is a bounded curated pool, not unrestricted random worldwide sampling.
 
 The response before guessing contains **only round ID, round number, and panorama ID**. Neither target nor actual coordinates are sent. The server resolves the **exact original panorama position live when scoring**, rather than scoring against the nearby authored search target. Player navigation does not change the round answer.
 
@@ -86,33 +89,18 @@ This is singleplayer only. The API avoids sending answer coordinates early, but 
 
 ## Verification and screenshots
 
-See [verification report](VERIFICATION.md) for exact test results and known existing failures.
+See the [current verification report](VERIFICATION.md). A full real-provider game and mobile touch/refresh/submission tests passed on 19 November 2026. These are actual Google Maps/Street View captures:
 
-The referenced image was not present in the received conversation. The implementation follows the brief's corner composition; pixel comparison against the absent reference cannot be claimed. Desktop captures use 1792×861, and phone captures use 390×844. A browser geometry report also checks 320×640, 768×1024, 1024×768, 1280×800, and 844×390, with no horizontal overflow or compact-control overlap.
+- [Active desktop gameplay](../screenshots/playable/active-desktop.png)
+- [Active mobile gameplay](../screenshots/playable/active-mobile.png)
+- [Expanded guessing map](../screenshots/playable/expanded-map.png)
+- [Round results](../screenshots/playable/round-results.png)
+- [Final results](../screenshots/playable/final-results.png)
+- [Mobile round results](../screenshots/playable/mobile-round-results.png)
+- [Actual five-round API results and test report](../screenshots/playable/live-game-report.json)
 
-- [Desktop, actual unavailable state](../screenshots/singleplayer/desktop-unavailable-1792x861.png)
-- [Mobile, actual unavailable state](../screenshots/singleplayer/mobile-unavailable-390x844.png)
-- [Expanded map, actual unavailable state](../screenshots/singleplayer/expanded-map-unavailable.png)
-- [Mobile expanded map, actual unavailable state](../screenshots/singleplayer/mobile-expanded-map-unavailable.png)
-- [Settings](../screenshots/singleplayer/settings.png)
-- [Round results, labelled component fixture](../screenshots/singleplayer/round-results-component-fixture.png)
-- [Final results, labelled component fixture](../screenshots/singleplayer/final-results-component-fixture.png)
-- [Home regression capture](../screenshots/singleplayer/home-regression.png)
-- [Browser errors and geometry](../screenshots/singleplayer/browser-results.json)
+The previous `screenshots/singleplayer/` directory is retained as historical evidence of the original unavailable implementation and explicitly labelled component fixtures. It is superseded by the real gameplay captures above.
 
-Result captures use **isolated, explicitly labelled visual fixtures** to inspect result components without provider credentials. They are not live games, their coordinates and scores are illustrative, and they are never available in the production gameplay path. No Street View image or successful live API response was fabricated.
+Run `npm run maps:doctor` to check the configuration, and `npm run maps:verify` to run the live Google tests and regenerate the actual screenshots. The live command makes real provider requests and may consume the account's paid usage allowance. The separate missing-credential suite should run against a test server with the keys explicitly unset, not against the configured playable instance.
 
-Reproduce screenshots against the Vite development server:
-
-```sh
-node docs/screenshots/singleplayer/capture.mjs
-```
-
-After configuring real keys, run the opt-in live test to verify actual rotation, map selection, five-round scoring, final results, restart, and leaving:
-
-```sh
-TERRAGUESSR_LIVE_MAPS=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 \
-  npx playwright test e2e/singleplayer.spec.ts --grep 'live provider'
-```
-
-The unavailable-state tests assume keys are absent. The live test is skipped by default and makes real provider requests when enabled. Street navigation links, imagery rendering, live map tiles, touch gestures on physical devices, and screenshots of a genuine completed expedition still require the configured provider and an actual reference image for the requested visual comparison. New singleplayer results are tab-local, expire after 24 hours, and are not added to existing account weather-game statistics.
+Remaining constraints: thirty curated road search targets, 24-hour tab-local sessions, no ranked anti-cheat or integration into legacy account weather statistics, and no physical-device coverage beyond Chromium touch emulation. Deployment key restrictions require the Google Cloud project owner; see [setup](GOOGLE_MAPS_SETUP.md). No reference image was attached to the received task, so exact pixel comparison remains unavailable.
