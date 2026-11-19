@@ -1,0 +1,7 @@
+{
+  "baseURL": "http://localhost:5175",
+  "provider": "Real backend and live weather; no interception",
+  "verifiedStates": ["duel-dialog-desktop", "duel-dialog-mobile", "challenge-created-desktop", "challenge-created-mobile", "challenge-leaderboard-desktop", "challenge-leaderboard-mobile", "challenge-invalid-desktop", "challenge-invalid-mobile", "navigation-mobile", "auth-login-mobile"],
+  "passwordRecoveryFormAvailable": false,
+  "limitation": "The running auth configuration disables password recovery because the email service is not configured. The invalid password-reset link state was verified in the viewport matrix."
+}

@@ -1,0 +1,44 @@
+.tg-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: var(--control-height);
+  padding: 12px 24px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+  transition:
+    background var(--duration-fast),
+    transform var(--duration-fast),
+    border-color var(--duration-fast);
+}
+.tg-button--primary {
+  background: var(--color-lime);
+  color: var(--color-on-lime);
+}
+.tg-button--primary:hover:enabled {
+  background: var(--color-lime-hover);
+}
+.tg-button--secondary {
+  background: #ffffff05;
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+.tg-button--secondary:hover:enabled {
+  background: var(--color-surface-hover);
+}
+.tg-button--danger {
+  background: #ff9b9e0c;
+  border-color: #ff9b9e40;
+  color: var(--color-red);
+}
+.tg-button:active:enabled {
+  transform: translateY(1px);
+}
+.tg-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

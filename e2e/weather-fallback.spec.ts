@@ -13,7 +13,7 @@ test('a failed weather fetch falls back to another location instead of breaking 
   expect((await request.post(weatherUrl + '/__test__/fail-next?count=4')).status()).toBe(204);
 
   await registerAndLogin(page, 'Weather Fallback');
-  await startSoloGame(page, { difficulty: 'easy', mode: 'map', rounds: 3 });
+  await startSoloGame(page, { difficulty: 'medium', mode: 'map', rounds: 3 });
   await expect(page.getByTestId('weather-panel')).toBeVisible();
 
   await guessOnMap(page);

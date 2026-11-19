@@ -1,8 +1,8 @@
 .gi-panel,
 .gi-sheet,
 .gi-mobile-trigger {
-  --gi-lime: #b0ee64;
-  --gi-muted: #9baebb;
+  --gi-lime: var(--color-lime);
+  --gi-muted: var(--color-muted);
   color: #eff5f7;
   font-family: Inter, system-ui, sans-serif;
   font-size: 12px;
@@ -71,7 +71,7 @@
 .gi-header small {
   display: block;
   color: var(--gi-muted);
-  font-size: 6.8px;
+  font-size: 8px;
   letter-spacing: 1.05px;
   margin-top: 4px;
 }
@@ -127,7 +127,7 @@
 }
 .gi-section-label > span {
   color: #8d9fac;
-  font-size: 6.5px;
+  font-size: 8px;
   letter-spacing: 1.2px;
   font-weight: 600;
 }
@@ -215,7 +215,7 @@
   letter-spacing: -0.4px;
 }
 .gi-metrics small {
-  font-size: 7px;
+  font-size: 8px;
   color: #a9bac5;
   font-weight: 400;
   letter-spacing: 0;
@@ -223,7 +223,7 @@
 .gi-metrics em {
   display: flex;
   gap: 5px;
-  font-size: 7px;
+  font-size: 8px;
   font-style: normal;
   color: var(--gi-muted);
   min-height: 9px;
@@ -353,7 +353,7 @@
 }
 .gi-estimated {
   display: inline-block;
-  font-size: 6px;
+  font-size: 8px;
   margin-left: 5px;
   padding: 3px;
   color: #c0daa8;
@@ -412,7 +412,7 @@
 .gi-climate small {
   display: block;
   margin-top: 4px;
-  font-size: 6px;
+  font-size: 8px;
   letter-spacing: 1px;
   color: #8d9fac;
 }
@@ -426,7 +426,7 @@
   border-top: 1px solid #d9edfa10;
   padding: 12px 17px 11px;
   background: #030c151e;
-  font-size: 7px;
+  font-size: 8px;
   color: #a2b5c2;
 }
 .gi-footer > div:first-child {
@@ -446,7 +446,7 @@
 }
 .gi-footer p {
   margin: 6px 0 8px;
-  font-size: 7px;
+  font-size: 8px;
   color: #95a9b8;
   line-height: 1.6;
 }
@@ -454,7 +454,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 6.5px;
+  font-size: 8px;
 }
 .gi-attribution a {
   color: #a9bbc7;
@@ -640,7 +640,7 @@
   }
   .gi-sheet-eyebrow {
     display: block;
-    font-size: 7px;
+    font-size: 8px;
     letter-spacing: 1.2px;
     color: var(--gi-muted);
     margin: 2px 0 18px;

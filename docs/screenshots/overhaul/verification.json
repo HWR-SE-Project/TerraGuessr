@@ -1,0 +1,182 @@
+{
+  "date": "2026-11-19",
+  "checkpoint": "94d4031",
+  "productionURL": "http://localhost:5175",
+  "developmentURL": "http://localhost:5173",
+  "checks": {
+    "frontendTypecheck": {
+      "status": "passed",
+      "command": "cd frontend && npx tsc -b (also part of production build)"
+    },
+    "frontendUnit": {
+      "status": "passed",
+      "files": 10,
+      "tests": 52
+    },
+    "backendUnit": {
+      "status": "passed",
+      "files": 22,
+      "tests": 179
+    },
+    "frontendESLint": {
+      "status": "passed",
+      "errors": 0,
+      "command": "backend/node_modules/.bin/eslint --config backend/eslint.config.js --no-inline-config frontend/src"
+    },
+    "frontendOxlint": {
+      "status": "passed",
+      "errors": 0,
+      "preExistingWarnings": 5
+    },
+    "backendESLint": {
+      "status": "passed",
+      "command": "npm run lint --prefix backend"
+    },
+    "backendTypecheck": {
+      "status": "passed",
+      "command": "npm run typecheck --prefix backend"
+    },
+    "productionBuild": {
+      "status": "passed",
+      "warning": "The lazy Three.js scene chunk exceeds 500KB; see design report."
+    },
+    "productionE2E": {
+      "status": "passed",
+      "tests": 29,
+      "browser": "Chromium",
+      "liveGoogleMaps": true,
+      "liveWeather": true,
+      "command": "PLAYWRIGHT_BASE_URL=http://localhost:5175 PLAYWRIGHT_REGISTRATION_INTERVAL_MS=7000 TERRAGUESSR_LIVE_MAPS=1 npx playwright test [11 applicable spec files]"
+    },
+    "unavailableProviderE2E": {
+      "status": "passed",
+      "tests": 3,
+      "baseURL": "http://localhost:5174",
+      "setup": "Separate frontend with a deliberately absent browser Maps key; running backend remains real."
+    },
+    "viewportAudit": {
+      "status": "passed",
+      "checks": 59,
+      "pageErrors": 0,
+      "dimensions": [
+        [
+          1920,
+          1080
+        ],
+        [
+          1711,
+          864
+        ],
+        [
+          1440,
+          900
+        ],
+        [
+          1280,
+          800
+        ],
+        [
+          768,
+          1024
+        ],
+        [
+          390,
+          844
+        ],
+        [
+          375,
+          812
+        ]
+      ],
+      "functionality": {
+        "registration": true,
+        "streetView": true,
+        "dialogEscape": true,
+        "fiveRealRounds": true,
+        "resultDetails": true,
+        "returnHome": true,
+        "webGLFallback": true
+      }
+    },
+    "finalDuelRefinementE2E": {
+      "status": "passed",
+      "tests": 4
+    },
+    "finalHomeRefinementE2E": {
+      "status": "passed",
+      "tests": 2
+    },
+    "finalVisualRefinements": {
+      "checks": [
+        {
+          "screen": "home",
+          "width": 1920,
+          "height": 1080,
+          "noOverflow": true
+        },
+        {
+          "screen": "home",
+          "width": 1711,
+          "height": 864,
+          "noOverflow": true
+        },
+        {
+          "screen": "home",
+          "width": 1440,
+          "height": 900,
+          "noOverflow": true
+        },
+        {
+          "screen": "home",
+          "width": 1280,
+          "height": 800,
+          "noOverflow": true
+        },
+        {
+          "screen": "home",
+          "width": 768,
+          "height": 1024,
+          "noOverflow": true
+        },
+        {
+          "screen": "home",
+          "width": 390,
+          "height": 844,
+          "noOverflow": true
+        },
+        {
+          "screen": "home",
+          "width": 375,
+          "height": 812,
+          "noOverflow": true
+        },
+        {
+          "screen": "duel-dialog",
+          "width": 390,
+          "height": 844,
+          "actionVisible": true
+        },
+        {
+          "screen": "duel-dialog",
+          "width": 375,
+          "height": 812,
+          "actionVisible": true
+        }
+      ],
+      "passwordRecoveryFormAvailable": false
+    }
+  },
+  "notVerified": [
+    "External OAuth provider round trips",
+    "Password recovery email delivery: email service unavailable",
+    "Weather failure-injection E2E: dedicated fake-weather service was not started",
+    "Safari, Firefox, physical mobile hardware",
+    "Production deployment and Lighthouse/GPU benchmarking"
+  ],
+  "scope": {
+    "remotePush": false,
+    "deployment": false,
+    "databaseSchemaChanges": false,
+    "backendSourceChanges": false
+  }
+}

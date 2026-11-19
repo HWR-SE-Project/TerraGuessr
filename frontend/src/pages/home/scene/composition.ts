@@ -22,14 +22,14 @@ interface CompositionProfile {
 
 // Tuned against the real desktop (1920x1080) and mobile (390x844) layouts.
 const WIDE: CompositionProfile = {
-  earthApexFrac: 0.593,
-  earthRadiusFactor: 2.55,
+  earthApexFrac: 0.61,
+  earthRadiusFactor: 3.8,
   charCenterFrac: 0.585,
   charHeightFrac: 0.305,
 }
 const NARROW: CompositionProfile = {
-  earthApexFrac: 0.655,
-  earthRadiusFactor: 2.3,
+  earthApexFrac: 0.63,
+  earthRadiusFactor: 4.2,
   charCenterFrac: 0.49,
   charHeightFrac: 0.32,
 }
@@ -42,7 +42,11 @@ function getProfile(aspect: number): CompositionProfile {
   const t = Math.min(1, Math.max(0, (aspect - 0.55) / (1.3 - 0.55)))
   return {
     earthApexFrac: lerp(NARROW.earthApexFrac, WIDE.earthApexFrac, t),
-    earthRadiusFactor: lerp(NARROW.earthRadiusFactor, WIDE.earthRadiusFactor, t),
+    earthRadiusFactor: lerp(
+      NARROW.earthRadiusFactor,
+      WIDE.earthRadiusFactor,
+      t,
+    ),
     charCenterFrac: lerp(NARROW.charCenterFrac, WIDE.charCenterFrac, t),
     charHeightFrac: lerp(NARROW.charHeightFrac, WIDE.charHeightFrac, t),
   }
@@ -70,7 +74,10 @@ export function computeSceneLayout(aspect: number): SceneLayout {
   const earthApexY = worldY(frustumHalfHeight, profile.earthApexFrac)
   const earthCenterY = earthApexY - earthRadius
 
-  const characterCenterWorldY = worldY(frustumHalfHeight, profile.charCenterFrac)
+  const characterCenterWorldY = worldY(
+    frustumHalfHeight,
+    profile.charCenterFrac,
+  )
   const characterWorldHeight = profile.charHeightFrac * 2 * frustumHalfHeight
   const characterScale = characterWorldHeight / CHARACTER_MODEL_HEIGHT
   // The character model's local origin is at its feet (y=0), not its vertical

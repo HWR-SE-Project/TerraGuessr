@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 import { registerAndLogin } from './support/game';
 
 test('signed-in player can play and submit today\'s daily challenge once, and see the leaderboard', async ({ page }) => {
-  await registerAndLogin(page, 'Daily Player');
+  const displayName = `Daily Player ${Date.now()}`;
+  await registerAndLogin(page, displayName);
   await page.goto('/daily');
 
   await expect(page.getByRole('heading', { name: 'Daily challenge' })).toBeVisible();
@@ -14,7 +15,7 @@ test('signed-in player can play and submit today\'s daily challenge once, and se
   await expect(page.locator('.tg-daily-result-value')).toBeVisible();
   await expect(page.getByText("Today's leaderboard")).toBeVisible();
   const rows = page.locator('.tg-daily-leaderboard-row');
-  await expect(rows.filter({ hasText: 'Daily Player' })).toHaveCount(1);
+  await expect(rows.filter({ hasText: displayName })).toHaveCount(1);
 
   // Revisiting shows the already-completed state, not a second playable round.
   await page.reload();
