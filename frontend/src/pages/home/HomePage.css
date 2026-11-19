@@ -1,0 +1,25 @@
+.tg-home-root {
+  position: relative;
+  width: 100%;
+  background: #171235;
+}
+
+.tg-home-desktop-slot {
+  display: flex;
+  justify-content: center;
+}
+
+.tg-home-mobile-slot {
+  display: none;
+  justify-content: center;
+}
+
+@media (max-width: 1023px) {
+  .tg-home-desktop-slot {
+    display: none;
+  }
+
+  .tg-home-mobile-slot {
+    display: flex;
+  }
+}

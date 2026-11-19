@@ -1,0 +1,25 @@
+.tg-duels-root {
+  position: relative;
+  width: 100%;
+  background: #171235;
+}
+
+.tg-duels-desktop-slot {
+  display: flex;
+  justify-content: center;
+}
+
+.tg-duels-mobile-slot {
+  display: none;
+  justify-content: center;
+}
+
+@media (max-width: 1023px) {
+  .tg-duels-desktop-slot {
+    display: none;
+  }
+
+  .tg-duels-mobile-slot {
+    display: flex;
+  }
+}
