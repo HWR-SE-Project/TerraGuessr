@@ -1,0 +1,37 @@
+.tg-auth-root {
+  --bg-deep: #171235;
+  --overlay-purple: #7950e5;
+  --overlay-dark: rgba(16, 16, 28, 0.4);
+  --footer-bg: rgba(16, 16, 28, 0.8);
+  --dialog-bg: #211a4c;
+  --horror-bg: #1a1a26;
+  --horror-border: #dc1934;
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.2);
+  --pill-border: rgba(255, 255, 255, 0.15);
+  --pill-bg: rgba(255, 255, 255, 0.05);
+  --text-dim-60: rgba(255, 255, 255, 0.6);
+  --text-dim-80: rgba(255, 255, 255, 0.8);
+  --text-dim-40: rgba(255, 255, 255, 0.4);
+  --green-top: #97e851;
+  --green-bottom: #479440;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-deep);
+  color: #fff;
+  position: relative;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.tg-auth-root * {
+  box-sizing: border-box;
+}
+
+.tg-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

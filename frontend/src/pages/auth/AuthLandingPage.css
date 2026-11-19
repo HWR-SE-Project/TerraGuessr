@@ -1,0 +1,88 @@
+.geo-landing {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
+  min-height: 640px;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff;
+  font-family: Inter, system-ui, sans-serif;
+  background: #514878;
+}
+
+.geo-landing *, .geo-landing *::before, .geo-landing *::after { box-sizing: border-box; }
+.geo-landing__background { position: absolute; inset: -1%; z-index: -3; width: 102%; height: 102%; object-fit: cover; object-position: center; filter: blur(7px) saturate(.2) brightness(1.45); }
+.geo-landing__purple { position: absolute; z-index: -2; inset: 0; background: rgba(135, 120, 170, .46); }
+.geo-landing__shade { position: absolute; z-index: -1; inset: 0; background: rgba(73, 66, 97, .2); }
+
+.geo-landing__header { position: absolute; z-index: 2; inset: 0 0 auto; height: 64px; display: flex; align-items: center; padding: 0 1.7vw 0 2.6vw; }
+.geo-landing__pin { width: 42px; height: 42px; object-fit: contain; flex: none; }
+.geo-landing__nav { display: flex; align-items: center; gap: clamp(18px, 2.1vw, 38px); margin-left: 14px; white-space: nowrap; }
+.geo-landing__nav a, .geo-landing__login, .geo-landing__signup, .geo-landing__code-label { font-size: clamp(12px, .9vw, 16px); font-style: italic; font-weight: 800; text-transform: uppercase; }
+.geo-landing__actions { display: flex; align-items: center; gap: clamp(12px, 1.2vw, 22px); margin-left: auto; }
+.geo-landing__language { display: flex; align-items: center; gap: 9px; width: 120px; height: 42px; padding: 0 10px; color: #fff; border: 1px solid rgba(255,255,255,.2); border-radius: 9px; background: rgba(255,255,255,.05); font-size: 14px; font-weight: 600; font-family: inherit; }
+.geo-landing__language img:first-child { width: 20px; height: 20px; }
+.geo-landing__language .geo-landing__chevron { width: 8px; height: 8px; margin-left: auto; }
+.geo-landing__code-label { color: rgba(255,255,255,.46); }
+.geo-landing__code { display: flex; gap: 5px; }
+.geo-landing__code input { width: 33px; height: 42px; padding: 0; border: 1px solid rgba(255,255,255,.22); border-radius: 7px; background: rgba(255,255,255,.05); color: #fff; text-align: center; font: inherit; }
+.geo-landing__login, .geo-landing__signup { color: #fff; border: 0; background: none; white-space: nowrap; }
+.geo-landing__signup, .geo-landing__card-footer button { border-radius: 24px; padding: 8px 12px; background: linear-gradient(180deg, rgba(189,181,255,.25), rgba(143,134,230,.25)); box-shadow: 0 3px 13px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.18), inset 0 -1px rgba(0,0,0,.3); }
+
+.geo-landing__hero { position: absolute; left: 9.75%; top: 0; width: 49%; height: 100%; }
+.geo-landing__logo { position: absolute; left: 0; top: 24.7%; width: 210px; height: auto; }
+.geo-landing__hero h1 { position: absolute; left: 0; top: 34.7%; margin: 0; color: #fff; font-size: clamp(64px, 4.8vw, 84px); line-height: 1.02; letter-spacing: -2.8px; font-weight: 900; font-style: italic; text-transform: uppercase; text-shadow: 0 3px 5px rgba(15,12,30,.6), 0 1px 1px rgba(15,12,30,.8); transform: scaleX(.97); transform-origin: left top; }
+.geo-landing__subtitle { position: absolute; left: 0; top: 58.8%; width: min(900px, 100%); margin: 0; color: rgba(255,255,255,.83); font-size: clamp(17px, 1.4vw, 20px); line-height: 1.3; font-weight: 600; }
+.geo-landing__badges { position: absolute; left: 0; top: 69.5%; height: 74px; display: flex; align-items: flex-start; }
+.geo-landing__platform, .geo-landing__rating { display: flex; flex-direction: column; gap: 7px; color: rgba(255,255,255,.65); font-size: 14px; white-space: nowrap; }
+.geo-landing__platform img { width: 145px; height: 34px; object-fit: contain; object-position: left center; }
+.geo-landing__badge-divider { height: 54px; margin: 0 20px; border-left: 1px dashed rgba(255,255,255,.2); }
+.geo-landing__rating img { width: 110px; height: 34px; object-fit: contain; object-position: left center; }
+
+.geo-landing__signup-card { position: absolute; top: 28%; right: 9.8%; width: min(22.5vw, 400px); min-width: 390px; height: 49.8%; min-height: 420px; border: 1px solid rgba(151,139,255,.3); border-radius: 22px; background: rgba(31,24,76,.97); box-shadow: 0 8px 18px rgba(15,12,40,.42), inset 0 1px 1px rgba(255,255,255,.14), inset 0 3px 10px rgba(108,96,212,.35); }
+.geo-landing__signup-card h2 { position: absolute; top: 8.4%; left: 0; right: 0; margin: 0; text-align: center; font-size: 29px; line-height: 1.2; font-style: italic; font-weight: 800; }
+.geo-landing__provider-buttons { position: absolute; top: 24.5%; left: 4.5%; right: 4.5%; display: flex; flex-direction: column; gap: 9px; }
+.geo-landing__provider { position: relative; display: flex; align-items: center; justify-content: center; height: 39px; border: 0; border-radius: 24px; font: italic 700 16px Inter, system-ui, sans-serif; }
+.geo-landing__provider img { position: absolute; left: calc(50% - 83px); width: 20px; height: 20px; object-fit: contain; }
+.geo-landing__provider span { transform: translateX(24px); }
+.geo-landing__provider--google { color: #0c0b10; background: #fff; }
+.geo-landing__provider--apple { color: #fff; background: #10101c; }
+.geo-landing__provider--facebook { color: #fff; background: #4769b0; }
+.geo-landing__provider--email { margin-top: 7px; height: 43px; color: #fff; border: 2px solid rgba(255,255,255,.2); background: transparent; }
+.geo-landing__or { position: absolute; top: 74%; left: 8%; right: 8%; display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,.58); font-size: 13px; font-style: italic; text-transform: uppercase; }
+.geo-landing__or span { flex: 1; border-top: 2px dashed rgba(255,255,255,.12); }
+.geo-landing__card-footer { position: absolute; top: 82%; left: 8%; right: 8%; display: flex; align-items: center; justify-content: center; gap: 14px; color: rgba(255,255,255,.62); font-size: 16px; font-style: italic; font-weight: 600; white-space: nowrap; }
+.geo-landing__card-footer button { color: white; font: italic 800 14px/1 Inter, system-ui, sans-serif; text-transform: uppercase; border: 0; }
+.geo-landing__pause { position: absolute; right: 3.6%; bottom: 4.4%; width: 52px; height: 52px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(0,0,0,.42); }
+.geo-landing__pause img { width: 21px; height: 21px; }
+
+@media (max-width: 1200px) {
+  .geo-landing__nav { gap: 14px; margin-left: 18px; }
+  .geo-landing__nav a { font-size: 11px; }
+  .geo-landing__code, .geo-landing__code-label { display: none; }
+  .geo-landing__signup-card { right: 5%; width: 390px; }
+  .geo-landing__hero { left: 7%; width: 51%; }
+  .geo-landing__hero h1 { font-size: clamp(58px, 6.4vw, 76px); }
+  .geo-landing__subtitle { width: 95%; }
+  .geo-landing__wide-break { display: none; }
+}
+
+@media (max-width: 800px) {
+  .geo-landing { min-height: 740px; overflow-y: auto; }
+  .geo-landing__header { height: 54px; padding: 0 16px; }
+  .geo-landing__nav { display: none; }
+  .geo-landing__actions { gap: 10px; }
+  .geo-landing__language { width: 105px; }
+  .geo-landing__signup-card { top: 48%; left: 50%; right: auto; width: min(420px, calc(100% - 32px)); min-width: 0; height: 420px; transform: translateX(-50%); }
+  .geo-landing__hero { left: 7%; width: 86%; height: 48%; }
+  .geo-landing__logo { top: 15%; width: 145px; }
+  .geo-landing__hero h1 { top: 28%; font-size: clamp(44px, 10vw, 64px); letter-spacing: -1.5px; }
+  .geo-landing__subtitle { top: 60%; font-size: 15px; }
+  .geo-landing__badges { top: 76%; }
+  .geo-landing__platform, .geo-landing__rating { font-size: 10px; }
+  .geo-landing__platform img { width: 105px; }
+  .geo-landing__rating img { width: 80px; }
+  .geo-landing__badge-divider { margin: 0 10px; }
+  .geo-landing__pause { bottom: 12px; right: 12px; }
+}

@@ -1,0 +1,726 @@
+.tg-dl-page {
+  position: relative;
+  width: 1920px;
+  min-height: 1200px;
+  overflow: hidden;
+  background: #171235;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #fff;
+}
+
+.tg-dl-page * {
+  box-sizing: border-box;
+}
+
+.tg-dl-bg-glow {
+  position: absolute;
+  inset: 0;
+  height: 1200px;
+  background-image:
+    radial-gradient(circle at 1920px -240px, rgba(58, 232, 189, 0.5) 0%, rgba(58, 232, 189, 0) 60%),
+    radial-gradient(circle at 960px -720px, rgba(58, 232, 189, 0.5) 0%, rgba(58, 232, 189, 0) 65%),
+    radial-gradient(ellipse 2715.3px 2036.5px at 0 -240px, rgba(121, 80, 229, 1) 0%, rgba(121, 80, 229, 0) 50%);
+}
+
+.tg-dl-bg-radial {
+  position: absolute;
+  inset: 0;
+  height: 1200px;
+  background: radial-gradient(circle at 960px 600px, #211a4c 0%, #120e2d 27.5%, #0b081e 41.25%, #04020e 55%, #04020e 100%);
+}
+
+/* ---------- Header (shared chrome, matches Home) ---------- */
+
+.tg-dl-header {
+  position: absolute;
+  left: 0;
+  right: 56px;
+  top: 0;
+  height: 60px;
+  background: rgba(16, 16, 28, 0.8);
+  overflow: hidden;
+  z-index: 5;
+}
+
+.tg-dl-header-logo-blur {
+  position: absolute;
+  left: 0;
+  top: -16px;
+  width: 184px;
+  height: 76px;
+  background: #10101c;
+  backdrop-filter: blur(12px);
+  -webkit-mask-image: radial-gradient(ellipse 184px 76px at 0 38px, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 184px 76px at 0 38px, #000 55%, transparent 100%);
+}
+
+.tg-dl-logo-link {
+  position: absolute;
+  left: 16px;
+  top: 0;
+  width: 116px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.tg-dl-logo-link img {
+  width: 128px;
+  height: 25.6px;
+}
+
+.tg-dl-nav-link {
+  position: absolute;
+  top: 20px;
+  height: 20px;
+  text-align: center;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 15.6px;
+  line-height: 20px;
+  white-space: nowrap;
+  background-image: linear-gradient(180deg, #fff 6.5%, #d5d5f3 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.tg-dl-nav-chevron {
+  position: absolute;
+  top: 28px;
+  width: 8px;
+  height: 4px;
+  opacity: 0.2;
+}
+
+.tg-dl-nav-active {
+  position: absolute;
+  left: 321.69px;
+  bottom: 0;
+  width: 86.25px;
+  height: 3px;
+  background: #7950e5;
+}
+
+.tg-dl-nav-divider {
+  position: absolute;
+  left: 527.74px;
+  top: 20.07px;
+  width: 1px;
+  height: 19.87px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tg-dl-sub-link {
+  position: absolute;
+  top: 22px;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 10.6px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background-image: linear-gradient(180deg, #fff 6.5%, #d5d5f3 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.tg-dl-shop-link {
+  position: absolute;
+  left: 648.13px;
+  top: 0;
+  width: 29.84px;
+  height: 60px;
+}
+
+.tg-dl-shop-link .tg-dl-sub-link {
+  left: 0;
+  top: 22px;
+}
+
+.tg-dl-shop-dot {
+  position: absolute;
+  right: -8px;
+  top: 16px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffa43d;
+}
+
+.tg-dl-profile {
+  position: absolute;
+  left: 1588.75px;
+  top: 0;
+  width: 191.25px;
+  height: 60px;
+}
+
+.tg-dl-profile-avatar {
+  position: absolute;
+  left: -3.6px;
+  top: -9.6px;
+  width: 79.2px;
+  height: 79.2px;
+}
+
+.tg-dl-profile-avatar-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tg-dl-profile-avatar-inner {
+  position: absolute;
+  left: 22.17px;
+  top: 22.17px;
+  width: 34.84px;
+  height: 34.84px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.tg-dl-profile-name-wrap {
+  position: absolute;
+  left: 72px;
+  top: 12.5px;
+  width: 119.25px;
+  height: 35px;
+}
+
+.tg-dl-profile-name {
+  font-weight: 700;
+  font-style: italic;
+  font-size: 13.5px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.tg-dl-profile-xp-bar {
+  position: absolute;
+  left: 0;
+  top: 17px;
+  width: 18px;
+  height: 18px;
+}
+
+.tg-dl-profile-xp-label {
+  position: absolute;
+  left: 22px;
+  top: 19px;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 10.1px;
+  text-transform: uppercase;
+  color: #a685ff;
+}
+
+.tg-dl-flame-btn {
+  position: absolute;
+  left: 1812px;
+  top: 10.5px;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  box-shadow: 0 0 0 2px #10101c, 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.tg-dl-flame-bg {
+  position: absolute;
+  inset: 3px;
+  border-radius: 15px;
+  background: radial-gradient(circle, #10101c 0%, #10101c 20%, #10101c 30%, rgba(16, 16, 28, 0) 50%, rgba(16, 16, 28, 0) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tg-dl-flame-label {
+  font-weight: 900;
+  font-style: italic;
+  font-size: 16px;
+  text-transform: uppercase;
+  color: #ffcf4a;
+}
+
+.tg-dl-search-btn {
+  position: absolute;
+  left: 1519.56px;
+  top: 8px;
+  width: 61.19px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tg-dl-search-btn img {
+  width: 24px;
+  height: 24px;
+}
+
+/* ---------- Left rail (collapsed, icon-only) ---------- */
+
+.tg-dl-left-rail {
+  position: absolute;
+  left: 0;
+  top: 60px;
+  width: 80px;
+  height: 1140px;
+  z-index: 3;
+}
+
+.tg-dl-rail-streak-count {
+  position: absolute;
+  left: 33.89px;
+  top: 345.5px;
+  height: 20px;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 18.9px;
+  color: #8f86e6;
+}
+
+.tg-dl-rail-flame {
+  position: absolute;
+  left: 5px;
+  top: 266.5px;
+  width: 70px;
+  height: 77px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.tg-dl-rail-flame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tg-dl-rail-nav {
+  position: absolute;
+  left: 0;
+  top: 382.5px;
+  width: 80px;
+  height: 322px;
+}
+
+.tg-dl-rail-item {
+  position: relative;
+  display: block;
+  width: 80px;
+  height: 102px;
+  margin-top: 8px;
+  border-radius: 0 16px 16px 0;
+  background: #211a4c;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  box-shadow:
+    inset 0 -4px 1px 0 rgba(16, 16, 28, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+    inset 0 2px 8px 0 rgba(93, 81, 182, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+.tg-dl-rail-item:first-child {
+  margin-top: 0;
+}
+
+.tg-dl-rail-item-icon {
+  position: absolute;
+  left: 16px;
+  top: 25px;
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 4px 8px rgba(16, 16, 28, 0.8));
+}
+
+.tg-dl-rail-item-badge {
+  position: absolute;
+  left: 52px;
+  top: 54px;
+  width: 14px;
+  height: 21px;
+  filter: drop-shadow(0 2px 4px rgba(16, 16, 28, 0.8));
+}
+
+.tg-dl-rail-item-label {
+  position: absolute;
+  opacity: 0;
+  left: 12px;
+  top: 23px;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 17.2px;
+  color: #fff;
+}
+
+/* ---------- Main / hero ---------- */
+
+.tg-dl-main {
+  position: absolute;
+  left: 80px;
+  top: 60px;
+  width: 1784px;
+  height: 1140px;
+  overflow: hidden;
+}
+
+.tg-dl-heading {
+  position: absolute;
+  left: 631.81px;
+  top: 215.41px;
+  width: 282.45px;
+  height: 96px;
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 85.1px;
+  line-height: 96px;
+  text-align: center;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.tg-dl-subheading {
+  position: absolute;
+  left: 50%;
+  top: 315.41px;
+  transform: translateX(-50%);
+  height: 26px;
+  margin: 0;
+  font-style: italic;
+  font-size: 22.9px;
+  line-height: 26px;
+  text-align: center;
+  white-space: nowrap;
+  color: #ffc628;
+}
+
+.tg-dl-hero-mask {
+  position: absolute;
+  left: 436.94px;
+  top: 341.41px;
+  width: 672px;
+  height: 480px;
+  border-radius: 24px;
+  overflow: hidden;
+  -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 48%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 60% 55% at 50% 48%, #000 55%, transparent 100%);
+}
+
+.tg-dl-hero-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tg-dl-hero-crystal {
+  position: absolute;
+  left: 612.94px;
+  top: 493.41px;
+  width: 320px;
+  height: 320px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.tg-dl-flag {
+  position: absolute;
+  width: 22.22px;
+  height: 17.09px;
+  border-radius: 2.25px;
+  overflow: hidden;
+}
+
+.tg-dl-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tg-dl-flag--left {
+  left: 475.17px;
+  top: 391.86px;
+}
+
+.tg-dl-player-name {
+  position: absolute;
+  top: 389.41px;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 17.4px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.tg-dl-player-name--left {
+  left: 504.58px;
+}
+
+.tg-dl-player-name--right {
+  left: 910.42px;
+}
+
+.tg-dl-duel-tabs {
+  position: absolute;
+  left: 436.94px;
+  top: 821.41px;
+  width: 672px;
+  height: 52px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  gap: 1px;
+}
+
+.tg-dl-duel-tab {
+  position: relative;
+  width: 114.3px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(16, 16, 28, 0.5), rgba(16, 16, 28, 0.3));
+  box-shadow: inset 0 10px 20px 0 rgba(0, 0, 0, 0.15);
+}
+
+.tg-dl-duel-tab span {
+  font-weight: 900;
+  font-style: italic;
+  font-size: 14.4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tg-dl-duel-tab--active {
+  width: 113.09px;
+  background: radial-gradient(circle at 50% 0, #393273 0%, #211a4c 100%);
+  box-shadow:
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px 0 rgba(33, 26, 76, 0.4),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.tg-dl-duel-tab--active span {
+  color: #ffc628;
+}
+
+.tg-dl-play-btn {
+  position: absolute;
+  left: 659.94px;
+  top: 897.41px;
+  width: 226px;
+  height: 59.19px;
+  border: none;
+  border-radius: 60px;
+  background: linear-gradient(180deg, #97e851, #479440);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 -2px 0 0 rgba(0, 0, 0, 0.3),
+    0 4.4px 9px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.tg-dl-play-btn span {
+  font-weight: 700;
+  font-style: italic;
+  font-size: 17.8px;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 2px #171235;
+}
+
+/* ---------- Ranks panel ---------- */
+
+.tg-dl-ranks {
+  position: absolute;
+  left: 1148.94px;
+  top: 360px;
+  width: 198.13px;
+  height: 452px;
+}
+
+.tg-dl-ranks-overlay {
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tg-dl-ranks-line {
+  position: absolute;
+  left: 9px;
+  top: 68px;
+  width: 6px;
+  height: 384px;
+  border-radius: 3px;
+  background: linear-gradient(
+    0deg,
+    #00a2fe 9.375%,
+    #e94555 28.125%,
+    #ffc628 46.875%,
+    #fff 65.625%,
+    #ffa43d 84.375%
+  );
+}
+
+.tg-dl-ranks-title {
+  position: absolute;
+  left: 44px;
+  top: 0;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 14.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tg-dl-ranks-list {
+  position: absolute;
+  left: 0;
+  top: 44px;
+  width: 198.13px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-dl-rank-item {
+  position: relative;
+  height: 48px;
+}
+
+.tg-dl-rank-dot {
+  position: absolute;
+  left: 6px;
+  top: 18px;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background: #171235;
+  border: 2px solid;
+}
+
+.tg-dl-rank-icon {
+  position: absolute;
+  left: 44px;
+  top: 0;
+  width: 48px;
+  height: 48px;
+}
+
+.tg-dl-rank-label {
+  position: absolute;
+  left: 112px;
+  top: 16px;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 12.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tg-dl-rank-item:first-child .tg-dl-rank-label {
+  top: 21px;
+}
+
+.tg-dl-rank-pips {
+  position: absolute;
+  left: 112px;
+  top: 31px;
+  display: flex;
+  gap: 6px;
+}
+
+.tg-dl-rank-pips i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  opacity: 0.35;
+}
+
+.tg-dl-rank-current-avatar {
+  position: absolute;
+  left: -12px;
+  top: 404px;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #211a4c;
+  box-shadow: 0 0 0 2px #3ae8bd, 0 0 16px #3ae8bd;
+}
+
+.tg-dl-rank-current-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tg-dl-rank-current-flag {
+  position: absolute;
+  left: 56px;
+  top: 413.34px;
+  width: 17.28px;
+  height: 13.3px;
+  border-radius: 1.75px;
+  overflow: hidden;
+}
+
+.tg-dl-rank-current-flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tg-dl-rank-current-name {
+  position: absolute;
+  left: 78.87px;
+  top: 411.5px;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 13.5px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.tg-dl-rank-current-tier {
+  position: absolute;
+  left: 56px;
+  top: 430.5px;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 10.9px;
+  text-transform: uppercase;
+  color: #3ae8bd;
+}
+
+/* ---------- Right flyout (off-canvas by design, clipped at 1920px — matches Home) ---------- */
+
+.tg-dl-right-flyout {
+  position: absolute;
+  left: 2012.24px;
+  top: 0.19px;
+  width: 393px;
+  height: 772px;
+  background: #171235;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}

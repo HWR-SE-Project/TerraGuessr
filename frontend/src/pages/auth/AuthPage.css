@@ -1,0 +1,30 @@
+.tg-auth-desktop-slot {
+  display: flex;
+  justify-content: center;
+}
+
+.tg-auth-mobile-slot {
+  display: none;
+  justify-content: center;
+}
+
+@media (max-width: 1023px) {
+  .tg-auth-desktop-slot {
+    display: none;
+  }
+
+  .tg-auth-mobile-slot {
+    display: flex;
+  }
+}
+.tg-auth-root {
+  width: 100vw;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: clip;
+}
+
+.tg-auth-desktop-slot,
+.tg-auth-mobile-slot {
+  width: 100%;
+}
