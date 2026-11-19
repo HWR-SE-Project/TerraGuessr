@@ -1,37 +1,62 @@
-import { test, expect } from '@playwright/test';
-import { chooseDifficulty, expectWeatherPanel, testIds } from './support/game';
+import { expect, test } from '@playwright/test';
+import { guessOnMap, registerAndLogin, startSoloGame } from './support/game';
 
-/**
- * R01/R06/R08/R09/R10/R11/R15 — play a solo round end to end.
- *
- * Assumes the frontend has composed DifficultyPicker + a start control +
- * RoundScreen (WeatherPanel + MapPicker/CandidateList + submit + RevealView)
- * into the app shell. Those feature components exist (see
- * frontend/src/features/**); this spec drives them via their stable testids.
- */
-test.describe('solo round (R01/R06/R08/R09/R10/R11/R15)', () => {
-  test('plays a round: weather HUD -> map guess -> submit -> reveal', async ({ page }) => {
-    await page.goto('/');
+test.describe('solo play', () => {
+  test('map mode: guess, change the guess, submit, and reach the summary after all rounds', async ({ page }) => {
+    await registerAndLogin(page, 'Map Player');
+    await startSoloGame(page, { difficulty: 'easy', mode: 'map', rounds: 3 });
 
-    // Hard is map-only, which is the map-guess surface this spec covers.
-    await chooseDifficulty(page, 'hard');
-    await page.getByRole('button', { name: /start/i }).click();
+    const submit = page.getByRole('button', { name: 'Submit guess' });
+    await expect(submit).toBeDisabled();
 
-    // R15: mandatory and available optional weather fields share the HUD.
-    await expectWeatherPanel(page);
+    await guessOnMap(page);
+    await expect(submit).toBeEnabled();
 
-    // R07 map mode: click the Leaflet map to drop the guess marker.
-    const map = page.getByTestId(testIds.mapPicker);
-    await expect(map).toBeVisible();
-    await map.click({ position: { x: 240, y: 160 } });
+    // Changing the guess before submitting still leaves exactly one pin and an enabled submit.
+    await page.locator('.tg-map-picker').click({ position: { x: 220, y: 90 } });
+    await expect(page.locator('.tg-map-pin--guess')).toHaveCount(1);
+    await expect(submit).toBeEnabled();
 
-    // R08: one final submit.
-    await page.getByRole('button', { name: 'Submit guess' }).click();
+    for (let round = 1; round <= 3; round += 1) {
+      await page.getByRole('button', { name: 'Submit guess' }).click();
+      await expect(page.locator('.tg-play-result-score-value')).toBeVisible();
+      const isLast = round === 3;
+      await page.getByRole('button', { name: isLast ? 'View summary' : 'Next round' }).click();
+      if (!isLast) await guessOnMap(page);
+    }
 
-    // R11: reveal distance + score + actual location.
-    await expect(page.getByTestId(testIds.revealView)).toBeVisible();
-    await expect(page.getByTestId(testIds.revealScore)).toContainText('Score:');
-    await expect(page.getByTestId(testIds.revealDistance)).toContainText('Distance:');
-    await expect(page.getByTestId(testIds.revealActual)).toContainText('Actual location:');
+    await expect(page.getByText('Expedition complete')).toBeVisible();
+    await expect(page.locator('.tg-play-summary-row')).toHaveCount(3);
+    await expect(page.getByRole('button', { name: 'Play again' })).toBeVisible();
+  });
+
+  test('list mode: picking a candidate enables submit and a round can be played end to end', async ({ page }) => {
+    await registerAndLogin(page, 'List Player');
+    await startSoloGame(page, { difficulty: 'hard', mode: 'list', rounds: 3 });
+
+    const submit = page.getByRole('button', { name: 'Submit guess' });
+    await expect(submit).toBeDisabled();
+
+    const first = page.getByTestId('candidate-option').first();
+    await first.click();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(submit).toBeEnabled();
+
+    await submit.click();
+    await expect(page.locator('.tg-play-result-score-value')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Next round' })).toBeVisible();
+  });
+
+  test('the weather panel shows required clues and expands optional sun/local-time clues', async ({ page }) => {
+    await registerAndLogin(page, 'Clue Checker');
+    await startSoloGame(page, { difficulty: 'hard', mode: 'map', rounds: 3 });
+
+    const panel = page.getByTestId('weather-panel');
+    for (const label of ['Temperature', 'Precipitation', 'Humidity', 'Wind speed']) {
+      await expect(panel.getByText(label, { exact: true })).toBeVisible();
+    }
+
+    await page.getByText('Sun & local time').click();
+    await expect(panel.getByText('UV index', { exact: true })).toBeVisible();
   });
 });

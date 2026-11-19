@@ -1,0 +1,84 @@
+.tg-confirm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 9, 23, 0.65);
+  animation: tg-confirm-fade 0.15s ease;
+}
+
+@keyframes tg-confirm-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tg-confirm-dialog {
+  width: min(360px, calc(100vw - 32px));
+  border-radius: 16px;
+  border: 1px solid rgba(211, 203, 255, 0.18);
+  background: #191332;
+  padding: 24px;
+  color: #fff;
+  box-shadow: 0 20px 48px rgba(5, 4, 18, 0.5);
+}
+
+.tg-confirm-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.tg-confirm-dialog p {
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.tg-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.tg-confirm-cancel,
+.tg-confirm-confirm {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 24px;
+  border: none;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 12.5px;
+  text-transform: uppercase;
+}
+
+.tg-confirm-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.tg-confirm-confirm {
+  background: linear-gradient(180deg, #97e851, #479440);
+  color: #10101c;
+}
+
+.tg-confirm-confirm--destructive {
+  background: linear-gradient(180deg, #ff6b6f, #b4262b);
+  color: #fff;
+}
+
+.tg-confirm-confirm:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tg-confirm-cancel:focus-visible,
+.tg-confirm-confirm:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 2px;
+}

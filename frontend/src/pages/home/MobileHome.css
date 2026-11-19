@@ -532,6 +532,18 @@
   gap: 4px;
   text-decoration: none;
   border-left: 2px solid #171235;
+  background: none;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tg-hm-nav-item:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: -2px;
 }
 
 .tg-hm-nav-item:first-child {
@@ -566,4 +578,90 @@
   width: 97.5px;
   background: linear-gradient(180deg, #5d51b6, #393273);
   z-index: -1;
+}
+
+.tg-hm-menu {
+  position: absolute;
+  top: 72px;
+  left: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  border-radius: 14px;
+  background: #211a4c;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  padding: 8px;
+  animation: tg-hm-menu-in 0.15s ease;
+}
+
+@keyframes tg-hm-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tg-hm-menu-name {
+  padding: 8px 12px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.tg-hm-menu a,
+.tg-hm-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  text-align: left;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.tg-hm-menu a:hover,
+.tg-hm-menu button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tg-hm-menu a:focus-visible,
+.tg-hm-menu button:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 2px;
+}
+
+.tg-hm-last-round {
+  margin: 16px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+}
+
+.tg-hm-play-cta {
+  display: block;
+  margin: 20px auto 0;
+  width: fit-content;
+  height: 46px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  border-radius: 28px;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 14px;
+  color: #10101c;
+  background: linear-gradient(180deg, #97e851, #479440);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.tg-hm-play-cta:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }

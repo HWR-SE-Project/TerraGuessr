@@ -1,80 +1,120 @@
 import { useState } from 'react'
-import bgHero from '../../assets/auth/bg-hero.jpg'
-import logo from '../../assets/auth/logo.svg'
-import availableOn from '../../assets/auth/available-on.svg'
-import ratingStar from '../../assets/auth/rating-star.svg'
-import geoPin from '../../assets/auth/geo-pin.png'
-import languageIcon from '../../assets/auth/language-icon.svg'
-import chevron from '../../assets/auth/chevron.svg'
+import earthHorizon from '../../assets/auth/earth-horizon.webp'
 import googleLogo from '../../assets/auth/google-logo.svg'
 import appleLogo from '../../assets/auth/apple-logo.svg'
-import facebookLogo from '../../assets/auth/facebook-logo.svg'
-import playIcon from '../../assets/auth/play-icon.svg'
-import pauseIcon from '../../assets/auth/pause-icon.svg'
+import { googleSignInUrl } from '../../api/auth'
+import { useSession } from '../../state/SessionContext'
+import { EmailAuthForm } from '../../components/auth/EmailAuthForm'
+import { ForgotPasswordForm } from '../../components/auth/ForgotPasswordForm'
+import { UnavailableNotice } from '../../components/UnavailableNotice'
 import './AuthLandingPage.css'
 
+type CardView = 'providers' | 'email' | 'forgot'
+type AuthMode = 'login' | 'register'
+
 export function AuthLandingPage() {
-  const [playing, setPlaying] = useState(true)
+  const { authConfig, refresh } = useSession()
+  const [cardView, setCardView] = useState<CardView>('providers')
+  const [cardMode, setCardMode] = useState<AuthMode>('register')
+  const [unavailableProvider, setUnavailableProvider] = useState<string | null>(null)
+
+  function showProviders(mode: AuthMode) {
+    setCardMode(mode)
+    setCardView('providers')
+    setUnavailableProvider(null)
+  }
 
   return (
     <main className="geo-landing">
-      <img className="geo-landing__background" src={bgHero} alt="" />
-      <div className="geo-landing__purple" />
-      <div className="geo-landing__shade" />
+      <img className="geo-landing__background" src={earthHorizon} alt="" fetchPriority="high" />
+      <div className="geo-landing__contours" aria-hidden="true" />
 
       <header className="geo-landing__header">
-        <img className="geo-landing__pin" src={geoPin} alt="GeoGuessr" />
-        <nav className="geo-landing__nav" aria-label="Main navigation">
-          <a href="#world-championship">World Championship &apos;26</a>
-          <a href="#organizations">Organizations</a>
-          <a href="#merch">Merch</a>
-          <a href="#gift-cards">Gift Cards</a>
+        <a className="geo-landing__brand" href="/" aria-label="TerraGuessr home">
+          <span className="geo-landing__brand-mark" aria-hidden="true">T</span>
+          <span className="geo-landing__wordmark">Terra<span>Guessr</span></span>
+        </a>
+        <nav className="geo-landing__actions" aria-label="Account">
+          <button className="geo-landing__login" type="button" onClick={() => showProviders('login')}>Log in</button>
+          <button className="geo-landing__signup" type="button" onClick={() => showProviders('register')}>Sign up</button>
         </nav>
-        <div className="geo-landing__actions">
-          <button className="geo-landing__language" type="button">
-            <img src={languageIcon} alt="" /> <span>English</span><img className="geo-landing__chevron" src={chevron} alt="" />
-          </button>
-          <span className="geo-landing__code-label">Code</span>
-          <div className="geo-landing__code" aria-label="Enter your code">
-            {Array.from({ length: 5 }, (_, index) => <input key={index} maxLength={1} aria-label={`Code digit ${index + 1}`} />)}
-          </div>
-          <button className="geo-landing__login" type="button">Log in</button>
-          <button className="geo-landing__signup" type="button">Sign up</button>
-        </div>
       </header>
 
-      <section className="geo-landing__hero" aria-label="Explore the world">
-        <img className="geo-landing__logo" src={logo} alt="GeoGuessr" />
-        <h1>Explore the<br />world!</h1>
-        <p className="geo-landing__subtitle">Get dropped anywhere from the busy streets of New York to the beautiful beaches of<br className="geo-landing__wide-break" /> Bali. Join 100 million players today!</p>
-        <div className="geo-landing__badges">
-          <div className="geo-landing__platform">
-            <img src={availableOn} alt="Available on Web, Steam, iOS and Android" />
-            <span>Play on Web, Steam iOS and Android</span>
-          </div>
-          <div className="geo-landing__badge-divider" />
-          <div className="geo-landing__rating">
-            <img src={ratingStar} alt="4.5 out of 5 stars" />
-            <span>4.5/5 rating in App Store</span>
-          </div>
-        </div>
-      </section>
+      <div className="geo-landing__content">
+        <section className="geo-landing__hero" aria-labelledby="explore-title">
+          <h1 id="explore-title">Explore<br />the world.</h1>
+          <p className="geo-landing__subtitle">
+            Get dropped into a mystery spot with nothing but live weather data to go on. How far off can your guess be?
+          </p>
+        </section>
 
-      <section className="geo-landing__signup-card" aria-label="Sign up to play">
-        <h2>Sign up to play</h2>
-        <div className="geo-landing__provider-buttons">
-          <button className="geo-landing__provider geo-landing__provider--google" type="button"><img src={googleLogo} alt="" /><span>Continue with Google</span></button>
-          <button className="geo-landing__provider geo-landing__provider--apple" type="button"><img src={appleLogo} alt="" /><span>Continue with Apple</span></button>
-          <button className="geo-landing__provider geo-landing__provider--facebook" type="button"><img src={facebookLogo} alt="" /><span>Continue with Facebook</span></button>
-          <button className="geo-landing__provider geo-landing__provider--email" type="button">Continue with Email</button>
-        </div>
-        <div className="geo-landing__or"><span /> <b>Or</b> <span /></div>
-        <div className="geo-landing__card-footer"><span>Already have an account?</span><button type="button">Log in</button></div>
-      </section>
-
-      <button className="geo-landing__pause" type="button" onClick={() => setPlaying(value => !value)} aria-label={playing ? 'Pause background video' : 'Play background video'}>
-        <img src={playing ? pauseIcon : playIcon} alt="" />
-      </button>
+        <section className="geo-landing__signup-card" aria-label="Play TerraGuessr">
+          {cardView === 'providers' ? (
+            <>
+              <h2>{cardMode === 'login' ? 'Log in to play' : 'Sign up to play'}</h2>
+              <div className="geo-landing__provider-buttons">
+                <button
+                  className="geo-landing__provider geo-landing__provider--google"
+                  type="button"
+                  onClick={() => {
+                    if (authConfig?.googleAvailable) window.location.href = googleSignInUrl()
+                    else setUnavailableProvider('Google')
+                  }}
+                >
+                  <img src={googleLogo} alt="" />
+                  <span>Continue with Google</span>
+                </button>
+                <button className="geo-landing__provider geo-landing__provider--apple" type="button" onClick={() => setUnavailableProvider('Apple')}>
+                  <img src={appleLogo} alt="" />
+                  <span>Continue with Apple</span>
+                </button>
+                <button className="geo-landing__provider geo-landing__provider--facebook" type="button" onClick={() => setUnavailableProvider('Facebook')}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073c0 6.026 4.388 11.021 10.125 11.927v-8.437H7.078v-3.49h3.047v-2.66c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.49 0-1.956.931-1.956 1.887v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073Z" />
+                  </svg>
+                  <span>Continue with Facebook</span>
+                </button>
+                <button className="geo-landing__provider geo-landing__provider--email" type="button" onClick={() => setCardView('email')}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="m3 6 8 7a1.5 1.5 0 0 0 2 0l8-7" />
+                  </svg>
+                  <span>Continue with Email</span>
+                </button>
+              </div>
+              {unavailableProvider && (
+                <UnavailableNotice>{unavailableProvider} sign-in isn&apos;t available yet. Please continue with email.</UnavailableNotice>
+              )}
+              <div className="geo-landing__or"><span /> <b>OR</b> <span /></div>
+              <div className="geo-landing__card-footer">
+                <span>{cardMode === 'login' ? "Don't have an account?" : 'Already have an account?'}</span>
+                <button type="button" onClick={() => showProviders(cardMode === 'login' ? 'register' : 'login')}>
+                  {cardMode === 'login' ? 'Sign up' : 'Log in'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button className="geo-landing__back" type="button" onClick={() => showProviders(cardMode)}>
+                <span aria-hidden="true">←</span> All sign-in options
+              </button>
+              {cardView === 'email' ? (
+                <EmailAuthForm
+                  key={cardMode}
+                  initialMode={cardMode}
+                  onSuccess={refresh}
+                  onForgotPassword={() => {
+                    setCardMode('login')
+                    setCardView('forgot')
+                  }}
+                />
+              ) : (
+                <ForgotPasswordForm onBack={() => setCardView('email')} />
+              )}
+            </>
+          )}
+        </section>
+      </div>
     </main>
   )
 }

@@ -1,0 +1,275 @@
+.tg-play-page {
+  position: relative;
+  min-height: 100vh;
+  background: #171235;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+.tg-play-bg-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 20% 0%, rgba(121, 80, 229, 0.25), transparent 55%);
+  pointer-events: none;
+}
+
+.tg-play-shell {
+  position: relative;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 56px) 20px 60px;
+  animation: tg-play-fade-in 0.25s ease both;
+}
+
+@keyframes tg-play-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tg-play-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #68c045;
+  margin-bottom: 8px;
+}
+
+.tg-play-title {
+  margin: 0 0 10px;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 900;
+  font-style: italic;
+}
+
+.tg-play-subtitle {
+  margin: 0 0 32px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 15px;
+  max-width: 520px;
+}
+
+.tg-play-field {
+  margin-bottom: 24px;
+}
+
+.tg-play-field-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.tg-play-choice-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tg-play-choice {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.tg-play-choice:hover {
+  border-color: rgba(104, 192, 69, 0.5);
+}
+
+.tg-play-choice:active {
+  transform: scale(0.97);
+}
+
+.tg-play-choice--active {
+  border-color: #68c045;
+  background: rgba(104, 192, 69, 0.18);
+  color: #9ee28a;
+}
+
+.tg-play-choice:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 2px;
+}
+
+.tg-play-cta {
+  height: 48px;
+  padding: 0 32px;
+  border-radius: 28px;
+  border: none;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 14px;
+  color: #10101c;
+  background: linear-gradient(180deg, #97e851, #479440);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+  transition: filter 0.12s ease, transform 0.12s ease;
+}
+
+.tg-play-cta:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.tg-play-cta:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tg-play-cta:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.tg-play-cta:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.tg-play-secondary {
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 13.5px;
+}
+
+.tg-play-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tg-play-secondary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.tg-play-secondary:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 2px;
+}
+
+.tg-play-error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(220, 25, 52, 0.12);
+  border: 1px solid rgba(220, 25, 52, 0.35);
+  color: #ffb4bd;
+  font-size: 13px;
+}
+
+/* Round */
+.tg-play-round-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.tg-play-round-progress {
+  font-weight: 800;
+  font-style: italic;
+  font-size: 15px;
+}
+
+.tg-play-round-difficulty {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tg-play-round-body {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.tg-play-round-picker {
+  min-height: 320px;
+}
+
+@media (max-width: 760px) {
+  .tg-play-round-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Result */
+.tg-play-result-score {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.tg-play-result-score-value {
+  display: block;
+  font-size: clamp(40px, 7vw, 64px);
+  font-weight: 900;
+  font-style: italic;
+  color: #9ee28a;
+}
+
+.tg-play-result-score-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.tg-play-result-map {
+  height: 320px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.tg-play-result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Summary */
+.tg-play-summary-list {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.tg-play-summary-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 14px;
+}
+
+.tg-play-summary-row:last-child {
+  border-bottom: none;
+}
+
+.tg-play-summary-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tg-play-summary-score {
+  text-align: right;
+  font-weight: 700;
+  color: #9ee28a;
+}

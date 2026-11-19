@@ -1,45 +1,28 @@
 import { expect, test } from '@playwright/test';
+import { registerAndLogin } from './support/game';
 
-test('authenticated player submits the shared UTC Daily Challenge once', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 960 });
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Sign in' }).click();
-  await page.getByRole('button', { name: 'Continue with Email' }).click();
-  await page.getByRole('button', { name: 'Create an account' }).click();
-  await page.getByLabel('Display name').fill('Daily Explorer');
-  await page.getByLabel('Email address').fill(`daily-browser-${Date.now()}@example.test`);
-  await page.getByLabel('Password').fill('secure browser password 2026');
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Choose your next expedition' })).toBeVisible();
-  await page.screenshot({ path: 'docs/screenshots/phase4-daily-dashboard.png', fullPage: true });
-  await page.getByRole('button', { name: "Play today’s challenge" }).click();
-  await expect(page.getByText(/Daily · \d{4}-\d{2}-\d{2}/)).toBeVisible();
-  await expect(page.getByTestId('map-picker')).toBeVisible();
-  await page.getByText('Sun & local time', { exact: true }).click();
-  await expect(page.getByText('Local time', { exact: true })).toBeVisible();
-  await expect(page.locator('.tg-weather-extra-grid dd').nth(2)).toContainText(/^(—|\d{2}:\d{2})$/);
-  await page.screenshot({ path: 'docs/screenshots/phase4-daily-game.png', fullPage: true });
-  const map = page.getByTestId('map-picker');
-  await map.click({ position: { x: 150, y: 130 } });
+test('signed-in player can play and submit today\'s daily challenge once, and see the leaderboard', async ({ page }) => {
+  await registerAndLogin(page, 'Daily Player');
+  await page.goto('/daily');
+
+  await expect(page.getByRole('heading', { name: 'Daily challenge' })).toBeVisible();
+  await expect(page.getByTestId('weather-panel')).toBeVisible();
+
+  await page.locator('.tg-daily-map .tg-map-picker').click({ position: { x: 150, y: 130 } });
   await page.getByRole('button', { name: 'Submit guess' }).click();
-  await expect(page.getByRole('heading', { name: /Your placement:/ })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Daily leaderboard' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'See final results' })).toBeVisible();
-  await page.screenshot({ path: 'docs/screenshots/phase4-daily-result.png', fullPage: true });
-  await page.getByRole('button', { name: 'See final results' }).click();
-  await page.getByRole('link', { name: 'Statistics' }).click();
-  await expect(page.getByRole('heading', { name: 'Statistics' })).toBeVisible();
-  await page.getByLabel('Game mode').selectOption('daily');
-  await expect(page.locator('.tg-player-table tbody tr')).toHaveCount(1);
-  await page.screenshot({ path: 'docs/screenshots/phase4-daily-statistics.png', fullPage: true });
-  await page.getByRole('button', { name: 'Back' }).click();
-  await page.getByRole('link', { name: 'Leaderboard' }).click();
-  await expect(page.getByRole('heading', { name: 'Leaderboards' })).toBeVisible();
-  await expect(page.getByText(/Your placement:/)).toBeVisible();
-  await expect(page.locator('.tg-current-player')).toBeVisible();
-  await page.screenshot({ path: 'docs/screenshots/phase4-daily-leaderboard.png', fullPage: true });
-  await page.setViewportSize({ width: 375, height: 812 });
-  const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
-  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
-  await page.screenshot({ path: 'docs/screenshots/phase4-mobile-daily-leaderboard.png', fullPage: true });
+
+  await expect(page.locator('.tg-daily-result-value')).toBeVisible();
+  await expect(page.getByText("Today's leaderboard")).toBeVisible();
+  const rows = page.locator('.tg-daily-leaderboard-row');
+  await expect(rows.filter({ hasText: 'Daily Player' })).toHaveCount(1);
+
+  // Revisiting shows the already-completed state, not a second playable round.
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Submit guess' })).toHaveCount(0);
+  await expect(page.locator('.tg-daily-result-value')).toBeVisible();
+});
+
+test('signed-out visitor sees an honest sign-in prompt instead of a broken daily page', async ({ page }) => {
+  await page.goto('/daily');
+  await expect(page.getByText(/sign in to play today's shared challenge/i)).toBeVisible();
 });

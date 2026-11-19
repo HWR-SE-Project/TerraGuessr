@@ -593,6 +593,15 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+.tg-dl-ranks-caption {
+  position: absolute;
+  left: 44px;
+  top: 22px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffc628;
+}
+
 .tg-dl-ranks-list {
   position: absolute;
   left: 0;

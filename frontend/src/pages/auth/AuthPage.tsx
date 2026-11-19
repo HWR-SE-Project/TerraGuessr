@@ -1,17 +1,11 @@
-import { DesktopAuth } from './DesktopAuth'
-import { MobileAuth } from './MobileAuth'
-import './tokens.css'
-import './AuthPage.css'
+import { Navigate } from 'react-router-dom'
+import { useSession } from '../../state/SessionContext'
+import { AuthLandingPage } from './AuthLandingPage'
 
 export function AuthPage() {
-  return (
-    <div className="tg-auth-root">
-      <div className="tg-auth-desktop-slot">
-        <DesktopAuth />
-      </div>
-      <div className="tg-auth-mobile-slot">
-        <MobileAuth />
-      </div>
-    </div>
-  )
+  const { status, user } = useSession()
+
+  if (status === 'ready' && user) return <Navigate to="/" replace />
+
+  return <AuthLandingPage />
 }
