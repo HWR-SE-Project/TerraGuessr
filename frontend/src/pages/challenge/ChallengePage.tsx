@@ -23,11 +23,17 @@ export function ChallengePage() {
   const { challengeId = '' } = useParams()
   const location = useLocation()
   const { user } = useSession()
-  const shareState = location.state as { justCreated?: boolean; shareUrl?: string } | null
+  const shareState = location.state as { justCreated?: boolean; shareUrl?: string; result?: GuessResultDTO; guess?: LatLon } | null
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardDTO | null>(null)
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
-  const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
+  // The duel creator has already played the source round. Preserve that real
+  // result so they can enter it without playing the revealed location again.
+  const [phase, setPhase] = useState<Phase>(() =>
+    shareState?.justCreated && shareState.result && shareState.guess
+      ? { kind: 'done', result: shareState.result, guess: shareState.guess, entered: Boolean(localStorage.getItem(playedKey(challengeId))) }
+      : { kind: 'idle' },
+  )
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [guess, setGuess] = useState<LatLon | null>(null)

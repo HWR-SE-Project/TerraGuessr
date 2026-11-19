@@ -35,7 +35,7 @@ test('two independent browsers duel the same location and both appear on the lea
       await pageB.getByRole('button', { name: 'Play this challenge' }).click();
 
       await expect(pageB.getByTestId('weather-panel')).toBeVisible();
-      await pageB.locator('.tg-challenge-map .tg-map-picker').click({ position: { x: 220, y: 90 } });
+      await pageB.getByTestId('candidate-option').first().click();
       await pageB.getByRole('button', { name: 'Submit guess' }).click();
 
       await expect(pageB.locator('.tg-challenge-result-score')).toBeVisible();
