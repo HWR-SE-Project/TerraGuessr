@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
-import { useHomeData } from '../../hooks/useHomeData'
 import character from '../../assets/home/official/explorer.webp'
 import earth from '../../assets/home/official/earth-horizon.webp'
 import defaultAvatar from '../../assets/home/official/alpine-lake.webp'
+import sky from '../../assets/home/official/sky.svg'
 import { HomeIcon } from './HomeIcon'
 import type { HomeIconName } from './HomeIcon'
 
@@ -38,30 +38,17 @@ function UnavailableButton({
   )
 }
 
-function UserProfileSummary() {
-  const { user } = useSession()
-  return (
-    <div className="th-profile">
-      <Link to="/settings" className="th-profile-link" aria-label="Settings">
-        <span className="th-profile-avatar" aria-hidden="true">
-          <img src={defaultAvatar} alt="" />
-        </span>
-        <span className="th-profile-details">
-          <span className="th-profile-name">
-            {user?.displayName ?? 'Guest'}
-          </span>
-          <span className="th-currency" title="Currency is not available yet">
-            <HomeIcon name="coin" />
-            <span aria-label="Currency unavailable">—</span>
-          </span>
-        </span>
-      </Link>
-    </div>
-  )
-}
-
-function HomeNavigation({ showNotice }: { showNotice: ShowNotice }) {
+export function HomeNavigation({
+  showNotice,
+  active = 'singleplayer',
+  showPlayerTools = false,
+}: {
+  showNotice: ShowNotice
+  active?: 'singleplayer' | 'multiplayer'
+  showPlayerTools?: boolean
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { user } = useSession()
   return (
     <header className="th-header">
       <Link to="/" className="th-brand" aria-label="TerraGuessr home">
@@ -71,13 +58,26 @@ function HomeNavigation({ showNotice }: { showNotice: ShowNotice }) {
         </span>
       </Link>
       <nav
+        id="main-navigation"
         className={`th-navigation${menuOpen ? ' th-navigation-open' : ''}`}
         aria-label="Main navigation"
       >
-        <Link to="/play" className="th-nav-item th-nav-active">
+        <Link
+          to="/play"
+          className={`th-nav-item${active === 'singleplayer' ? ' th-nav-active' : ''}`}
+          aria-current={active === 'singleplayer' ? 'page' : undefined}
+          onClick={() => setMenuOpen(false)}
+        >
+          <HomeIcon name="gamepad" />
           Singleplayer
         </Link>
-        <Link to="/duels" className="th-nav-item">
+        <Link
+          to="/duels"
+          className={`th-nav-item${active === 'multiplayer' ? ' th-nav-active' : ''}`}
+          aria-current={active === 'multiplayer' ? 'page' : undefined}
+          onClick={() => setMenuOpen(false)}
+        >
+          <HomeIcon name="users" />
           Multiplayer
         </Link>
         <UnavailableButton
@@ -85,24 +85,49 @@ function HomeNavigation({ showNotice }: { showNotice: ShowNotice }) {
           message="Party lobbies are not available yet. You can challenge a friend in Duels."
           showNotice={showNotice}
         >
+          <HomeIcon name="bolt" />
           Party
         </UnavailableButton>
       </nav>
-      <UnavailableButton
-        className="th-search"
-        label="Search"
-        message="Player and map search is not available yet."
-        showNotice={showNotice}
-      >
-        <HomeIcon name="search" />
-      </UnavailableButton>
-      <span className="th-profile-divider" />
-      <UserProfileSummary />
+      {showPlayerTools && (
+        <div className="th-player-tools">
+          <UnavailableButton
+            className="th-search"
+            label="Search"
+            message="Player and map search is not available yet."
+            showNotice={showNotice}
+          >
+            <HomeIcon name="search" />
+          </UnavailableButton>
+          <span className="th-profile-divider" aria-hidden="true" />
+          <Link to="/settings" className="th-profile-link" aria-label="Settings">
+            <span className="th-profile-avatar">
+              <img src={defaultAvatar} alt="" width="50" height="50" />
+            </span>
+            <span className="th-profile-details">
+              <span className="th-profile-name">{user?.displayName ?? 'Guest'}</span>
+              <span className="th-currency" title="Currency is not available yet">
+                <HomeIcon name="coin" />
+                <span aria-label="Currency unavailable">—</span>
+              </span>
+            </span>
+          </Link>
+          <span className="th-profile-divider" aria-hidden="true" />
+          <span
+            className="th-level"
+            aria-label="Explorer levels coming soon"
+            title="Explorer levels coming soon"
+          >
+            —
+          </span>
+        </div>
+      )}
       <button
         className="th-menu-button"
         type="button"
         aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
         aria-expanded={menuOpen}
+        aria-controls="main-navigation"
         onClick={() => setMenuOpen(!menuOpen)}
       >
         <HomeIcon name={menuOpen ? 'close' : 'menu'} />
@@ -111,75 +136,49 @@ function HomeNavigation({ showNotice }: { showNotice: ShowNotice }) {
   )
 }
 
-function HomeSidebar({
-  data,
-  showNotice,
-}: {
-  data: ReturnType<typeof useHomeData>
-  showNotice: ShowNotice
-}) {
-  return (
-    <aside className="th-sidebar" aria-label="Daily activities">
-      <Link className="th-sidebar-card th-glass" to="/daily">
-        <span className="th-feature-icon">
-          <HomeIcon name="calendar" />
-        </span>
-        <span>
-          <strong>Daily Challenge</strong>
-          <small>
-            {data.loading
-              ? 'Loading challenge…'
-              : data.error
-                ? 'Try daily challenge'
-                : data.daily?.status === 'completed'
-                  ? "Today's done"
-                  : `${data.hoursUntilDailyReset} hr left`}
-          </small>
-        </span>
-        <HomeIcon name="chevron" />
-      </Link>
-      <Link className="th-sidebar-card th-glass" to="/duels">
-        <span className="th-feature-icon th-feature-lime">
-          <HomeIcon name="trophy" />
-        </span>
-        <span>
-          <strong>Competitive</strong>
-          <small>Challenge a friend</small>
-        </span>
-        <HomeIcon name="chevron" />
-      </Link>
-      <UnavailableButton
-        className="th-sidebar-card th-world th-glass"
-        message="World subscriptions are not available yet. World geography is available in Play Solo."
-        showNotice={showNotice}
-      >
-        <span className="th-feature-icon">
-          <HomeIcon name="globe" />
-        </span>
-        <span>
-          <strong>World</strong>
-          <small>Subscribers only</small>
-        </span>
-        <HomeIcon name="lock" />
-      </UnavailableButton>
-    </aside>
-  )
-}
-
 function HeroSection({ showNotice }: { showNotice: ShowNotice }) {
   return (
-    <main className="th-hero" id="home-main">
+    <main className="th-hero" id="home-main" tabIndex={-1}>
       <div className="th-hero-copy">
         <p className="th-eyebrow">A GEOGRAPHY GUESSING GAME</p>
         <h1>
-          Explore the <span>World</span>
+          Explore the{' '}
+          <span>
+            World
+            <svg
+              className="th-world-accent"
+              viewBox="0 0 260 140"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M70 132Q145 122 211 130"
+                stroke="currentColor"
+                strokeWidth="6"
+                strokeLinecap="round"
+              />
+              <path
+                d="m218 29-1-15m20 18 8-14m6 29 18-8"
+                stroke="currentColor"
+                strokeWidth="6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
         </h1>
+        <p className="th-description">
+          Get dropped into a mystery spot with nothing but live<br className="th-desktop-break" />
+          {' '}weather data to go on. How far off can your guess be?
+        </p>
       </div>
       <div className="th-avatar-display">
         <img
           src={character}
           className="th-character"
           alt="TerraGuessr character with dark swept hair, a striped blue shirt and khaki trousers"
+          width="200"
+          height="300"
+          fetchPriority="high"
         />
         <UnavailableButton
           className="th-edit-avatar"
@@ -268,7 +267,6 @@ function AvailabilityNotice({
 }
 
 export function HomeExperience() {
-  const data = useHomeData()
   const [notice, setNotice] = useState<string | null>(null)
   return (
     <div className="th-home">
@@ -276,10 +274,10 @@ export function HomeExperience() {
         Skip to content
       </a>
       <div className="th-earth" aria-hidden="true">
-        <img src={earth} alt="" />
+        <img src={earth} alt="" fetchPriority="high" />
       </div>
-      <HomeNavigation showNotice={setNotice} />
-      <HomeSidebar data={data} showNotice={setNotice} />
+      <img className="th-sky" src={sky} alt="" aria-hidden="true" />
+      <HomeNavigation showNotice={setNotice} showPlayerTools />
       <HeroSection showNotice={setNotice} />
       <nav className="th-game-modes" aria-label="Game modes">
         <GameModeCard

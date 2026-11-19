@@ -40,7 +40,7 @@ export function useDuelFlow() {
       const result = await roundsApi.submitGuess(stage.round.roundId, guess)
       setStage({ kind: 'creating' })
       const challenge = await challengesApi.createChallenge(stage.round.roundId)
-      navigate(`/challenge/${challenge.challengeId}`, { state: { justCreated: true, shareUrl: challenge.shareUrl, score: result.score } })
+      navigate(`/challenge/${challenge.challengeId}`, { state: { justCreated: true, shareUrl: challenge.shareUrl, score: result.score, result, guess } })
     } catch (cause) {
       setStage({ kind: 'error', message: mapApiError(cause) })
     } finally {

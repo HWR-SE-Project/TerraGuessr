@@ -47,7 +47,9 @@ export async function registerAndLogin(page: Page, displayName: string): Promise
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })).toBeVisible({ timeout: 15000 });
 
-  await expect(page.locator('.th-profile-name')).toHaveText(displayName);
+  const session = await page.request.get('/api/auth/session');
+  expect(session.ok()).toBe(true);
+  expect((await session.json()).user.displayName).toBe(displayName);
 
   return { email, password };
 }

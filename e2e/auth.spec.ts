@@ -4,18 +4,20 @@ import { registerAndLogin } from './support/game';
 test.describe('authentication', () => {
   test('registration logs the player in and the session survives a reload', async ({ page }) => {
     await registerAndLogin(page, 'Browser Explorer');
-    await expect(page.getByText('Browser Explorer', { exact: true })).toBeVisible();
+    await page.goto('/duels');
+    await expect(page.getByRole('main').getByText('Browser Explorer', { exact: true })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText('Browser Explorer', { exact: true })).toBeVisible();
+    await expect(page.getByRole('main').getByText('Browser Explorer', { exact: true })).toBeVisible();
   });
 
   test('logout returns to the guest home page, and the account can log back in', async ({ page }) => {
     const { email, password } = await registerAndLogin(page, 'Logout Tester');
 
-    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.goto('/settings');
     await page.getByRole('button', { name: 'Log out' }).click();
-    await expect(page.getByText('Guest', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible();
+    expect((await (await page.request.get('/api/auth/session')).json()).user).toBeNull();
     await page.goto('/auth');
 
     await page.getByRole('button', { name: 'Log in' }).first().click();
@@ -23,14 +25,17 @@ test.describe('authentication', () => {
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: false }).fill(password);
     await page.locator('form').getByRole('button', { name: 'Log in', exact: true }).click();
-    await expect(page.getByText('Logout Tester', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })).toBeVisible();
+    await page.goto('/duels');
+    await expect(page.getByRole('main').getByText('Logout Tester', { exact: true })).toBeVisible();
   });
 
   test('an incorrect password shows an inline error instead of logging in', async ({ page }) => {
     const { email } = await registerAndLogin(page, 'Wrong Password');
-    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.goto('/settings');
     await page.getByRole('button', { name: 'Log out' }).click();
-    await expect(page.getByText('Guest', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible();
+    expect((await (await page.request.get('/api/auth/session')).json()).user).toBeNull();
     await page.goto('/auth');
 
     await page.getByRole('button', { name: 'Log in' }).first().click();

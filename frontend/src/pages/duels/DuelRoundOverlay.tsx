@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { LatLon, RoundDTO } from '../../api/types'
 import { WeatherPanel } from '../../components/WeatherPanel'
 import { MapPicker } from '../../components/map/MapPicker'
@@ -15,11 +15,16 @@ export interface DuelRoundOverlayProps {
 
 export function DuelRoundOverlay({ round, creating, busy, error, onSubmit, onClose }: DuelRoundOverlayProps) {
   const [guess, setGuess] = useState<LatLon | null>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    dialog.current?.showModal()
+  }, [])
 
   return (
-    <div className="tg-duel-overlay-scrim" role="presentation">
-      <div className="tg-duel-overlay" role="dialog" aria-modal="true" aria-label="Play this duel location">
-        <button type="button" className="tg-duel-overlay-close" onClick={onClose} aria-label="Cancel">
+    <dialog ref={dialog} className="tg-duel-overlay-scrim" aria-label="Play this duel location" onCancel={(event) => { event.preventDefault(); if (!busy) onClose() }}>
+      <div className="tg-duel-overlay">
+        <button type="button" className="tg-duel-overlay-close" onClick={onClose} disabled={busy} aria-label="Cancel">
           ×
         </button>
 
@@ -30,10 +35,10 @@ export function DuelRoundOverlay({ round, creating, busy, error, onSubmit, onClo
               Close
             </button>
           </>
-        ) : !round ? (
-          <p className="tg-duel-overlay-loading">Preparing your location…</p>
         ) : creating ? (
           <p className="tg-duel-overlay-loading">Creating your duel link…</p>
+        ) : !round ? (
+          <p className="tg-duel-overlay-loading">Preparing your location…</p>
         ) : (
           <>
             <h2 className="tg-duel-overlay-title">Where is this?</h2>
@@ -51,6 +56,6 @@ export function DuelRoundOverlay({ round, creating, busy, error, onSubmit, onClo
           </>
         )}
       </div>
-    </div>
+    </dialog>
   )
 }

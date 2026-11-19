@@ -4,7 +4,7 @@ import { registerAndLogin } from './support/game';
 test.describe('settings', () => {
   test('display name can be updated and the change is reflected after reload', async ({ page }) => {
     await registerAndLogin(page, 'Original Name');
-    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.goto('/settings');
 
     const nameField = page.getByLabel('Display name');
     await expect(nameField).toHaveValue('Original Name');
@@ -18,7 +18,7 @@ test.describe('settings', () => {
 
   test('a preference change persists across reload', async ({ page }) => {
     await registerAndLogin(page, 'Preference Tester');
-    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.goto('/settings');
     await page.getByRole('button', { name: 'Preferences' }).click();
 
     await page.getByLabel('Language').selectOption('de');
@@ -31,13 +31,14 @@ test.describe('settings', () => {
 
   test('deleting the account requires confirmation and then signs the player out', async ({ page }) => {
     const { password } = await registerAndLogin(page, 'Delete Me');
-    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.goto('/settings');
     await page.getByRole('button', { name: 'Delete my account' }).click();
 
     await expect(page.getByRole('heading', { name: 'Delete your account?' })).toBeVisible();
     await page.getByLabel('Current password').fill(password);
     await page.getByRole('button', { name: 'Delete account' }).click();
 
-    await expect(page.getByText('Guest', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible();
+    expect((await (await page.request.get('/api/auth/session')).json()).user).toBeNull();
   });
 });

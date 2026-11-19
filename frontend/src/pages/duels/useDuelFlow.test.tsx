@@ -96,7 +96,13 @@ describe('useDuelFlow', () => {
     expect(roundsApi.submitGuess).toHaveBeenCalledWith('round-1', { lat: 1, lon: 1 })
     expect(challengesApi.createChallenge).toHaveBeenCalledWith('round-1')
     expect(navigateMock).toHaveBeenCalledWith('/challenge/chal-1', {
-      state: { justCreated: true, shareUrl: '/challenge/chal-1', score: 4800 },
+      state: {
+        justCreated: true,
+        shareUrl: '/challenge/chal-1',
+        score: 4800,
+        result: { resultId: 'res-1', distanceKm: 12.3, score: 4800, actual: { lat: 1, lon: 1 } },
+        guess: { lat: 1, lon: 1 },
+      },
     })
   })
 
