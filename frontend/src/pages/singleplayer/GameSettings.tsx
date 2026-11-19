@@ -1,0 +1,67 @@
+import { GameDialog } from './GameDialog'
+import type { GameplaySettings } from './settings'
+export function GameSettings({
+  settings,
+  onChange,
+  onClose,
+}: {
+  settings: GameplaySettings
+  onChange: (settings: GameplaySettings) => void
+  onClose: () => void
+}) {
+  function toggle(key: 'hoverExpand' | 'compass' | 'scrollZoom') {
+    onChange({ ...settings, [key]: !settings[key] })
+  }
+  return (
+    <GameDialog title="Game settings" onClose={onClose}>
+      <p className="sp-muted">Make yourself at home, wherever you are.</p>
+      {(
+        [
+          [
+            'hoverExpand',
+            'Expand map on hover',
+            'A bigger map when your mouse enters it.',
+          ],
+          ['compass', 'Show compass', 'Find north with a single click.'],
+          [
+            'scrollZoom',
+            'Scroll to zoom Street View',
+            'Use your scroll wheel to take a closer look.',
+          ],
+        ] as const
+      ).map(([key, label, description]) => (
+        <label className="sp-setting" key={key}>
+          <span>
+            <strong>{label}</strong>
+            <small>{description}</small>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={settings[key]}
+            onChange={() => toggle(key)}
+          />
+        </label>
+      ))}
+      <label className="sp-setting sp-setting-range">
+        <span>
+          <strong>Map opacity</strong>
+          <small>{settings.mapOpacity}%</small>
+        </span>
+        <input
+          aria-label="Map opacity"
+          type="range"
+          min="60"
+          max="100"
+          value={settings.mapOpacity}
+          onChange={(event) =>
+            onChange({ ...settings, mapOpacity: Number(event.target.value) })
+          }
+        />
+      </label>
+      <button className="sp-primary sp-wide" onClick={onClose}>
+        Back to exploring
+      </button>
+    </GameDialog>
+  )
+}

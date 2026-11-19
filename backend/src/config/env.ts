@@ -1,5 +1,6 @@
 export interface Env {
   databaseUrl: string;
+  googleMapsServerKey?: string;
   port: number;
   /** false disables CORS entirely (same-origin only) — the safe default (Phase C). */
   corsOrigin: string | false;
@@ -35,6 +36,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
 
   return {
     databaseUrl,
+    googleMapsServerKey: env.GOOGLE_MAPS_SERVER_API_KEY?.trim() || undefined,
     port: parsePort(env.PORT),
     // No wildcard default (Phase C): an unset CORS_ORIGIN disables
     // cross-origin requests entirely rather than allowing any origin.

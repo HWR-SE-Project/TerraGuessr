@@ -63,7 +63,7 @@ export function HomeNavigation({
         aria-label="Main navigation"
       >
         <Link
-          to="/play"
+          to="/game/singleplayer"
           className={`th-nav-item${active === 'singleplayer' ? ' th-nav-active' : ''}`}
           aria-current={active === 'singleplayer' ? 'page' : undefined}
           onClick={() => setMenuOpen(false)}
@@ -281,7 +281,7 @@ export function HomeExperience() {
       <HeroSection showNotice={setNotice} />
       <nav className="th-game-modes" aria-label="Game modes">
         <GameModeCard
-          to="/play"
+          to="/game/singleplayer"
           icon="play"
           title="Play Solo"
           subtitle="Challenge yourself"

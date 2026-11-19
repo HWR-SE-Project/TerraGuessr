@@ -4,6 +4,7 @@ import { Type } from '@sinclair/typebox';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
+import { registerSingleplayerRoutes } from './modules/singleplayer/routes.js';
 import { loadEnv } from './config/env.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { registerChallengesRoutes } from './modules/challenges/routes.js';
@@ -43,6 +44,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerStatisticsRoutes(app);
   registerChallengesRoutes(app);
   registerGamesRoutes(app);
+  registerSingleplayerRoutes(app, { key: config.googleMapsServerKey });
   registerRoundsRoutes(app);
   registerResultsRoutes(app);
   registerAdminRoutes(app, { adminApiToken: config.adminApiToken });

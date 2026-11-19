@@ -4,9 +4,12 @@ import { AuthPage } from './pages/auth/AuthPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { DuelsPage } from './pages/duels/DuelsPage'
 import { SettingsPage } from './pages/settings/SettingsPage'
+import { lazy, Suspense } from 'react'
 import { PlayPage } from './pages/play/PlayPage'
 import { DailyPage } from './pages/daily/DailyPage'
 import { ChallengePage } from './pages/challenge/ChallengePage'
+
+const SingleplayerGamePage = lazy(() => import('./pages/singleplayer/SingleplayerGamePage').then((module) => ({ default: module.SingleplayerGamePage })))
 
 function App() {
   return (
@@ -15,6 +18,7 @@ function App() {
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/duels" element={<DuelsPage />} />
+      <Route path="/game/singleplayer" element={<Suspense fallback={<div role="status">Loading gameplay…</div>}><SingleplayerGamePage /></Suspense>} />
       <Route path="/play" element={<PlayPage />} />
       <Route path="/daily" element={<DailyPage />} />
       <Route path="/challenge/:challengeId" element={<ChallengePage />} />
