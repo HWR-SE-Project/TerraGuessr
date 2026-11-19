@@ -65,7 +65,7 @@ export function DesktopDuels() {
             </div>
           </Link>
           <div className="tg-dl-profile-name-wrap">
-            <div className="tg-dl-profile-name">{user?.displayName}</div>
+            <div className="tg-dl-profile-name">{user?.displayName ?? 'Guest'}</div>
           </div>
         </div>
       </header>
@@ -106,7 +106,7 @@ export function DesktopDuels() {
         <div className="tg-dl-flag tg-dl-flag--left">
           <img src={flagLeft} alt="" />
         </div>
-        <div className="tg-dl-player-name tg-dl-player-name--left">{user?.displayName}</div>
+        <div className="tg-dl-player-name tg-dl-player-name--left">{user?.displayName ?? 'Guest'}</div>
 
         <button type="button" className="tg-dl-play-btn" onClick={start} disabled={busy}>
           <span>{busy ? 'Starting…' : 'Play'}</span>
@@ -142,7 +142,7 @@ export function DesktopDuels() {
           <div className="tg-dl-rank-current-flag">
             <img src={flagRankRow} alt="" />
           </div>
-          <span className="tg-dl-rank-current-name">{user?.displayName}</span>
+          <span className="tg-dl-rank-current-name">{user?.displayName ?? 'Guest'}</span>
           <span className="tg-dl-rank-current-tier">Unranked</span>
         </div>
       </main>

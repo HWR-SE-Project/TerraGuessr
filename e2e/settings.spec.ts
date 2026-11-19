@@ -38,6 +38,6 @@ test.describe('settings', () => {
     await page.getByLabel('Current password').fill(password);
     await page.getByRole('button', { name: 'Delete account' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Sign up to play' })).toBeVisible();
+    await expect(page.getByText('Guest', { exact: true })).toBeVisible();
   });
 });

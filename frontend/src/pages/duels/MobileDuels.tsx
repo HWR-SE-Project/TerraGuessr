@@ -54,11 +54,11 @@ export function MobileDuels() {
 
       {menuOpen && (
         <div className="tg-dm-menu" role="menu">
-          <span className="tg-dm-menu-name">{user?.displayName}</span>
+          <span className="tg-dm-menu-name">{user?.displayName ?? 'Guest'}</span>
           <Link to="/play" role="menuitem" onClick={() => setMenuOpen(false)}>Play a round</Link>
           <Link to="/daily" role="menuitem" onClick={() => setMenuOpen(false)}>Daily challenge</Link>
           <Link to="/settings" role="menuitem" onClick={() => setMenuOpen(false)}>Settings</Link>
-          <button type="button" role="menuitem" onClick={handleLogout}>Log out</button>
+          {user && <button type="button" role="menuitem" onClick={handleLogout}>Log out</button>}
         </div>
       )}
 
@@ -74,7 +74,7 @@ export function MobileDuels() {
         <div className="tg-dm-flag">
           <img src={flagLeft} alt="" />
         </div>
-        <div className="tg-dm-player-name tg-dm-player-name--left">{user?.displayName}</div>
+        <div className="tg-dm-player-name tg-dm-player-name--left">{user?.displayName ?? 'Guest'}</div>
 
         <button type="button" className="tg-dm-play-btn" onClick={start} disabled={busy}>
           <span>{busy ? 'Starting…' : 'Play'}</span>

@@ -164,3 +164,6 @@ vite.config.ts.timestamp-*
 /DREAMS.md
 /BOOTSTRAP.md
 /.openclaw/
+
+# Local browser sessions contain authentication cookies.
+*.local.json
