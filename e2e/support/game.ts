@@ -38,14 +38,16 @@ export async function registerAndLogin(page: Page, displayName: string): Promise
   const email = `${displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}@example.test`;
   const password = 'correct-horse-battery-staple';
 
-  await page.goto('/');
+  await page.goto('/auth');
   await page.getByRole('button', { name: 'Sign up' }).first().click();
   await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByLabel('Display name').fill(displayName);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: false }).fill(password);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('link', { name: 'Play a round', exact: true })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })).toBeVisible({ timeout: 15000 });
+
+  await expect(page.locator('.th-profile-name')).toHaveText(displayName);
 
   return { email, password };
 }
