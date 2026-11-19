@@ -51,7 +51,7 @@ test('mobile navigation and game entry points stay usable without horizontal scr
   }
   await page.getByRole('link', { name: 'Play Solo Challenge yourself' }).click()
   await expect(
-    page.getByRole('button', { name: 'Start playing' }),
+    page.getByRole('main', { name: 'TerraGuessr singleplayer game' }),
   ).toBeVisible()
 })
 
@@ -79,12 +79,15 @@ test('daily API failure leaves home and its navigation usable', async ({
   await expect(page).toHaveURL(/\/duels$/)
 })
 
-test('Play Solo starts and completes the supported map expedition', async ({
+test('Play Solo opens Street View and the legacy weather expedition remains playable', async ({
   page,
 }) => {
   test.setTimeout(120_000)
   await registerAndLogin(page, 'Home Solo Explorer')
   await page.getByRole('link', { name: 'Play Solo Challenge yourself' }).click()
+  await expect(page).toHaveURL(/\/game\/singleplayer$/)
+  await expect(page.getByRole('main', { name: 'TerraGuessr singleplayer game' })).toBeVisible()
+  await page.goto('/play')
   await page.getByRole('button', { name: 'Medium', exact: true }).click()
   await page.getByRole('button', { name: 'Click the map' }).click()
   await page.getByRole('button', { name: '3', exact: true }).click()

@@ -279,3 +279,33 @@ model ChallengeEntry {
   @@unique([challengeId, playerTokenHash])
   @@index([challengeId])
 }
+
+// Street View is isolated from the existing weather game contracts.
+model StreetGame {
+  id              String        @id @default(cuid())
+  playerTokenHash String
+  roundsTotal     Int           @default(5)
+  expiresAt       DateTime
+  createdAt       DateTime      @default(now())
+  rounds          StreetRound[]
+
+  @@index([expiresAt])
+}
+
+model StreetRound {
+  id          String     @id @default(cuid())
+  gameId      String
+  game        StreetGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  number      Int
+  panoId      String
+  targetIndex Int
+  targetLat   Float
+  targetLon   Float
+  guessLat    Float?
+  guessLon    Float?
+  distanceKm  Float?
+  score       Int?
+  createdAt   DateTime   @default(now())
+
+  @@unique([gameId, number])
+}

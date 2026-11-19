@@ -26,8 +26,8 @@ test.describe('navigation', () => {
     await expect(page).toHaveURL(/\/duels$/);
 
     await page.getByRole('link', { name: 'Singleplayer', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Start playing' })).toBeVisible();
-    await expect(page).toHaveURL(/\/play$/);
+    await expect(page.getByRole('main', { name: 'TerraGuessr singleplayer game' })).toBeVisible();
+    await expect(page).toHaveURL(/\/game\/singleplayer$/);
 
     await page.goto('/');
     await expect(page.getByRole('complementary', { name: 'Daily activities' })).toHaveCount(0);
