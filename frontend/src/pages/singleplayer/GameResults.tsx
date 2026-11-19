@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import type { StreetResult, StreetSession } from '../../api/singleplayer'
 import type { LatLon } from '../../api/types'
 import { GuessMap } from './GuessMap'
@@ -70,15 +71,17 @@ export function RoundResults({
             Your guess<strong>{coordinates(result.guess)}</strong>
           </span>
         </div>
-        <button className="sp-primary" disabled={busy} onClick={onNext}>
+      </div>
+      <footer className="sp-result-actions">
+        <Button className="sp-primary" disabled={busy} onClick={onNext}>
           {busy
             ? 'Loading next location…'
             : result.number === roundsTotal
               ? 'View final results'
               : 'Next round'}{' '}
           <span aria-hidden="true">→</span>
-        </button>
-      </div>
+        </Button>
+      </footer>
     </section>
   )
 }
@@ -136,16 +139,20 @@ export function FinalResults({
             </details>
           ))}
         </div>
-        <div className="sp-result-actions">
-          <button className="sp-primary" disabled={busy} onClick={onPlayAgain}>
-            {busy ? 'Starting…' : 'Play again'}{' '}
-            <span aria-hidden="true">↗</span>
-          </button>
-          <button className="sp-secondary" disabled={busy} onClick={onHome}>
-            Return home
-          </button>
-        </div>
       </div>
+      <footer className="sp-result-actions">
+        <Button className="sp-primary" disabled={busy} onClick={onPlayAgain}>
+          {busy ? 'Starting…' : 'Play again'} <span aria-hidden="true">↗</span>
+        </Button>
+        <Button
+          variant="secondary"
+          className="sp-secondary"
+          disabled={busy}
+          onClick={onHome}
+        >
+          Return home
+        </Button>
+      </footer>
     </section>
   )
 }

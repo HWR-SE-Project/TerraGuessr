@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Brand } from '../../components/ui/Brand'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameSession } from './useGameSession'
@@ -103,11 +104,7 @@ export function SingleplayerGamePage() {
         aria-label="TerraGuessr home"
         onClick={leave}
       >
-        <span className="sp-brand-mark">T</span>
-        <span>
-          Terra<b>Guessr</b>
-          <small>THE WORLD IS YOUR PLAYGROUND</small>
-        </span>
+        <Brand />
       </button>
       <div className="sp-top-controls">
         <button

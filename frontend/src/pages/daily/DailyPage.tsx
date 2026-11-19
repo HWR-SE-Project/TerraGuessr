@@ -1,3 +1,4 @@
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
@@ -65,6 +66,7 @@ export function DailyPage() {
   if (status === 'loading' || loading) {
     return (
       <div className="tg-daily-page">
+      <PageNavigation />
         <div className="tg-daily-shell">
           <p className="tg-daily-loading">Loading today's challenge…</p>
         </div>
@@ -75,6 +77,7 @@ export function DailyPage() {
   if (!user) {
     return (
       <div className="tg-daily-page">
+      <PageNavigation />
         <div className="tg-daily-shell">
           <h1 className="tg-daily-title">Daily challenge</h1>
           <p className="tg-daily-subtitle">Sign in to play today's shared challenge and track your streak.</p>
@@ -89,6 +92,7 @@ export function DailyPage() {
   if (error && !today) {
     return (
       <div className="tg-daily-page">
+      <PageNavigation />
         <div className="tg-daily-shell">
           <p className="tg-daily-error" role="alert">{error}</p>
         </div>
@@ -100,6 +104,7 @@ export function DailyPage() {
 
   return (
     <div className="tg-daily-page">
+      <PageNavigation />
       <div className="tg-daily-shell">
         <div className="tg-daily-header">
           <div>

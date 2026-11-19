@@ -1,3 +1,4 @@
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as gamesApi from '../../api/games'
@@ -107,6 +108,7 @@ export function PlayPage() {
 
   return (
     <div className="tg-play-page">
+      <PageNavigation />
       <div className="tg-play-bg-glow" />
       <div className="tg-play-shell">
         {stage.kind === 'setup' && <GameSetupForm onStart={handleStart} submitting={busy} error={error} />}

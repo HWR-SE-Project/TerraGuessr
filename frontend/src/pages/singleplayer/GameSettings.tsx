@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { GameDialog } from './GameDialog'
 import type { GameplaySettings } from './settings'
 export function GameSettings({
@@ -59,9 +60,9 @@ export function GameSettings({
           }
         />
       </label>
-      <button className="sp-primary sp-wide" onClick={onClose}>
+      <Button className="sp-primary sp-wide" onClick={onClose}>
         Back to exploring
-      </button>
+      </Button>
     </GameDialog>
   )
 }

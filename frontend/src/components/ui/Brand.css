@@ -1,0 +1,43 @@
+.tg-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  white-space: nowrap;
+}
+.tg-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 40px;
+  color: var(--color-lime);
+  flex-shrink: 0;
+}
+.tg-brand-mark svg {
+  width: 100%;
+  height: 100%;
+}
+.tg-brand-word {
+  font-size: 23px;
+  font-weight: 750;
+  letter-spacing: -1px;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+.tg-brand-word > span:first-child {
+  font-weight: 450;
+}
+.tg-brand-period {
+  color: var(--color-lime);
+}
+@media (max-width: 600px) {
+  .tg-brand-mark {
+    width: 30px;
+    height: 33px;
+  }
+  .tg-brand-word {
+    font-size: 20px;
+  }
+  .tg-brand {
+    gap: 8px;
+  }
+}

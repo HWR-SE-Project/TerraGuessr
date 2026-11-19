@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
-import defaultAvatar from '../../assets/home/official/alpine-lake.webp'
-import sky from '../../assets/home/official/sky.svg'
+import { Brand } from '../../components/ui/Brand'
+import character from '../../assets/home/official/explorer.webp'
+import './HomePage.css'
 import { HomeIcon } from './HomeIcon'
 import type { HomeIconName } from './HomeIcon'
 import { Home3DScene } from './scene/Home3DScene'
@@ -43,18 +44,40 @@ export function HomeNavigation({
   showPlayerTools = false,
 }: {
   showNotice: ShowNotice
-  active?: 'singleplayer' | 'multiplayer'
+  active?: 'singleplayer' | 'multiplayer' | 'none'
   showPlayerTools?: boolean
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user } = useSession()
+  const { pathname } = useLocation()
+  const headerRef = useRef<HTMLElement>(null)
+  const menuRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        menuRef.current?.focus()
+      }
+    }
+    const outside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !headerRef.current?.contains(event.target)
+      )
+        setMenuOpen(false)
+    }
+    window.addEventListener('keydown', escape)
+    window.addEventListener('pointerdown', outside)
+    return () => {
+      window.removeEventListener('keydown', escape)
+      window.removeEventListener('pointerdown', outside)
+    }
+  }, [menuOpen])
   return (
-    <header className="th-header">
+    <header ref={headerRef} className="th-header">
       <Link to="/" className="th-brand" aria-label="TerraGuessr home">
-        <span className="th-brand-mark">T</span>
-        <span className="th-wordmark">
-          Terra<span>Guessr</span>
-        </span>
+        <Brand />
       </Link>
       <nav
         id="main-navigation"
@@ -79,14 +102,15 @@ export function HomeNavigation({
           <HomeIcon name="users" />
           Multiplayer
         </Link>
-        <UnavailableButton
-          className="th-nav-item"
-          message="Party lobbies are not available yet. You can challenge a friend in Duels."
-          showNotice={showNotice}
+        <Link
+          to="/daily"
+          className={`th-nav-item${pathname === '/daily' ? ' th-nav-active' : ''}`}
+          aria-current={pathname === '/daily' ? 'page' : undefined}
+          onClick={() => setMenuOpen(false)}
         >
-          <HomeIcon name="bolt" />
-          Party
-        </UnavailableButton>
+          <HomeIcon name="calendar" />
+          Daily challenge
+        </Link>
       </nav>
       {showPlayerTools && (
         <div className="th-player-tools">
@@ -98,30 +122,28 @@ export function HomeNavigation({
           >
             <HomeIcon name="search" />
           </UnavailableButton>
-          <span className="th-profile-divider" aria-hidden="true" />
-          <Link to="/settings" className="th-profile-link" aria-label="Settings">
-            <span className="th-profile-avatar">
-              <img src={defaultAvatar} alt="" width="50" height="50" />
+          <Link
+            to={user ? '/settings' : '/auth'}
+            className="th-profile-link"
+            aria-label={user ? 'Settings' : 'Sign in'}
+          >
+            <span className="th-profile-avatar" aria-hidden="true">
+              {(user?.displayName ?? 'Explorer').slice(0, 1).toUpperCase()}
             </span>
             <span className="th-profile-details">
-              <span className="th-profile-name">{user?.displayName ?? 'Guest'}</span>
-              <span className="th-currency" title="Currency is not available yet">
-                <HomeIcon name="coin" />
-                <span aria-label="Currency unavailable">—</span>
+              <span className="th-profile-name">
+                {user?.displayName ?? 'Guest explorer'}
+              </span>
+              <span className="th-profile-caption">
+                {user ? 'Your account' : 'Sign in to save progress'}
               </span>
             </span>
+            <HomeIcon name="chevron" />
           </Link>
-          <span className="th-profile-divider" aria-hidden="true" />
-          <span
-            className="th-level"
-            aria-label="Explorer levels coming soon"
-            title="Explorer levels coming soon"
-          >
-            —
-          </span>
         </div>
       )}
       <button
+        ref={menuRef}
         className="th-menu-button"
         type="button"
         aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
@@ -139,38 +161,25 @@ function HeroSection({ showNotice }: { showNotice: ShowNotice }) {
   return (
     <main className="th-hero" id="home-main" tabIndex={-1}>
       <div className="th-hero-copy">
-        <p className="th-eyebrow">A GEOGRAPHY GUESSING GAME</p>
+        <p className="th-eyebrow">CURIOSITY HAS NO BORDERS</p>
         <h1>
-          Explore the{' '}
-          <span>
-            World
-            <svg
-              className="th-world-accent"
-              viewBox="0 0 260 140"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M70 132Q145 122 211 130"
-                stroke="currentColor"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
-              <path
-                d="m218 29-1-15m20 18 8-14m6 29 18-8"
-                stroke="currentColor"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
-            </svg>
-          </span>
+          Explore the <span>World</span>
         </h1>
         <p className="th-description">
-          Get dropped into a mystery spot with nothing but live<br className="th-desktop-break" />
-          {' '}weather data to go on. How far off can your guess be?
+          Somewhere incredible. No idea where.
+          <br className="th-desktop-break" /> Follow the clues. Find your place
+          in the world.
         </p>
       </div>
       <div className="th-avatar-display">
+        <img
+          src={character}
+          className="th-character"
+          alt="Your explorer, ready for the next discovery"
+          width="512"
+          height="768"
+          fetchPriority="high"
+        />
         <UnavailableButton
           className="th-edit-avatar"
           message="Avatar customization is not available yet."
@@ -205,15 +214,18 @@ function GameModeCard({
       <span className="th-mode-icon">
         <HomeIcon name={icon} />
       </span>
-      <span>
+      <span className="th-mode-copy">
         <strong>{title}</strong>
         <small>{subtitle}</small>
+      </span>
+      <span className="th-mode-arrow" aria-hidden="true">
+        ↗
       </span>
     </Link>
   )
 }
 
-function AvailabilityNotice({
+export function AvailabilityNotice({
   message,
   onClose,
 }: {
@@ -265,9 +277,14 @@ export function HomeExperience() {
         Skip to content
       </a>
       <Home3DScene />
-      <img className="th-sky" src={sky} alt="" aria-hidden="true" />
+      <div className="th-orbit th-orbit-one" aria-hidden="true" />
+      <div className="th-orbit th-orbit-two" aria-hidden="true" />
       <HomeNavigation showNotice={setNotice} showPlayerTools />
       <HeroSection showNotice={setNotice} />
+      <div className="th-world-note" aria-hidden="true">
+        <span>ONE PLANET.</span>
+        <span>ENDLESS PERSPECTIVES.</span>
+      </div>
       <nav className="th-game-modes" aria-label="Game modes">
         <GameModeCard
           to="/game/singleplayer"
@@ -289,6 +306,17 @@ export function HomeExperience() {
           subtitle="Climb the leaderboards"
         />
       </nav>
+      <footer className="th-footer">
+        <span>A little curiosity goes a long way.</span>
+        <span className="th-footer-links">
+          <a href="/asset-credits.txt" target="_blank" rel="noreferrer">
+            Earth credits
+          </a>
+          <Link to="/play">
+            Try the weather expedition <span aria-hidden="true">↗</span>
+          </Link>
+        </span>
+      </footer>
       {notice && (
         <AvailabilityNotice message={notice} onClose={() => setNotice(null)} />
       )}

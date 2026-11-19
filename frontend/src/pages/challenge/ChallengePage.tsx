@@ -1,3 +1,4 @@
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useEffect, useState } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 import * as challengesApi from '../../api/challenges'
@@ -124,6 +125,7 @@ export function ChallengePage() {
 
   return (
     <div className="tg-challenge-page">
+      <PageNavigation />
       <div className="tg-challenge-shell">
         {shareState?.justCreated && (
           <div className="tg-challenge-share-banner">

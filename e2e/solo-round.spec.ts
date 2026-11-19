@@ -4,7 +4,7 @@ import { guessOnMap, registerAndLogin, startSoloGame } from './support/game';
 test.describe('solo play', () => {
   test('map mode: guess, change the guess, submit, and reach the summary after all rounds', async ({ page }) => {
     await registerAndLogin(page, 'Map Player');
-    await startSoloGame(page, { difficulty: 'easy', mode: 'map', rounds: 3 });
+    await startSoloGame(page, { difficulty: 'medium', mode: 'map', rounds: 3 });
 
     const submit = page.getByRole('button', { name: 'Submit guess' });
     await expect(submit).toBeDisabled();
@@ -32,7 +32,7 @@ test.describe('solo play', () => {
 
   test('list mode: picking a candidate enables submit and a round can be played end to end', async ({ page }) => {
     await registerAndLogin(page, 'List Player');
-    await startSoloGame(page, { difficulty: 'hard', mode: 'list', rounds: 3 });
+    await startSoloGame(page, { difficulty: 'medium', mode: 'list', rounds: 3 });
 
     const submit = page.getByRole('button', { name: 'Submit guess' });
     await expect(submit).toBeDisabled();

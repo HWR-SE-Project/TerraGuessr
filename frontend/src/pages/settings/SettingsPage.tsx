@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
 import { mapApiError } from '../../api/errorMessages'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Brand } from '../../components/ui/Brand'
 import './SettingsPage.css'
 
 type SettingsTab = 'account' | 'preferences'
@@ -26,7 +27,15 @@ function LanguageIcon() {
   )
 }
 
-function Slider({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function Slider({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+}) {
   return (
     <div className="settings-row settings-row--slider">
       <h2 className="settings-row__label">{label}</h2>
@@ -41,7 +50,12 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
           style={{ '--slider-progress': `${value}%` } as CSSProperties}
           onChange={(event) => onChange(Number(event.target.value))}
         />
-        <output className="settings-slider__value" style={{ left: `clamp(24px, ${value}%, calc(100% - 24px))` }}>{value}</output>
+        <output
+          className="settings-slider__value"
+          style={{ left: `clamp(24px, ${value}%, calc(100% - 24px))` }}
+        >
+          {value}
+        </output>
       </div>
     </div>
   )
@@ -49,7 +63,15 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
 
 export function SettingsPage() {
   const navigate = useNavigate()
-  const { status, user, preferences, updateProfile, updatePreferences, logout, deleteAccount } = useSession()
+  const {
+    status,
+    user,
+    preferences,
+    updateProfile,
+    updatePreferences,
+    logout,
+    deleteAccount,
+  } = useSession()
   const [tab, setTab] = useState<SettingsTab>('account')
 
   const [displayName, setDisplayName] = useState('')
@@ -68,11 +90,11 @@ export function SettingsPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') navigate('/')
+      if (event.key === 'Escape' && !deleteOpen) navigate('/')
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [navigate])
+  }, [navigate, deleteOpen])
 
   async function saveProfile(event: React.FormEvent) {
     event.preventDefault()
@@ -88,7 +110,9 @@ export function SettingsPage() {
     }
   }
 
-  async function patchPreferences(changes: Parameters<typeof updatePreferences>[0]) {
+  async function patchPreferences(
+    changes: Parameters<typeof updatePreferences>[0],
+  ) {
     setPrefsError(null)
     try {
       await updatePreferences(changes)
@@ -104,7 +128,9 @@ export function SettingsPage() {
       await deleteAccount(deletePassword || undefined)
       navigate('/')
     } catch (cause) {
-      setDeleteError(mapApiError(cause, { UNAUTHORIZED: 'Current password is incorrect.' }))
+      setDeleteError(
+        mapApiError(cause, { UNAUTHORIZED: 'Current password is incorrect.' }),
+      )
     } finally {
       setDeleteBusy(false)
     }
@@ -126,13 +152,27 @@ export function SettingsPage() {
   if (!user) {
     return (
       <main className="settings-screen">
-        <section className="settings-panel" style={{ display: 'grid', placeItems: 'center' }} aria-label="Settings">
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ color: 'rgba(255,255,255,0.75)', marginBottom: 16, fontSize: 18 }}>Sign in to manage your account and preferences.</p>
-            <button type="button" className="settings-footer__close" onClick={() => navigate('/auth')}>
-              Sign in
-            </button>
-          </div>
+        <section
+          className="settings-panel settings-guest"
+          aria-label="Settings"
+        >
+          <Brand />
+          <h1>Make it your world.</h1>
+          <p>Sign in to manage your account and preferences.</p>
+          <button
+            type="button"
+            className="settings-save-btn"
+            onClick={() => navigate('/auth')}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            className="settings-footer__close"
+            onClick={() => navigate('/')}
+          >
+            Return home
+          </button>
         </section>
       </main>
     )
@@ -141,15 +181,32 @@ export function SettingsPage() {
   return (
     <main className="settings-screen">
       <section className="settings-panel" aria-label="Settings">
-        <button className="settings-top-close" type="button" aria-label="Close settings" onClick={() => navigate('/')}>
+        <button
+          className="settings-top-close"
+          type="button"
+          aria-label="Close settings"
+          onClick={() => navigate('/')}
+        >
           <CloseIcon />
         </button>
 
         <header className="settings-header">
           <h1>Settings</h1>
           <nav className="settings-tabs" aria-label="Settings sections">
-            <button type="button" className={tab === 'account' ? 'is-active' : ''} onClick={() => setTab('account')}>Account</button>
-            <button type="button" className={tab === 'preferences' ? 'is-active' : ''} onClick={() => setTab('preferences')}>Preferences</button>
+            <button
+              type="button"
+              className={tab === 'account' ? 'is-active' : ''}
+              onClick={() => setTab('account')}
+            >
+              Account
+            </button>
+            <button
+              type="button"
+              className={tab === 'preferences' ? 'is-active' : ''}
+              onClick={() => setTab('preferences')}
+            >
+              Preferences
+            </button>
           </nav>
           <span className="settings-header__spacer" />
         </header>
@@ -159,7 +216,14 @@ export function SettingsPage() {
             <>
               <form className="settings-row" onSubmit={saveProfile}>
                 <h2 className="settings-row__label">Display name</h2>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 12,
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                  }}
+                >
                   <input
                     aria-label="Display name"
                     className="settings-text-input"
@@ -168,21 +232,37 @@ export function SettingsPage() {
                     maxLength={40}
                     onChange={(event) => setDisplayName(event.target.value)}
                   />
-                  <button type="submit" className="settings-save-btn" disabled={profileSaving || displayName.trim() === user.displayName}>
+                  <button
+                    type="submit"
+                    className="settings-save-btn"
+                    disabled={
+                      profileSaving || displayName.trim() === user.displayName
+                    }
+                  >
                     {profileSaving ? 'Saving…' : 'Save'}
                   </button>
-                  {profileMessage && <span className="settings-inline-message">{profileMessage}</span>}
+                  {profileMessage && (
+                    <span className="settings-inline-message">
+                      {profileMessage}
+                    </span>
+                  )}
                 </div>
               </form>
 
               <div className="settings-row">
                 <h2 className="settings-row__label">Email</h2>
-                <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 16 }}>{user.email}</span>
+                <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 16 }}>
+                  {user.email}
+                </span>
               </div>
 
               <div className="settings-row">
                 <h2 className="settings-row__label">Session</h2>
-                <button type="button" className="settings-save-btn settings-save-btn--muted" onClick={handleLogout}>
+                <button
+                  type="button"
+                  className="settings-save-btn settings-save-btn--muted"
+                  onClick={handleLogout}
+                >
                   Log out
                 </button>
               </div>
@@ -191,9 +271,14 @@ export function SettingsPage() {
                 <h2 className="settings-row__label">Delete account</h2>
                 <div>
                   <p className="settings-note" style={{ marginBottom: 12 }}>
-                    Permanently deletes your account and preferences. Past games and results are kept, anonymized.
+                    Permanently deletes your account and preferences. Past games
+                    and results are kept, anonymized.
                   </p>
-                  <button type="button" className="settings-save-btn settings-save-btn--danger" onClick={() => setDeleteOpen(true)}>
+                  <button
+                    type="button"
+                    className="settings-save-btn settings-save-btn--danger"
+                    onClick={() => setDeleteOpen(true)}
+                  >
                     Delete my account
                   </button>
                 </div>
@@ -215,16 +300,25 @@ export function SettingsPage() {
               <div className="settings-row settings-row--language">
                 <h2 className="settings-row__label">Language</h2>
                 <div className="settings-language-select">
-                  <span className="settings-language-select__icon"><LanguageIcon /></span>
+                  <span className="settings-language-select__icon">
+                    <LanguageIcon />
+                  </span>
                   <select
                     aria-label="Language"
                     value={preferences?.language ?? 'en'}
-                    onChange={(event) => patchPreferences({ language: event.target.value as 'en' | 'de' })}
+                    onChange={(event) =>
+                      patchPreferences({
+                        language: event.target.value as 'en' | 'de',
+                      })
+                    }
                   >
                     <option value="en">English</option>
                     <option value="de">Deutsch</option>
                   </select>
-                  <span className="settings-language-select__chevron" aria-hidden="true" />
+                  <span
+                    className="settings-language-select__chevron"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
 
@@ -233,20 +327,33 @@ export function SettingsPage() {
                 <label className="settings-toggle">
                   <input
                     type="checkbox"
+                    aria-label="Fullscreen"
                     checked={preferences?.fullscreen ?? false}
-                    onChange={(event) => patchPreferences({ fullscreen: event.target.checked })}
+                    onChange={(event) =>
+                      patchPreferences({ fullscreen: event.target.checked })
+                    }
                   />
                   <span aria-hidden="true" />
                 </label>
               </div>
 
-              {prefsError && <p className="settings-inline-message settings-inline-message--error">{prefsError}</p>}
+              {prefsError && (
+                <p className="settings-inline-message settings-inline-message--error">
+                  {prefsError}
+                </p>
+              )}
             </>
           )}
         </div>
 
         <footer className="settings-footer">
-          <button className="settings-footer__close" type="button" onClick={() => navigate('/')}>Close</button>
+          <button
+            className="settings-footer__close"
+            type="button"
+            onClick={() => navigate('/')}
+          >
+            Close
+          </button>
         </footer>
       </section>
 
@@ -273,7 +380,11 @@ export function SettingsPage() {
             onChange={(event) => setDeletePassword(event.target.value)}
             style={{ width: '100%', marginBottom: 8 }}
           />
-          {deleteError && <p className="settings-inline-message settings-inline-message--error">{deleteError}</p>}
+          {deleteError && (
+            <p className="settings-inline-message settings-inline-message--error">
+              {deleteError}
+            </p>
+          )}
         </ConfirmDialog>
       )}
     </main>
