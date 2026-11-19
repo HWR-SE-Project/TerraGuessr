@@ -7,13 +7,14 @@ import { GuessMap } from './GuessMap'
 import { GameplayHUD, GameIcon } from './GameplayHUD'
 import { GameDialog } from './GameDialog'
 import { GameSettings } from './GameSettings'
+import { GeographicIntelligence } from './GeographicIntelligence'
 import { readSettings } from './settings'
 import { RoundResults, FinalResults } from './GameResults'
 import './SingleplayerGamePage.css'
 
 export function SingleplayerGamePage() {
   const navigate = useNavigate()
-  const game = useGameSession()
+  const game = useGameSession(true)
   const [dialog, setDialog] = useState<
     'settings' | 'menu' | 'leave' | 'restart' | null
   >(null)
@@ -36,6 +37,11 @@ export function SingleplayerGamePage() {
   }, [settings])
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        (event.target instanceof Element && event.target.closest('dialog'))
+      )
+        return
       if (
         event.key === 'Enter' &&
         !dialog &&
@@ -76,13 +82,19 @@ export function SingleplayerGamePage() {
               ? 'Loading Street View…'
               : 'Five rounds. A whole world.'
   return (
-    <main className="sp-page" aria-label="TerraGuessr singleplayer game">
+    <main
+      className="sp-page"
+      aria-label="TerraGuessr singleplayer game"
+      data-game-phase={game.phase}
+    >
       {active && (
         <StreetViewViewer
           round={active}
           onReady={game.setPanoramaReady}
           showCompass={settings.compass}
           scrollZoom={settings.scrollZoom}
+          onRetryLocation={() => void game.retryLocation()}
+          retrying={game.busy}
         />
       )}
       <div className="sp-top-shade" />
@@ -147,8 +159,8 @@ export function SingleplayerGamePage() {
             <div className="sp-unavailable" role="status">
               <strong>Street View is currently unavailable</strong>
               <p>
-                This expedition needs a configured map provider. Please try
-                again once Street View is available.
+                {game.setupIssues.join(' ') ||
+                  'The map provider could not be reached. Check the connection and retry.'}
               </p>
               <button
                 className="sp-secondary"
@@ -180,6 +192,13 @@ export function SingleplayerGamePage() {
         </div>
       )}
 
+      {exploring && active && (
+        <GeographicIntelligence
+          key={`${active.id}:${active.panoId}`}
+          load={game.loadIntelligence}
+          round={active}
+        />
+      )}
       {game.result && (
         <RoundResults
           result={game.result}

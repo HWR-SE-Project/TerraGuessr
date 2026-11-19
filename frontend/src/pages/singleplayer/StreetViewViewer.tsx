@@ -7,17 +7,23 @@ export function StreetViewViewer({
   onReady,
   showCompass,
   scrollZoom,
+  onRetryLocation,
+  retrying = false,
 }: {
   round: StreetRound
   onReady: (ready: boolean) => void
   showCompass: boolean
   scrollZoom: boolean
+  onRetryLocation?: () => void
+  retrying?: boolean
 }) {
   const element = useRef<HTMLDivElement>(null)
   const panorama = useRef<google.maps.StreetViewPanorama | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [heading, setHeading] = useState(0)
+  const [currentPano, setCurrentPano] = useState(round.panoId)
+  const [ready, setReady] = useState(false)
   const settings = useRef({ scrollZoom })
   useEffect(() => {
     settings.current = { scrollZoom }
@@ -26,23 +32,43 @@ export function StreetViewViewer({
     let cancelled = false
     let viewer: google.maps.StreetViewPanorama | null = null
     let timer: ReturnType<typeof setTimeout>
+    let linksTimer: ReturnType<typeof setTimeout>
     onReady(false)
     const fail = (message: string) => {
       if (!cancelled) {
         clearTimeout(timer)
+        clearTimeout(linksTimer)
         onReady(false)
+        setReady(false)
         setError(message)
       }
     }
     const unsubscribe = onMapsAuthFailure(() =>
       fail(
-        'Street View access was denied. The Maps API configuration needs attention.',
+        'Google Maps rejected browser access. Check Maps JavaScript API activation, billing, and allowed website origins.',
       ),
     )
     void loadGoogleMaps()
-      .then((maps) => {
+      .then(async (maps) => {
         if (cancelled || !element.current) return
-        viewer = new maps.StreetViewPanorama(element.current, {
+        timer = setTimeout(
+          () =>
+            fail(
+              'Street View is taking too long. Check your connection and retry.',
+            ),
+          25000,
+        )
+        const { data } = await new maps.StreetViewService().getPanorama({
+          pano: round.panoId,
+        })
+        if (cancelled) return
+        if (!data.location?.pano) {
+          fail(
+            'This panorama is unavailable. Try another location to continue this round.',
+          )
+          return
+        }
+        viewer = new maps.StreetViewPanorama(element.current!, {
           pano: round.panoId,
           pov: { heading: 0, pitch: 0 },
           zoom: 0,
@@ -62,32 +88,45 @@ export function StreetViewViewer({
         })
         setError(null)
         panorama.current = viewer
-        viewer.addListener('status_changed', () => {
+        const statusChanged = () => {
           if (cancelled || !viewer) return
           clearTimeout(timer)
           if (viewer.getStatus() === maps.StreetViewStatus.OK) {
             setError(null)
             onReady(true)
+            setReady(true)
+            setCurrentPano(viewer.getPano())
           } else
             fail(
               'This panorama could not be loaded. Retry the view or restart the expedition.',
             )
+        }
+        viewer.addListener('status_changed', statusChanged)
+        if (viewer.getStatus() === maps.StreetViewStatus.OK) statusChanged()
+        const checkLinks = () => {
+          if (!cancelled && viewer && (viewer.getLinks()?.length ?? 0) > 0)
+            clearTimeout(linksTimer)
+        }
+        viewer.addListener('links_changed', checkLinks)
+        linksTimer = setTimeout(() => {
+          if (viewer && !viewer.getLinks()?.length)
+            fail(
+              'This panorama has no connected streets. Try another location to continue this round.',
+            )
+        }, 5000)
+        checkLinks()
+        viewer.addListener('pano_changed', () => {
+          if (!cancelled && viewer) setCurrentPano(viewer.getPano())
         })
         viewer.addListener('pov_changed', () => {
           if (!cancelled && viewer) setHeading(viewer.getPov().heading)
         })
-        timer = setTimeout(
-          () =>
-            fail(
-              'Street View is taking too long. Check your connection and retry.',
-            ),
-          25000,
-        )
       })
       .catch((cause: Error) => fail(cause.message))
     return () => {
       cancelled = true
       clearTimeout(timer)
+      clearTimeout(linksTimer)
       unsubscribe()
       if (viewer) {
         google.maps.event.clearInstanceListeners(viewer)
@@ -105,6 +144,13 @@ export function StreetViewViewer({
         className="sp-panorama"
         ref={element}
         aria-label="Interactive Street View panorama"
+        tabIndex={0}
+        onFocus={(event) => {
+          if (event.target === event.currentTarget) panorama.current?.focus()
+        }}
+        data-panorama={currentPano}
+        data-ready={ready}
+        data-heading={heading}
       />
       {showCompass && (
         <button
@@ -125,9 +171,19 @@ export function StreetViewViewer({
           <button
             className="sp-primary"
             onClick={() => setAttempt((a) => a + 1)}
+            disabled={retrying}
           >
             Retry panorama
           </button>
+          {onRetryLocation && (
+            <button
+              className="sp-secondary"
+              disabled={retrying}
+              onClick={onRetryLocation}
+            >
+              {retrying ? 'Finding another panorama…' : 'Try another location'}
+            </button>
+          )}
         </div>
       )}
     </>

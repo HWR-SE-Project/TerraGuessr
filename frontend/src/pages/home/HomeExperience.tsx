@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
-import character from '../../assets/home/official/explorer.webp'
-import earth from '../../assets/home/official/earth-horizon.webp'
 import defaultAvatar from '../../assets/home/official/alpine-lake.webp'
 import sky from '../../assets/home/official/sky.svg'
 import { HomeIcon } from './HomeIcon'
 import type { HomeIconName } from './HomeIcon'
+import { Home3DScene } from './scene/Home3DScene'
 
 type ShowNotice = (message: string) => void
 
@@ -172,14 +171,6 @@ function HeroSection({ showNotice }: { showNotice: ShowNotice }) {
         </p>
       </div>
       <div className="th-avatar-display">
-        <img
-          src={character}
-          className="th-character"
-          alt="TerraGuessr character with dark swept hair, a striped blue shirt and khaki trousers"
-          width="200"
-          height="300"
-          fetchPriority="high"
-        />
         <UnavailableButton
           className="th-edit-avatar"
           message="Avatar customization is not available yet."
@@ -273,9 +264,7 @@ export function HomeExperience() {
       <a className="th-skip" href="#home-main">
         Skip to content
       </a>
-      <div className="th-earth" aria-hidden="true">
-        <img src={earth} alt="" fetchPriority="high" />
-      </div>
+      <Home3DScene />
       <img className="th-sky" src={sky} alt="" aria-hidden="true" />
       <HomeNavigation showNotice={setNotice} showPlayerTools />
       <HeroSection showNotice={setNotice} />

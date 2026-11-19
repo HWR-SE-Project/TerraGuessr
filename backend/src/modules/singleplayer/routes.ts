@@ -23,6 +23,12 @@ import {
 } from './provider.js';
 import type { PanoramaProvider } from './provider.js';
 
+import {
+  IntelligenceResponse,
+  type GeographicIntelligence,
+} from '../intelligence/contract.js';
+import { createIntelligenceProvider } from '../intelligence/service.js';
+
 const Coordinates = Type.Object(
   {
     lat: Type.Number({ minimum: -90, maximum: 90 }),
@@ -79,11 +85,16 @@ export function registerSingleplayerRoutes(
     db?: PrismaClient;
     provider?: PanoramaProvider;
     locate?: (panoId: string) => Promise<LatLon>;
+    intelligence?: (
+      lat: number,
+      lon: number,
+    ) => Promise<GeographicIntelligence>;
   } = {},
 ): void {
   const db = options.db ?? prisma;
   const provider = options.provider ?? googlePanoramaProvider(options.key);
   const locate = options.locate ?? googlePanoramaLocator(options.key);
+  const intelligence = options.intelligence ?? createIntelligenceProvider();
   const errorHandler = (
     error: FastifyError,
     request: FastifyRequest,
@@ -91,7 +102,7 @@ export function registerSingleplayerRoutes(
   ) => {
     if (error instanceof PanoramaError) {
       return reply.status(503).send({
-        error: { code: 'STREET_VIEW_UNAVAILABLE', message: error.reason },
+        error: { code: error.code, message: error.reason },
       });
     }
     return app.errorHandler.call(app, error, request, reply);
@@ -118,9 +129,21 @@ export function registerSingleplayerRoutes(
   app.get(
     '/api/singleplayer/config',
     {
-      schema: { response: { 200: Type.Object({ available: Type.Boolean() }) } },
+      schema: {
+        response: {
+          200: Type.Object({
+            available: Type.Boolean(),
+            provider: Type.Literal('google'),
+            serverKeyConfigured: Type.Boolean(),
+          }),
+        },
+      },
     },
-    async () => ({ available: Boolean(options.key || options.provider) }),
+    async () => ({
+      available: Boolean(options.key || options.provider),
+      provider: 'google' as const,
+      serverKeyConfigured: Boolean(options.key),
+    }),
   );
   app.post(
     '/api/singleplayer/games',
@@ -137,11 +160,13 @@ export function registerSingleplayerRoutes(
       },
     },
     async (_request, reply) => {
+      reply.header('Cache-Control', 'no-store');
       if (!options.key && !options.provider)
         return reply.code(503).send({
           error: {
-            code: 'STREET_VIEW_UNAVAILABLE',
-            message: 'Street View is not configured on this server.',
+            code: 'MISSING_SERVER_KEY',
+            message:
+              'GOOGLE_MAPS_SERVER_API_KEY is missing. Configure the server key and restart the backend.',
           },
         });
       await db.streetGame.deleteMany({
@@ -230,10 +255,84 @@ export function registerSingleplayerRoutes(
       } catch (error) {
         if (error instanceof PanoramaError)
           return reply.code(503).send({
-            error: { code: 'STREET_VIEW_UNAVAILABLE', message: error.reason },
+            error: { code: error.code, message: error.reason },
           });
         throw error;
       }
+    },
+  );
+  app.get<{ Params: { gameId: string; roundId: string } }>(
+    '/api/singleplayer/games/:gameId/rounds/:roundId/intelligence',
+    {
+      config: limited,
+      errorHandler,
+      schema: {
+        params: Type.Object({
+          gameId: Type.String({ minLength: 1, maxLength: 100 }),
+          roundId: Type.String({ minLength: 1, maxLength: 100 }),
+        }),
+        querystring: Type.Object({}, { additionalProperties: false }),
+        response: { 200: IntelligenceResponse },
+      },
+    },
+    async (request, reply) => {
+      reply.header('Cache-Control', 'private, no-store');
+      const game = await owned(request);
+      const round = game.rounds.find((r) => r.id === request.params.roundId);
+      if (!round) throw new GameNotFoundError();
+      if (round.score !== null)
+        throw conflict(
+          'Environmental clues are only available for the active round.',
+        );
+      // Resolve the starting panorama on the server. Street View movement and
+      // client-supplied coordinates never control the environmental lookup.
+      const point = await locate(round.panoId);
+      const data = await intelligence(point.lat, point.lon);
+      const current = await db.streetRound.findUnique({
+        where: { id: round.id },
+      });
+      if (!current || current.panoId !== round.panoId || current.score !== null)
+        throw conflict(
+          'The round changed. Request clues for the current round.',
+        );
+      // Fastify's explicit response schema strips all non-allowlisted fields.
+      return data;
+    },
+  );
+  app.post<{ Params: { gameId: string; roundId: string } }>(
+    '/api/singleplayer/games/:gameId/rounds/:roundId/retry',
+    {
+      config: limited,
+      errorHandler,
+      schema: {
+        params: Type.Object({ gameId: Type.String(), roundId: Type.String() }),
+        response: { 200: PublicRound },
+      },
+    },
+    async (request, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      const game = await owned(request);
+      const current = game.rounds.find((r) => r.id === request.params.roundId);
+      if (!current) throw new GameNotFoundError();
+      if (current.score !== null)
+        throw conflict('A scored round cannot be replaced.');
+      const target = await provider(game.rounds.map((r) => r.targetIndex));
+      const changed = await db.streetRound.updateMany({
+        where: { id: current.id, score: null, panoId: current.panoId },
+        data: {
+          panoId: target.panoId,
+          targetIndex: target.targetIndex,
+          targetLat: target.lat,
+          targetLon: target.lon,
+        },
+      });
+      if (!changed.count)
+        throw conflict(
+          'The round changed while its panorama was loading. Resume the expedition.',
+        );
+      return publicRound(
+        await db.streetRound.findUniqueOrThrow({ where: { id: current.id } }),
+      );
     },
   );
   app.post<{
@@ -280,7 +379,7 @@ export function registerSingleplayerRoutes(
       }
       const distanceKm = haversineKm(guess, actual);
       const updated = await db.streetRound.updateMany({
-        where: { id: round.id, score: null },
+        where: { id: round.id, score: null, panoId: round.panoId },
         data: {
           guessLat: guess.lat,
           guessLon: guess.lon,
@@ -291,6 +390,10 @@ export function registerSingleplayerRoutes(
       const locked = await db.streetRound.findUniqueOrThrow({
         where: { id: round.id },
       });
+      if (!updated.count && locked.panoId !== round.panoId)
+        throw conflict(
+          'The panorama changed. Reload the current round before guessing.',
+        );
       if (
         !updated.count &&
         (locked.guessLat !== guess.lat || locked.guessLon !== guess.lon)

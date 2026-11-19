@@ -110,6 +110,17 @@ export function FinalResults({
           <strong>{session.totalScore.toLocaleString()}</strong>
           <span> / {(session.roundsTotal * 5000).toLocaleString()} points</span>
         </div>
+        <p aria-label="Total distance">
+          Total distance:{' '}
+          <strong>
+            {distanceLabel(
+              session.results.reduce(
+                (sum, result) => sum + result.distanceKm,
+                0,
+              ),
+            )}
+          </strong>
+        </p>
         <div className="sp-round-list">
           {session.results.map((result) => (
             <details key={result.roundId}>

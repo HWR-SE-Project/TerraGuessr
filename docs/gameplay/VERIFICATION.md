@@ -1,73 +1,88 @@
 # Verification — 19 November 2026
 
-## Passing checks
+## Actual Google gameplay verified
+
+`npm run maps:verify` passed **two real-provider Playwright tests** against the running TerraGuessr application. No provider, imagery, map, API, distance, score, or response was mocked in these tests.
+
+The desktop test:
+
+1. Opens Home and clicks Play Solo.
+2. Automatically starts a session and waits for a real Google Street View panorama.
+3. Verifies camera heading changes after dragging the panorama.
+4. Verifies the actual panorama ID changes after navigating along the street.
+5. Opens the interactive Google world map and places a marker.
+6. Confirms the marker survives map collapse/expansion.
+7. Submits a real guess and checks the server score against the documented distance curve.
+8. Repeats for all five rounds.
+9. Checks five result rows, total score, and total distance.
+10. Starts a new game using Play Again and verifies another real panorama.
+11. Returns Home through the active-game confirmation dialog.
+
+The mobile test uses a touch-enabled Chromium context at 390×844. It selects a map location by tapping, collapses/reopens the map, refreshes the browser and verifies the selected coordinates survive, then submits the guess and displays actual round results.
+
+The desktop report records all five accepted guesses, exact actual coordinates returned after submission, distances, points, camera movement, street movement, restart, and Return Home. It contains **zero browser console errors or page errors**. No credentials or session tokens are included.
+
+Current real artifacts:
+
+- [Active desktop](../screenshots/playable/active-desktop.png)
+- [Active mobile](../screenshots/playable/active-mobile.png)
+- [Expanded guessing map](../screenshots/playable/expanded-map.png)
+- [Round results](../screenshots/playable/round-results.png)
+- [Final results](../screenshots/playable/final-results.png)
+- [Mobile round results](../screenshots/playable/mobile-round-results.png)
+- [Five-round report](../screenshots/playable/live-game-report.json)
+
+These supersede the old unavailable captures and component fixtures in `screenshots/singleplayer/`.
+
+## Other passing checks
 
 | Check | Result |
 | --- | --- |
-| Frontend TypeScript + production build (`npm run build --prefix frontend`) | Passed; gameplay has its own lazy-loaded JS/CSS chunks |
-| Backend TypeScript (`npm run typecheck --prefix backend`) | Passed |
-| Backend production build (`npm run build --prefix backend`) | Passed |
-| Backend ESLint (`npm run lint --prefix backend`) | Passed, no warnings |
-| Frontend oxlint (`npm run lint --prefix frontend`) | Passed; five warnings remain in unchanged legacy components; none in new gameplay code |
-| Frontend Vitest (`npm test --prefix frontend`) | **40 passed**, 8 files |
-| Backend unit Vitest (`npm test --prefix backend`) | **167 passed**, 21 files |
-| New PostgreSQL integration tests (`npx vitest run test/integration/singleplayer.integration.test.ts --no-file-parallelism` in backend) | **7 passed** |
-| New gameplay Playwright suite (`npx playwright test e2e/singleplayer.spec.ts`) | **3 passed**, **1 skipped** pending real Maps credentials |
-| Registration-throttled regression tests, rerun separately | **3 passed**: Play Together, shared navigation, settings display name |
-| Prisma client generation + additive migration | Passed on the local database and isolated test database |
-| Screenshot capture script | Passed; zero browser page errors |
+| Frontend TypeScript + production build | Passed |
+| Backend TypeScript | Passed |
+| Backend production build | Passed |
+| Backend ESLint | Passed, no warnings |
+| Frontend oxlint | Passed; five existing warnings in unchanged legacy files, none in new gameplay code |
+| Frontend Vitest | **46 passed**, 8 files |
+| Backend unit Vitest | **172 passed**, 21 files |
+| Singleplayer PostgreSQL integration tests | **9 passed** |
+| Missing-key and Auth/navigation/settings Playwright tests | **12 passed** |
+| Live Google desktop/mobile Playwright tests | **2 passed** |
+| `npm run maps:doctor` | All checks passed, including an actual Google metadata response |
 | `git diff --check` | Passed |
 
-The integration database is a separate `terraguessr_gameplay_test` database. PostgreSQL, real Fastify routing, response serialization, schema validation, and conditional updates are exercised. Provider metadata is replaced by **explicit test doubles** in integration tests. Frontend SDK doubles exercise event handling, failure states, and cleanup without images; these do not verify real Google rendering.
+The missing-key browser tests run on an independent frontend/backend with the keys explicitly unset via process environment. This does not disable or replace the provider on the configured playable instance. The isolated test frontend uses a separate port and proxies a separate backend against `terraguessr_gameplay_test`.
 
-New automated coverage includes:
+The database integration tests use real PostgreSQL and explicit provider doubles. They verify ownership, expiration, coordinate validation, five-round persistence, exact scoring, concurrent guess locking, identical retries, and unavailable-provider recovery. New tests verify that replacing failed imagery keeps the same round number, cannot replace scored rounds, never returns the answer early, and cannot race a guess into scoring an old panorama.
 
-- Missing browser/server keys; no invented round or score when unavailable.
-- Live-provider adapter request construction, outdoor coverage validation, unavailable coverage retries, denied access, malformed JSON, network failure, and exact panorama lookup.
-- Five-round lifecycle; persisted totals; no answer coordinates in active round responses; ownership and expiration.
-- Rejection of out-of-range, null, nonnumeric, and string coordinates; client-supplied scores cannot affect results.
-- Atomic concurrent guess locking, identical submission retries, different subsequent guesses, completed-game transitions, and retry after provider failure.
-- No score/lock if exact panorama position cannot be verified.
-- Panorama loading gates guessing; duplicate click/submission prevention; lost-response reconciliation; resume; restart; five-round completion.
-- Map click and pin drag events; result markers and geodesic line; read-only results; failed map loading; panorama status errors; scroll-zoom settings and cleanup.
-- Browser map expansion/collapse, persistent settings, Escape, focus restoration, menu resume, Return navigation, viewport bounds, and non-overlapping compact Return/HUD/map controls.
+Unit tests additionally cover rejected contributor photospheres, distinct provider billing/key/activation/quota failures without credential leakage, stable map instances while guesses lock/unlock, automatic start under React StrictMode, pin restoration, and expired-session recovery.
 
-## Broader regression results and existing failures
+## Diagnosis and fixes
 
-The complete backend integration run returned **38 passed, 1 failed** before the final seventh singleplayer integration case was added. The failure is the unchanged test `enforces continent scope and configured multiple-choice count on the server` in `backend/test/integration/game-lifecycle.integration.test.ts`: it requests three ASIA candidates, but `helpers/database.ts` seeds only one Asian location. The returned candidate count is one. Neither the old selection code nor that test/fixture was changed.
+The initial application had neither Maps key. It stopped before loading Google's SDK and returned only a generic unavailable state. Both local variables are now populated with the supplied credential and the running processes have been restarted.
 
-A complete Playwright run against a separate test backend, seeded database, and the repository's existing deterministic weather server returned **24 passed, 6 failed, 1 skipped**. Three failures were registration throttling (`Too many attempts. Try again in a minute.`). All three passed in a separate rerun without changing rate limits or tests.
+A second existing Vite process on `localhost:5173` was still targeting an old backend without Street View endpoints. Its working directory was verified as this application before restarting it with the correct proxy. Both localhost and 127.0.0.1 now reach the updated API.
 
-The other three failures are unchanged legacy weather expectations:
+A real Google lookup also exposed a location-selection problem: a contributor photosphere could be chosen instead of connected street imagery. The server now rejects these responses and tries another unused target. The actual panorama's navigation links are checked, and failed imagery can be replaced in the same unscored round. The Google SDK's preliminary service metadata does not always include its eventual navigation links, so the live panorama itself is checked rather than treating an empty preliminary array as proof of no coverage.
 
-- `e2e/solo-round.spec.ts`, easy map game: expects a map, while the existing `resolveSelectionMode()` always selects a list on easy.
-- `e2e/solo-round.spec.ts`, hard list game: expects candidate buttons, while the existing function always selects a map on hard.
-- `e2e/weather-fallback.spec.ts`: also requests an easy map game and waits for a map after the backend correctly returns a list.
+## Existing legacy test issues
 
-These tests and the old selection rules remain unchanged. The existing Home test's complete three-round **medium** weather expedition passed, as did challenge sharing, authenticated identity, daily challenges, Auth, Duels layout, and account settings. Navigation assertions were updated only for the intentionally changed Solo route; the legacy weather flow's assertions remain intact.
+An earlier broad regression run, before this repair, exposed unrelated old weather-game tests:
 
-No tests were removed, skipped to suppress failures, or weakened. The single new opt-in live-provider test is skipped until explicitly enabled with credentials.
+- One integration test requests three ASIA candidates but its fixture seeds only one Asian location.
+- Two old solo browser tests request map mode on easy / list mode on hard, while the existing difficulty rules force easy to list and hard to map.
+- The old weather-fallback browser test similarly waits for a map in easy mode.
 
-## Browser captures
+Those tests, fixtures, difficulty rules, and weather-game APIs remain unchanged. The current targeted regression run passes all twelve selected missing-key/Auth/navigation/settings cases. No tests have been weakened or deleted: the former small live scenario was moved to `singleplayer.live.spec.ts` and expanded into the stronger desktop and mobile scenarios above.
 
-`docs/screenshots/singleplayer/browser-results.json` records zero page errors and geometry at:
+## Remaining limits
 
-- 1792×861 desktop; 1280×800 laptop.
-- 1024×768 and 768×1024 tablet.
-- 390×844 phone; 320×640 small phone.
-- 844×390 landscape.
+- API key restrictions and account quotas cannot be inspected or edited with a Maps API key alone. The supplied key works for local browser and server requests; deployment should use separate appropriately restricted keys, configured by the Google Cloud project owner.
+- Selection uses thirty independently authored road search targets with live availability filtering, not exhaustive global random sampling.
+- Sessions/results are tab-local for 24 hours and do not feed the existing weather-game account statistics.
+- Actual coordinates for restored results are resolved from Google again, rather than stored as provider content. Restored maps depend on provider availability.
+- Touch verification uses Chromium emulation, not a physical phone.
+- Street View SDK metadata remains inspectable in browser developer tools; this is singleplayer, not a ranked anti-cheat implementation.
+- No reference attachment was available for exact pixel comparison. The existing full-screen design and Home/Auth/Duels layouts were preserved.
 
-All have `scrollWidth === viewport width`. Small-screen clipping/overlap found during implementation was corrected. Mobile Return has an explicit accessible name, and native dialogs explicitly restore trigger focus. Screenshot capture waits for map expansion transitions to settle.
-
-The first five screenshots show the **real unavailable state** with no Maps keys. The two result screenshots are watermarked **UI FIXTURE** and use isolated component examples, with the actual provider-unavailable map state. They must not be presented as completed live expeditions.
-
-## Not verified / remaining limitations
-
-- No Maps keys were present in inspected configuration. Google API authorization, billing, actual imagery rendering, camera navigation along streets, live map tiles, and genuine completed-game screenshots await credentials. No successful live provider call is claimed.
-- No reference screenshot attachment was available, so pixel matching and the reference's exact viewport size cannot be verified. Corner layout follows the written brief.
-- Mobile checks use Chromium viewport/touch-compatible UI; physical-device gesture behavior remains unverified.
-- The source pool contains 30 authored road targets with live coverage filtering. It is not exhaustive worldwide random sampling.
-- Results can resume in the same tab for 24 hours. They are separate from legacy account weather-game statistics. Restored actual coordinates require live panorama metadata; expired/unavailable panoramas show an error rather than an invented answer.
-- Browser SDK metadata remains inspectable with developer tools. This singleplayer integration does not claim competitive anti-cheat protection.
-
-Configuration, provider documentation, local commands, screenshot links, and the opt-in live test are in [SINGLEPLAYER.md](SINGLEPLAYER.md).
+See [GOOGLE_MAPS_SETUP.md](GOOGLE_MAPS_SETUP.md) for credentials, exact setup steps, provider error handling, current usage pricing, and quotas.

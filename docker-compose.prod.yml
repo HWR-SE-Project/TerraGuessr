@@ -62,6 +62,7 @@ services:
       CORS_ORIGIN: https://${DOMAIN:?DOMAIN is required — set it in .env}
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?ADMIN_API_TOKEN is required — set it in .env}
       OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
+      OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       GOOGLE_MAPS_SERVER_API_KEY: ${GOOGLE_MAPS_SERVER_API_KEY:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

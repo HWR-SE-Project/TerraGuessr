@@ -10,6 +10,7 @@ import type { LatLon } from '../../api/types'
 import { browserMapsKey } from './googleMaps'
 
 const STORAGE = 'terraguessr.streetSession.v1'
+const GUESS_STORAGE = 'terraguessr.streetGuess.v1'
 const emptySession = (): StreetSession => ({
   id: '',
   roundsTotal: 5,
@@ -29,108 +30,218 @@ function savedCredentials(): StreetCredentials | null {
     return null
   }
 }
+function savedGuess(gameId: string, roundId: string): LatLon | null {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(GUESS_STORAGE) || 'null')
+    return value?.gameId === gameId &&
+      value?.roundId === roundId &&
+      Number.isFinite(value?.guess?.lat) &&
+      Math.abs(value.guess.lat) <= 90 &&
+      Number.isFinite(value?.guess?.lon) &&
+      Math.abs(value.guess.lon) <= 180
+      ? value.guess
+      : null
+  } catch {
+    return null
+  }
+}
 function save(value: StreetCredentials | null) {
   try {
     if (value) sessionStorage.setItem(STORAGE, JSON.stringify(value))
-    else sessionStorage.removeItem(STORAGE)
+    else {
+      sessionStorage.removeItem(STORAGE)
+      sessionStorage.removeItem(GUESS_STORAGE)
+    }
   } catch {
-    /* Memory-only play works with blocked storage. */
+    /* Memory-only play remains possible. */
   }
 }
-export function useGameSession() {
+export function useGameSession(autoStart = false) {
   const [session, setSession] = useState<StreetSession>(emptySession)
   const [result, setResult] = useState<StreetResult | null>(null)
   const [guess, setGuess] = useState<LatLon | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [operation, setOperation] = useState<'location' | 'guess' | null>(null)
+  const busy = operation !== null
   const [checking, setChecking] = useState(true)
   const [available, setAvailable] = useState(false)
+  const [setupIssues, setSetupIssues] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [panoramaReady, setPanoramaReady] = useState(false)
   const [showFinal, setShowFinal] = useState(false)
   const credentials = useRef<StreetCredentials | null>(savedCredentials())
   const locked = useRef(false)
+  const checked = useRef(0)
+  const autoStarted = useRef(false)
   const refreshConfig = useCallback(async () => {
+    const generation = ++checked.current
+    const restoring = credentials.current
     setChecking(true)
     setError(null)
+    const issues = browserMapsKey()
+      ? []
+      : ['Google Maps browser key is missing (VITE_GOOGLE_MAPS_API_KEY).']
     try {
-      if (!browserMapsKey()) {
-        setAvailable(false)
-        return
-      }
+      // Always inspect the backend, even when the browser key is missing.
       const config = await singleplayerApi.config()
-      setAvailable(config.available)
-      if (credentials.current) {
+      if (generation !== checked.current) return
+      if (!config.available)
+        issues.push(
+          'Street View server key is missing (GOOGLE_MAPS_SERVER_API_KEY).',
+        )
+      setSetupIssues(issues)
+      setAvailable(config.available && Boolean(browserMapsKey()))
+      if (restoring && config.available) {
         try {
-          const restored = await singleplayerApi.session(credentials.current)
+          const restored = await singleplayerApi.session(restoring)
+          if (generation !== checked.current) return
           setSession(restored)
-          if (restored.completed) setShowFinal(true)
-          else if (!restored.activeRound && restored.results.length)
-            setResult(restored.results.at(-1)!)
+          setGuess(
+            restored.activeRound
+              ? savedGuess(restored.id, restored.activeRound.id)
+              : null,
+          )
+          setResult(
+            !restored.completed && !restored.activeRound
+              ? (restored.results.at(-1) ?? null)
+              : null,
+          )
+          setShowFinal(restored.completed)
         } catch (cause) {
           if (cause instanceof ApiError && cause.status === 404) {
             credentials.current = null
             save(null)
+            setSession(emptySession())
+            setError('Your previous expedition expired. Start a new game.')
           } else throw cause
         }
       }
-    } catch {
-      setError(
-        'Unable to reach the game server. Check your connection and try again.',
-      )
+    } catch (cause) {
+      if (generation !== checked.current) return
+      const message =
+        cause instanceof ApiError && cause.status === 404
+          ? 'The running backend does not support Street View. Start the updated TerraGuessr backend.'
+          : 'Unable to reach the game server. Check the backend connection and try again.'
+      setError(message)
+      setSetupIssues([...issues, message])
       setAvailable(false)
     } finally {
-      setChecking(false)
+      if (generation === checked.current) setChecking(false)
     }
   }, [])
   useEffect(() => {
     void Promise.resolve().then(refreshConfig)
   }, [refreshConfig])
-
-  async function run(action: () => Promise<void>) {
-    if (locked.current) return
-    locked.current = true
-    setBusy(true)
-    setError(null)
+  useEffect(() => {
+    if (!session.activeRound) return
     try {
-      await action()
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'The request failed. Please retry.',
-      )
-    } finally {
-      locked.current = false
-      setBusy(false)
+      if (guess)
+        sessionStorage.setItem(
+          GUESS_STORAGE,
+          JSON.stringify({
+            gameId: session.id,
+            roundId: session.activeRound.id,
+            guess,
+          }),
+        )
+      else sessionStorage.removeItem(GUESS_STORAGE)
+    } catch {
+      /* Pin selection still works when storage is blocked. */
     }
-  }
-  async function next(restart = false) {
-    await run(async () => {
-      if (restart) {
-        credentials.current = null
-        save(null)
-        setSession(emptySession())
+  }, [session.id, session.activeRound, guess])
+  const run = useCallback(
+    async (kind: 'location' | 'guess', action: () => Promise<void>) => {
+      if (locked.current) return
+      locked.current = true
+      setOperation(kind)
+      setError(null)
+      try {
+        await action()
+      } catch (cause) {
+        if (cause instanceof ApiError && cause.status === 404) {
+          credentials.current = null
+          save(null)
+          setSession(emptySession())
+          setResult(null)
+          setGuess(null)
+          setPanoramaReady(false)
+          setShowFinal(false)
+          setError(
+            'Your expedition has expired or is no longer available. Start a new game.',
+          )
+        } else
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'The request failed. Please retry.',
+          )
+      } finally {
+        locked.current = false
+        setOperation(null)
+      }
+    },
+    [],
+  )
+  const next = useCallback(
+    async (restart = false) => {
+      await run('location', async () => {
+        if (restart) {
+          credentials.current = null
+          save(null)
+          setSession(emptySession())
+          setResult(null)
+          setShowFinal(false)
+          setGuess(null)
+          setPanoramaReady(false)
+        }
+        if (!credentials.current) {
+          credentials.current = await singleplayerApi.create()
+          save(credentials.current)
+          setSession({ ...emptySession(), id: credentials.current.id })
+        }
+        const auth = credentials.current
+        const round = await singleplayerApi.next(auth)
+        const fresh = await singleplayerApi.session(auth)
+        setSession({ ...fresh, activeRound: round })
         setResult(null)
-        setShowFinal(false)
-        setGuess(null)
+        setGuess(savedGuess(auth.id, round.id))
         setPanoramaReady(false)
-      }
-      if (!credentials.current) {
-        credentials.current = await singleplayerApi.create()
-        save(credentials.current)
-      }
-      const round = await singleplayerApi.next(credentials.current)
-      const fresh = await singleplayerApi.session(credentials.current)
-      setSession({ ...fresh, activeRound: round })
-      setResult(null)
+        setShowFinal(false)
+      })
+    },
+    [run],
+  )
+  useEffect(() => {
+    if (
+      autoStart &&
+      available &&
+      !checking &&
+      !session.id &&
+      !error &&
+      !autoStarted.current
+    ) {
+      autoStarted.current = true
+      void Promise.resolve().then(() => next())
+    }
+  }, [autoStart, available, checking, session.id, error, next])
+  async function retryLocation() {
+    if (!session.activeRound || !credentials.current || result || showFinal)
+      return
+    const auth = credentials.current
+    const round = session.activeRound
+    await run('location', async () => {
+      const replacement = await singleplayerApi.retry(auth, round.id)
+      setSession((current) => ({ ...current, activeRound: replacement }))
       setGuess(null)
       setPanoramaReady(false)
-      setShowFinal(false)
     })
   }
   async function submit() {
     if (
       !guess ||
+      !Number.isFinite(guess.lat) ||
+      Math.abs(guess.lat) > 90 ||
+      !Number.isFinite(guess.lon) ||
+      Math.abs(guess.lon) > 180 ||
       !session.activeRound ||
       !credentials.current ||
       !panoramaReady ||
@@ -141,14 +252,11 @@ export function useGameSession() {
     const submitted = guess
     const round = session.activeRound
     const auth = credentials.current
-    await run(async () => {
-      // Identical retries are idempotent on the server if the response was lost.
+    await run('guess', async () => {
       let received: StreetResult
       try {
         received = await singleplayerApi.guess(auth, round.id, submitted)
       } catch (cause) {
-        // A disconnected response may hide an accepted guess. Reconcile with
-        // persisted results before allowing the player to attempt it again.
         const restored = await singleplayerApi.session(auth).catch(() => null)
         const accepted = restored?.results.find(
           (entry) => entry.roundId === round.id,
@@ -173,7 +281,15 @@ export function useGameSession() {
       })
     })
   }
-  const inProgress = Boolean(session.id && !showFinal)
+  const loadIntelligence = useCallback(
+    (roundId: string, signal?: AbortSignal) => {
+      const auth = credentials.current
+      if (!auth) return Promise.reject(new Error('No active expedition.'))
+      return singleplayerApi.intelligence(auth, roundId, signal)
+    },
+    [],
+  )
+  const inProgress = Boolean((session.id || busy) && !showFinal)
   useEffect(() => {
     if (!inProgress) return
     const warn = (event: BeforeUnloadEvent) => {
@@ -183,23 +299,48 @@ export function useGameSession() {
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [inProgress])
+  const phase = error
+    ? 'error'
+    : operation === 'guess'
+      ? 'guess-submitted'
+      : busy
+        ? session.results.length
+          ? 'transitioning-to-next-round'
+          : 'loading-location'
+        : showFinal
+          ? 'game-completed'
+          : result
+            ? 'round-results'
+            : session.activeRound
+              ? !panoramaReady
+                ? 'loading-location'
+                : guess
+                  ? 'selecting-location'
+                  : 'exploring'
+              : 'not-started'
   return {
     session,
+    loadIntelligence,
     result,
     guess,
     setGuess,
     busy,
     checking,
     available,
+    setupIssues,
     error,
+    phase,
     panoramaReady,
     setPanoramaReady,
     showFinal,
     finish: () => {
-      setResult(null)
-      setShowFinal(true)
+      if (session.completed) {
+        setResult(null)
+        setShowFinal(true)
+      }
     },
     next,
+    retryLocation,
     submit,
     refreshConfig,
     inProgress,

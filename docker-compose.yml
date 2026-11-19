@@ -36,6 +36,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
       OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
+      OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       GOOGLE_MAPS_SERVER_API_KEY: ${GOOGLE_MAPS_SERVER_API_KEY:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
