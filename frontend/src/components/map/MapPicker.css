@@ -1,0 +1,26 @@
+.tg-map-picker {
+  height: 100%;
+  min-height: 280px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tg-map-pin span {
+  display: block;
+  width: 28px;
+  height: 38px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tg-map-pin--guess span {
+  background: #68c045;
+  border: 2px solid #fff;
+}
+
+.tg-map-pin--actual span {
+  background: #ff5a5f;
+  border: 2px solid #fff;
+}

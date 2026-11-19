@@ -432,6 +432,24 @@
 .tg-d-faq-button img {
   width: 14px;
   height: 14px;
+  transition: transform 0.15s ease;
+}
+
+.tg-d-faq-button:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 2px;
+}
+
+.tg-d-faq-icon--open {
+  transform: rotate(45deg);
+}
+
+.tg-d-faq-answer {
+  margin: 10px 0 0;
+  padding-right: 24px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 /* Viewport layout overrides for the original 1920px composition. */

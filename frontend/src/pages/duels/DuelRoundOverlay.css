@@ -1,0 +1,116 @@
+.tg-duel-overlay-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 9, 23, 0.72);
+  padding: 20px;
+}
+
+.tg-duel-overlay {
+  position: relative;
+  width: min(680px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #211a4c;
+  padding: 28px;
+  color: #fff;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.tg-duel-overlay-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.tg-duel-overlay-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.tg-duel-overlay-close:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 2px;
+}
+
+.tg-duel-overlay-loading {
+  text-align: center;
+  padding: 40px 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.tg-duel-overlay-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 900;
+  font-style: italic;
+}
+
+.tg-duel-overlay-lead {
+  margin: 0 0 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.tg-duel-overlay-body {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 600px) {
+  .tg-duel-overlay-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tg-duel-overlay-map {
+  height: 280px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.tg-duel-overlay-error {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(220, 25, 52, 0.12);
+  border: 1px solid rgba(220, 25, 52, 0.35);
+  color: #ffb4bd;
+  font-size: 13px;
+}
+
+.tg-duel-overlay-submit {
+  width: 100%;
+  height: 48px;
+  border-radius: 28px;
+  border: none;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 14px;
+  color: #10101c;
+  background: linear-gradient(180deg, #97e851, #479440);
+}
+
+.tg-duel-overlay-submit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.tg-duel-overlay-submit:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}

@@ -1,3 +1,8 @@
+.tg-home-loading {
+  min-height: 100vh;
+  background: #171235;
+}
+
 .tg-home-root {
   position: relative;
   width: 100%;

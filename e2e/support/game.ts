@@ -4,47 +4,7 @@ import type { Page } from '@playwright/test';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type SelectionMode = 'map' | 'list';
 
-/**
- * R15 — required weather fields plus the available optional pressure/wind fields.
- * These mirror frontend/src/components/WeatherPanel.tsx.
- */
-export const WEATHER_FIELD_LABELS = [
-  'Temperature',
-  'Precipitation',
-  'Humidity',
-  'Wind speed',
-  'Air pressure',
-  'Wind direction',
-] as const;
-
-/**
- * Stable data-testid selectors defined by the frontend feature components
- * (WeatherPanel, DifficultyPicker, RoundScreen, RevealView, MapPicker,
- * CandidateList). The e2e suite depends on the frontend composing these into a
- * playable game screen (W-02/W-03/W-04/W-05 wiring; see App.tsx).
- */
-export const testIds = {
-  difficulty: (d: Difficulty) => 'difficulty-' + d,
-  modeToggle: 'mode-toggle',
-  modeMap: 'mode-option-map',
-  modeList: 'mode-option-list',
-  selectionLocked: 'selection-mode-locked',
-  weatherPanel: 'weather-panel',
-  mapPicker: 'map-picker',
-  candidateList: 'candidate-list',
-  candidateItem: 'candidate-item',
-  revealView: 'reveal-view',
-  revealScore: 'reveal-score',
-  revealDistance: 'reveal-distance',
-  revealActual: 'reveal-actual',
-} as const;
-
-const FORBIDDEN_ACTUAL_KEYS = new Set([
-  'actualLat',
-  'actualLon',
-  'actual',
-  'isActual',
-]);
+const FORBIDDEN_ACTUAL_KEYS = new Set(['actualLat', 'actualLon', 'actual', 'isActual']);
 
 /** Deep-scan a value for R04-forbidden keys at any nesting depth. */
 export function findActualKeys(value: unknown): string[] {
@@ -73,25 +33,37 @@ export function findActualKeys(value: unknown): string[] {
   return leaks;
 }
 
-/** Pick a difficulty; for Medium, optionally choose map or list. */
-export async function chooseDifficulty(
-  page: Page,
-  difficulty: Difficulty,
-  selectionMode?: SelectionMode,
-): Promise<void> {
-  await page.getByTestId(testIds.difficulty(difficulty)).check();
-  if (difficulty === 'medium' && selectionMode !== undefined) {
-    const mode = selectionMode === 'list' ? testIds.modeList : testIds.modeMap;
-    await page.getByTestId(mode).click();
-  }
+/** Registers a brand-new account through the landing page's email form and waits for the home dashboard. */
+export async function registerAndLogin(page: Page, displayName: string): Promise<{ email: string; password: string }> {
+  const email = `${displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}@example.test`;
+  const password = 'correct-horse-battery-staple';
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sign up' }).first().click();
+  await page.getByRole('button', { name: 'Continue with Email' }).click();
+  await page.getByLabel('Display name').fill(displayName);
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password', { exact: false }).fill(password);
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('link', { name: 'Play a round', exact: true })).toBeVisible({ timeout: 15000 });
+
+  return { email, password };
 }
 
-/** Assert the weather panel renders the required and optional R15 fields in order. */
-export async function expectWeatherPanel(page: Page): Promise<void> {
-  const panel = page.getByTestId(testIds.weatherPanel);
-  await expect(panel).toBeVisible();
-  for (const label of WEATHER_FIELD_LABELS) {
-    await expect(panel.getByText(label, { exact: true })).toBeVisible();
-  }
-  await expect(panel.locator(':scope > dl dt')).toHaveCount(6);
+/** Fills out the real GameSetupForm (difficulty / map-or-list / round count) and starts a solo round. */
+export async function startSoloGame(
+  page: Page,
+  options: { difficulty?: Difficulty; mode?: SelectionMode; rounds?: 3 | 5 | 10 } = {},
+): Promise<void> {
+  const { difficulty = 'medium', mode = 'map', rounds = 3 } = options;
+  await page.goto('/play');
+  await page.getByRole('button', { name: difficulty.charAt(0).toUpperCase() + difficulty.slice(1), exact: true }).click();
+  await page.getByRole('button', { name: mode === 'map' ? 'Click the map' : 'Pick from a list' }).click();
+  await page.getByRole('button', { name: String(rounds), exact: true }).click();
+  await page.getByRole('button', { name: 'Start playing' }).click();
+}
+
+/** Drops a guess on the map picker at a fixed, visible offset from its top-left. */
+export async function guessOnMap(page: Page): Promise<void> {
+  await page.locator('.tg-map-picker').click({ position: { x: 150, y: 130 } });
 }

@@ -1,0 +1,122 @@
+.tg-email-form {
+  position: relative;
+  width: 100%;
+  padding: 56px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tg-email-form-title {
+  margin: 0 0 4px;
+  text-align: center;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 19px;
+  color: #fff;
+}
+
+.tg-email-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.tg-email-field input {
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--input-border, rgba(255, 255, 255, 0.2));
+  background: var(--input-bg, rgba(255, 255, 255, 0.05));
+  color: #fff;
+  padding: 0 12px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.tg-email-field input:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 1px;
+  border-color: #68c045;
+}
+
+.tg-email-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.tg-email-error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(220, 25, 52, 0.15);
+  border: 1px solid rgba(220, 25, 52, 0.4);
+  color: #ffb4bd;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tg-email-submit {
+  height: 40px;
+  border-radius: 36px;
+  border: none;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 13px;
+  color: #10101c;
+  background: linear-gradient(180deg, #97e851, #479440);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 2px rgba(23, 18, 53, 0.4);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.tg-email-submit:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.tg-email-submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tg-email-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tg-email-submit:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.tg-email-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.tg-email-link {
+  background: none;
+  border: none;
+  padding: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: underline;
+}
+
+.tg-email-link:hover {
+  color: #fff;
+}
+
+.tg-email-link:focus-visible {
+  outline: 2px solid #68c045;
+  outline-offset: 2px;
+  border-radius: 4px;
+}

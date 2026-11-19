@@ -982,3 +982,32 @@
   background: #171235;
   border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+.tg-hd-play-cta {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 15px;
+  color: #10101c;
+  background: linear-gradient(180deg, #97e851, #479440);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.tg-hd-play-cta:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.tg-hd-play-cta:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}

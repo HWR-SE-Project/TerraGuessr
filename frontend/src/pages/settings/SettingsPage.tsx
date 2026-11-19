@@ -1,19 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSession } from '../../state/SessionContext'
+import { mapApiError } from '../../api/errorMessages'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import './SettingsPage.css'
 
-type SettingsTab = 'general' | 'keybindings'
-type CompassStyle = 'classic' | 'modern' | 'both'
-type MapQuality = 'high' | 'balanced'
-
-const KEYBINDINGS = [
-  { action: 'Move forward', key: 'W / ↑' },
-  { action: 'Move backward', key: 'S / ↓' },
-  { action: 'Turn left', key: 'A / ←' },
-  { action: 'Turn right', key: 'D / →' },
-  { action: 'Place guess', key: 'Space' },
-]
+type SettingsTab = 'account' | 'preferences'
 
 function CloseIcon() {
   return (
@@ -54,126 +47,235 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
   )
 }
 
-function ChoiceCard<T extends string>({
-  name,
-  value,
-  selected,
-  onSelect,
-  children,
-}: {
-  name: string
-  value: T
-  selected: boolean
-  onSelect: (value: T) => void
-  children: ReactNode
-}) {
-  return (
-    <label className={`settings-choice${selected ? ' is-selected' : ''}`}>
-      <input type="radio" name={name} value={value} checked={selected} onChange={() => onSelect(value)} />
-      <span className="settings-choice__radio" aria-hidden="true"><span /></span>
-      <span className="settings-choice__text">{children}</span>
-    </label>
-  )
-}
-
 export function SettingsPage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<SettingsTab>('general')
-  const [effectVolume, setEffectVolume] = useState(30)
-  const [musicVolume, setMusicVolume] = useState(0)
-  const [compass, setCompass] = useState<CompassStyle>('modern')
-  const [mapQuality, setMapQuality] = useState<MapQuality>('high')
-  const [language, setLanguage] = useState('English')
+  const { status, user, preferences, updateProfile, updatePreferences, logout, deleteAccount } = useSession()
+  const [tab, setTab] = useState<SettingsTab>('account')
+
+  const [displayName, setDisplayName] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState<string | null>(null)
+
+  const [prefsError, setPrefsError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (user) setDisplayName(user.displayName)
+  }, [user])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') navigate('/landing')
+      if (event.key === 'Escape') navigate('/')
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [navigate])
 
+  async function saveProfile(event: React.FormEvent) {
+    event.preventDefault()
+    setProfileSaving(true)
+    setProfileMessage(null)
+    try {
+      await updateProfile(displayName.trim())
+      setProfileMessage('Saved.')
+    } catch (cause) {
+      setProfileMessage(mapApiError(cause))
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  async function patchPreferences(changes: Parameters<typeof updatePreferences>[0]) {
+    setPrefsError(null)
+    try {
+      await updatePreferences(changes)
+    } catch (cause) {
+      setPrefsError(mapApiError(cause))
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleteBusy(true)
+    setDeleteError(null)
+    try {
+      await deleteAccount(deletePassword || undefined)
+      navigate('/')
+    } catch (cause) {
+      setDeleteError(mapApiError(cause, { UNAUTHORIZED: 'Current password is incorrect.' }))
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
+  async function handleLogout() {
+    await logout()
+    navigate('/')
+  }
+
+  if (status === 'loading') {
+    return (
+      <main className="settings-screen">
+        <p style={{ color: 'rgba(255,255,255,0.6)' }}>Loading…</p>
+      </main>
+    )
+  }
+
+  if (!user) {
+    return (
+      <main className="settings-screen">
+        <section className="settings-panel" style={{ display: 'grid', placeItems: 'center' }} aria-label="Settings">
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: 'rgba(255,255,255,0.75)', marginBottom: 16, fontSize: 18 }}>Sign in to manage your account and preferences.</p>
+            <button type="button" className="settings-footer__close" onClick={() => navigate('/auth')}>
+              Sign in
+            </button>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="settings-screen">
       <section className="settings-panel" aria-label="Settings">
-        <button className="settings-top-close" type="button" aria-label="Close settings" onClick={() => navigate('/landing')}>
+        <button className="settings-top-close" type="button" aria-label="Close settings" onClick={() => navigate('/')}>
           <CloseIcon />
         </button>
 
         <header className="settings-header">
           <h1>Settings</h1>
           <nav className="settings-tabs" aria-label="Settings sections">
-            <button type="button" className={tab === 'general' ? 'is-active' : ''} onClick={() => setTab('general')}>General</button>
-            <button type="button" className={tab === 'keybindings' ? 'is-active' : ''} onClick={() => setTab('keybindings')}>Keybindings</button>
+            <button type="button" className={tab === 'account' ? 'is-active' : ''} onClick={() => setTab('account')}>Account</button>
+            <button type="button" className={tab === 'preferences' ? 'is-active' : ''} onClick={() => setTab('preferences')}>Preferences</button>
           </nav>
           <span className="settings-header__spacer" />
         </header>
 
         <div className="settings-content" key={tab}>
-          {tab === 'general' ? (
+          {tab === 'account' ? (
             <>
-              <Slider label="Effect volume" value={effectVolume} onChange={setEffectVolume} />
-              <Slider label="Music volume" value={musicVolume} onChange={setMusicVolume} />
-
-              <div className="settings-row settings-row--choices">
-                <h2 className="settings-row__label">Compass</h2>
-                <div className="settings-choice-grid settings-choice-grid--three">
-                  <ChoiceCard name="compass" value="classic" selected={compass === 'classic'} onSelect={setCompass}>Classic</ChoiceCard>
-                  <ChoiceCard name="compass" value="modern" selected={compass === 'modern'} onSelect={setCompass}>Modern</ChoiceCard>
-                  <ChoiceCard name="compass" value="both" selected={compass === 'both'} onSelect={setCompass}>Classic &amp; Modern</ChoiceCard>
+              <form className="settings-row" onSubmit={saveProfile}>
+                <h2 className="settings-row__label">Display name</h2>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input
+                    aria-label="Display name"
+                    className="settings-text-input"
+                    value={displayName}
+                    minLength={2}
+                    maxLength={40}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                  />
+                  <button type="submit" className="settings-save-btn" disabled={profileSaving || displayName.trim() === user.displayName}>
+                    {profileSaving ? 'Saving…' : 'Save'}
+                  </button>
+                  {profileMessage && <span className="settings-inline-message">{profileMessage}</span>}
                 </div>
+              </form>
+
+              <div className="settings-row">
+                <h2 className="settings-row__label">Email</h2>
+                <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 16 }}>{user.email}</span>
               </div>
 
-              <div className="settings-row settings-row--map-quality">
-                <h2 className="settings-row__label">Map Quality</h2>
-                <div className="settings-map-quality__options">
-                  <div className="settings-choice-grid settings-choice-grid--two">
-                    <ChoiceCard name="map-quality" value="high" selected={mapQuality === 'high'} onSelect={setMapQuality}>High (vector)</ChoiceCard>
-                    <ChoiceCard name="map-quality" value="balanced" selected={mapQuality === 'balanced'} onSelect={setMapQuality}>Balanced (faster)</ChoiceCard>
-                  </div>
-                  <p className="settings-note">Takes effect the next time the page loads.</p>
+              <div className="settings-row">
+                <h2 className="settings-row__label">Session</h2>
+                <button type="button" className="settings-save-btn settings-save-btn--muted" onClick={handleLogout}>
+                  Log out
+                </button>
+              </div>
+
+              <div className="settings-row">
+                <h2 className="settings-row__label">Delete account</h2>
+                <div>
+                  <p className="settings-note" style={{ marginBottom: 12 }}>
+                    Permanently deletes your account and preferences. Past games and results are kept, anonymized.
+                  </p>
+                  <button type="button" className="settings-save-btn settings-save-btn--danger" onClick={() => setDeleteOpen(true)}>
+                    Delete my account
+                  </button>
                 </div>
               </div>
+            </>
+          ) : (
+            <>
+              <Slider
+                label="Effect volume"
+                value={preferences?.soundFxVolume ?? 50}
+                onChange={(value) => patchPreferences({ soundFxVolume: value })}
+              />
+              <Slider
+                label="Music volume"
+                value={preferences?.musicVolume ?? 35}
+                onChange={(value) => patchPreferences({ musicVolume: value })}
+              />
 
               <div className="settings-row settings-row--language">
                 <h2 className="settings-row__label">Language</h2>
                 <div className="settings-language-select">
                   <span className="settings-language-select__icon"><LanguageIcon /></span>
-                  <select aria-label="Language" value={language} onChange={(event) => setLanguage(event.target.value)}>
-                    {['English', 'Deutsch', 'Español', 'Français', 'Italiano', '日本語', 'Português', 'Русский'].map((item) => <option key={item}>{item}</option>)}
+                  <select
+                    aria-label="Language"
+                    value={preferences?.language ?? 'en'}
+                    onChange={(event) => patchPreferences({ language: event.target.value as 'en' | 'de' })}
+                  >
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
                   </select>
                   <span className="settings-language-select__chevron" aria-hidden="true" />
                 </div>
               </div>
 
               <div className="settings-row settings-row--toggle">
-                <h2 className="settings-row__label">Show location names</h2>
+                <h2 className="settings-row__label">Fullscreen</h2>
                 <label className="settings-toggle">
-                  <input type="checkbox" defaultChecked />
+                  <input
+                    type="checkbox"
+                    checked={preferences?.fullscreen ?? false}
+                    onChange={(event) => patchPreferences({ fullscreen: event.target.checked })}
+                  />
                   <span aria-hidden="true" />
                 </label>
               </div>
+
+              {prefsError && <p className="settings-inline-message settings-inline-message--error">{prefsError}</p>}
             </>
-          ) : (
-            <div className="settings-keybindings">
-              <div className="settings-keybindings__heading">
-                <h2>Movement</h2>
-                <span>Click a key to change its binding</span>
-              </div>
-              {KEYBINDINGS.map(({ action, key }) => (
-                <div className="settings-keybinding" key={action}>
-                  <span>{action}</span>
-                  <button type="button" aria-label={`Change key for ${action}`}>{key}</button>
-                </div>
-              ))}
-            </div>
           )}
         </div>
 
         <footer className="settings-footer">
-          <button className="settings-footer__close" type="button" onClick={() => navigate('/landing')}>Close</button>
+          <button className="settings-footer__close" type="button" onClick={() => navigate('/')}>Close</button>
         </footer>
       </section>
+
+      {deleteOpen && (
+        <ConfirmDialog
+          title="Delete your account?"
+          description="This can't be undone. If your account has a password, confirm it below."
+          confirmLabel="Delete account"
+          destructive
+          busy={deleteBusy}
+          onConfirm={confirmDelete}
+          onCancel={() => {
+            setDeleteOpen(false)
+            setDeleteError(null)
+            setDeletePassword('')
+          }}
+        >
+          <input
+            type="password"
+            aria-label="Current password"
+            className="settings-text-input"
+            placeholder="Current password (if set)"
+            value={deletePassword}
+            onChange={(event) => setDeletePassword(event.target.value)}
+            style={{ width: '100%', marginBottom: 8 }}
+          />
+          {deleteError && <p className="settings-inline-message settings-inline-message--error">{deleteError}</p>}
+        </ConfirmDialog>
+      )}
     </main>
   )
 }

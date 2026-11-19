@@ -476,6 +476,74 @@
   outline-offset: 4px;
 }
 
+.settings-text-input {
+  height: 52px;
+  min-width: 220px;
+  flex: 1 1 260px;
+  border: 2px solid rgba(209, 200, 245, 0.19);
+  border-radius: 12px;
+  background: rgba(42, 37, 66, 0.73);
+  color: #fff;
+  padding: 0 18px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.settings-text-input:focus-visible {
+  outline: 2px solid #b794ff;
+  outline-offset: 2px;
+}
+
+.settings-save-btn {
+  height: 52px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 30px;
+  background: linear-gradient(145deg, #8751d0, #55219c);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  font-style: italic;
+  transition: transform 150ms ease, filter 150ms ease;
+}
+
+.settings-save-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.settings-save-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.settings-save-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings-save-btn:focus-visible {
+  outline: 2px solid #b794ff;
+  outline-offset: 2px;
+}
+
+.settings-save-btn--muted {
+  background: #30294d;
+}
+
+.settings-save-btn--danger {
+  background: linear-gradient(145deg, #ff6b6f, #b4262b);
+}
+
+.settings-inline-message {
+  color: #9ee28a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.settings-inline-message--error {
+  color: #ff9a9e;
+}
+
 .settings-footer {
   position: relative;
   z-index: 2;
