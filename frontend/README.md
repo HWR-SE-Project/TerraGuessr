@@ -22,20 +22,24 @@ Routes are declared in `src/App.tsx`; every page below `/` is lazy-loaded.
 
 ```sh
 npm install
-npm run dev        # Vite dev server, proxies /api to VITE_DEV_API_PROXY_TARGET
-npm run build       # tsc -b && vite build
-npm run lint         # oxlint
-npm test              # vitest run
-npm run preview        # preview a production build locally
+npm run dev        # http://localhost:8080, proxies /api to the local backend
+npm run typecheck  # tsc -b
+npm run build      # tsc -b && vite build
+npm run lint       # oxlint
+npm test           # vitest run
+npm run preview    # preview a production build locally
 ```
 
 ## Environment
 
 Copy `.env.example` to `.env.local` and set `VITE_GOOGLE_MAPS_API_KEY` (a
 public, HTTP-referrer-restricted browser key — see the repo root README for
-how this differs from the server-side Maps key). `VITE_DEV_API_PROXY_TARGET`
-points the dev server at a running backend (defaults assume the Docker
-Compose backend on port 3000/3004 depending on `BACKEND_HOST_PORT`).
+how this differs from the server-side Maps key).
+
+The dev server always runs at `http://localhost:8080` and proxies `/api` to
+`http://localhost:<BACKEND_HOST_PORT>`, reading `BACKEND_HOST_PORT` from the
+repo-root `.env` (default 3000). Change that one value if the port is taken;
+`VITE_DEV_API_PROXY_TARGET` is only needed to override the target explicitly.
 
 ## Testing
 
