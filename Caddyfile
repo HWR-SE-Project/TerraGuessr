@@ -4,9 +4,11 @@
 # Caddy terminates TLS (automatic Let's Encrypt certificates) and routes:
 #   /api/*  -> backend:3000   (Fastify REST API)
 #
-# The frontend service and its catch-all route are removed pending a
-# rebuilt frontend; reintroduce the `handle { reverse_proxy frontend:80 }`
-# block (and the matching compose service) once it exists.
+# The frontend SPA (frontend/) exists and is actively developed via the Vite
+# dev server, but it has no production Docker image/compose service yet, so
+# there is no frontend catch-all route here. Reintroduce the
+# `handle { reverse_proxy frontend:80 }` block (and the matching compose
+# service) once a frontend Dockerfile + compose service are added.
 #
 # The site address comes from the DOMAIN environment variable, so no real
 # domain is hardcoded or committed. Example value (placeholder only):

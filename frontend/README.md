@@ -1,32 +1,44 @@
-# React + TypeScript + Vite
+# TerraGuessr frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + TypeScript + Vite SPA, routed with `react-router-dom`. See the
+repo root `README.md` for the overall project, environment variables, and
+how to run the backend this talks to.
 
-Currently, two official plugins are available:
+## Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+src/api/          Typed REST client functions (one file per backend module)
+src/components/   Shared UI primitives, the cosmic background, the map picker
+src/hooks/        Reusable hooks (auth form state, etc.)
+src/pages/        One directory per route (auth, challenge, daily, duels,
+                   home, play, settings, singleplayer)
+src/state/        React context providers (session)
+src/assets/       Per-page images/SVGs/GLB models
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Routes are declared in `src/App.tsx`; every page below `/` is lazy-loaded.
+
+## Commands
+
+```sh
+npm install
+npm run dev        # Vite dev server, proxies /api to VITE_DEV_API_PROXY_TARGET
+npm run build       # tsc -b && vite build
+npm run lint         # oxlint
+npm test              # vitest run
+npm run preview        # preview a production build locally
+```
+
+## Environment
+
+Copy `.env.example` to `.env.local` and set `VITE_GOOGLE_MAPS_API_KEY` (a
+public, HTTP-referrer-restricted browser key — see the repo root README for
+how this differs from the server-side Maps key). `VITE_DEV_API_PROXY_TARGET`
+points the dev server at a running backend (defaults assume the Docker
+Compose backend on port 3000/3004 depending on `BACKEND_HOST_PORT`).
+
+## Testing
+
+Unit/component tests (`*.test.ts(x)`, co-located with source) run via
+`npm test` (Vitest + Testing Library + jsdom). Full end-to-end coverage
+(Playwright) lives in `../e2e` and is run from the repo root.

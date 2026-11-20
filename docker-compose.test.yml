@@ -4,8 +4,15 @@ name: terraguessr-test
 # hardcoded so tests never depend on a local .env file. Published ports:
 # postgres 5433, backend 3000 by default. Set the TERRAGUESSR_TEST_*_PORT
 # variables when another local stack owns those ports.
-# Frontend service removed pending rebuild — e2e specs that depend on the
-# SPA will not run against this stack until the frontend is reintroduced.
+# KNOWN GAP: this stack has no frontend service/port 8080, but CI's e2e job
+# (.github/workflows/ci.yml) and playwright.config.ts's default baseURL both
+# still assume one (left over from when the frontend was removed for a
+# rebuild). The frontend SPA exists again (frontend/), but has no production
+# Docker image yet — see the matching note in docker-compose.prod.yml and
+# Caddyfile. Until a frontend service is added here, run e2e locally against
+# the Vite dev server instead (`PLAYWRIGHT_WEBSERVER="npm run dev --prefix
+# frontend" PLAYWRIGHT_BASE_URL=http://localhost:5173 npx playwright test`),
+# or treat CI's e2e job as not yet runnable end-to-end.
 services:
   postgres:
     image: postgres:16

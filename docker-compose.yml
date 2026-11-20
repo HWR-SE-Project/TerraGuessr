@@ -2,7 +2,9 @@ name: terraguessr
 
 # TerraGuessr local/production stack (R17 prep). Copy .env.example -> .env first.
 #   docker compose up --build
-# Frontend removed pending rebuild — only postgres + backend are defined here.
+# The frontend SPA has no production Docker image/compose service yet; run it
+# separately via `npm run dev` in frontend/ — only postgres + backend are
+# defined here.
 services:
   postgres:
     image: postgres:16

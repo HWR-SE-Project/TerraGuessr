@@ -20,8 +20,8 @@ name: terraguessr-prod
 # NEVER commit .env. Do not purchase a domain or publish this stack without
 # Product Owner approval (decision B.7).
 #
-# Frontend service removed pending rebuild — Caddy currently only proxies
-# /api/* to backend; see Caddyfile.
+# The frontend SPA has no production Docker image/compose service yet — Caddy
+# currently only proxies /api/* to backend; see Caddyfile.
 
 x-logging: &default-logging
   driver: json-file

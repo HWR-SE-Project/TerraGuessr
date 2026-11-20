@@ -1,13 +1,13 @@
-# Earth textures
+# Earth model
 
-The active renderer uses `earth-day-4k.webp` (or `earth-day-2k.webp` on mobile) and `earth-clouds-2k.webp`, by [Solar System Scope](https://www.solarsystemscope.com/textures/)
-under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-Source URLs and modifications are recorded in `frontend/public/asset-credits.txt`,
-linked from the Home footer. Textures were downloaded from the publisher and
-optimized locally. No third-party texture requests occur at runtime.
-
-The older underscored textures remain as checkpointed project assets; the active
-scene no longer imports them.
+The active planet renderer (`PlanetEarth.tsx`) loads `earth-origami.glb`,
+"Lowpoly origami planet Earth" by assetfactory on Sketchfab (Sketchfab Standard
+License — see `frontend/public/asset-credits.txt` for full attribution). The
+geometry is merged by material at load time (`useOrigamiEarth`) into 7 draw
+calls; no texture requests occur at runtime. The earlier flat-texture sphere
+renderer (`earth-day-4k.webp`/`earth-day-2k.webp`/`earth-clouds-2k.webp` and
+the older `earth_day.jpg`/`earth_normal.jpg`/`earth_clouds.png` set) has been
+removed along with its unused texture files.
 
 ## Home character
 

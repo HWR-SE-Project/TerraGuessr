@@ -1,24 +1,12 @@
 TerraGuessr — visual asset credits
 
-Earth day and cloud textures: Solar System Scope / INOVE.
-Source: https://www.solarsystemscope.com/textures/
-License: Creative Commons Attribution 4.0 International (CC BY 4.0).
-https://creativecommons.org/licenses/by/4.0/
-Based on NASA elevation and imagery data.
-
-Files adapted from:
-https://www.solarsystemscope.com/textures/download/8k_earth_daymap.jpg
-https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg
-
-Adaptations: day map resized to 4096x2048 and 2048x1024 and compressed to WebP;
-cloud map compressed to WebP.
-Lighting, atmospheric shader, orientation and animation are application work.
-These textures are decorative, and are never gameplay location information.
-
-Explorer illustration, static Earth fallback and scenic artwork:
-Existing project-generated assets, documented in src/assets/home/official/README.md.
-Existing Duels characters and rank artwork retained from the project.
-Brand mark and interface icons: local SVG / React components.
+Home planet: "Lowpoly origami planet Earth" by assetfactory.
+Source: https://sketchfab.com/3d-models/lowpoly-origami-planet-earth-7b26a322f28d44538051236bb635ea30
+Author: https://sketchfab.com/assetfactory
+License: Sketchfab Standard License (https://sketchfab.com/licenses).
+Distributed unmodified as src/assets/home/scene/earth-origami.glb; geometry is
+merged by material at render time (see PlanetEarth.tsx) but not otherwise edited.
+Atmosphere shader, rotation and composition are application work.
 
 Home 3D explorer: Puppet Kid (Free Demo) by joaobaltieri.
 Source: https://sketchfab.com/3d-models/puppet-kid-free-demo-b30af4c13ef64e9cab15cf2bd437a435
@@ -27,3 +15,9 @@ License: Creative Commons Attribution 4.0 International (CC BY 4.0).
 https://creativecommons.org/licenses/by/4.0/
 User-supplied puppet_kid_free_demo.glb, distributed unmodified as puppet-kid.glb.
 Application work: framing, softbox lighting, idle playback and pointer response.
+
+Static Earth fallback artwork (src/assets/home/official/earth-horizon.webp):
+project-generated asset, documented in src/assets/home/official/README.md.
+
+Brand mark and interface icons: local SVG / React components.
+These textures and models are decorative, and are never gameplay location information.

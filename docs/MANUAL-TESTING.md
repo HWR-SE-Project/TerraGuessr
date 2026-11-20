@@ -1,36 +1,34 @@
 # TerraGuessr: manual testing on macOS
 
-This guide runs the local application from `main`. It uses Docker Compose for
-PostgreSQL, the API, and the browser UI. No manual migration or database seed is
-needed. The application calls Open-Meteo for live weather and OpenStreetMap for
-map tiles, so internet access is needed for normal play.
+This guide runs the local application from `main`. Docker Compose runs
+PostgreSQL and the API; the frontend has no production Docker image yet (see
+`docker-compose.yml`), so it runs separately via Vite. No manual migration or
+database seed is needed for the backend. The application calls Open-Meteo for
+live weather and OpenStreetMap for map tiles, so internet access is needed for
+normal play.
 
 ## Before you start
 
-- Install Git and Docker Desktop for Mac. Start Docker Desktop and wait until
-  `docker compose version` works in Terminal.
+- Install Git, Docker Desktop for Mac, and Node.js 22+. Start Docker Desktop
+  and wait until `docker compose version` works in Terminal.
 - Have a modern browser (Chrome or Safari) and enough disk space for Docker
-  images. You do not need Node.js for normal manual play.
-- Ports 8080 (browser), your chosen API host port, and your chosen PostgreSQL
-  host port must be free. This project was verified with `BACKEND_HOST_PORT=3004`
-  and `POSTGRES_PORT=5436` because other local services occupied 3000 and
-  5432. The API still listens on port 3000 *inside* the Compose network.
+  images.
+- Your chosen API host port and PostgreSQL host port must be free. This
+  project was verified with `BACKEND_HOST_PORT=3004` and `POSTGRES_PORT=5436`
+  because other local services occupied 3000 and 5432. The API still listens
+  on port 3000 *inside* the Compose network.
 
 ## Get the code and configure it
 
-For a new checkout:
+For an existing checkout, run `git switch main` and `git pull --ff-only origin
+main`, then keep your existing `.env`. Do not overwrite it with the example.
+For a new checkout, clone this repository, then:
 
 ```bash
-git clone https://github.com/HWR-SE-Project/v1.0.0-initial-commit.git
-cd v1.0.0-initial-commit
-git switch main
 cp .env.example .env
 chmod 600 .env
 open -e .env
 ```
-
-For an existing checkout, run `git switch main` and `git pull --ff-only origin
-main`, then keep your existing `.env`. Do not overwrite it with the example.
 
 In the editor, set these values in `.env` before starting:
 
@@ -41,12 +39,13 @@ In the editor, set these values in `.env` before starting:
 | `POSTGRES_PORT` | `5436` on the verified Mac setup, or `5432` if free. |
 | `BACKEND_HOST_PORT` | `3004` on the verified Mac setup, or `3000` if free. Keep `PORT=3000` internally. |
 | `DATABASE_URL` | If running backend tools directly on your Mac, use the same password and host port. Compose derives its own internal URL from `POSTGRES_*`. |
-| `FRONTEND_PORT`, `PORT`, `CORS_ORIGIN` | Keep `8080`, `3000`, `http://localhost:8080` for the URLs below. |
-| `VITE_API_BASE_URL` | Keep `/api`. |
+| `CORS_ORIGIN` | The frontend's dev-server origin, e.g. `http://localhost:5173`. |
 | `OPEN_METEO_BASE_URL` | Keep `https://api.open-meteo.com` for normal play. |
 
 Keep `.env` on your machine; it is ignored by Git. Do not paste the password or
-admin token into issues, screenshots, or chat.
+admin token into issues, screenshots, or chat. Also copy
+`frontend/.env.example` to `frontend/.env.local` and set
+`VITE_GOOGLE_MAPS_API_KEY` — see the repo root `README.md`.
 
 ## Start and confirm initialization
 
@@ -56,20 +55,25 @@ From the repository root:
 docker compose config -q
 docker compose up -d --build
 docker compose ps
-curl -fsS http://localhost:8080/api/health
+curl -fsS http://localhost:3004/api/health   # use your BACKEND_HOST_PORT
 docker compose logs backend --tail=80
 docker compose exec -T postgres psql -U terraguessr -d terraguessr -Atc 'select count(*) from "Location";'
 ```
 
-Wait for `postgres`, `backend`, and `frontend` to show `healthy`. The health
-request returns JSON with `"status":"ok"`. On a fresh database, the backend
-log shows migrations and `Seeded 2000 land locations`; the SQL command prints
-`2000`. On later starts, the seed can report that the existing pool was kept.
+Wait for `postgres` and `backend` to show `healthy`. The health request
+returns JSON with `"status":"ok"`. On a fresh database, the backend log shows
+migrations and `Seeded 2000 land locations`; the SQL command prints `2000`. On
+later starts, the seed can report that the existing pool was kept.
 
-Open **http://localhost:8080** in your browser. The backend is also reachable
-at `http://localhost:3004/api/health` with the tested host port (or 3000 if
-`BACKEND_HOST_PORT=3000`); the browser normally uses `/api` through
-the frontend proxy.
+In a second terminal, start the frontend against that backend:
+
+```bash
+cd frontend
+VITE_DEV_API_PROXY_TARGET=http://127.0.0.1:3004 npm run dev
+```
+
+Open the printed `http://localhost:5173` URL in your browser; it proxies
+`/api` to the backend above.
 
 ## Play checklist
 
@@ -97,19 +101,21 @@ weather service and its own PostgreSQL volume. It does not alter the normal
 game database. This scenario was verified with the following port overrides:
 
 ```bash
-TERRAGUESSR_TEST_POSTGRES_PORT=5437 TERRAGUESSR_TEST_BACKEND_PORT=3005 TERRAGUESSR_TEST_FRONTEND_PORT=8085 TERRAGUESSR_TEST_WEATHER_PORT=4005 docker compose -p terraguessr-weather-check -f docker-compose.test.yml up -d --build
-curl -fsS http://localhost:8085/api/health
+TERRAGUESSR_TEST_POSTGRES_PORT=5437 TERRAGUESSR_TEST_BACKEND_PORT=3005 TERRAGUESSR_TEST_WEATHER_PORT=4005 docker compose -p terraguessr-weather-check -f docker-compose.test.yml up -d --build
+curl -fsS http://localhost:3005/api/health
 curl -fsS -X POST 'http://localhost:4005/__test__/fail-next?count=4' -o /dev/null
 ```
 
-Now open **http://localhost:8085** and start a new Easy game. The mock fails
-the first location's weather request and all three retries. Round 1 should
-still load with complete weather because the API selects another location.
-Check the mock counters with:
+In a second terminal, point a frontend dev server at that backend
+(`VITE_DEV_API_PROXY_TARGET=http://127.0.0.1:3005 npm run dev --prefix
+frontend`) and open the printed URL. Start a new Easy game. The mock fails the
+first location's weather request and all three retries. Round 1 should still
+load with complete weather because the API selects another location. Check
+the mock counters with:
 
 ```bash
 curl -fsS http://localhost:4005/__test__/stats
-TERRAGUESSR_TEST_POSTGRES_PORT=5437 TERRAGUESSR_TEST_BACKEND_PORT=3005 TERRAGUESSR_TEST_FRONTEND_PORT=8085 TERRAGUESSR_TEST_WEATHER_PORT=4005 docker compose -p terraguessr-weather-check -f docker-compose.test.yml stop
+TERRAGUESSR_TEST_POSTGRES_PORT=5437 TERRAGUESSR_TEST_BACKEND_PORT=3005 TERRAGUESSR_TEST_WEATHER_PORT=4005 docker compose -p terraguessr-weather-check -f docker-compose.test.yml stop
 ```
 
 `failuresServed` should have increased by four. Stopping preserves its volume.
@@ -118,7 +124,6 @@ TERRAGUESSR_TEST_POSTGRES_PORT=5437 TERRAGUESSR_TEST_BACKEND_PORT=3005 TERRAGUES
 
 ```bash
 docker compose logs --tail=100 backend
-docker compose logs --tail=100 frontend
 docker compose logs --tail=100 postgres
 docker compose stop
 docker compose start
@@ -132,13 +137,13 @@ or `docker volume rm` unless you intentionally want to erase local data.
 ## If something does not load
 
 - Check `docker compose ps` and `docker compose logs backend --tail=100`.
-- If a port is already in use, change `POSTGRES_PORT`, `FRONTEND_PORT`, or
-  `BACKEND_HOST_PORT` in `.env`, then rebuild. Keep `PORT=3000` because the
-  frontend proxy uses that internal port. When changing `FRONTEND_PORT`, also update
-  `CORS_ORIGIN` to the new `http://localhost:<port>` value.
+- If a port is already in use, change `POSTGRES_PORT` or `BACKEND_HOST_PORT`
+  in `.env`, then rebuild. Keep `PORT=3000` because that's the internal
+  container port. When changing `BACKEND_HOST_PORT`, also update `CORS_ORIGIN`
+  / `VITE_DEV_API_PROXY_TARGET` to match.
 - If the database is healthy but a game cannot start, inspect backend logs
   for migration or seed errors; verify the `Location` count above.
 - If weather does not appear, check outbound internet access to Open-Meteo.
   If the map is blank, check internet access to the configured tile server.
-- After changing a `VITE_*` value, run `docker compose up -d --build frontend`
-  because the frontend reads those values at build time.
+- After changing a `VITE_*` value, restart the frontend dev server (Vite only
+  reads `.env.local` at startup).
