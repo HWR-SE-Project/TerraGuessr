@@ -5,6 +5,7 @@ import { useSession } from '../../state/SessionContext'
 import { mapApiError } from '../../api/errorMessages'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Brand } from '../../components/ui/Brand'
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import './SettingsPage.css'
 
 type SettingsTab = 'account' | 'preferences'
@@ -143,44 +144,52 @@ export function SettingsPage() {
 
   if (status === 'loading') {
     return (
-      <main className="settings-screen">
-        <p style={{ color: 'rgba(255,255,255,0.6)' }}>Loading…</p>
-      </main>
+      <>
+        <PageNavigation active="none" />
+        <main className="settings-screen">
+          <p style={{ color: 'rgba(255,255,255,0.6)' }}>Loading…</p>
+        </main>
+      </>
     )
   }
 
   if (!user) {
     return (
-      <main className="settings-screen">
-        <section
-          className="settings-panel settings-guest"
-          aria-label="Settings"
-        >
-          <Brand />
-          <h1>Make it your world.</h1>
-          <p>Sign in to manage your account and preferences.</p>
-          <button
-            type="button"
-            className="settings-save-btn"
-            onClick={() => navigate('/auth')}
+      <>
+        <PageNavigation active="none" />
+        <main className="settings-screen">
+          <section
+            className="settings-panel settings-guest"
+            aria-label="Settings"
           >
-            Sign in
-          </button>
-          <button
-            type="button"
-            className="settings-footer__close"
-            onClick={() => navigate('/')}
-          >
-            Return home
-          </button>
-        </section>
-      </main>
+            <Brand />
+            <h1>Make it your world.</h1>
+            <p>Sign in to manage your account and preferences.</p>
+            <button
+              type="button"
+              className="settings-save-btn"
+              onClick={() => navigate('/auth')}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className="settings-footer__close"
+              onClick={() => navigate('/')}
+            >
+              Return home
+            </button>
+          </section>
+        </main>
+      </>
     )
   }
 
   return (
-    <main className="settings-screen">
-      <section className="settings-panel" aria-label="Settings">
+    <>
+      <PageNavigation active="none" />
+      <main className="settings-screen">
+        <section className="settings-panel" aria-label="Settings">
         <button
           className="settings-top-close"
           type="button"
@@ -387,6 +396,7 @@ export function SettingsPage() {
           )}
         </ConfirmDialog>
       )}
-    </main>
+      </main>
+    </>
   )
 }

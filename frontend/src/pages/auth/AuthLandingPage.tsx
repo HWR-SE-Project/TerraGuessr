@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Brand } from '../../components/ui/Brand'
-import earthHorizon from '../../assets/auth/earth-horizon.webp'
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import googleLogo from '../../assets/auth/google-logo.svg'
 import appleLogo from '../../assets/auth/apple-logo.svg'
 import { googleSignInUrl } from '../../api/auth'
@@ -28,42 +27,30 @@ export function AuthLandingPage() {
   }
 
   return (
-    <main className="geo-landing">
-      <img
-        className="geo-landing__background"
-        src={earthHorizon}
-        alt=""
-        fetchPriority="high"
+    <>
+      <PageNavigation
+        active="none"
+        authActions={
+          <>
+            <button
+              className="geo-landing__login"
+              type="button"
+              onClick={() => showProviders('login')}
+            >
+              Log in
+            </button>
+            <button
+              className="geo-landing__signup"
+              type="button"
+              onClick={() => showProviders('register')}
+            >
+              Sign up
+            </button>
+          </>
+        }
       />
-      <div className="geo-landing__contours" aria-hidden="true" />
-
-      <header className="geo-landing__header">
-        <a
-          className="geo-landing__brand"
-          href="/"
-          aria-label="TerraGuessr home"
-        >
-          <Brand />
-        </a>
-        <nav className="geo-landing__actions" aria-label="Account">
-          <button
-            className="geo-landing__login"
-            type="button"
-            onClick={() => showProviders('login')}
-          >
-            Log in
-          </button>
-          <button
-            className="geo-landing__signup"
-            type="button"
-            onClick={() => showProviders('register')}
-          >
-            Sign up
-          </button>
-        </nav>
-      </header>
-
-      <div className="geo-landing__content">
+      <main className="geo-landing">
+        <div className="geo-landing__content">
         <section className="geo-landing__hero" aria-labelledby="explore-title">
           <p className="geo-landing__eyebrow">A WORLD WAITING TO BE FOUND</p>
           <h1 id="explore-title">
@@ -204,7 +191,8 @@ export function AuthLandingPage() {
             </>
           )}
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   )
 }

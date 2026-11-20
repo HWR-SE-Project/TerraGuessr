@@ -1,0 +1,50 @@
+{
+  "baseURL": "http://localhost:5173",
+  "errors": [],
+  "checks": {
+    "stationary": {
+      "observedSeconds": 32.54979999999702,
+      "pointerEvents": 0,
+      "fps": 30.6,
+      "displacement": [
+        {
+          "layer": "cosmic-far",
+          "count": 2400,
+          "meanMovementPixels": 0.913
+        },
+        {
+          "layer": "cosmic-mid",
+          "count": 640,
+          "meanMovementPixels": 3.645
+        },
+        {
+          "layer": "cosmic-near",
+          "count": 85,
+          "meanMovementPixels": 16.437
+        },
+        {
+          "layer": "cosmic-dust",
+          "count": 190,
+          "meanMovementPixels": 3.784
+        }
+      ],
+      "stableGeometry": true
+    },
+    "parallax": {
+      "simultaneousDrift": true,
+      "fixedCameraAndCharacterAnchor": true,
+      "headAngle": 0.9255103358033321
+    },
+    "reducedMotion": {
+      "static": true,
+      "fps": 0,
+      "originalAppearanceMaxChannelDifference": 2
+    },
+    "mobile": {
+      "fps": 34.1,
+      "continuousDrift": true,
+      "particleCount": 763,
+      "touchParallaxDisabled": true
+    }
+  }
+}

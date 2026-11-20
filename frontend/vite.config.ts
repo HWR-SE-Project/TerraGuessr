@@ -26,6 +26,11 @@ export default defineConfig(({ mode }) => {
       globals: true,
     },
     server: {
+      // Explicit IPv4 loopback: plain 'localhost' resolves to the IPv6
+      // loopback first on this host, which left http://127.0.0.1:5173
+      // (used by maps-doctor.mjs, verify-live-game.mjs, and some tooling)
+      // unable to connect at all.
+      host: '127.0.0.1',
       proxy: {
         '/api': {
           target:

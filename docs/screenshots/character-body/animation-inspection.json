@@ -1,0 +1,1392 @@
+{
+  "path": "puppet_kid_free_demo.glb",
+  "skinJoints": [
+    "_rootJoint",
+    "Hips_01",
+    "Spine_02",
+    "Spine1_03",
+    "Spine2_04",
+    "Neck_05",
+    "Head_06",
+    "HeadTop_End_07",
+    "LeftShoulder_08",
+    "LeftArm_09",
+    "LeftForeArm_010",
+    "LeftHand_011",
+    "LeftHand.Dummy_012",
+    "RightShoulder_013",
+    "RightArm_014",
+    "RightForeArm_015",
+    "RightHand_016",
+    "RightHand.Dummy_017",
+    "Spine2.Dummy_018",
+    "LeftUpLeg_019",
+    "LeftLeg_020",
+    "LeftFoot_021",
+    "LeftToeBase_00",
+    "LeftToe_End_022",
+    "RightUpLeg_023",
+    "RightLeg_024",
+    "RightFoot_025",
+    "RightToeBase_026",
+    "RightToe_End_027",
+    "Hips.LeftDummy_028",
+    "Hips.RightDummy_029"
+  ],
+  "clips": [
+    {
+      "name": "Idle",
+      "duration": 1.9666666984558105,
+      "channels": [
+        {
+          "bone": "HeadTop_End_07",
+          "property": "translation"
+        },
+        {
+          "bone": "HeadTop_End_07",
+          "property": "scale"
+        },
+        {
+          "bone": "HeadTop_End_07",
+          "property": "rotation"
+        },
+        {
+          "bone": "Head_06",
+          "property": "translation"
+        },
+        {
+          "bone": "Head_06",
+          "property": "scale"
+        },
+        {
+          "bone": "Head_06",
+          "property": "rotation"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "translation"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "scale"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "translation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "scale"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "translation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "scale"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "translation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "scale"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "scale"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "scale"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "translation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "scale"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "translation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "scale"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "translation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "scale"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "rotation"
+        },
+        {
+          "bone": "Hips_01",
+          "property": "translation"
+        }
+      ]
+    },
+    {
+      "name": "Walk",
+      "duration": 0.9666666388511658,
+      "channels": [
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "rotation"
+        },
+        {
+          "bone": "Hips_01",
+          "property": "translation"
+        }
+      ]
+    },
+    {
+      "name": "Run",
+      "duration": 0.5333333611488342,
+      "channels": [
+        {
+          "bone": "HeadTop_End_07",
+          "property": "translation"
+        },
+        {
+          "bone": "HeadTop_End_07",
+          "property": "rotation"
+        },
+        {
+          "bone": "Head_06",
+          "property": "scale"
+        },
+        {
+          "bone": "Head_06",
+          "property": "rotation"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "translation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "scale"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "scale"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "translation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "scale"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "translation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "scale"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "translation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "scale"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "translation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "scale"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "rotation"
+        },
+        {
+          "bone": "Hips_01",
+          "property": "translation"
+        }
+      ]
+    },
+    {
+      "name": "Jump",
+      "duration": 0.9666666388511658,
+      "channels": [
+        {
+          "bone": "HeadTop_End_07",
+          "property": "translation"
+        },
+        {
+          "bone": "HeadTop_End_07",
+          "property": "rotation"
+        },
+        {
+          "bone": "Head_06",
+          "property": "translation"
+        },
+        {
+          "bone": "Head_06",
+          "property": "scale"
+        },
+        {
+          "bone": "Head_06",
+          "property": "rotation"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "translation"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "translation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "scale"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "translation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "scale"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "translation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "scale"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "scale"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "scale"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "translation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "scale"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "translation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "scale"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "translation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "scale"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "rotation"
+        },
+        {
+          "bone": "Hips_01",
+          "property": "translation"
+        }
+      ]
+    },
+    {
+      "name": "Rig Test",
+      "duration": 12.966666221618652,
+      "channels": [
+        {
+          "bone": "HeadTop_End_07",
+          "property": "translation"
+        },
+        {
+          "bone": "HeadTop_End_07",
+          "property": "scale"
+        },
+        {
+          "bone": "HeadTop_End_07",
+          "property": "rotation"
+        },
+        {
+          "bone": "Head_06",
+          "property": "translation"
+        },
+        {
+          "bone": "Head_06",
+          "property": "scale"
+        },
+        {
+          "bone": "Head_06",
+          "property": "rotation"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "translation"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "scale"
+        },
+        {
+          "bone": "Neck_05",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand.Dummy_012",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftHand_011",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftForeArm_010",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftArm_09",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftShoulder_08",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand.Dummy_017",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "translation"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "scale"
+        },
+        {
+          "bone": "RightHand_016",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "translation"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "scale"
+        },
+        {
+          "bone": "RightForeArm_015",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "translation"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "scale"
+        },
+        {
+          "bone": "RightArm_014",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "translation"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "scale"
+        },
+        {
+          "bone": "RightShoulder_013",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine2.Dummy_018",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "scale"
+        },
+        {
+          "bone": "Spine2_04",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine1_03",
+          "property": "rotation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "translation"
+        },
+        {
+          "bone": "Spine_02",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftToe_End_022",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftToeBase_00",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftFoot_021",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftLeg_020",
+          "property": "rotation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "translation"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "scale"
+        },
+        {
+          "bone": "LeftUpLeg_019",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "scale"
+        },
+        {
+          "bone": "RightToe_End_027",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "translation"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "scale"
+        },
+        {
+          "bone": "RightToeBase_026",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "translation"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "scale"
+        },
+        {
+          "bone": "RightFoot_025",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "translation"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "scale"
+        },
+        {
+          "bone": "RightLeg_024",
+          "property": "rotation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "translation"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "scale"
+        },
+        {
+          "bone": "RightUpLeg_023",
+          "property": "rotation"
+        },
+        {
+          "bone": "Hips.LeftDummy_028",
+          "property": "translation"
+        },
+        {
+          "bone": "Hips.LeftDummy_028",
+          "property": "scale"
+        },
+        {
+          "bone": "Hips.LeftDummy_028",
+          "property": "rotation"
+        },
+        {
+          "bone": "Hips.RightDummy_029",
+          "property": "translation"
+        },
+        {
+          "bone": "Hips.RightDummy_029",
+          "property": "scale"
+        },
+        {
+          "bone": "Hips.RightDummy_029",
+          "property": "rotation"
+        },
+        {
+          "bone": "Hips_01",
+          "property": "translation"
+        },
+        {
+          "bone": "Hips_01",
+          "property": "scale"
+        },
+        {
+          "bone": "Hips_01",
+          "property": "rotation"
+        }
+      ]
+    }
+  ]
+}

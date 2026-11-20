@@ -31,7 +31,6 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  border-bottom: 1px solid #a2bed610;
   color: var(--color-text);
 }
 .th-brand {
@@ -78,23 +77,6 @@
   gap: 16px;
   align-items: center;
   margin-left: auto;
-}
-.th-search {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: var(--color-muted);
-  border-radius: 50%;
-}
-.th-search:hover {
-  background: #ffffff0a;
-}
-.th-search .th-icon {
-  width: 19px;
-  height: 19px;
 }
 .th-profile-link {
   display: flex;
@@ -150,25 +132,6 @@
   text-align: center;
   padding: 57px 24px 0;
 }
-.th-eyebrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin: 0;
-  color: var(--color-cyan);
-  font-size: 10px;
-  font-weight: 550;
-  letter-spacing: 3px;
-  line-height: 1.5;
-}
-.th-eyebrow::before {
-  content: '';
-  width: 22px;
-  height: 1px;
-  background: currentColor;
-  opacity: 0.7;
-}
 .th-hero h1 {
   font-family: var(--font-display);
   font-size: clamp(60px, 5.6vw, 96px);
@@ -197,13 +160,11 @@
   transform: translateX(-50%);
   z-index: 2;
 }
-.th-character {
+.th-character-slot {
   width: 204px;
   height: 306px;
-  object-fit: contain;
+  position: relative;
   margin: 0 auto;
-  filter: drop-shadow(0 14px 20px #0005);
-  animation: th-idle 7s ease-in-out infinite;
 }
 .th-avatar-display::before {
   content: '';
@@ -215,6 +176,14 @@
   border-radius: 50%;
   background: #07111d99;
   filter: blur(10px);
+}
+.th-character-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: 12px;
 }
 .th-edit-avatar {
   position: absolute;
@@ -236,14 +205,8 @@
   font-weight: 500;
   white-space: nowrap;
 }
-.th-edit-avatar .th-icon {
-  width: 12px;
-  height: 12px;
-}
-.th-edit-avatar:hover {
-  background: #1e3045;
-  border-color: #c0f66b55;
-}
+.th-edit-avatar .th-icon { width: 12px; height: 12px; }
+.th-edit-avatar:hover { background: #1e3045; border-color: #c0f66b55; }
 .th-game-modes {
   position: relative;
   z-index: 3;
@@ -332,47 +295,6 @@
 }
 .th-mode:active {
   transform: translateY(-1px);
-}
-.th-footer {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: min(1000px, calc(100% - 96px));
-  margin: 28px auto 0;
-  padding-bottom: 28px;
-  font-size: 10px;
-  color: #a4b3c5;
-  letter-spacing: 0.1px;
-}
-.th-footer a {
-  color: #d4e0e9;
-}
-.th-footer a:hover {
-  color: var(--color-lime);
-}
-.th-footer a span {
-  margin-left: 8px;
-}
-.th-world-note {
-  position: absolute;
-  z-index: 1;
-  top: 56%;
-  left: clamp(24px, 4.5vw, 88px);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: #8caac0;
-  line-height: 1.5;
-}
-.th-world-note::before {
-  content: '+';
-  margin-bottom: 15px;
-  font-size: 24px;
-  font-weight: 200;
-  color: var(--color-cyan);
 }
 .th-scene3d,
 .th-earth {
@@ -486,15 +408,6 @@
   font-weight: 650;
   font-size: 14px;
 }
-@keyframes th-idle {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-0.3deg);
-  }
-  50% {
-    transform: translateY(-5px) rotate(0.3deg);
-  }
-}
 @media (min-width: 1600px) and (min-height: 980px) {
   .th-home {
     min-height: 100svh;
@@ -510,15 +423,12 @@
     width: 250px;
     height: 365px;
   }
-  .th-character {
+  .th-character-slot {
     width: 220px;
     height: 330px;
   }
   .th-game-modes {
     margin-top: 32px;
-  }
-  .th-footer {
-    margin-top: 35px;
   }
 }
 @media (min-width: 1101px) and (max-height: 820px) {
@@ -539,7 +449,7 @@
     top: 218px;
     height: 300px;
   }
-  .th-character {
+  .th-character-slot {
     width: 178px;
     height: 267px;
   }
@@ -548,9 +458,6 @@
   }
   .th-mode {
     min-height: 100px;
-  }
-  .th-footer {
-    margin-top: 22px;
   }
 }
 @media (max-width: 1200px) {
@@ -619,12 +526,6 @@
   .th-player-tools + .th-menu-button {
     margin-left: -12px;
   }
-  .th-search {
-    display: none;
-  }
-  .th-world-note {
-    display: none;
-  }
   .th-hero h1 {
     font-size: clamp(42px, 7.5vw, 76px);
   }
@@ -644,9 +545,6 @@
   }
   .th-mode small {
     font-size: 10px;
-  }
-  .th-footer {
-    width: calc(100% - 56px);
   }
 }
 @media (max-width: 600px) {
@@ -678,14 +576,6 @@
   .th-hero-copy {
     padding: 36px 20px 0;
   }
-  .th-eyebrow {
-    font-size: 8px;
-    letter-spacing: 2.1px;
-    gap: 8px;
-  }
-  .th-eyebrow::before {
-    width: 16px;
-  }
   .th-hero h1 {
     max-width: 340px;
     margin: 19px auto 14px;
@@ -709,14 +599,9 @@
     width: 170px;
     height: 250px;
   }
-  .th-character {
+  .th-character-slot {
     width: 146px;
     height: 219px;
-  }
-  .th-edit-avatar {
-    min-height: 36px;
-    padding: 8px 14px;
-    font-size: 10px;
   }
   .th-game-modes {
     width: calc(100% - 40px);
@@ -767,16 +652,6 @@
     display: block;
     align-self: center;
   }
-  .th-footer {
-    width: calc(100% - 40px);
-    margin-top: 22px;
-    padding-bottom: 24px;
-    justify-content: center;
-    font-size: 9px;
-  }
-  .th-footer > span {
-    display: none;
-  }
   .th-orbit {
     top: 190px;
     width: 700px;
@@ -788,24 +663,5 @@
     height: 900px;
     top: 90px;
     left: calc(50% - 450px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .th-character {
-    animation: none;
-  }
-}
-.th-footer .th-footer-links {
-  display: flex;
-  gap: 24px;
-  align-items: center;
-}
-.th-footer-links > a:first-child {
-  color: #8ba2b9;
-}
-@media (max-width: 600px) {
-  .th-footer .th-footer-links {
-    display: flex;
-    gap: 20px;
   }
 }

@@ -1,0 +1,23 @@
+{
+  "errors": [],
+  "responses": [
+    {
+      "route": "/auth",
+      "finalURL": "http://localhost:5175/auth",
+      "mainVisible": true,
+      "title": "A little lost.A lot to discover."
+    },
+    {
+      "route": "/duels",
+      "finalURL": "http://localhost:5175/duels",
+      "mainVisible": true,
+      "title": "Duels"
+    },
+    {
+      "route": "/game/singleplayer",
+      "finalURL": "http://localhost:5175/game/singleplayer",
+      "mainVisible": true,
+      "title": "The world is out there.Find your place."
+    }
+  ]
+}

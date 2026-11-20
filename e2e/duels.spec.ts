@@ -1,31 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { registerAndLogin } from './support/game'
 
-test('duels uses authenticated identity and clearly labels the unsupported ranked ladder', async ({ page }) => {
+test('duels uses authenticated identity', async ({ page }) => {
   await registerAndLogin(page, 'Duel Explorer')
   await page.goto('/duels')
   await expect(page.getByRole('main').getByText('Duel Explorer', { exact: true })).toBeVisible()
-  await expect(page.getByRole('complementary').getByText('Duel Explorer', { exact: true })).toBeVisible()
   await expect(page.getByText('Unknown player', { exact: true })).toBeVisible()
-  await expect(page.getByText('Ladder preview · Ranked play coming soon')).toBeVisible()
-  await expect(page.getByRole('list', { name: 'Ranked ladder design demonstration' }).getByRole('listitem')).toHaveCount(5)
-})
-
-test('placement controls explain availability without creating a game or inventing progression', async ({ page }) => {
-  const gameRequests: string[] = []
-  page.on('request', request => {
-    if (request.method() === 'POST' && request.url().endsWith('/api/games')) gameRequests.push(request.url())
-  })
-  await page.goto('/duels')
-  const secondDuel = page.getByRole('button', { name: 'Duel 2', exact: true })
-  await secondDuel.focus()
-  await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog')).toContainText('Ranked placement duels are not available yet')
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(secondDuel).toBeFocused()
-  await expect(page.locator('.td-duel-step-active')).toHaveText('Duel 1')
-  expect(gameRequests).toEqual([])
 })
 
 test('a duel start failure is recoverable and restores keyboard focus', async ({ page }) => {

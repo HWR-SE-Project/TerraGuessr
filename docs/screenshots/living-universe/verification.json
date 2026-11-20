@@ -1,0 +1,380 @@
+{
+  "baseURL": "http://localhost:5173",
+  "errors": [],
+  "checks": {
+    "stationary": {
+      "seconds": 90.22559999999405,
+      "pointerEvents": 0,
+      "cadence": {
+        "frames": 2740,
+        "fps": 30,
+        "p95IntervalMs": 34.3
+      },
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "counts": {
+        "meteor": 4,
+        "comet": 1,
+        "satellite": 1
+      },
+      "history": [
+        {
+          "kind": "meteor",
+          "start": 13.454199999995545,
+          "duration": 1.4438763219863175
+        },
+        {
+          "kind": "satellite",
+          "start": 27.82919999999543,
+          "duration": 16.616573840379715
+        },
+        {
+          "kind": "comet",
+          "start": 47.337399999998404,
+          "duration": 7.581152115482837
+        },
+        {
+          "kind": "meteor",
+          "start": 57.587499999999885,
+          "duration": 1.4823230139445513
+        },
+        {
+          "kind": "meteor",
+          "start": 72.84579999999634,
+          "duration": 1.2038572541903705
+        },
+        {
+          "kind": "meteor",
+          "start": 85.67919999999417,
+          "duration": 1.4387861772906034
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "meteor",
+          "start": 13.454199999995545,
+          "duration": 1.4438763219863175,
+          "screenshotAt": 14.387500000000014,
+          "recordingSeconds": 14.661
+        },
+        {
+          "kind": "satellite",
+          "start": 27.82919999999543,
+          "duration": 16.616573840379715,
+          "screenshotAt": 37.13739999999841,
+          "recordingSeconds": 37.401
+        },
+        {
+          "kind": "comet",
+          "start": 47.337399999998404,
+          "duration": 7.581152115482837,
+          "screenshotAt": 51.68739999999841,
+          "recordingSeconds": 51.948
+        }
+      ],
+      "initial": {
+        "wallTime": 3727.7000000029802,
+        "pointerEvents": 0,
+        "camera": [
+          0,
+          0,
+          10,
+          0,
+          0,
+          0,
+          1
+        ],
+        "characterFit": [
+          0,
+          -44,
+          0,
+          132.86856630682334,
+          132.86856630682334,
+          132.86856630682334
+        ],
+        "head": [
+          0.4396440844147554,
+          -0.0067521099543166345,
+          0.013780213841734676,
+          0.8980409755440195
+        ],
+        "planetFit": [
+          0,
+          -2.771124412046251,
+          -3.4,
+          1,
+          1,
+          1
+        ],
+        "layers": [
+          {
+            "name": "cosmic-far",
+            "count": 6500,
+            "geometry": "7b09c7ea-1084-4e26-bb6a-6bf9b30b41bb",
+            "time": 1.7207999999970203,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 1.2,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-mid",
+            "count": 2100,
+            "geometry": "1696b333-4a9a-4c5b-8b64-26551042411b",
+            "time": 1.7207999999970203,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 1.9,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-near",
+            "count": 240,
+            "geometry": "de5e1098-7572-45d9-ad69-869e17268d0b",
+            "time": 1.7207999999970203,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 2.4,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-dust",
+            "count": 320,
+            "geometry": "2afa6a41-1f0a-45c9-a1f4-485e127f2385",
+            "time": 1.7207999999970203,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 1.5,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-clusters",
+            "count": 1500,
+            "geometry": "fe9e6f14-8bcf-4295-9cb6-8bff68887ca4",
+            "time": 1.7207999999970203,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 0.7,
+            "depthTest": true,
+            "depthWrite": false
+          }
+        ],
+        "events": {
+          "counts": {
+            "meteor": 0,
+            "comet": 0,
+            "satellite": 0
+          },
+          "history": [],
+          "time": 1.7207999999970203,
+          "visible": true,
+          "activeObjects": []
+        },
+        "overflow": false,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)"
+      },
+      "final": {
+        "wallTime": 93953.29999999702,
+        "pointerEvents": 0,
+        "camera": [
+          0,
+          0,
+          10,
+          0,
+          0,
+          0,
+          1
+        ],
+        "characterFit": [
+          0,
+          -44,
+          0,
+          132.86856630682334,
+          132.86856630682334,
+          132.86856630682334
+        ],
+        "head": [
+          0.43975081900520463,
+          -0.01204945502082371,
+          0.024606606125558966,
+          0.8977018116840002
+        ],
+        "planetFit": [
+          0,
+          -2.771124412046251,
+          -3.4,
+          1,
+          1,
+          1
+        ],
+        "layers": [
+          {
+            "name": "cosmic-far",
+            "count": 6500,
+            "geometry": "7b09c7ea-1084-4e26-bb6a-6bf9b30b41bb",
+            "time": 91.94579999999526,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 1.2,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-mid",
+            "count": 2100,
+            "geometry": "1696b333-4a9a-4c5b-8b64-26551042411b",
+            "time": 91.94579999999526,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 1.9,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-near",
+            "count": 240,
+            "geometry": "de5e1098-7572-45d9-ad69-869e17268d0b",
+            "time": 91.94579999999526,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 2.4,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-dust",
+            "count": 320,
+            "geometry": "2afa6a41-1f0a-45c9-a1f4-485e127f2385",
+            "time": 91.94579999999526,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 1.5,
+            "depthTest": true,
+            "depthWrite": false
+          },
+          {
+            "name": "cosmic-clusters",
+            "count": 1500,
+            "geometry": "fe9e6f14-8bcf-4295-9cb6-8bff68887ca4",
+            "time": 91.94579999999526,
+            "parallax": [
+              0,
+              0
+            ],
+            "driftSpeed": 0.7,
+            "depthTest": true,
+            "depthWrite": false
+          }
+        ],
+        "events": {
+          "counts": {
+            "meteor": 4,
+            "comet": 1,
+            "satellite": 1
+          },
+          "history": [
+            {
+              "kind": "meteor",
+              "start": 13.454199999995545,
+              "duration": 1.4438763219863175
+            },
+            {
+              "kind": "satellite",
+              "start": 27.82919999999543,
+              "duration": 16.616573840379715
+            },
+            {
+              "kind": "comet",
+              "start": 47.337399999998404,
+              "duration": 7.581152115482837
+            },
+            {
+              "kind": "meteor",
+              "start": 57.587499999999885,
+              "duration": 1.4823230139445513
+            },
+            {
+              "kind": "meteor",
+              "start": 72.84579999999634,
+              "duration": 1.2038572541903705
+            },
+            {
+              "kind": "meteor",
+              "start": 85.67919999999417,
+              "duration": 1.4387861772906034
+            }
+          ],
+          "time": 91.94579999999526,
+          "active": null,
+          "visible": true,
+          "activeObjects": []
+        },
+        "overflow": false,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)"
+      }
+    },
+    "parallax": {
+      "headAngle": 0.9266077269368241,
+      "cameraAndModelAnchorsFixed": true,
+      "simultaneousDrift": true
+    },
+    "interactiveCadence": {
+      "frames": 150,
+      "fps": 60,
+      "p95IntervalMs": 17.6
+    },
+    "reducedMotion": {
+      "staticStars": true,
+      "transitsHidden": true,
+      "ongoingFrames": 0
+    },
+    "resize": [
+      320,
+      375,
+      768,
+      1280,
+      1711
+    ],
+    "mobile": {
+      "cadence": {
+        "frames": 714,
+        "fps": 30.8,
+        "p95IntervalMs": 34.3
+      },
+      "starCount": 1919,
+      "naturalMeteorObserved": true,
+      "touchParallaxDisabled": true
+    },
+    "lowPower": {
+      "hardwareConcurrency": 4,
+      "particles": 4797,
+      "dpr": 1,
+      "drawCalls": {
+        "mainScene": 15,
+        "withoutBackground": 9,
+        "background": 6
+      }
+    }
+  }
+}

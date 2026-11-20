@@ -1,25 +1,20 @@
-import { useMemo, useRef, useState } from 'react'
-import { useFrame, useLoader } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useGLTF } from '@react-three/drei'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import * as THREE from 'three'
-import earthDayUrl from '../../../assets/home/scene/earth-day-4k.webp'
-import earthDayMobileUrl from '../../../assets/home/scene/earth-day-2k.webp'
-import earthCloudsUrl from '../../../assets/home/scene/earth-clouds-2k.webp'
-import { SUN_DIRECTION } from './composition'
+import modelUrl from '../../../assets/home/scene/earth-origami.glb?url'
+import { EARTH_Z, OCEAN_FILL, SUN_DIRECTION } from './composition'
 
 // Thin, sun-aware rim glow: a tight bright core hugging the silhouette plus a
 // soft outer bleed, tinted warm where the limb faces the sun and cool blue
-// everywhere else — replaces the old flat, thick, view-independent ring.
-// Fresnel computed from the true per-fragment view direction (world space),
-// not a fixed camera-forward axis — required here because the globe is huge,
-// close to the camera, and composed mostly off-axis/below the viewport, so a
-// fixed-axis approximation drifts far from the actual silhouette and reads as
-// a thick floating ring instead of a thin limb glow.
+// everywhere else — a thin horizon haze, not a thick floating ring. Sized off
+// the model's own ocean-sphere radius (see useOrigamiEarth) so it hugs the
+// actual low-poly globe regardless of the asset's native scale/units.
 const ATMOSPHERE_VERTEX = /* glsl */ `
   varying vec3 vWorldNormal;
   varying vec3 vWorldPosition;
-  varying vec2 vUv;
   void main() {
-    vUv = uv;
     vWorldNormal = normalize(mat3(modelMatrix) * normal);
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     vWorldPosition = worldPosition.xyz;
@@ -49,31 +44,84 @@ const ATMOSPHERE_FRAGMENT = /* glsl */ `
   }
 `
 
-// Composite clouds directly on the lit surface. Separate low-poly transparent
-// shells can intersect the planet near its grazing horizon and lose cloud detail.
-const SURFACE_FRAGMENT = /* glsl */ `
-  varying vec3 vWorldNormal;
-  varying vec3 vWorldPosition;
-  varying vec2 vUv;
-  uniform sampler2D dayMap;
-  uniform sampler2D cloudMap;
-  uniform vec3 sunDirection;
-  uniform float cloudOffset;
-  void main() {
-    vec3 n = normalize(vWorldNormal);
-    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-    float sunlight = max(dot(n, normalize(sunDirection)), 0.0);
-    vec3 surface = texture2D(dayMap, vUv).rgb;
-    float clouds = texture2D(cloudMap, vec2(fract(vUv.x + cloudOffset), vUv.y)).r;
-    surface = mix(surface, vec3(0.88, 0.93, 1.0), smoothstep(0.06, 0.8, clouds) * 0.86);
-    surface *= 0.5 + sunlight * 0.9;
-    float haze = pow(1.0 - max(dot(n, viewDir), 0.0), 4.0);
-    surface = mix(surface, vec3(0.13, 0.34, 0.56), haze * 0.44);
-    gl_FragColor = vec4(surface, 1.0);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-  }
-`
+/** A fixed starting yaw/tilt so the model's continents present an attractive
+ * silhouette on first paint, independent of however the source FBX->glTF
+ * export happened to orient the globe. */
+const INITIAL_ROTATION: [number, number, number] = [-0.18, 1.55, 0.06]
+
+/** One full spin every ~75s (within the 60-90s target band) — slow enough to
+ * read as a stately drift rather than a spinning toy, fast enough that a
+ * visitor who lingers on the page actually sees new continents rotate past. */
+const ROTATION_RADIANS_PER_SECOND = (2 * Math.PI) / 75
+
+/**
+ * The source glTF is ~214 separate low-poly facet meshes (one small mesh per
+ * folded "paper" piece: ocean, continents, and scattered tree/flower
+ * decoration) sharing just 7 flat-color materials, each facet carrying its
+ * own baked world transform from the original FBX import. Collapsing
+ * same-material facets into a single merged mesh (7 draw calls total instead
+ * of ~214) is a straightforward win and preserves the authored geometry,
+ * materials and colors exactly — it only removes the unused UV channel (the
+ * model has no textures to sample).
+ *
+ * Composition needs a reliable "planet radius", but the model's overall
+ * bounding sphere is a poor proxy for it: tree/flower decoration is
+ * scattered broadly across the globe's surface, so merging it inflates (or,
+ * for a single sparse decoration mesh, can even deflate) the naive
+ * bounding-sphere radius relative to the body of the planet. At the huge,
+ * mostly-cropped, near-camera scale this scene uses, that mismatch is the
+ * difference between the globe filling the frame correctly and the entire
+ * model projecting below the visible viewport. The "Blue" ocean material is
+ * the one true sphere in the asset — anchoring scale/centering on its own
+ * bounding sphere instead reproduces the same reliable placement the
+ * previous procedural (perfect-sphere) Earth relied on; decorations then
+ * render at whatever size that implies, including poking above the nominal
+ * silhouette, which reads as intentional texture rather than a composition
+ * error.
+ */
+function useOrigamiEarth(source: THREE.Object3D) {
+  const result = useMemo(() => {
+    source.updateMatrixWorld(true)
+    const groups = new Map<string, { material: THREE.Material; geometries: THREE.BufferGeometry[] }>()
+    source.traverse((node) => {
+      if (!(node instanceof THREE.Mesh)) return
+      const material = Array.isArray(node.material) ? node.material[0] : node.material
+      const base = node.geometry.index ? node.geometry.toNonIndexed() : node.geometry
+      const clean = new THREE.BufferGeometry()
+      clean.setAttribute('position', base.getAttribute('position').clone())
+      clean.setAttribute('normal', base.getAttribute('normal').clone())
+      if (base !== node.geometry) base.dispose()
+      clean.applyMatrix4(node.matrixWorld)
+      const entry: { material: THREE.Material; geometries: THREE.BufferGeometry[] } =
+        groups.get(material.uuid) ?? { material, geometries: [] }
+      entry.geometries.push(clean)
+      groups.set(material.uuid, entry)
+    })
+
+    const group = new THREE.Group()
+    const ownedGeometries: THREE.BufferGeometry[] = []
+    let anchor: THREE.Sphere | null = null
+    groups.forEach(({ material, geometries }) => {
+      const merged = mergeGeometries(geometries, false)
+      geometries.forEach(geometry => geometry.dispose())
+      if (!merged) return
+      ownedGeometries.push(merged)
+      merged.computeBoundingSphere()
+      const mesh = new THREE.Mesh(merged, material)
+      group.add(mesh)
+      if (material.name === 'Blue' && merged.boundingSphere) anchor = merged.boundingSphere
+    })
+    if (group.children.length === 0) group.add(source.clone(true))
+
+    const box = new THREE.Box3().setFromObject(group)
+    const fallback = box.getBoundingSphere(new THREE.Sphere())
+    return { group, sphere: anchor ?? fallback, ownedGeometries }
+  }, [source])
+  // The GLTF cache owns its source assets; this hook owns only the seven
+  // merged buffers attached to the primitive (which R3F cannot auto-dispose).
+  useEffect(() => () => result.ownedGeometries.forEach(geometry => geometry.dispose()), [result])
+  return result
+}
 
 export function PlanetEarth({
   centerY,
@@ -84,33 +132,25 @@ export function PlanetEarth({
   radius: number
   reducedMotion: boolean
 }) {
-  const [dayTextureUrl] = useState(() =>
-    window.innerWidth <= 700 ? earthDayMobileUrl : earthDayUrl,
-  )
-  const [day, clouds] = useLoader(THREE.TextureLoader, [
-    dayTextureUrl,
-    earthCloudsUrl,
-  ])
-  // three.js textures are mutable GPU resources; configuring color space/filtering
-  // on the loader's cached instance is the standard r3f pattern, not stray state mutation.
-  // oxlint-disable-next-line react/immutability
-  day.colorSpace = THREE.SRGBColorSpace
-  // oxlint-disable-next-line react/immutability
-  clouds.colorSpace = THREE.NoColorSpace
-  // oxlint-disable-next-line react/immutability
-  day.anisotropy = 4
+  const { scene } = useGLTF(modelUrl)
+  const { group: earthModel, sphere } = useOrigamiEarth(scene)
+
+  // The tallest decoration (mountains/trees) on this asset reaches roughly
+  // 1.6-2x the ocean shell's own radius, so matching the ocean exactly to
+  // `radius` (as a perfect sphere would be) over-scales the globe and lets
+  // decoration dominate the frame. OCEAN_FILL (shared with composition.ts,
+  // which relies on it to anchor the apex to the real rendered surface)
+  // tunes the ocean shell to a fraction of `radius`, tuned against real
+  // screenshots so the horizon, decoration scale, and character all read
+  // correctly together.
+  const modelScale = sphere.radius > 0 ? (radius * OCEAN_FILL) / sphere.radius : 1
+  const modelOffset: [number, number, number] = [
+    -sphere.center.x * modelScale,
+    -sphere.center.y * modelScale,
+    -sphere.center.z * modelScale,
+  ]
 
   const rotatingGroup = useRef<THREE.Group>(null)
-  const surfaceMaterial = useRef<THREE.ShaderMaterial>(null)
-  const surfaceUniforms = useMemo(
-    () => ({
-      dayMap: { value: day },
-      cloudMap: { value: clouds },
-      sunDirection: { value: new THREE.Vector3(...SUN_DIRECTION) },
-      cloudOffset: { value: 0 },
-    }),
-    [day, clouds],
-  )
 
   const outerUniforms = useMemo(
     () => ({
@@ -137,30 +177,20 @@ export function PlanetEarth({
 
   useFrame((_, delta) => {
     if (reducedMotion) return
-    if (rotatingGroup.current)
-      rotatingGroup.current.rotation.y += delta * 0.0018
-    if (surfaceMaterial.current)
-      surfaceMaterial.current.uniforms.cloudOffset.value +=
-        Math.min(delta, 0.1) * 0.00006
+    if (rotatingGroup.current) rotatingGroup.current.rotation.y += delta * ROTATION_RADIANS_PER_SECOND
   })
 
   return (
-    <group position={[0, centerY, -3.4]}>
-      <group ref={rotatingGroup} rotation={[-0.65, 4.4, -0.2]}>
-        <mesh>
-          <sphereGeometry args={[radius, 128, 96]} />
-          <shaderMaterial
-            ref={surfaceMaterial}
-            vertexShader={ATMOSPHERE_VERTEX}
-            fragmentShader={SURFACE_FRAGMENT}
-            uniforms={surfaceUniforms}
-          />
-        </mesh>
+    <group position={[0, centerY, EARTH_Z]}>
+      <group ref={rotatingGroup} rotation={INITIAL_ROTATION}>
+        <group scale={modelScale} position={modelOffset}>
+          <primitive object={earthModel} dispose={null} />
+        </group>
       </group>
-      {/* Inner haze: sits just outside the textured surface and blends the glow
-          into the day-side pixels near the limb instead of leaving a seam. */}
-      <mesh scale={1.004}>
-        <sphereGeometry args={[radius, 128, 96]} />
+      {/* Inner haze: sits just outside the ocean shell and blends the glow
+          into the day-side facets near the limb instead of leaving a seam. */}
+      <mesh scale={1.012}>
+        <sphereGeometry args={[radius, 96, 72]} />
         <shaderMaterial
           vertexShader={ATMOSPHERE_VERTEX}
           fragmentShader={ATMOSPHERE_FRAGMENT}
@@ -172,8 +202,8 @@ export function PlanetEarth({
         />
       </mesh>
       {/* Outer glow: soft bloom bleeding into space beyond the silhouette. */}
-      <mesh scale={1.003}>
-        <sphereGeometry args={[radius, 128, 96]} />
+      <mesh scale={1.024}>
+        <sphereGeometry args={[radius, 96, 72]} />
         <shaderMaterial
           vertexShader={ATMOSPHERE_VERTEX}
           fragmentShader={ATMOSPHERE_FRAGMENT}
@@ -187,3 +217,5 @@ export function PlanetEarth({
     </group>
   )
 }
+
+useGLTF.preload(modelUrl)

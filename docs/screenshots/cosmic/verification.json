@@ -1,0 +1,551 @@
+{
+  "baseURL": "http://localhost:5173",
+  "errors": [],
+  "apiFailures": [
+    {
+      "path": "/api/auth/session",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/config",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/session",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/config",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/session",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/config",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/session",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/config",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/session",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/config",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/session",
+      "status": 502
+    },
+    {
+      "path": "/api/auth/config",
+      "status": 502
+    }
+  ],
+  "checks": {
+    "headTracking": {
+      "left": [
+        0.3305364150727972,
+        -0.1564631268201761,
+        -0.13187807752601477,
+        0.9213431165147328
+      ],
+      "right": [
+        0.5111243220004008,
+        0.19925863515093895,
+        0.07548987986294314,
+        0.8326759258091918
+      ],
+      "angleRadians": 0.9247600895716294
+    },
+    "desktop": {
+      "start": {
+        "camera": [
+          0,
+          0,
+          10,
+          0,
+          0,
+          0,
+          1
+        ],
+        "layers": [
+          {
+            "name": "cosmic-far",
+            "count": 2400,
+            "time": 1.576,
+            "offset": [
+              0,
+              0
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -79.01209259033203
+          },
+          {
+            "name": "cosmic-mid",
+            "count": 640,
+            "time": 1.576,
+            "offset": [
+              0,
+              0
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -39.001190185546875
+          },
+          {
+            "name": "cosmic-near",
+            "count": 85,
+            "time": 1.576,
+            "offset": [
+              0,
+              0
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -10.076926231384277
+          },
+          {
+            "name": "cosmic-dust",
+            "count": 190,
+            "time": 1.576,
+            "offset": [
+              0,
+              0
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -23.047077178955078
+          }
+        ],
+        "head": [
+          0.4397497643906064,
+          -0.012006873658038392,
+          0.02451950289072845,
+          0.8977052821663715
+        ],
+        "fit": [
+          0,
+          -44,
+          0,
+          132.86856630682334,
+          132.86856630682334,
+          132.86856630682334
+        ],
+        "planetPosition": [
+          0,
+          -2.6259020858250026,
+          -3.4
+        ],
+        "dpr": 1,
+        "overflow": false,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "quietRect": [
+          0.24868497954412624,
+          0.608359375,
+          0.7513150204558737,
+          0.8344444444444444
+        ]
+      },
+      "left": {
+        "camera": [
+          0,
+          0,
+          10,
+          0,
+          0,
+          0,
+          1
+        ],
+        "layers": [
+          {
+            "name": "cosmic-far",
+            "count": 2400,
+            "time": 2.9836999999955323,
+            "offset": [
+              -0.12794938973977463,
+              0.061475558391768256
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -79.01209259033203
+          },
+          {
+            "name": "cosmic-mid",
+            "count": 640,
+            "time": 2.9836999999955323,
+            "offset": [
+              -0.29854857605947416,
+              0.14344296958079258
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -39.001190185546875
+          },
+          {
+            "name": "cosmic-near",
+            "count": 85,
+            "time": 2.9836999999955323,
+            "offset": [
+              -0.34119837263939906,
+              0.16393482237804868
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -10.076926231384277
+          },
+          {
+            "name": "cosmic-dust",
+            "count": 190,
+            "time": 2.9836999999955323,
+            "offset": [
+              -0.25589877947954925,
+              0.12295111678353651
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -23.047077178955078
+          }
+        ],
+        "head": [
+          0.3305364150727972,
+          -0.1564631268201761,
+          -0.13187807752601477,
+          0.9213431165147328
+        ],
+        "fit": [
+          0,
+          -44,
+          0,
+          132.86856630682334,
+          132.86856630682334,
+          132.86856630682334
+        ],
+        "planetPosition": [
+          0,
+          -2.6259020858250026,
+          -3.4
+        ],
+        "dpr": 1,
+        "overflow": false,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "quietRect": [
+          0.24868497954412624,
+          0.608359375,
+          0.7513150204558737,
+          0.8344444444444444
+        ]
+      },
+      "right": {
+        "camera": [
+          0,
+          0,
+          10,
+          0,
+          0,
+          0,
+          1
+        ],
+        "layers": [
+          {
+            "name": "cosmic-far",
+            "count": 2400,
+            "time": 4.526099999994046,
+            "offset": [
+              0.12272744737359129,
+              -0.06336769210661782
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -79.01209259033203
+          },
+          {
+            "name": "cosmic-mid",
+            "count": 640,
+            "time": 4.526099999994046,
+            "offset": [
+              0.286364043871713,
+              -0.14785794824877488
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -39.001190185546875
+          },
+          {
+            "name": "cosmic-near",
+            "count": 85,
+            "time": 4.526099999994046,
+            "offset": [
+              0.32727319299624347,
+              -0.16898051228431415
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -10.076926231384277
+          },
+          {
+            "name": "cosmic-dust",
+            "count": 190,
+            "time": 4.526099999994046,
+            "offset": [
+              0.24545489474718257,
+              -0.12673538421323563
+            ],
+            "depthTest": true,
+            "depthWrite": false,
+            "nearestZ": -23.047077178955078
+          }
+        ],
+        "head": [
+          0.5111243220004008,
+          0.19925863515093895,
+          0.07548987986294314,
+          0.8326759258091918
+        ],
+        "fit": [
+          0,
+          -44,
+          0,
+          132.86856630682334,
+          132.86856630682334,
+          132.86856630682334
+        ],
+        "planetPosition": [
+          0,
+          -2.6259020858250026,
+          -3.4
+        ],
+        "dpr": 1,
+        "overflow": false,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+        "quietRect": [
+          0.24868497954412624,
+          0.608359375,
+          0.7513150204558737,
+          0.8344444444444444
+        ]
+      },
+      "nearToFarParallaxRatio": 10.67
+    },
+    "idleCadence": {
+      "renderedFrames": 95,
+      "fps": 29.9,
+      "p95FrameIntervalMs": 34.6
+    },
+    "trackingCadence": {
+      "renderedFrames": 151,
+      "fps": 60,
+      "p95FrameIntervalMs": 17.8
+    },
+    "drawCalls": {
+      "mainPass": 14,
+      "withoutEnvironment": 9,
+      "environment": 5
+    },
+    "editAvatar": true,
+    "reducedMotion": {
+      "static": true,
+      "stopped": {
+        "renderedFrames": 0,
+        "fps": 0,
+        "p95FrameIntervalMs": 0
+      }
+    },
+    "motionResumes": true,
+    "resize": [
+      320,
+      375,
+      768,
+      1280,
+      1711
+    ],
+    "mobile": {
+      "camera": [
+        0,
+        0,
+        10,
+        0,
+        0,
+        0,
+        1
+      ],
+      "layers": [
+        {
+          "name": "cosmic-far",
+          "count": 552,
+          "time": 2.08370000000298,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -79.01543426513672
+        },
+        {
+          "name": "cosmic-mid",
+          "count": 147,
+          "time": 2.08370000000298,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -39.14876937866211
+        },
+        {
+          "name": "cosmic-near",
+          "count": 20,
+          "time": 2.08370000000298,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -10.937360763549805
+        },
+        {
+          "name": "cosmic-dust",
+          "count": 44,
+          "time": 2.08370000000298,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -23.047077178955078
+        }
+      ],
+      "head": [
+        0.4396104739941828,
+        0.003356698319954369,
+        -0.006849207611659084,
+        0.8981561401170356
+      ],
+      "fit": [
+        0,
+        -4.5,
+        0,
+        95.09220921958925,
+        95.09220921958925,
+        95.09220921958925
+      ],
+      "planetPosition": [
+        0,
+        -2.438337651123217,
+        -3.4
+      ],
+      "dpr": 1.5,
+      "overflow": false,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "quietRect": [
+        0.0641025641025641,
+        0.6510478376777251,
+        0.9358974358974359,
+        0.8613744075829384
+      ]
+    },
+    "lowPower": {
+      "camera": [
+        0,
+        0,
+        10,
+        0,
+        0,
+        0,
+        1
+      ],
+      "layers": [
+        {
+          "name": "cosmic-far",
+          "count": 1008,
+          "time": 1.3954999999999997,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -79.01543426513672
+        },
+        {
+          "name": "cosmic-mid",
+          "count": 269,
+          "time": 1.3954999999999997,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -39.14876937866211
+        },
+        {
+          "name": "cosmic-near",
+          "count": 36,
+          "time": 1.3954999999999997,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -10.076926231384277
+        },
+        {
+          "name": "cosmic-dust",
+          "count": 80,
+          "time": 1.3954999999999997,
+          "offset": [
+            0,
+            0
+          ],
+          "depthTest": true,
+          "depthWrite": false,
+          "nearestZ": -23.047077178955078
+        }
+      ],
+      "head": [
+        0.4397391276741796,
+        -0.011705625487916678,
+        0.02390304338178513,
+        0.8977310968939333
+      ],
+      "fit": [
+        0,
+        -44,
+        0,
+        132.86856630682334,
+        132.86856630682334,
+        132.86856630682334
+      ],
+      "planetPosition": [
+        0,
+        -2.6259020858250026,
+        -3.4
+      ],
+      "dpr": 1,
+      "overflow": false,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+      "quietRect": [
+        0.24868497954412624,
+        0.608359375,
+        0.7513150204558737,
+        0.8344444444444444
+      ]
+    }
+  }
+}

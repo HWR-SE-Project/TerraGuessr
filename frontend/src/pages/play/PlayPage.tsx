@@ -108,8 +108,7 @@ export function PlayPage() {
 
   return (
     <div className="tg-play-page">
-      <PageNavigation />
-      <div className="tg-play-bg-glow" />
+      <PageNavigation active="none" />
       <div className="tg-play-shell">
         {stage.kind === 'setup' && <GameSetupForm onStart={handleStart} submitting={busy} error={error} />}
         {stage.kind === 'round' && (

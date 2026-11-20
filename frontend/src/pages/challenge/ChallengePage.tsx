@@ -125,7 +125,7 @@ export function ChallengePage() {
 
   return (
     <div className="tg-challenge-page">
-      <PageNavigation />
+      <PageNavigation active="none" />
       <div className="tg-challenge-shell">
         {shareState?.justCreated && (
           <div className="tg-challenge-share-banner">

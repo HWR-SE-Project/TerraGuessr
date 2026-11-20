@@ -1,28 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import { useRef } from 'react'
 import { useSession } from '../../state/SessionContext'
 import { HomeIcon } from '../home/HomeIcon'
-import { HomeNavigation } from '../home/HomeExperience'
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useDuelFlow } from './useDuelFlow'
 import { DuelRoundOverlay } from './DuelRoundOverlay'
-import earth from '../../assets/home/official/earth-horizon.webp'
 import characters from '../../assets/duels/desktop/hero-bg.png'
 import blades from '../../assets/duels/desktop/hero-emblem.webp'
-import defaultAvatar from '../../assets/duels/desktop/rank-current-bg.png'
-import champion from '../../assets/duels/desktop/rank-champion.png'
-import master from '../../assets/duels/desktop/rank-master.png'
-import gold from '../../assets/duels/desktop/rank-gold.png'
-import silver from '../../assets/duels/desktop/rank-silver.png'
-import bronze from '../../assets/duels/desktop/rank-bronze.png'
 import './DuelsPage.css'
-
-const RANKS = [
-  { name: 'Champion', icon: champion, color: '#59cfff', pips: false },
-  { name: 'Master', icon: master, color: '#f177b8', pips: false },
-  { name: 'Gold', icon: gold, color: '#f3d26d', pips: true },
-  { name: 'Silver', icon: silver, color: '#d4dce4', pips: true },
-  { name: 'Bronze', icon: bronze, color: '#e7a06b', pips: true },
-]
 
 function Laurel({ right = false }: { right?: boolean }) {
   return (
@@ -39,85 +23,21 @@ function Laurel({ right = false }: { right?: boolean }) {
   )
 }
 
-function RankPanel({ name, loading }: { name: string; loading: boolean }) {
-  return (
-    <aside className="td-ranks" aria-labelledby="td-ranks-heading">
-      <span className="td-panel-eyebrow">THE ROAD AHEAD</span>
-      <h2 id="td-ranks-heading">Rank progression</h2>
-      <ol
-        className="td-rank-ladder"
-        aria-label="Ranked ladder design demonstration"
-      >
-        {RANKS.map((rank) => (
-          <li
-            key={rank.name}
-            style={{ '--rank-color': rank.color } as CSSProperties}
-          >
-            <span className="td-rank-marker" aria-hidden="true" />
-            <img src={rank.icon} alt="" width="64" height="64" />
-            <div>
-              <span className="td-rank-name">{rank.name}</span>
-              {rank.pips && (
-                <span className="td-rank-pips" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </span>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
-      <div className="td-current-player" aria-busy={loading}>
-        <span className="td-player-avatar" title="Default explorer avatar">
-          <img
-            src={defaultAvatar}
-            alt="Default explorer avatar"
-            width="48"
-            height="48"
-          />
-        </span>
-        <div>
-          <span className="td-current-name">{name}</span>
-          <span className="td-current-rank">Unranked</span>
-        </div>
-      </div>
-      <p className="td-ranks-note">Ladder preview · Ranked play coming soon</p>
-    </aside>
-  )
-}
-
 export function DuelsPage() {
   const { user, status } = useSession()
   const { stage, busy, start, submitGuess, reset } = useDuelFlow()
-  const [notice, setNotice] = useState<string | null>(null)
-  const noticeDialog = useRef<HTMLDialogElement>(null)
   const playButton = useRef<HTMLButtonElement>(null)
   const name =
     status === 'loading' ? 'Loading…' : (user?.displayName ?? 'Guest')
-
-  useEffect(() => {
-    if (notice) noticeDialog.current?.showModal()
-  }, [notice])
 
   return (
     <div className="td-page">
       <a href="#td-main" className="td-skip">
         Skip to duels
       </a>
-      <div className="td-earth" aria-hidden="true">
-        <img src={earth} alt="" fetchPriority="high" />
-      </div>
-      <div className="td-atmosphere" aria-hidden="true" />
-      <HomeNavigation
-        active="multiplayer"
-        showNotice={setNotice}
-        showPlayerTools
-      />
+      <PageNavigation active="multiplayer" />
       <main className="td-main" id="td-main" tabIndex={-1}>
         <div className="td-title">
-          <span className="td-eyebrow">THE WORLD IS YOUR ARENA</span>
           <div className="td-title-line">
             <Laurel />
             <h1>Duels</h1>
@@ -158,71 +78,18 @@ export function DuelsPage() {
           />
         </div>
         <div className="td-controls">
-          <span className="td-placement-label">
-            PLACEMENT DUELS <span>· COMING SOON</span>
-          </span>
-          <div
-            className="td-duel-steps"
-            role="group"
-            aria-label="Ranked placement duels (coming soon)"
-          >
-            {[1, 2, 3].map((duel) => (
-              <button
-                key={duel}
-                type="button"
-                className={`td-duel-step${duel === 1 ? ' td-duel-step-active' : ''}`}
-                aria-haspopup="dialog"
-                aria-describedby="td-availability"
-                title="Ranked placement duels are not available yet"
-                onClick={() =>
-                  setNotice(
-                    'Ranked placement duels are not available yet. You can play an async duel and share the location with a friend using PLAY.',
-                  )
-                }
-              >
-                Duel {duel}
-              </button>
-            ))}
-          </div>
           <button
             ref={playButton}
             type="button"
             className="td-play"
             onClick={start}
             disabled={busy || status === 'loading'}
-            aria-describedby="td-availability"
           >
             <HomeIcon name="play" />
             <span>{busy ? 'Starting…' : 'Play'}</span>
           </button>
-          <p className="td-availability" id="td-availability">
-            Async challenges available · Live ranked duels coming soon
-          </p>
         </div>
       </main>
-      <RankPanel name={name} loading={status === 'loading'} />
-      {notice && (
-        <dialog
-          ref={noticeDialog}
-          className="td-notice"
-          aria-labelledby="td-notice-title"
-          onClose={() => setNotice(null)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget)
-              noticeDialog.current?.close()
-          }}
-        >
-          <h2 id="td-notice-title">Not available yet</h2>
-          <p>{notice}</p>
-          <button
-            type="button"
-            autoFocus
-            onClick={() => noticeDialog.current?.close()}
-          >
-            Got it
-          </button>
-        </dialog>
-      )}
       {stage.kind !== 'idle' && (
         <DuelRoundOverlay
           round={stage.kind === 'round' ? stage.round : null}

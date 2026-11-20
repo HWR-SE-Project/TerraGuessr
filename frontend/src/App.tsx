@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { HomePage } from './pages/home/HomePage'
 import { lazy, Suspense, useEffect } from 'react'
+import { CosmicBackground } from './components/cosmic/CosmicBackground'
 
 const AuthPage = lazy(() =>
   import('./pages/auth/AuthPage').then((m) => ({ default: m.AuthPage })),
@@ -51,26 +52,28 @@ function App() {
     document.title = `${titles[pathname] ?? 'Challenge a friend'} · TerraGuessr`
   }, [pathname])
   return (
-    <Suspense
-      fallback={
-        <div className="tg-route-loading" role="status">
-          Finding your next discovery…
-        </div>
-      }
-    >
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/duels" element={<DuelsPage />} />
-        <Route path="/game/singleplayer" element={<SingleplayerGamePage />} />
-        <Route path="/play" element={<PlayPage />} />
-        <Route path="/daily" element={<DailyPage />} />
-        <Route path="/challenge/:challengeId" element={<ChallengePage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+    <CosmicBackground>
+      <Suspense
+        fallback={
+          <div className="tg-route-loading" role="status">
+            Finding your next discovery…
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/duels" element={<DuelsPage />} />
+          <Route path="/game/singleplayer" element={<SingleplayerGamePage />} />
+          <Route path="/play" element={<PlayPage />} />
+          <Route path="/daily" element={<DailyPage />} />
+          <Route path="/challenge/:challengeId" element={<ChallengePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </CosmicBackground>
   )
 }
 export default App

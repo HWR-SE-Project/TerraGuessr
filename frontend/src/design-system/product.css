@@ -199,9 +199,6 @@
   justify-content: center;
   display: flex;
 }
-#root .tg-page-nav {
-  background: var(--color-bg);
-}
 @media (max-width: 600px) {
   #root .tg-play-setup {
     padding: 24px;

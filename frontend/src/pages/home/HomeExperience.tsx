@@ -1,167 +1,45 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { useSession } from '../../state/SessionContext'
-import { Brand } from '../../components/ui/Brand'
-import character from '../../assets/home/official/explorer.webp'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import './HomePage.css'
 import { HomeIcon } from './HomeIcon'
 import type { HomeIconName } from './HomeIcon'
 import { Home3DScene } from './scene/Home3DScene'
+import type { CharacterStatus } from './scene/CharacterModel'
 
-type ShowNotice = (message: string) => void
-
-function UnavailableButton({
-  children,
-  message,
-  showNotice,
-  className = '',
-  label,
+function HeroSection({
+  characterStatus,
+  onEditAvatar,
+  feetPixelY,
 }: {
-  children: ReactNode
-  message: string
-  showNotice: ShowNotice
-  className?: string
-  label?: string
+  characterStatus: CharacterStatus
+  onEditAvatar: () => void
+  feetPixelY: number | null
 }) {
-  return (
-    <button
-      type="button"
-      className={className}
-      aria-label={label}
-      aria-haspopup="dialog"
-      title={message}
-      onClick={() => showNotice(message)}
-    >
-      {children}
-    </button>
-  )
-}
+  const avatarRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
-export function HomeNavigation({
-  showNotice,
-  active = 'singleplayer',
-  showPlayerTools = false,
-}: {
-  showNotice: ShowNotice
-  active?: 'singleplayer' | 'multiplayer' | 'none'
-  showPlayerTools?: boolean
-}) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const { user } = useSession()
-  const { pathname } = useLocation()
-  const headerRef = useRef<HTMLElement>(null)
-  const menuRef = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    if (!menuOpen) return
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMenuOpen(false)
-        menuRef.current?.focus()
-      }
-    }
-    const outside = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node &&
-        !headerRef.current?.contains(event.target)
-      )
-        setMenuOpen(false)
-    }
-    window.addEventListener('keydown', escape)
-    window.addEventListener('pointerdown', outside)
-    return () => {
-      window.removeEventListener('keydown', escape)
-      window.removeEventListener('pointerdown', outside)
-    }
-  }, [menuOpen])
-  return (
-    <header ref={headerRef} className="th-header">
-      <Link to="/" className="th-brand" aria-label="TerraGuessr home">
-        <Brand />
-      </Link>
-      <nav
-        id="main-navigation"
-        className={`th-navigation${menuOpen ? ' th-navigation-open' : ''}`}
-        aria-label="Main navigation"
-      >
-        <Link
-          to="/game/singleplayer"
-          className={`th-nav-item${active === 'singleplayer' ? ' th-nav-active' : ''}`}
-          aria-current={active === 'singleplayer' ? 'page' : undefined}
-          onClick={() => setMenuOpen(false)}
-        >
-          <HomeIcon name="gamepad" />
-          Singleplayer
-        </Link>
-        <Link
-          to="/duels"
-          className={`th-nav-item${active === 'multiplayer' ? ' th-nav-active' : ''}`}
-          aria-current={active === 'multiplayer' ? 'page' : undefined}
-          onClick={() => setMenuOpen(false)}
-        >
-          <HomeIcon name="users" />
-          Multiplayer
-        </Link>
-        <Link
-          to="/daily"
-          className={`th-nav-item${pathname === '/daily' ? ' th-nav-active' : ''}`}
-          aria-current={pathname === '/daily' ? 'page' : undefined}
-          onClick={() => setMenuOpen(false)}
-        >
-          <HomeIcon name="calendar" />
-          Daily challenge
-        </Link>
-      </nav>
-      {showPlayerTools && (
-        <div className="th-player-tools">
-          <UnavailableButton
-            className="th-search"
-            label="Search"
-            message="Player and map search is not available yet."
-            showNotice={showNotice}
-          >
-            <HomeIcon name="search" />
-          </UnavailableButton>
-          <Link
-            to={user ? '/settings' : '/auth'}
-            className="th-profile-link"
-            aria-label={user ? 'Settings' : 'Sign in'}
-          >
-            <span className="th-profile-avatar" aria-hidden="true">
-              {(user?.displayName ?? 'Explorer').slice(0, 1).toUpperCase()}
-            </span>
-            <span className="th-profile-details">
-              <span className="th-profile-name">
-                {user?.displayName ?? 'Guest explorer'}
-              </span>
-              <span className="th-profile-caption">
-                {user ? 'Your account' : 'Sign in to save progress'}
-              </span>
-            </span>
-            <HomeIcon name="chevron" />
-          </Link>
-        </div>
-      )}
-      <button
-        ref={menuRef}
-        className="th-menu-button"
-        type="button"
-        aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
-        aria-expanded={menuOpen}
-        aria-controls="main-navigation"
-        onClick={() => setMenuOpen(!menuOpen)}
-      >
-        <HomeIcon name={menuOpen ? 'close' : 'menu'} />
-      </button>
-    </header>
-  )
-}
+  // Anchor the button to the character's *actual* measured sole-contact line
+  // (reported by the 3D scene in viewport pixels), not a fixed CSS offset —
+  // so it stays glued to the feet regardless of breakpoint or how the globe
+  // happens to be scaled. `feetPixelY` is the exact lowest rendered pixel of
+  // the model (see CharacterModel's onFeetPixelY), so placing the button's
+  // top edge this many px *above* that line makes the button's own top band
+  // visually cover that same strip of shoe/lower-leg pixels — by design, a
+  // deliberate overlap rather than the button resting just below the feet.
+  useLayoutEffect(() => {
+    const avatar = avatarRef.current
+    const button = buttonRef.current
+    if (!avatar || !button || feetPixelY == null) return
+    const avatarTop = avatar.getBoundingClientRect().top
+    const BUTTON_FEET_OVERLAP_PX = 12
+    button.style.top = `${feetPixelY - avatarTop - BUTTON_FEET_OVERLAP_PX}px`
+    button.style.bottom = 'auto'
+  }, [feetPixelY])
 
-function HeroSection({ showNotice }: { showNotice: ShowNotice }) {
   return (
     <main className="th-hero" id="home-main" tabIndex={-1}>
       <div className="th-hero-copy">
-        <p className="th-eyebrow">CURIOSITY HAS NO BORDERS</p>
         <h1>
           Explore the <span>World</span>
         </h1>
@@ -171,23 +49,16 @@ function HeroSection({ showNotice }: { showNotice: ShowNotice }) {
           in the world.
         </p>
       </div>
-      <div className="th-avatar-display">
-        <img
-          src={character}
-          className="th-character"
-          alt="Your explorer, ready for the next discovery"
-          width="512"
-          height="768"
-          fetchPriority="high"
-        />
-        <UnavailableButton
-          className="th-edit-avatar"
-          message="Avatar customization is not available yet."
-          showNotice={showNotice}
-        >
-          <HomeIcon name="pencil" />
-          Edit Avatar
-        </UnavailableButton>
+      <div className="th-avatar-display" ref={avatarRef}>
+        <div className="th-character-slot" data-character-status={characterStatus}
+          role="img" aria-label={characterStatus === 'ready' ? 'Your explorer, ready for the next discovery' : characterStatus === 'loading' ? 'Loading explorer avatar' : 'Explorer avatar unavailable'}>
+          {characterStatus !== 'ready' && <span className="th-character-status" role="status">
+            {characterStatus === 'loading' ? 'Loading avatar…' : 'Avatar unavailable'}
+          </span>}
+        </div>
+        <button ref={buttonRef} className="th-edit-avatar" type="button" aria-haspopup="dialog" onClick={onEditAvatar}>
+          <HomeIcon name="pencil" /> Edit Avatar
+        </button>
       </div>
     </main>
   )
@@ -270,21 +141,23 @@ export function AvailabilityNotice({
 }
 
 export function HomeExperience() {
-  const [notice, setNotice] = useState<string | null>(null)
+  const [characterStatus, setCharacterStatus] = useState<CharacterStatus>('loading')
+  const [feetPixelY, setFeetPixelY] = useState<number | null>(null)
+  const [notice, setNotice] = useState(false)
+  const editAvatarRef = useRef<HTMLElement | null>(null)
   return (
     <div className="th-home">
       <a className="th-skip" href="#home-main">
         Skip to content
       </a>
-      <Home3DScene />
+      <Home3DScene onCharacterStatus={setCharacterStatus} onFeetPixelY={setFeetPixelY} />
       <div className="th-orbit th-orbit-one" aria-hidden="true" />
       <div className="th-orbit th-orbit-two" aria-hidden="true" />
-      <HomeNavigation showNotice={setNotice} showPlayerTools />
-      <HeroSection showNotice={setNotice} />
-      <div className="th-world-note" aria-hidden="true">
-        <span>ONE PLANET.</span>
-        <span>ENDLESS PERSPECTIVES.</span>
-      </div>
+      <PageNavigation active="none" />
+      <HeroSection characterStatus={characterStatus} feetPixelY={feetPixelY} onEditAvatar={() => {
+        editAvatarRef.current = document.activeElement as HTMLElement
+        setNotice(true)
+      }} />
       <nav className="th-game-modes" aria-label="Game modes">
         <GameModeCard
           to="/game/singleplayer"
@@ -306,20 +179,10 @@ export function HomeExperience() {
           subtitle="Climb the leaderboards"
         />
       </nav>
-      <footer className="th-footer">
-        <span>A little curiosity goes a long way.</span>
-        <span className="th-footer-links">
-          <a href="/asset-credits.txt" target="_blank" rel="noreferrer">
-            Earth credits
-          </a>
-          <Link to="/play">
-            Try the weather expedition <span aria-hidden="true">↗</span>
-          </Link>
-        </span>
-      </footer>
-      {notice && (
-        <AvailabilityNotice message={notice} onClose={() => setNotice(null)} />
-      )}
+      {notice && <AvailabilityNotice message="Avatar customization is not available yet." onClose={() => {
+        setNotice(false)
+        editAvatarRef.current?.focus()
+      }} />}
     </div>
   )
 }

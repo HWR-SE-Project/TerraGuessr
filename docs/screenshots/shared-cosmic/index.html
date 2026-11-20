@@ -1,0 +1,80 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TerraGuessr · Shared cosmic environment verification</title>
+<style>body{margin:0;background:#080f1b;color:#e5edf6;font:15px/1.6 system-ui,sans-serif}main{max-width:1250px;margin:auto;padding:36px 24px}h1{font-size:32px;line-height:1.2}h2{font-size:21px}a{color:#c0f66b}article{padding:24px 0 32px;border-top:1px solid #ffffff25}.shots{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:24px;align-items:start}.shots img{width:100%;max-height:660px;object-fit:contain;object-position:top;background:#060a11;border:1px solid #ffffff20;border-radius:12px}figure{margin:0}figcaption{margin-bottom:10px;color:#9baec5}p{max-width:950px}.meta{color:#9baec5}code{color:#a7d9ee}.effects{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.effects img{width:100%}@media(max-width:700px){.shots{grid-template-columns:1fr}.shots figure:last-child{max-width:390px}.effects{grid-template-columns:1fr}} </style><main><h1>One TerraGuessr universe</h1>
+<p>The existing Home shaders, star buffers, celestial event pools, palette, speeds and depth settings now run in one persistent canvas. Home and Duels use full intensity; authentication and account screens use subdued intensity; other UI uses moderate intensity. Active Street View hides and pauses the cosmic renderer.</p>
+<p><strong>Validation:</strong> Production build and 52 unit tests passed. All 21 targeted browser tests passed, including real Google Street View, five rounds, scoring, final results, touch maps, authentication, settings, Duels, navigation and WebGL fallback.</p>
+<p><a href="verification.json">Animation and gameplay checks</a> · <a href="extra-verification.json">Device, account, weather and navigation memory checks</a> · <a href="home-equivalence.json">Exact Home GPU comparison</a> · <a href="route-audit.json">Route audit</a></p>
+<p>Verified natural meteors, comets and satellites, autonomous movement, cursor parallax, reduced motion, hidden-tab suspension and stable resources across Home returns. Mobile screenshots use Chromium touch-device emulation. No backend API or database changes; no remote push.</p>
+<p class="meta">A concurrent workspace edit moved Edit Avatar 15px upward; this task preserved it. The comparison uses matching current Home markup. Existing five lint warnings and the Three.js bundle-size warning remain. Password recovery is unavailable in the local authentication configuration. Visibility suspension was tested through the browser visibility lifecycle event.</p>
+<article><h2>Home</h2><p class="meta"><code>/</code> · full</p><div class="shots">
+<figure><figcaption>Desktop · <a href="home-desktop.png">Open full screenshot</a></figcaption><a href="home-desktop.png"><img loading="lazy" src="home-desktop.png" alt="Home on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="home-mobile.png">Open full screenshot</a></figcaption><a href="home-mobile.png"><img loading="lazy" src="home-mobile.png" alt="Home on mobile"></a></figure>
+</div></article>
+<article><h2>Authentication</h2><p class="meta"><code>/auth</code> · subdued</p><div class="shots">
+<figure><figcaption>Desktop · <a href="auth-desktop.png">Open full screenshot</a></figcaption><a href="auth-desktop.png"><img loading="lazy" src="auth-desktop.png" alt="Authentication on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="auth-mobile.png">Open full screenshot</a></figcaption><a href="auth-mobile.png"><img loading="lazy" src="auth-mobile.png" alt="Authentication on mobile"></a></figure>
+</div></article>
+<article><h2>Duels</h2><p class="meta"><code>/duels</code> · full</p><div class="shots">
+<figure><figcaption>Desktop · <a href="duels-desktop.png">Open full screenshot</a></figcaption><a href="duels-desktop.png"><img loading="lazy" src="duels-desktop.png" alt="Duels on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="duels-mobile.png">Open full screenshot</a></figcaption><a href="duels-mobile.png"><img loading="lazy" src="duels-mobile.png" alt="Duels on mobile"></a></figure>
+</div></article>
+<article><h2>Round results</h2><p class="meta"><code>/game/singleplayer · result</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="round-results-desktop.png">Open full screenshot</a></figcaption><a href="round-results-desktop.png"><img loading="lazy" src="round-results-desktop.png" alt="Round results on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="round-results-mobile.png">Open full screenshot</a></figcaption><a href="round-results-mobile.png"><img loading="lazy" src="round-results-mobile.png" alt="Round results on mobile"></a></figure>
+</div></article>
+<article><h2>Final results</h2><p class="meta"><code>/game/singleplayer · completed</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="final-results-desktop.png">Open full screenshot</a></figcaption><a href="final-results-desktop.png"><img loading="lazy" src="final-results-desktop.png" alt="Final results on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="final-results-mobile.png">Open full screenshot</a></figcaption><a href="final-results-mobile.png"><img loading="lazy" src="final-results-mobile.png" alt="Final results on mobile"></a></figure>
+</div></article>
+<article><h2>Account and profile</h2><p class="meta"><code>/settings · account</code> · subdued</p><div class="shots">
+<figure><figcaption>Desktop · <a href="settings-account-desktop.png">Open full screenshot</a></figcaption><a href="settings-account-desktop.png"><img loading="lazy" src="settings-account-desktop.png" alt="Account and profile on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="settings-account-mobile.png">Open full screenshot</a></figcaption><a href="settings-account-mobile.png"><img loading="lazy" src="settings-account-mobile.png" alt="Account and profile on mobile"></a></figure>
+</div></article>
+<article><h2>Preferences</h2><p class="meta"><code>/settings · preferences</code> · subdued</p><div class="shots">
+<figure><figcaption>Desktop · <a href="settings-preferences-desktop.png">Open full screenshot</a></figcaption><a href="settings-preferences-desktop.png"><img loading="lazy" src="settings-preferences-desktop.png" alt="Preferences on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="settings-preferences-mobile.png">Open full screenshot</a></figcaption><a href="settings-preferences-mobile.png"><img loading="lazy" src="settings-preferences-mobile.png" alt="Preferences on mobile"></a></figure>
+</div></article>
+<article><h2>Settings guest</h2><p class="meta"><code>/settings · signed out</code> · subdued</p><div class="shots">
+<figure><figcaption>Desktop · <a href="settings-guest-desktop.png">Open full screenshot</a></figcaption><a href="settings-guest-desktop.png"><img loading="lazy" src="settings-guest-desktop.png" alt="Settings guest on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="settings-guest-mobile.png">Open full screenshot</a></figcaption><a href="settings-guest-mobile.png"><img loading="lazy" src="settings-guest-mobile.png" alt="Settings guest on mobile"></a></figure>
+</div></article>
+<article><h2>Password reset</h2><p class="meta"><code>/reset-password</code> · subdued</p><div class="shots">
+<figure><figcaption>Desktop · <a href="reset-password-desktop.png">Open full screenshot</a></figcaption><a href="reset-password-desktop.png"><img loading="lazy" src="reset-password-desktop.png" alt="Password reset on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="reset-password-mobile.png">Open full screenshot</a></figcaption><a href="reset-password-mobile.png"><img loading="lazy" src="reset-password-mobile.png" alt="Password reset on mobile"></a></figure>
+</div></article>
+<article><h2>Daily challenge</h2><p class="meta"><code>/daily</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="daily-desktop.png">Open full screenshot</a></figcaption><a href="daily-desktop.png"><img loading="lazy" src="daily-desktop.png" alt="Daily challenge on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="daily-mobile.png">Open full screenshot</a></figcaption><a href="daily-mobile.png"><img loading="lazy" src="daily-mobile.png" alt="Daily challenge on mobile"></a></figure>
+</div></article>
+<article><h2>Friend challenge</h2><p class="meta"><code>/challenge/:challengeId</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="friend-challenge-desktop.png">Open full screenshot</a></figcaption><a href="friend-challenge-desktop.png"><img loading="lazy" src="friend-challenge-desktop.png" alt="Friend challenge on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="friend-challenge-mobile.png">Open full screenshot</a></figcaption><a href="friend-challenge-mobile.png"><img loading="lazy" src="friend-challenge-mobile.png" alt="Friend challenge on mobile"></a></figure>
+</div></article>
+<article><h2>Weather setup</h2><p class="meta"><code>/play · setup</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="weather-setup-desktop.png">Open full screenshot</a></figcaption><a href="weather-setup-desktop.png"><img loading="lazy" src="weather-setup-desktop.png" alt="Weather setup on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="weather-setup-mobile.png">Open full screenshot</a></figcaption><a href="weather-setup-mobile.png"><img loading="lazy" src="weather-setup-mobile.png" alt="Weather setup on mobile"></a></figure>
+</div></article>
+<article><h2>Weather round</h2><p class="meta"><code>/play · round</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="weather-round-desktop.png">Open full screenshot</a></figcaption><a href="weather-round-desktop.png"><img loading="lazy" src="weather-round-desktop.png" alt="Weather round on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="weather-round-mobile.png">Open full screenshot</a></figcaption><a href="weather-round-mobile.png"><img loading="lazy" src="weather-round-mobile.png" alt="Weather round on mobile"></a></figure>
+</div></article>
+<article><h2>Weather result</h2><p class="meta"><code>/play · result</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="weather-result-desktop.png">Open full screenshot</a></figcaption><a href="weather-result-desktop.png"><img loading="lazy" src="weather-result-desktop.png" alt="Weather result on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="weather-result-mobile.png">Open full screenshot</a></figcaption><a href="weather-result-mobile.png"><img loading="lazy" src="weather-result-mobile.png" alt="Weather result on mobile"></a></figure>
+</div></article>
+<article><h2>Weather summary</h2><p class="meta"><code>/play · summary</code> · moderate</p><div class="shots">
+<figure><figcaption>Desktop · <a href="weather-summary-desktop.png">Open full screenshot</a></figcaption><a href="weather-summary-desktop.png"><img loading="lazy" src="weather-summary-desktop.png" alt="Weather summary on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="weather-summary-mobile.png">Open full screenshot</a></figcaption><a href="weather-summary-mobile.png"><img loading="lazy" src="weather-summary-mobile.png" alt="Weather summary on mobile"></a></figure>
+</div></article>
+<article><h2>Email authentication</h2><p class="meta"><code>/auth · email</code> · subdued</p><div class="shots">
+<figure><figcaption>Desktop · <a href="auth-email-desktop.png">Open full screenshot</a></figcaption><a href="auth-email-desktop.png"><img loading="lazy" src="auth-email-desktop.png" alt="Email authentication on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="auth-email-mobile.png">Open full screenshot</a></figcaption><a href="auth-email-mobile.png"><img loading="lazy" src="auth-email-mobile.png" alt="Email authentication on mobile"></a></figure>
+</div></article>
+<article><h2>Active Street View</h2><p class="meta"><code>/game/singleplayer · exploring</code> · cosmic environment hidden, renderer paused</p><div class="shots">
+<figure><figcaption>Desktop · <a href="gameplay-desktop.png">Open full screenshot</a></figcaption><a href="gameplay-desktop.png"><img loading="lazy" src="gameplay-desktop.png" alt="Active Street View on desktop"></a></figure>
+<figure><figcaption>Mobile · <a href="gameplay-mobile.png">Open full screenshot</a></figcaption><a href="gameplay-mobile.png"><img loading="lazy" src="gameplay-mobile.png" alt="Active Street View on mobile"></a></figure>
+</div></article>
+<article><h2>Natural celestial events on Duels</h2><div class="effects">
+<figure><figcaption>Meteor</figcaption><a href="meteor-duels-desktop.png"><img loading="lazy" src="meteor-duels-desktop.png" alt="Natural meteor behind Duels"></a></figure>
+<figure><figcaption>Comet</figcaption><a href="comet-duels-desktop.png"><img loading="lazy" src="comet-duels-desktop.png" alt="Natural comet behind Duels"></a></figure>
+<figure><figcaption>Satellite</figcaption><a href="satellite-duels-desktop.png"><img loading="lazy" src="satellite-duels-desktop.png" alt="Natural satellite behind Duels"></a></figure>
+</div></article></main></html>
