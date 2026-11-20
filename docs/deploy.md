@@ -10,9 +10,10 @@ Docker Compose and Caddy (automatic HTTPS).
 > makes the app publicly reachable is gated on that approval. No images are
 > pushed to a registry by this task either — the stack builds on the host.
 
-Stack: `postgres` + `backend` (Fastify) + `frontend` (nginx) + `caddy`
-(TLS termination and reverse proxy). Only Caddy publishes ports; the database
-and app containers are reachable only on the compose network.
+Stack: `postgres` + `backend` (Fastify) + `frontend` (nginx) + `mailpit`
+(test SMTP inbox) + `caddy` (TLS termination and reverse proxy). Only Caddy
+publishes public ports; the database, app containers and SMTP port stay on the
+compose network. Mailpit's web UI binds to `127.0.0.1` on the host.
 
 | File | Purpose |
 | --- | --- |
@@ -70,7 +71,7 @@ Required production values (compose refuses to start without them):
 | `ADMIN_API_TOKEN` | yes | Long random bearer token for `/api/admin/*` (ADR-0011). Generate: `openssl rand -hex 32` |
 | `DOMAIN` | yes | Hostname Caddy serves, e.g. `terraguessr.example.com` (placeholder). No scheme, no trailing slash. |
 | `ACME_EMAIL` | yes | Contact address for Let's Encrypt expiry notices. |
-| `VITE_TILE_URL` | yes | XYZ tile template, e.g. the OSM default already present in `.env.example`. Finalize per §8 before launch. |
+| `VITE_GOOGLE_MAPS_API_KEY` | for gameplay | Public browser key (build-time). Without it maps/Street View do not work. Restrict by HTTP referrer. |
 
 Optional / defaulted:
 
@@ -81,6 +82,8 @@ Optional / defaulted:
 | `PORT` | `3000` | Backend listen port inside the network. |
 | `OPEN_METEO_BASE_URL` | `https://api.open-meteo.com` | Weather provider (ADR-0003). |
 | `LOG_LEVEL` | `info` | `warn` reduces log volume. |
+| `SMTP_URL` | `smtp://mailpit:1025` | Leave blank to capture mail in Mailpit; set a real provider URL for delivery. |
+| `SMTP_FROM` | `TerraGuessr <no-reply@terraguessr.local>` | Sender address; must be authorized by the provider for real delivery. |
 | `VITE_API_BASE_URL` | `/api` | Same-origin API path; keep `/api` behind Caddy. |
 | `VITE_MAP_ATTRIBUTION` | OSM + Open-Meteo | Required attribution (ADR-0003). |
 
@@ -94,6 +97,29 @@ Notes:
 - `VITE_*` values are **build-time** (Vite inlines them). Changing one requires
   rebuilding the frontend image (`up -d --build frontend`).
 - Never commit `.env`, and never reuse the example secrets.
+
+### Email verification / password reset
+
+Registration now requires a verified email. By default the stack sends through
+the bundled **Mailpit** test SMTP service, so nothing reaches real inboxes:
+
+```bash
+ssh -L 8025:127.0.0.1:8025 user@host   # then open http://localhost:8025
+```
+
+Open a captured message and follow its `/verify-email?token=…` link. This is
+enough to exercise the full site. For real users, set `SMTP_URL` and `SMTP_FROM`
+in `.env` to a provider (Resend, Postmark, SendGrid, Mailgun, SES, …) and
+restart the backend — no rebuild is required:
+
+```env
+SMTP_URL=smtps://resend:re_your_key@smtp.resend.com:465
+SMTP_FROM=TerraGuessr <no-reply@yourdomain.com>
+```
+
+The sender domain must be verified at the provider (SPF/DKIM). With
+`NODE_ENV=production`, if SMTP is misconfigured and no Mailpit fallback is used,
+registration fails closed with `503` instead of creating unverifiable accounts.
 
 ## 4. DNS and firewall (approval required)
 
@@ -130,9 +156,9 @@ docker compose -f docker-compose.prod.yml ps
 ```
 
 Compose exits with a clear error if `POSTGRES_PASSWORD`, `ADMIN_API_TOKEN`,
-`DOMAIN`, `ACME_EMAIL`, or `VITE_TILE_URL` is missing — that is intentional,
-so a misconfigured host never starts with placeholder credentials or an empty
-tile endpoint (an empty tile URL would yield a blank map, not a crash).
+`DOMAIN`, or `ACME_EMAIL` is missing — that is intentional, so a misconfigured
+host never starts with placeholder credentials. Gameplay additionally needs
+`VITE_GOOGLE_MAPS_API_KEY` at frontend build time.
 
 The backend container runs `prisma migrate deploy` before starting the server,
 so pending migrations are applied on every deploy (see `backend/Dockerfile`).
@@ -222,22 +248,20 @@ docker compose -f docker-compose.prod.yml down -v       # DESTROYS data — avoi
 `up -d --build`. Database migrations are forward-only; if a release changed the
 schema, restore the matching backup instead of downgrading blindly.
 
-## 8. Map tile provider (ADR-0007) — finalize before going live
+## 8. Map providers — finalize before going live
 
-The code is provider-agnostic (Leaflet + `VITE_TILE_URL`). The default in
-`.env.example` is OpenStreetMap's public tile server, which is fine for light
-demo/testing traffic but **not** for production-scale use under OSM's tile usage
-policy.
+Interactive Street View and the guessing map use Google Maps. Set
+`VITE_GOOGLE_MAPS_API_KEY` (build-time, HTTP-referrer restricted) and the
+server-side `GOOGLE_MAPS_SERVER_API_KEY` (API/IP restricted) before launch.
 
-Before the public launch:
+Legacy weather games use a provider-agnostic Leaflet tile URL
+(`VITE_TILE_URL`, ADR-0007). If those modes are enabled, do not rely on OSM's
+public tile server for production-scale traffic; choose a managed or
+self-hosted provider, set `VITE_TILE_URL`/`VITE_MAP_ATTRIBUTION`, and rebuild:
 
-1. Estimate expected traffic (rounds/day × map loads × tiles per view).
-2. Re-check the candidate provider's current usage policy: self-hosted tile
-   server, a managed OSM-compatible provider (e.g. MapTiler), or OSM's public
-   server for genuinely low volume only.
-3. Set `VITE_TILE_URL` (and `VITE_MAP_ATTRIBUTION` to match the provider and
-   keep crediting Open-Meteo) in `.env`.
-4. Rebuild the frontend: `docker compose -f docker-compose.prod.yml up -d --build frontend`.
+```bash
+docker compose -f docker-compose.prod.yml up -d --build frontend
+```
 5. Record the chosen provider and the policy check in
    `docs/architecture/adr/0007-map-tile-provider.md` (update the ADR).
 

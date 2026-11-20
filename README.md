@@ -47,12 +47,19 @@ etc.) — that matrix does not describe this branch.
 
 ## Environment variables
 
-Copy `.env.example` to `.env` at the repo root (backend/Docker Compose
-values) and `frontend/.env.example` to `frontend/.env.local` (frontend/Vite
-values). Both files are commented with what each variable does and which are
-required vs. optional. Google OAuth sign-in and password-recovery email are
-feature-flagged off until their respective credentials are set — nothing
-else requires them.
+Copy both example files once:
+
+```sh
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
+```
+
+`.env` holds backend, database, Docker Compose and production values;
+`frontend/.env.local` holds Vite/browser values. Both examples document every
+variable and which ones are required. At minimum, set `ADMIN_API_TOKEN` in
+`.env` and `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` for interactive
+maps. Google sign-in and real email delivery stay disabled until their
+credentials are added; nothing else requires them.
 
 **Never commit `.env` or `.env.local`.** `VITE_GOOGLE_MAPS_API_KEY` is a
 public, HTTP-referrer-restricted browser key; never reuse
@@ -60,35 +67,79 @@ public, HTTP-referrer-restricted browser key; never reuse
 
 ## Development
 
-Backend + database (Docker):
+All local URLs use **`localhost`** — do not mix in `127.0.0.1` or other hosts.
+The default ports are:
+
+| Service | URL / address |
+| --- | --- |
+| Frontend (Vite) | <http://localhost:8080> |
+| Backend API | <http://localhost:3000/api> |
+| Mailpit inbox | <http://localhost:8025> |
+| PostgreSQL | `localhost:5432` |
+| Backend health check | <http://localhost:3000/api/health> |
+
+If a port is already taken, change it once in `.env`
+(`BACKEND_HOST_PORT`, `POSTGRES_PORT`, `MAILPIT_UI_PORT`). Vite reads the root
+`.env`, so changing `BACKEND_HOST_PORT` automatically updates its `/api` proxy;
+there is no second frontend setting to keep in sync.
+
+### Quick start
+
+1. Install dependencies (first run and after dependency changes):
+
+   ```sh
+   npm install --prefix frontend
+   ```
+
+2. Start PostgreSQL, the backend and Mailpit:
+
+   ```sh
+   docker compose up --build -d
+   docker compose ps                 # wait for postgres and backend: healthy
+   curl http://localhost:3000/api/health
+   ```
+
+3. Start the frontend in a second terminal:
+
+   ```sh
+   npm run dev --prefix frontend
+   ```
+
+4. Open <http://localhost:8080>.
+
+Registration and password-reset emails are captured by Mailpit at
+<http://localhost:8025> instead of being sent. To deliver real email, set
+`SMTP_URL`/`SMTP_FROM` in `.env` and restart the backend; no rebuild is needed.
+
+Stop the Docker services with `docker compose down` (keeps data). To wipe the
+local database as well, use `docker compose down -v`.
+
+### Full-stack test environment
+
+`docker-compose.test.yml` starts the same application with hardcoded test
+settings and deterministic weather: frontend on <http://localhost:8080>,
+backend on <http://localhost:3000>, its own PostgreSQL volume, and a fake
+weather service. This is what CI uses for Playwright:
 
 ```sh
-cp .env.example .env   # fill in ADMIN_API_TOKEN at minimum
-docker compose up --build
+docker compose -f docker-compose.test.yml up --build -d
+npm run test:e2e
+docker compose -f docker-compose.test.yml down -v
 ```
 
-Frontend (runs separately, proxies `/api` to the backend container):
-
-```sh
-cd frontend
-cp .env.example .env.local   # fill in VITE_GOOGLE_MAPS_API_KEY
-npm install
-npm run dev
-```
-
-The frontend has no production Docker image yet — see the notes in
-`Caddyfile` / `docker-compose.prod.yml` / `docker-compose.test.yml`.
+For production, `frontend/Dockerfile` builds the SPA into an nginx image that
+Caddy serves alongside `/api` (see `docker-compose.prod.yml` / `Caddyfile`).
 
 ## Commands
 
 | Area | Typecheck/build | Lint | Unit tests |
 |---|---|---|---|
-| `frontend/` | `npm run build` (`tsc -b && vite build`) | `npm run lint` (oxlint) | `npm test` (vitest) |
+| `frontend/` | `npm run typecheck`, `npm run build` | `npm run lint` (oxlint) | `npm test` (vitest) |
 | `backend/` | `npm run typecheck`, `npm run build` | `npm run lint` (eslint) | `npm test`, `npm run test:integration` |
 
-End-to-end (Playwright, from the repo root): `npm run test:e2e`. CI runs this
-against `docker-compose.test.yml`; for local runs against the Vite dev
-server instead, see the note at the top of `docker-compose.test.yml`.
+End-to-end (Playwright, from the repo root): `npm run test:e2e`. `PLAYWRIGHT_BASE_URL`
+defaults to <http://localhost:8080>; start either the Vite dev server or the
+full-stack test compose file first.
 
 Other root scripts: `npm run maps:doctor` (sanity-checks local Google Maps
 API key setup) and `npm run maps:verify` (smoke-checks a running game
@@ -97,5 +148,7 @@ server).
 ## Deployment
 
 See `docs/deploy.md` for the production procedure
-(`docker-compose.prod.yml` + Caddy). Requires Product Owner approval before
-provisioning a real domain (see that file for details).
+(`docker-compose.prod.yml` + Caddy, including a bundled Mailpit test inbox).
+Requires Product Owner approval before provisioning a real domain. For real
+email delivery, set `SMTP_URL`/`SMTP_FROM` in `.env`; otherwise verification
+links are captured by Mailpit.

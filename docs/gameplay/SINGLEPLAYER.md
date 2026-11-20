@@ -1,6 +1,6 @@
 # TerraGuessr Street View singleplayer
 
-Local page: **http://127.0.0.1:5173/game/singleplayer**
+Local page: **http://localhost:8080/game/singleplayer**
 
 Current gameplay reliability checkpoint: `26d08d6` (original implementation checkpoint: `fe35d43`). Nothing was pushed. The approved Home layout is unchanged: only its Solo card and Singleplayer link destinations changed. Auth, Duels, daily challenges, and the original weather game at `/play` remain separate.
 
@@ -21,7 +21,7 @@ Real Google Street View and map gameplay are now configured and verified end to 
 Two environment entries are required; use **separate restricted keys for deployment**. The supplied local credential currently works for both services. See [current setup](GOOGLE_MAPS_SETUP.md). OAuth client credentials are unrelated and are not reused.
 
 1. In the root `.env`, set `GOOGLE_MAPS_SERVER_API_KEY`. Enable **Street View Static API** on its Google Cloud project. Restrict this key to that API and the backend's outbound IP addresses. It is used only by the backend for official metadata requests, never for downloading images. Do not put it in any `VITE_*` variable.
-2. Copy `frontend/.env.example` to `frontend/.env.local`. Set `VITE_GOOGLE_MAPS_API_KEY`. Enable **Maps JavaScript API**, configure billing, restrict this browser key to that API and exact HTTP referrers such as `http://127.0.0.1:5173/*`, `http://localhost:5173/*`, and the production origin. Browser keys are intentionally public; the operator must apply restrictions in Google Cloud. Application code cannot set those restrictions.
+2. Copy `frontend/.env.example` to `frontend/.env.local`. Set `VITE_GOOGLE_MAPS_API_KEY`. Enable **Maps JavaScript API**, configure billing, restrict this browser key to that API and exact HTTP referrers such as `http://localhost:8080/*` and the production origin. Browser keys are intentionally public; the operator must apply restrictions in Google Cloud. Application code cannot set those restrictions.
 3. Review the enabled services' billing, quotas, and applicable Google terms before turning on live traffic. Config availability means keys exist, not that billing/authorization has been successfully checked. Actual calls handle denied requests, timeouts, and unavailable coverage.
 4. Restart the backend and Vite after configuration changes. For production, rebuild the frontend with the browser key present. Both regular and production Compose files forward the server key; they do not expose it to frontend assets.
 
@@ -29,31 +29,21 @@ References: [browser key configuration](https://developers.google.com/maps/docum
 
 ## Run locally
 
-From the application repository, `v1.0.0-initial-commit/`:
+Follow the repo root `README.md` quick start. In short:
 
 ```sh
-npm ci --prefix backend
-npm ci --prefix frontend
-npx --prefix backend prisma generate --schema backend/prisma/schema.prisma
-npx --prefix backend prisma migrate deploy --schema backend/prisma/schema.prisma
+docker compose up --build -d      # postgres + backend + Mailpit
+npm run dev --prefix frontend     # http://localhost:8080
 ```
 
-The existing PostgreSQL configuration in the root `.env` is required. The additive migration creates only `StreetGame` and `StreetRound` and leaves existing tables/contracts unchanged. It has been applied to the local development database.
+The Vite dev server proxies `/api` to `http://localhost:<BACKEND_HOST_PORT>`
+(3000 by default), which it reads from the root `.env`. Do not start a second
+frontend on another port or a second backend on another host: all local
+development uses `http://localhost:8080` for the app and
+`http://localhost:3000` for the API.
 
-Start the backend in one terminal (3005 avoids this workspace's existing Docker backend):
-
-```sh
-cd backend
-PORT=3005 node --env-file=../.env --import tsx src/server.ts
-```
-
-Start the frontend from the application repository in another:
-
-```sh
-VITE_DEV_API_PROXY_TARGET=http://127.0.0.1:3005 npm run dev --prefix frontend -- --host 127.0.0.1 --port 5173
-```
-
-Vite proxies `/api` without rewriting Host, preserving existing same-site authentication behavior. The public URL above is already running in this workspace. The supplied local credential now enables actual gameplay. On installations without keys, the page reports exactly which configuration is missing and disables guessing.
+On installations without keys, the page reports exactly which configuration is
+missing and disables guessing.
 
 ## API and scoring
 

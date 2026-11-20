@@ -41,7 +41,7 @@ Data loads independently of Street View readiness and never blocks guessing. Req
 
 ## Verification
 
-Local app: `http://127.0.0.1:5173/game/singleplayer` (Vite frontend, backend on port 3005).
+Local app: `http://localhost:8080/game/singleplayer` (Vite frontend, backend on port 3000).
 
 - Frontend unit/component tests: **49 passed**, including zero values, loading, retry, unavailable data, inert collapse, request cancellation, and late-response rejection.
 - Backend unit tests: **179 passed**, including six new tests for provider sanitization/validation, cache expiration/deduplication, partial failures, ownership, expiry, scored/foreign rounds, response allowlisting, and round-replacement races. Commercial key compatibility is also tested.
@@ -61,5 +61,5 @@ Screenshots were visually reviewed at the existing gameplay reference viewport, 
 Run the live panel checks with:
 
 ```sh
-TERRAGUESSR_LIVE_MAPS=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 npx playwright test e2e/intelligence.live.spec.ts
+TERRAGUESSR_LIVE_MAPS=1 PLAYWRIGHT_BASE_URL=http://localhost:8080 npx playwright test e2e/intelligence.live.spec.ts
 ```
