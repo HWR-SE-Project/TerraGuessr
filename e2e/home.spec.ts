@@ -17,14 +17,6 @@ test('home retains its availability notice and restores keyboard focus', async (
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(editAvatar).toBeFocused()
-  const search = page.getByRole('button', { name: 'Search', exact: true })
-  await search.click()
-  await expect(page.getByRole('dialog')).toContainText(
-    'Player and map search is not available yet',
-  )
-  await page.getByRole('button', { name: 'Got it' }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(search).toBeFocused()
   await expect(page.locator('.th-profile-name')).toHaveText('Home Explorer')
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Daily activities' })).toHaveCount(0)

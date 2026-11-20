@@ -11,6 +11,7 @@ import { GameSettings } from './GameSettings'
 import { GeographicIntelligence } from './GeographicIntelligence'
 import { readSettings } from './settings'
 import { RoundResults, FinalResults } from './GameResults'
+import { useCosmicBackgroundMode } from '../../components/cosmic/CosmicContext'
 import './SingleplayerGamePage.css'
 
 export function SingleplayerGamePage() {
@@ -25,6 +26,7 @@ export function SingleplayerGamePage() {
   const [collapsed, setCollapsed] = useState(false)
   const active = game.session.activeRound
   const exploring = Boolean(active && !game.result && !game.showFinal)
+  useCosmicBackgroundMode(!exploring)
   const mapExpanded = expanded || (hovered && settings.hoverExpand)
   useEffect(() => {
     try {
@@ -87,6 +89,7 @@ export function SingleplayerGamePage() {
       className="sp-page"
       aria-label="TerraGuessr singleplayer game"
       data-game-phase={game.phase}
+      data-cosmic={exploring ? 'off' : 'on'}
     >
       {active && (
         <StreetViewViewer

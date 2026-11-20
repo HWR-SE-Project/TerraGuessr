@@ -1,0 +1,62 @@
+{
+  "checks": {
+    "weakDevice": {
+      "starCount": 4797,
+      "homeModelsNotDownloadedForAuth": true
+    },
+    "homeNavigationMemory": {
+      "cycles": 5,
+      "warmupCycles": 1,
+      "reducedMotionDuringMeasurement": true,
+      "stable": true,
+      "samples": [
+        {
+          "geometries": 25,
+          "textures": 3,
+          "programs": 8
+        },
+        {
+          "geometries": 25,
+          "textures": 3,
+          "programs": 8
+        },
+        {
+          "geometries": 25,
+          "textures": 3,
+          "programs": 8
+        },
+        {
+          "geometries": 25,
+          "textures": 3,
+          "programs": 8
+        },
+        {
+          "geometries": 25,
+          "textures": 3,
+          "programs": 8
+        }
+      ]
+    },
+    "accountAndWeather": {
+      "accountAndPreferencesUsable": true,
+      "threeWeatherRoundsAndSummary": true
+    },
+    "passwordRecovery": "Unavailable in local authentication configuration"
+  },
+  "screenshots": [
+    "auth-email-desktop.png",
+    "settings-account-desktop.png",
+    "settings-preferences-desktop.png",
+    "weather-round-desktop.png",
+    "weather-round-mobile.png",
+    "weather-result-desktop.png",
+    "weather-result-mobile.png",
+    "weather-summary-desktop.png",
+    "weather-summary-mobile.png",
+    "settings-account-mobile.png",
+    "settings-preferences-mobile.png",
+    "auth-email-mobile.png",
+    "auth-login-mobile.png"
+  ],
+  "errors": []
+}

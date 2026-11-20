@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 interface Props {
   fallback: ReactNode
   children: ReactNode
+  onError?: () => void
 }
 
 interface State {
@@ -20,6 +21,7 @@ export class SceneErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: unknown) {
     console.error('Home 3D scene failed, falling back to flat artwork.', error)
+    this.props.onError?.()
   }
 
   render() {

@@ -19,3 +19,11 @@ Explorer illustration, static Earth fallback and scenic artwork:
 Existing project-generated assets, documented in src/assets/home/official/README.md.
 Existing Duels characters and rank artwork retained from the project.
 Brand mark and interface icons: local SVG / React components.
+
+Home 3D explorer: Puppet Kid (Free Demo) by joaobaltieri.
+Source: https://sketchfab.com/3d-models/puppet-kid-free-demo-b30af4c13ef64e9cab15cf2bd437a435
+Author: https://sketchfab.com/joaobaltieri
+License: Creative Commons Attribution 4.0 International (CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/
+User-supplied puppet_kid_free_demo.glb, distributed unmodified as puppet-kid.glb.
+Application work: framing, softbox lighting, idle playback and pointer response.

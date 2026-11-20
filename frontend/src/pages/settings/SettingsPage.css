@@ -1,9 +1,7 @@
 .settings-screen {
-  position: fixed;
-  inset: 0;
   display: grid;
   place-items: center;
-  overflow-y: auto;
+  min-height: calc(100dvh - var(--nav-height));
   padding: 32px;
   background:
     radial-gradient(ellipse at 50% 15%, #192e4766, transparent 65%),

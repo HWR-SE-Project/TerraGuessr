@@ -1,44 +1,20 @@
-import { lazy, Suspense } from 'react'
-import {
-  useWebGLSupport,
-  usePrefersReducedMotion,
-  usePointerParallax,
-} from './hooks'
+import { useEffect, useLayoutEffect } from 'react'
+import type { CharacterStatus } from './CharacterModel'
 import { StaticFallbackScene } from './StaticFallbackScene'
-import { SceneErrorBoundary } from './SceneErrorBoundary'
+import { useCosmicEnvironment } from '../../../components/cosmic/CosmicContext'
 
-const Home3DSceneInner = lazy(() =>
-  import('./Home3DSceneInner').then((module) => ({
-    default: module.Home3DSceneInner,
-  })),
-)
-
-/**
- * Entry point for the interactive hero scene. Renders the flat reference
- * images immediately (and permanently, if WebGL is unavailable), then
- * upgrades in place to the 3D Earth and stars once the scene chunk and
- * its textures are ready — so the first paint is never blocked on three.js.
- */
-export function Home3DScene() {
-  const supportsWebGL = useWebGLSupport()
-  const reducedMotion = usePrefersReducedMotion()
-  const pointerRef = usePointerParallax(!reducedMotion)
-
-  if (!supportsWebGL) {
-    return <StaticFallbackScene />
-  }
-
-  return (
-    <SceneErrorBoundary fallback={<StaticFallbackScene />}>
-      <div className="th-scene3d" aria-hidden="true">
-        <StaticFallbackScene />
-        <Suspense fallback={null}>
-          <Home3DSceneInner
-            reducedMotion={reducedMotion}
-            pointerRef={pointerRef}
-          />
-        </Suspense>
-      </div>
-    </SceneErrorBoundary>
-  )
+/** Bind Home's unchanged character/planet composition to the persistent canvas. */
+export function Home3DScene({ onCharacterStatus, onFeetPixelY }: {
+  onCharacterStatus: (status: CharacterStatus) => void
+  onFeetPixelY?: (y: number | null) => void
+}) {
+  const { available, ready, bindHome } = useCosmicEnvironment()
+  useLayoutEffect(() => {
+    bindHome({ onCharacterStatus, onFeetPixelY })
+    return () => bindHome(null)
+  }, [bindHome, onCharacterStatus, onFeetPixelY])
+  useEffect(() => {
+    if (!available) onCharacterStatus('error')
+  }, [available, onCharacterStatus])
+  return !available || !ready ? <StaticFallbackScene /> : null
 }

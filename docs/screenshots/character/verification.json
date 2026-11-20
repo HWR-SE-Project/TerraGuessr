@@ -1,0 +1,739 @@
+{
+  "url": "http://localhost:5173",
+  "pageErrors": [],
+  "consoleErrors": [],
+  "directions": {
+    "left": {
+      "yaw": -0.5235217389720317,
+      "pitch": -0.016870076317111907,
+      "changedBones": [
+        {
+          "name": "Neck_05",
+          "angle": 0.10475864653542262
+        },
+        {
+          "name": "Head_06",
+          "angle": 0.4190315984955951
+        }
+      ],
+      "skeletons": 1,
+      "materials": 2,
+      "uniformScale": [
+        132.86856630682334,
+        132.86856630682334,
+        132.86856630682334
+      ],
+      "bodyQuaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "bodyPosition": [
+        0,
+        0,
+        0
+      ],
+      "actionTime": 1.17613330154866,
+      "mixerTime": 3.14280000000447,
+      "headQuaternion": [
+        0.41373590027211066,
+        -0.18467273354513838,
+        -0.08995115452352978,
+        0.8869201630691224
+      ],
+      "neckQuaternion": [
+        -0.4955200367086767,
+        -0.045370934609284055,
+        -0.025923300864690423,
+        0.8670232718838145
+      ],
+      "frame": 233,
+      "drawCalls": 18,
+      "triangles": 9272,
+      "textures": 6,
+      "geometries": 27,
+      "bounds": {
+        "left": 777.8454308022481,
+        "right": 941.1976110226697,
+        "top": 366.1750499842746,
+        "bottom": 622.6037058143602
+      }
+    },
+    "right": {
+      "yaw": 0.5234300919070407,
+      "pitch": -0.016824328758384913,
+      "changedBones": [
+        {
+          "name": "Neck_05",
+          "angle": 0.10474003257553385
+        },
+        {
+          "name": "Head_06",
+          "angle": 0.41895715935337796
+        }
+      ],
+      "skeletons": 1,
+      "materials": 2,
+      "uniformScale": [
+        132.86856630682334,
+        132.86856630682334,
+        132.86856630682334
+      ],
+      "bodyQuaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "bodyPosition": [
+        0,
+        0,
+        0
+      ],
+      "actionTime": 1.2072666030898689,
+      "mixerTime": 5.140600000001489,
+      "headQuaternion": [
+        0.4339530750212761,
+        0.16170154760771435,
+        0.1385855733428698,
+        0.8754035510389198
+      ],
+      "neckQuaternion": [
+        -0.49291084510780286,
+        0.045458677782324576,
+        0.02595302664892639,
+        0.8685037983795165
+      ],
+      "frame": 307,
+      "drawCalls": 18,
+      "triangles": 9272,
+      "textures": 6,
+      "geometries": 27,
+      "bounds": {
+        "left": 759.7744399753091,
+        "right": 920.6890866607525,
+        "top": 366.3819582983339,
+        "bottom": 622.6037058391879
+      }
+    },
+    "up": {
+      "yaw": 0.002201084681038333,
+      "pitch": -0.2617671342778589,
+      "changedBones": [
+        {
+          "name": "Neck_05",
+          "angle": 0.05235527719539759
+        },
+        {
+          "name": "Head_06",
+          "angle": 0.20942108339873108
+        }
+      ],
+      "skeletons": 1,
+      "materials": 2,
+      "uniformScale": [
+        132.86856630682334,
+        132.86856630682334,
+        132.86856630682334
+      ],
+      "bodyQuaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "bodyPosition": [
+        0,
+        0,
+        0
+      ],
+      "actionTime": 1.2633999046310778,
+      "mixerTime": 7.163399999998512,
+      "headQuaternion": [
+        0.34360464884378167,
+        -0.005920764435466488,
+        0.025449871990090717,
+        0.9387508156155531
+      ],
+      "neckQuaternion": [
+        -0.5159592747357649,
+        0.0007434722310049761,
+        0.0003172802617682933,
+        0.8566127324515814
+      ],
+      "frame": 387,
+      "drawCalls": 18,
+      "triangles": 9272,
+      "textures": 6,
+      "geometries": 27,
+      "bounds": {
+        "left": 761.1225879959676,
+        "right": 939.3595310267112,
+        "top": 370.6702958973625,
+        "bottom": 622.6037056725197
+      }
+    },
+    "down": {
+      "yaw": 0.0019235982587772521,
+      "pitch": 0.26172489680421784,
+      "changedBones": [
+        {
+          "name": "Neck_05",
+          "angle": 0.05234639280503658
+        },
+        {
+          "name": "Head_06",
+          "angle": 0.20938555183682164
+        }
+      ],
+      "skeletons": 1,
+      "materials": 2,
+      "uniformScale": [
+        132.86856630682334,
+        132.86856630682334,
+        132.86856630682334
+      ],
+      "bodyQuaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "bodyPosition": [
+        0,
+        0,
+        0
+      ],
+      "actionTime": 1.2924332061782475,
+      "mixerTime": 9.159100000001493,
+      "headQuaternion": [
+        0.5310961984902707,
+        -0.014101719202132917,
+        0.020100308587043807,
+        0.8469556936667246
+      ],
+      "neckQuaternion": [
+        -0.4704414259507453,
+        -0.000313322731016626,
+        -0.00008635142543321748,
+        0.8824311639573069
+      ],
+      "frame": 465,
+      "drawCalls": 18,
+      "triangles": 9272,
+      "textures": 6,
+      "geometries": 27,
+      "bounds": {
+        "left": 761.5901361600224,
+        "right": 939.8364847262872,
+        "top": 360.2404404170415,
+        "bottom": 622.603705727384
+      }
+    }
+  },
+  "responsive": [
+    {
+      "width": 1711,
+      "height": 864,
+      "bounds": {
+        "left": 769.3248014805142,
+        "right": 947.5426957648447,
+        "top": 367.27754320404955,
+        "bottom": 622.6037079829704
+      },
+      "layout": {
+        "description": {
+          "x": 24,
+          "y": 284.46875,
+          "width": 1663,
+          "height": 54,
+          "top": 284.46875,
+          "right": 1687,
+          "bottom": 338.46875,
+          "left": 24
+        },
+        "button": {
+          "x": 800.1328125,
+          "y": 648,
+          "width": 110.734375,
+          "height": 36,
+          "top": 648,
+          "right": 910.8671875,
+          "bottom": 684,
+          "left": 800.1328125
+        },
+        "cards": {
+          "x": 355.5,
+          "y": 723,
+          "width": 1000,
+          "height": 108,
+          "top": 723,
+          "right": 1355.5,
+          "bottom": 831,
+          "left": 355.5
+        },
+        "heading": {
+          "x": 24,
+          "y": 163,
+          "width": 1663,
+          "height": 103.46875,
+          "top": 163,
+          "right": 1687,
+          "bottom": 266.46875,
+          "left": 24
+        },
+        "overflow": false
+      }
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "bounds": {
+        "left": 871.2794228972035,
+        "right": 1063.431156890433,
+        "top": 421.41744341086746,
+        "bottom": 696.6902734947539
+      },
+      "layout": {
+        "description": {
+          "x": 24,
+          "y": 302.671875,
+          "width": 1872,
+          "height": 54,
+          "top": 302.671875,
+          "right": 1896,
+          "bottom": 356.671875,
+          "left": 24
+        },
+        "button": {
+          "x": 904.6328125,
+          "y": 722,
+          "width": 110.734375,
+          "height": 36,
+          "top": 722,
+          "right": 1015.3671875,
+          "bottom": 758,
+          "left": 904.6328125
+        },
+        "cards": {
+          "x": 460,
+          "y": 810,
+          "width": 1000,
+          "height": 108,
+          "top": 810,
+          "right": 1460,
+          "bottom": 918,
+          "left": 460
+        },
+        "heading": {
+          "x": 24,
+          "y": 181,
+          "width": 1872,
+          "height": 103.671875,
+          "top": 181,
+          "right": 1896,
+          "bottom": 284.671875,
+          "left": 24
+        },
+        "overflow": false
+      }
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "bounds": {
+        "left": 567.4085867110729,
+        "right": 722.9291699576881,
+        "top": 328.7803229831323,
+        "bottom": 551.7130367003291
+      },
+      "layout": {
+        "description": {
+          "x": 24,
+          "y": 224.4375,
+          "width": 1232,
+          "height": 54,
+          "top": 224.4375,
+          "right": 1256,
+          "bottom": 278.4375,
+          "left": 24
+        },
+        "button": {
+          "x": 584.6328125,
+          "y": 570,
+          "width": 110.734375,
+          "height": 36,
+          "top": 570,
+          "right": 695.3671875,
+          "bottom": 606,
+          "left": 584.6328125
+        },
+        "cards": {
+          "x": 140,
+          "y": 637,
+          "width": 1000,
+          "height": 100,
+          "top": 637,
+          "right": 1140,
+          "bottom": 737,
+          "left": 140
+        },
+        "heading": {
+          "x": 24,
+          "y": 137,
+          "width": 1232,
+          "height": 73.4375,
+          "top": 137,
+          "right": 1256,
+          "bottom": 210.4375,
+          "left": 24
+        },
+        "overflow": false
+      }
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "bounds": {
+        "left": 289.7225646895654,
+        "right": 467.96371507478307,
+        "top": 357.9807613497933,
+        "bottom": 614.6037056730366
+      },
+      "layout": {
+        "description": {
+          "x": 24,
+          "y": 235.1875,
+          "width": 720,
+          "height": 54,
+          "top": 235.1875,
+          "right": 744,
+          "bottom": 289.1875,
+          "left": 24
+        },
+        "button": {
+          "x": 328.6328125,
+          "y": 640,
+          "width": 110.734375,
+          "height": 36,
+          "top": 640,
+          "right": 439.3671875,
+          "bottom": 676,
+          "left": 328.6328125
+        },
+        "cards": {
+          "x": 28,
+          "y": 715,
+          "width": 712,
+          "height": 108,
+          "top": 715,
+          "right": 740,
+          "bottom": 823,
+          "left": 28
+        },
+        "heading": {
+          "x": 24,
+          "y": 155,
+          "width": 720,
+          "height": 62.1875,
+          "top": 155,
+          "right": 744,
+          "bottom": 217.1875,
+          "left": 24
+        },
+        "overflow": false
+      }
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "bounds": {
+        "left": 126.41034392168805,
+        "right": 253.937293501853,
+        "top": 334.52052604438126,
+        "bottom": 518.5399072958301
+      },
+      "layout": {
+        "description": {
+          "x": 40,
+          "y": 238.53125,
+          "width": 310,
+          "height": 42,
+          "top": 238.53125,
+          "right": 350,
+          "bottom": 280.53125,
+          "left": 40
+        },
+        "button": {
+          "x": 139.6328125,
+          "y": 531,
+          "width": 110.734375,
+          "height": 36,
+          "top": 531,
+          "right": 250.3671875,
+          "bottom": 567,
+          "left": 139.6328125
+        },
+        "cards": {
+          "x": 20,
+          "y": 593,
+          "width": 350,
+          "height": 180,
+          "top": 593,
+          "right": 370,
+          "bottom": 773,
+          "left": 20
+        },
+        "heading": {
+          "x": 25,
+          "y": 131,
+          "width": 340,
+          "height": 93.53125,
+          "top": 131,
+          "right": 365,
+          "bottom": 224.53125,
+          "left": 25
+        },
+        "overflow": false
+      }
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "bounds": {
+        "left": 127.24048800877026,
+        "right": 254.80904837189496,
+        "top": 335.8669862685716,
+        "bottom": 518.5399089065535
+      },
+      "layout": {
+        "description": {
+          "x": 32.5,
+          "y": 236.53125,
+          "width": 310,
+          "height": 42,
+          "top": 236.53125,
+          "right": 342.5,
+          "bottom": 278.53125,
+          "left": 32.5
+        },
+        "button": {
+          "x": 132.1328125,
+          "y": 531,
+          "width": 110.734375,
+          "height": 36,
+          "top": 531,
+          "right": 242.8671875,
+          "bottom": 567,
+          "left": 132.1328125
+        },
+        "cards": {
+          "x": 20,
+          "y": 593,
+          "width": 335,
+          "height": 180,
+          "top": 593,
+          "right": 355,
+          "bottom": 773,
+          "left": 20
+        },
+        "heading": {
+          "x": 20,
+          "y": 131,
+          "width": 335,
+          "height": 91.53125,
+          "top": 131,
+          "right": 355,
+          "bottom": 222.53125,
+          "left": 20
+        },
+        "overflow": false
+      }
+    },
+    {
+      "width": 320,
+      "height": 864,
+      "bounds": {
+        "left": 96.62007746026859,
+        "right": 224.23855315825875,
+        "top": 335.36679738573326,
+        "bottom": 518.539907256812
+      },
+      "layout": {
+        "description": {
+          "x": 20,
+          "y": 236.53125,
+          "width": 280,
+          "height": 42,
+          "top": 236.53125,
+          "right": 300,
+          "bottom": 278.53125,
+          "left": 20
+        },
+        "button": {
+          "x": 104.6328125,
+          "y": 531,
+          "width": 110.734375,
+          "height": 36,
+          "top": 531,
+          "right": 215.3671875,
+          "bottom": 567,
+          "left": 104.6328125
+        },
+        "cards": {
+          "x": 20,
+          "y": 593,
+          "width": 280,
+          "height": 180,
+          "top": 593,
+          "right": 300,
+          "bottom": 773,
+          "left": 20
+        },
+        "heading": {
+          "x": 20,
+          "y": 131,
+          "width": 280,
+          "height": 91.53125,
+          "top": 131,
+          "right": 300,
+          "bottom": 222.53125,
+          "left": 20
+        },
+        "overflow": false
+      }
+    }
+  ],
+  "smoothing": {
+    "during": -0.05627498884585591,
+    "settled": 0.5235168701337105,
+    "stable": 0.5235960047162149
+  },
+  "returnToNeutral": {
+    "yaw": 0.00007172770403653897,
+    "pitch": -0.000002305023279616854,
+    "changedBones": [],
+    "skeletons": 1,
+    "materials": 2,
+    "uniformScale": [
+      132.86856630682334,
+      132.86856630682334,
+      132.86856630682334
+    ],
+    "bodyQuaternion": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "bodyPosition": [
+      0,
+      0,
+      0
+    ],
+    "actionTime": 1.0859331108108152,
+    "mixerTime": 14.852600000001498,
+    "headQuaternion": [
+      0.43975356238629304,
+      -0.012164460001487491,
+      0.02490666041664914,
+      0.8976906418420617
+    ],
+    "neckQuaternion": [
+      -0.49337195730400324,
+      0.000006236196119477541,
+      0.000003551580776977405,
+      0.8698184360536478
+    ],
+    "frame": 693,
+    "drawCalls": 18,
+    "triangles": 9272,
+    "textures": 6,
+    "geometries": 27,
+    "bounds": {
+      "left": 759.6758644752161,
+      "right": 937.8538422817701,
+      "top": 365.4030038941644,
+      "bottom": 622.6037058111804
+    }
+  },
+  "performance": {
+    "activeFramesPerSecond": 21.42857142857143,
+    "yaw": -0.5190396710965364,
+    "pitch": -0.1835065041783163,
+    "changedBones": [
+      {
+        "name": "Neck_05",
+        "angle": 0.11009933170874181
+      },
+      {
+        "name": "Head_06",
+        "angle": 0.4400664732330303
+      }
+    ],
+    "skeletons": 1,
+    "materials": 2,
+    "uniformScale": [
+      132.86856630682334,
+      132.86856630682334,
+      132.86856630682334
+    ],
+    "bodyQuaternion": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "bodyPosition": [
+      0,
+      0,
+      0
+    ],
+    "actionTime": 0.8364664123505341,
+    "mixerTime": 16.56979999999703,
+    "headQuaternion": [
+      0.35459724968654394,
+      -0.16628950084659333,
+      -0.10960671796364405,
+      0.9135616878838752
+    ],
+    "neckQuaternion": [
+      -0.5101311638622117,
+      -0.04385611027405721,
+      -0.02643791708008689,
+      0.8585708321344205
+    ],
+    "frame": 761,
+    "drawCalls": 18,
+    "triangles": 9272,
+    "textures": 6,
+    "geometries": 27,
+    "bounds": {
+      "left": 783.6415935869711,
+      "right": 946.3089651255649,
+      "top": 369.68016961314845,
+      "bottom": 622.6037081020875
+    }
+  },
+  "reducedMotion": {
+    "passed": true,
+    "framesAfterPointer": 0
+  },
+  "editAvatar": "dialog, Escape dismissal and focus restoration passed",
+  "touch": "neutral gaze, original idle preserved",
+  "assetFailure": "explicit unavailable message; Earth, navigation and game cards retained",
+  "noWebGL": "static Earth and honest avatar unavailable message; controls retained",
+  "passed": true,
+  "trackingCPU": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+    "samples": 10,
+    "meanTrackingMilliseconds": 0.020000000298023225,
+    "p95TrackingMilliseconds": 0.10000000149011612
+  },
+  "actualViewportExit": {
+    "passed": true,
+    "yaw": 0.00000787978751370469,
+    "pitch": -0.0000025356990272455016
+  }
+}

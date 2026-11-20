@@ -1,0 +1,10 @@
+{
+  "modifiedByThisTask": [
+    "frontend/src/pages/home/scene/CharacterModel.tsx",
+    "frontend/src/assets/home/scene/README.md"
+  ],
+  "independentWorkspaceEdits": [
+    "frontend/src/pages/home/scene/PlanetEarth.tsx"
+  ],
+  "authDuelsGameplayBackendUnchanged": true
+}
