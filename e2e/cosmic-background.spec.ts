@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('one non-interactive cosmic canvas survives Home, Auth, Duels and back navigation', async ({ page }) => {
+test('one non-interactive cosmic canvas survives Home, Auth, Multiplayer and back navigation', async ({ page }) => {
   await page.goto('/')
   const sky = page.locator('.cosmic-background')
   const canvas = sky.locator('canvas')
@@ -18,7 +18,7 @@ test('one non-interactive cosmic canvas survives Home, Auth, Duels and back navi
   await expect(page.locator('[data-character-status]')).toHaveAttribute('data-character-status', 'ready')
   await expect(canvas).toHaveAttribute('data-persistence-check', 'original')
   await page.getByRole('link', { name: 'Multiplayer', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Duels', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Multiplayer', exact: true })).toBeVisible()
   await expect(canvas).toHaveCount(1)
   await expect(canvas).toHaveAttribute('data-persistence-check', 'original')
   await page.goBack()

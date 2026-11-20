@@ -39,6 +39,26 @@ routes, which require authentication (decision B.14) — not yet designed in thi
 - `GET /challenges/{challengeId}/leaderboard` — ranked entries, `displayName` only, no account
   data (decision B.6).
 
+## Lobbies (R16, pre-game waiting room)
+
+A lobby is membership plus the host's difficulty. It stores no round or location data; level
+generation is intentionally out of scope, so these endpoints can ship before the match engine.
+
+- `POST /lobbies` — `{difficulty, displayName?}` → 201 `{lobby, lobbyToken}`. The creator is the
+  host. Difficulty is `easy|medium|hard`; R5 rules (time limit, attempts, selection mode) are
+  derived from it. Fixed defaults: 5 rounds, 8 players, 2-hour expiry.
+- `GET /lobbies/{code}` — public lobby view `{lobbyId, code, difficulty, status, maxPlayers,
+  roundsTotal, rules, members, youAreHost, createdAt, expiresAt}`. Polled every ~3s. An optional
+  `X-Lobby-Token` sets `youAreHost`. Expired lobbies return `404 NOT_FOUND`.
+- `POST /lobbies/{code}/join` — `{displayName?}` → 201 `{lobby, lobbyToken}`. Issues a fresh
+  lobby token (ADR-0011). `409 CONFLICT` when full or no longer `waiting`.
+- `POST /lobbies/{code}/leave` — auth `X-Lobby-Token`; 204. A guest is removed from the lobby.
+  The host leaving disbands the lobby (cascades members).
+- `DELETE /lobbies/{code}` — auth `X-Lobby-Token`; 204. Host only; a non-host member gets
+  `403 FORBIDDEN`, an unknown token `404 NOT_FOUND`.
+
+Lobby tokens are scoped per code and stored client-side separately from the game `playerToken`.
+
 ## Daily Challenge (ADR-0016)
 
 - `GET /daily/today` — authenticated; returns the shared current UTC date and map round with

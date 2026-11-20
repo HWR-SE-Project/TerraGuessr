@@ -191,6 +191,40 @@ model ChallengeEntry {
   @@unique([challengeId, resultId])
   @@index([challengeId])
 }
+
+enum LobbyStatus {
+  waiting
+  playing
+  finished
+}
+
+// Pre-game multiplayer waiting room (R16). Deliberately stores no round or
+// location data; difficulty is the only host choice.
+model Lobby {
+  id            String        @id @default(cuid())
+  code          String        @unique @db.VarChar(6)
+  difficulty    Difficulty
+  hostTokenHash String                              // sha256(rawToken), ADR-0011
+  maxPlayers    Int           @default(8)
+  roundsTotal   Int           @default(5)
+  status        LobbyStatus   @default(waiting)
+  createdAt     DateTime      @default(now())
+  expiresAt     DateTime
+  members       LobbyMember[]
+  @@index([expiresAt])
+  @@index([status])
+}
+
+model LobbyMember {
+  id              String   @id @default(cuid())
+  lobbyId         String
+  lobby           Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  playerTokenHash String                            // sha256(rawToken), ADR-0011
+  displayName     String?
+  joinedAt        DateTime @default(now())
+  @@unique([lobbyId, playerTokenHash])
+  @@index([lobbyId])
+}
 ```
 
 > Note: `Round.location` has **no cascade delete** — purging a `Result` (R18) must never cascade

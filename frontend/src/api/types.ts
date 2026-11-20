@@ -141,6 +141,42 @@ export interface LeaderboardDTO {
   entries: LeaderboardEntryDTO[]
 }
 
+// --- Lobbies (R16) -------------------------------------------------------
+
+export type LobbyStatus = 'waiting' | 'playing' | 'finished'
+
+export interface LobbyRulesDTO {
+  timeLimitSeconds: number
+  attemptsPerRound: number
+  selectionMode: SelectionMode
+}
+
+export interface LobbyMemberDTO {
+  displayName: string | null
+  isHost: boolean
+  joinedAt: string
+}
+
+export interface LobbyDTO {
+  lobbyId: string
+  code: string
+  difficulty: Difficulty
+  status: LobbyStatus
+  maxPlayers: number
+  roundsTotal: number
+  rules: LobbyRulesDTO
+  createdAt: string
+  expiresAt: string
+  members: LobbyMemberDTO[]
+  /** True when the caller presented the host's lobby token. */
+  youAreHost: boolean
+}
+
+export interface LobbySessionDTO {
+  lobby: LobbyDTO
+  lobbyToken: string
+}
+
 // --- Auth / account -------------------------------------------------------
 
 export interface PublicUser {

@@ -29,8 +29,9 @@ test('mobile navigation and game entry points stay usable without horizontal scr
   await registerAndLogin(page, 'Mobile Explorer')
   await page.getByRole('button', { name: 'Open navigation' }).click()
   await page.getByRole('link', { name: 'Multiplayer', exact: true }).click()
-  await expect(page).toHaveURL(/\/duels$/)
-  await expect(page.getByRole('heading', { name: 'Duels' })).toBeVisible()
+  await expect(page).toHaveURL(/\/multiplayer$/)
+  await expect(page.getByRole('heading', { name: 'Multiplayer' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Create a lobby' })).toBeVisible()
   await page.goto('/')
   for (const width of [320, 390, 768, 1024, 1280, 1711]) {
     await page.setViewportSize({ width, height: 864 })
@@ -45,6 +46,15 @@ test('mobile navigation and game entry points stay usable without horizontal scr
   await expect(
     page.getByRole('main', { name: 'TerraGuessr singleplayer game' }),
   ).toBeVisible()
+})
+
+test('Play Together opens the multiplayer lobby hub', async ({ page }) => {
+  await registerAndLogin(page, 'Lobby Explorer')
+  await page.getByRole('link', { name: 'Play Together With friends' }).click()
+  await expect(page).toHaveURL(/\/multiplayer$/)
+  await expect(page.getByRole('heading', { name: 'Multiplayer' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Create a lobby' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Join a lobby' })).toBeVisible()
 })
 
 test('daily API failure leaves home and its navigation usable', async ({
@@ -101,13 +111,13 @@ test('Play Solo opens Street View and the legacy weather expedition remains play
   await expect(page.locator('.tg-play-summary-row')).toHaveCount(3)
 })
 
-test('Play Together creates a real challenge that a friend can play', async ({
+test('Duels creates a real challenge that a friend can play', async ({
   page,
   browser,
 }) => {
   test.setTimeout(120_000)
   await registerAndLogin(page, 'Home Duel Explorer')
-  await page.getByRole('link', { name: 'Play Together With friends' }).click()
+  await page.goto('/duels')
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   await expect(page.getByText('Where is this?')).toBeVisible()
   await page

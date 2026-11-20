@@ -139,6 +139,22 @@
   width: 17px;
   height: 17px;
 }
+.td-lobby-link {
+  display: block;
+  width: fit-content;
+  margin: 16px auto 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
+}
+.td-lobby-link:hover,
+.td-lobby-link:focus-visible {
+  color: var(--color-text);
+  border-bottom-color: var(--color-lime);
+}
 .td-play:hover:enabled {
   background: var(--color-lime-hover);
   transform: translateY(-2px);
