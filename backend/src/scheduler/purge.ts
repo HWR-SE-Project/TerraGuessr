@@ -85,3 +85,40 @@ export async function purgeExpiredResults(
 
   return summary;
 }
+
+/**
+ * Street View singleplayer retention purge (R18). `StreetResult` is a flat
+ * archive with no relations/cascades (schema.prisma note), so a single
+ * batched delete is sufficient — there is no round history to clean up
+ * alongside it, unlike `purgeExpiredResults` above.
+ */
+export type StreetPurgeClient = Pick<PrismaClient, 'streetResult'>;
+
+export interface StreetPurgeSummary {
+  cutoff: Date;
+  deletedResults: number;
+}
+
+export async function purgeExpiredStreetResults(
+  db: StreetPurgeClient,
+  now: Date = new Date(),
+): Promise<StreetPurgeSummary> {
+  const cutoff = purgeCutoff(now);
+  let deletedResults = 0;
+
+  for (;;) {
+    const expired = await db.streetResult.findMany({
+      where: { createdAt: { lt: cutoff } },
+      select: { id: true },
+      take: PURGE_BATCH_SIZE,
+    });
+    if (expired.length === 0) break;
+    const deleted = await db.streetResult.deleteMany({
+      where: { id: { in: expired.map((row) => row.id) } },
+    });
+    deletedResults += deleted.count;
+    if (expired.length < PURGE_BATCH_SIZE) break;
+  }
+
+  return { cutoff, deletedResults };
+}

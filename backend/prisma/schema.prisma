@@ -84,6 +84,9 @@ model AuthSession {
   createdAt DateTime @default(now())
 
   @@index([userId, expiresAt])
+  // Backs authCleanup.ts's unscoped `WHERE expiresAt <= now OR lastUsedAt <= cutoff`.
+  @@index([expiresAt])
+  @@index([lastUsedAt])
 }
 
 model PasswordResetToken {
@@ -96,6 +99,8 @@ model PasswordResetToken {
   createdAt  DateTime  @default(now())
 
   @@index([userId, expiresAt])
+  // Backs authCleanup.ts's unscoped `WHERE expiresAt <= now`.
+  @@index([expiresAt])
 }
 
 model EmailVerificationToken {
@@ -108,6 +113,8 @@ model EmailVerificationToken {
   createdAt  DateTime  @default(now())
 
   @@index([userId, expiresAt])
+  // Backs authCleanup.ts's unscoped `WHERE expiresAt <= now`.
+  @@index([expiresAt])
 }
 
 // A pending address change. Both inboxes must confirm before `User.email`
@@ -127,6 +134,8 @@ model EmailChangeRequest {
   createdAt      DateTime  @default(now())
 
   @@index([userId, expiresAt])
+  // Backs authCleanup.ts's unscoped `WHERE expiresAt <= now OR completedAt IS NOT NULL`.
+  @@index([expiresAt])
 }
 
 model UserPreference {
@@ -322,9 +331,18 @@ model StreetGame {
   id              String        @id @default(cuid())
   playerTokenHash String
   roundsTotal     Int           @default(5)
+  difficulty      Difficulty    @default(medium) // R05
   expiresAt       DateTime
   createdAt       DateTime      @default(now())
   rounds          StreetRound[]
+
+  // Prefetched next-round target (R12). Best-effort cache, consumed
+  // atomically by the next POST .../rounds call; never a correctness
+  // dependency (routes.ts falls back to synchronous selection).
+  nextTargetIndex Int?
+  nextPanoId      String?
+  nextTargetLat   Float?
+  nextTargetLon   Float?
 
   @@index([expiresAt])
 }
@@ -338,6 +356,9 @@ model StreetRound {
   targetIndex Int
   targetLat   Float
   targetLon   Float
+  // Easy-mode candidate list shown for this round (R07), persisted so a
+  // resumed session redisplays the same options instead of re-rolling them.
+  candidatesJson Json?
   guessLat    Float?
   guessLon    Float?
   distanceKm  Float?
@@ -345,4 +366,28 @@ model StreetRound {
   createdAt   DateTime   @default(now())
 
   @@unique([gameId, number])
+}
+
+// Durable archive of a completed Street View round (R18). Written once, at
+// guess-lock time, from values already resolved for scoring — never a second
+// provider/weather call. Deliberately has NO relation/cascade to StreetGame or
+// StreetRound: the 24h session-expiry cleanup (routes.ts) only prunes
+// resumable session state, and must never touch this archival record. Purged
+// by its own 6-month retention job (scheduler/purge.ts), independent of
+// session expiry.
+model StreetResult {
+  id          String     @id @default(cuid())
+  gameId      String
+  roundId     String     @unique
+  roundNumber Int
+  difficulty  Difficulty
+  actualLat   Float
+  actualLon   Float
+  guessLat    Float
+  guessLon    Float
+  distanceKm  Float // R09
+  score       Int // R10
+  createdAt   DateTime   @default(now()) // drives 6-month purge (R18)
+
+  @@index([createdAt])
 }

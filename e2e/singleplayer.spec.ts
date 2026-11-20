@@ -1,4 +1,19 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+// R14: a fresh browser profile sees the tutorial once. It opens
+// asynchronously (after the config check resolves), so an immediate
+// isVisible() check right after goto races it and can miss a dialog that
+// opens a moment later — then it sits on screen as a modal and blocks every
+// subsequent click. Wait for it instead.
+async function dismissTutorialIfShown(page: Page) {
+  const skipTutorial = page.getByRole('button', { name: 'Skip' })
+  try {
+    await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
+    await skipTutorial.click()
+  } catch {
+    // Already seen in this profile this run; nothing to dismiss.
+  }
+}
 
 test.describe('Street View singleplayer without credentials', () => {
   test('honest unavailable state, disabled guessing, map expansion, collapse, and home navigation', async ({
@@ -8,6 +23,7 @@ test.describe('Street View singleplayer without credentials', () => {
     await expect(
       page.getByRole('main', { name: 'TerraGuessr singleplayer game' }),
     ).toBeVisible()
+    await dismissTutorialIfShown(page)
     await expect(
       page.getByText('Street View is currently unavailable', { exact: true }),
     ).toBeVisible()
@@ -38,6 +54,7 @@ test.describe('Street View singleplayer without credentials', () => {
     page,
   }) => {
     await page.goto('/game/singleplayer')
+    await dismissTutorialIfShown(page)
     const settings = page.getByRole('button', { name: 'Game settings' })
     await settings.click()
     await page.getByRole('switch', { name: 'Expand map on hover' }).uncheck()
@@ -73,6 +90,7 @@ test.describe('Street View singleplayer without credentials', () => {
   }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/game/singleplayer')
+    await dismissTutorialIfShown(page)
     await page.getByRole('button', { name: 'Expand map', exact: true }).click()
     const map = page.getByRole('complementary', { name: 'Guessing map' })
     await expect(map).toHaveClass(/sp-guess-expanded/)

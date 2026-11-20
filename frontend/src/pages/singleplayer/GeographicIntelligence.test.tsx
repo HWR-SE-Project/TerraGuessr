@@ -123,4 +123,24 @@ describe('environmental clues lifecycle', () => {
     expect(screen.getByText('Rain')).toBeVisible()
     expect(screen.queryByText('Clear sky')).not.toBeInTheDocument()
   })
+  it('starts collapsed on hard difficulty but still exposes the mandatory fields on demand (R05)', async () => {
+    vi.mocked(singleplayerApi.intelligence).mockResolvedValue(data)
+    render(
+      <GeographicIntelligence load={load} round={round} defaultExpanded={false} />,
+    )
+    const toggle = screen.getByRole('button', {
+      name: /GEOGRAPHIC INTELLIGENCE/,
+    })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await waitFor(() => expect(screen.getByText('Clear sky')).toBeVisible())
+  })
+  it('defaults to expanded when no defaultExpanded is given (easy/medium)', () => {
+    vi.mocked(singleplayerApi.intelligence).mockResolvedValue(data)
+    render(<GeographicIntelligence load={load} round={round} />)
+    expect(
+      screen.getByRole('button', { name: /GEOGRAPHIC INTELLIGENCE/ }),
+    ).toHaveAttribute('aria-expanded', 'true')
+  })
 })

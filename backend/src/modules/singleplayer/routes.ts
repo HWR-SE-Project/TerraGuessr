@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { PrismaClient, StreetRound } from '@prisma/client';
+import type { Difficulty, PrismaClient, StreetRound } from '@prisma/client';
 import type {
   FastifyInstance,
   FastifyRequest,
@@ -21,13 +21,25 @@ import {
   googlePanoramaLocator,
   PanoramaError,
 } from './provider.js';
-import type { PanoramaProvider } from './provider.js';
+import type { PanoramaProvider, PanoramaTarget } from './provider.js';
+import { selectValidatedTarget } from './locationSelection.js';
+import { buildCandidates } from './candidates.js';
+import type { CandidateOption } from './candidates.js';
+import { prefetchNextStreetRound } from './prefetch.js';
 
 import {
   IntelligenceResponse,
   type GeographicIntelligence,
 } from '../intelligence/contract.js';
 import { createIntelligenceProvider } from '../intelligence/service.js';
+
+const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+function parseDifficulty(value: unknown): Difficulty {
+  return typeof value === 'string' &&
+    (DIFFICULTIES as readonly string[]).includes(value)
+    ? (value as Difficulty)
+    : 'medium';
+}
 
 const Coordinates = Type.Object(
   {
@@ -36,10 +48,23 @@ const Coordinates = Type.Object(
   },
   { additionalProperties: false },
 );
+const DifficultyLevel = Type.Union([
+  Type.Literal('easy'),
+  Type.Literal('medium'),
+  Type.Literal('hard'),
+]);
+const Candidate = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+  region: Type.String(),
+  lat: Type.Number(),
+  lon: Type.Number(),
+});
 const PublicRound = Type.Object({
   id: Type.String(),
   number: Type.Integer(),
   panoId: Type.String(),
+  candidates: Type.Optional(Type.Array(Candidate)),
 });
 const Result = Type.Object({
   roundId: Type.String(),
@@ -52,6 +77,7 @@ const Result = Type.Object({
 const Session = Type.Object({
   id: Type.String(),
   roundsTotal: Type.Integer(),
+  difficulty: DifficultyLevel,
   totalScore: Type.Integer(),
   completed: Type.Boolean(),
   activeRound: Type.Union([PublicRound, Type.Null()]),
@@ -65,7 +91,15 @@ function conflict(message: string): Error {
   return Object.assign(new Error(message), { statusCode: 409 });
 }
 function publicRound(round: StreetRound) {
-  return { id: round.id, number: round.number, panoId: round.panoId };
+  const candidates = round.candidatesJson as unknown as
+    | CandidateOption[]
+    | null;
+  return {
+    id: round.id,
+    number: round.number,
+    panoId: round.panoId,
+    ...(candidates && candidates.length ? { candidates } : {}),
+  };
 }
 function result(round: StreetRound, actual: LatLon) {
   return {
@@ -159,7 +193,7 @@ export function registerSingleplayerRoutes(
         },
       },
     },
-    async (_request, reply) => {
+    async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
       if (!options.key && !options.provider)
         return reply.code(503).send({
@@ -172,10 +206,12 @@ export function registerSingleplayerRoutes(
       await db.streetGame.deleteMany({
         where: { expiresAt: { lt: new Date() } },
       });
+      const body = request.body as { difficulty?: unknown } | undefined;
       const playerToken = generatePlayerToken();
       const game = await db.streetGame.create({
         data: {
           playerTokenHash: hashPlayerToken(playerToken),
+          difficulty: parseDifficulty(body?.difficulty),
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
       });
@@ -201,6 +237,7 @@ export function registerSingleplayerRoutes(
       return {
         id: game.id,
         roundsTotal: game.roundsTotal,
+        difficulty: game.difficulty,
         totalScore: results.reduce((sum, r) => sum + r.score, 0),
         completed: results.length === game.roundsTotal,
         activeRound: active ? publicRound(active) : null,
@@ -222,17 +259,28 @@ export function registerSingleplayerRoutes(
       if (active) return publicRound(active); // Idempotent retry, including response loss.
       if (game.rounds.length >= game.roundsTotal)
         throw conflict('All rounds are completed.');
-      try {
-        const target = await provider(game.rounds.map((r) => r.targetIndex));
+      const usedIndices = game.rounds.map((r) => r.targetIndex);
+      const nextNumber = game.rounds.length + 1;
+      async function persistRound(target: PanoramaTarget) {
+        const candidates =
+          game.difficulty === 'easy'
+            ? buildCandidates(target.targetIndex, usedIndices)
+            : null;
         try {
           const round = await db.streetRound.create({
             data: {
               gameId: game.id,
-              number: game.rounds.length + 1,
+              number: nextNumber,
               panoId: target.panoId,
               targetIndex: target.targetIndex,
               targetLat: target.lat,
               targetLon: target.lon,
+              ...(candidates
+                ? {
+                    candidatesJson:
+                      candidates as unknown as Prisma.InputJsonValue,
+                  }
+                : {}),
             },
           });
           return publicRound(round);
@@ -243,15 +291,41 @@ export function registerSingleplayerRoutes(
           )
             throw error;
           const existing = await db.streetRound.findUniqueOrThrow({
-            where: {
-              gameId_number: {
-                gameId: game.id,
-                number: game.rounds.length + 1,
-              },
-            },
+            where: { gameId_number: { gameId: game.id, number: nextNumber } },
           });
           return publicRound(existing);
         }
+      }
+      try {
+        // R12 fast path: consume a cached prefetched target if one is ready.
+        // The conditional update both claims it and prevents a concurrent
+        // request from double-consuming the same prefetch.
+        if (game.nextPanoId != null) {
+          const claimed = await db.streetGame.updateMany({
+            where: { id: game.id, nextPanoId: game.nextPanoId },
+            data: {
+              nextTargetIndex: null,
+              nextPanoId: null,
+              nextTargetLat: null,
+              nextTargetLon: null,
+            },
+          });
+          if (claimed.count)
+            return await persistRound({
+              panoId: game.nextPanoId,
+              targetIndex: game.nextTargetIndex!,
+              lat: game.nextTargetLat!,
+              lon: game.nextTargetLon!,
+            });
+        }
+        // R03/R13: only accept a location whose mandatory weather data is
+        // available, automatically trying another when it is not.
+        const target = await selectValidatedTarget(
+          usedIndices,
+          provider,
+          intelligence,
+        );
+        return await persistRound(target);
       } catch (error) {
         if (error instanceof PanoramaError)
           return reply.code(503).send({
@@ -316,7 +390,18 @@ export function registerSingleplayerRoutes(
       if (!current) throw new GameNotFoundError();
       if (current.score !== null)
         throw conflict('A scored round cannot be replaced.');
-      const target = await provider(game.rounds.map((r) => r.targetIndex));
+      const usedIndices = game.rounds.map((r) => r.targetIndex);
+      // R03/R13: a retry (whether triggered by missing coverage or missing
+      // weather data) only accepts a location with valid weather too.
+      const target = await selectValidatedTarget(
+        usedIndices,
+        provider,
+        intelligence,
+      );
+      const candidates =
+        game.difficulty === 'easy'
+          ? buildCandidates(target.targetIndex, usedIndices)
+          : null;
       const changed = await db.streetRound.updateMany({
         where: { id: current.id, score: null, panoId: current.panoId },
         data: {
@@ -324,6 +409,9 @@ export function registerSingleplayerRoutes(
           targetIndex: target.targetIndex,
           targetLat: target.lat,
           targetLon: target.lon,
+          candidatesJson: candidates
+            ? (candidates as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
         },
       });
       if (!changed.count)
@@ -378,13 +466,14 @@ export function registerSingleplayerRoutes(
         throw conflict('This guess is already locked.');
       }
       const distanceKm = haversineKm(guess, actual);
+      const score = scoreForDistance(distanceKm);
       const updated = await db.streetRound.updateMany({
         where: { id: round.id, score: null, panoId: round.panoId },
         data: {
           guessLat: guess.lat,
           guessLon: guess.lon,
           distanceKm,
-          score: scoreForDistance(distanceKm),
+          score,
         },
       });
       const locked = await db.streetRound.findUniqueOrThrow({
@@ -399,6 +488,32 @@ export function registerSingleplayerRoutes(
         (locked.guessLat !== guess.lat || locked.guessLon !== guess.lon)
       )
         throw conflict('This guess is already locked.');
+      if (updated.count) {
+        // R18: durable archive, decoupled from the 24h session-expiry
+        // cleanup. Best-effort — never blocks the player from seeing their
+        // result if the archive write itself fails.
+        await db.streetResult
+          .create({
+            data: {
+              gameId: game.id,
+              roundId: round.id,
+              roundNumber: round.number,
+              difficulty: game.difficulty,
+              actualLat: actual.lat,
+              actualLon: actual.lon,
+              guessLat: guess.lat,
+              guessLon: guess.lon,
+              distanceKm,
+              score,
+            },
+          })
+          .catch(() => {});
+        // R12: best-effort prefetch of the following round, never awaited.
+        const completedRounds =
+          game.rounds.filter((r) => r.score !== null).length + 1;
+        if (completedRounds < game.roundsTotal)
+          void prefetchNextStreetRound(game.id, db, provider, intelligence);
+      }
       return result(locked, actual);
     },
   );

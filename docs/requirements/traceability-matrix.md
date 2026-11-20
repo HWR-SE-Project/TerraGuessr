@@ -1,5 +1,13 @@
 # Requirements Traceability Matrix — R01–R20
 
+> **Scope note (2026-11-20):** this matrix documents the original "weather game" at `/play`
+> (`frontend/src/features/*`, `backend/src/modules/games|rounds|results|locations|weather`).
+> The 2026-11-20 frontend rebuild replaced that UI; `/play` is no longer linked from the app.
+> The Singleplayer experience actually reachable today (`Home → Play Solo` →
+> `/game/singleplayer`, real Google Street View) is a separate system — see
+> [`singleplayer-streetview-traceability.md`](./singleplayer-streetview-traceability.md) for its
+> R01–R15/R18–R20 matrix. This document remains accurate for the `/play` system itself.
+
 Status: **approved** (Product Owner, Phase 0.5, 2026-11-14). Source: `Software-Engineering_Anforderungsanalyse.pdf`
 (table) and `appidee.odt` (exploratory idea document, non-binding). Priority is preserved
 verbatim from the source: German *muss* → **MUST**, *sollte* → **SHOULD**.

@@ -6,8 +6,8 @@
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 
-import { purgeExpiredResults } from './purge.js';
-import type { PurgeClient } from './purge.js';
+import { purgeExpiredResults, purgeExpiredStreetResults } from './purge.js';
+import type { PurgeClient, StreetPurgeClient } from './purge.js';
 import { purgeExpiredAuthArtifacts } from './authCleanup.js';
 import type { AuthCleanupClient } from './authCleanup.js';
 
@@ -16,7 +16,7 @@ export const PURGE_CRON_EXPRESSION = '0 3 * * *';
 export const PURGE_CRON_TIMEZONE = 'UTC';
 
 /** Everything the daily maintenance job needs. */
-export type SchedulerClient = PurgeClient & AuthCleanupClient;
+export type SchedulerClient = PurgeClient & AuthCleanupClient & StreetPurgeClient;
 
 /** Pino-shaped logger (Fastify's `app.log`); keeps this module console-free. */
 export interface SchedulerLogger {
@@ -53,6 +53,22 @@ export function startScheduler(
         })
         .catch((err: unknown) => {
           log.error({ err }, 'retention purge failed');
+        });
+
+      void purgeExpiredStreetResults(db)
+        .then((summary) => {
+          if (summary.deletedResults > 0) {
+            log.info(
+              {
+                deletedResults: summary.deletedResults,
+                cutoff: summary.cutoff.toISOString(),
+              },
+              'street singleplayer retention purge completed',
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          log.error({ err }, 'street singleplayer retention purge failed');
         });
 
       void purgeExpiredAuthArtifacts(db)

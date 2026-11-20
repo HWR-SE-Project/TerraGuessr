@@ -1,3 +1,61 @@
+# Verification — 20 November 2026 (Anforderungsanalyse R01–R20 compliance)
+
+This entry covers the Software-Engineering-Anforderungsanalyse compliance work: R03/R13
+weather-gated selection with automatic fallback, R05 difficulty levels, R07 list-mode guessing,
+R12 next-round prefetch, R14 tutorial, R18 durable 6-month result retention, plus verification
+of the already-correct R01/R02/R04/R06/R08–R11/R15/R19/R20. See
+[`docs/requirements/singleplayer-streetview-traceability.md`](../requirements/singleplayer-streetview-traceability.md)
+for the full requirement-by-requirement matrix.
+
+**Unit + integration (mocked doubles, deterministic):** backend 288/288 passing (37 files,
+including five new files: `singleplayer-location-selection.test.ts`, `singleplayer-candidates.test.ts`,
+`singleplayer-land.test.ts`, `street-purge.test.ts`, plus five new scenarios added to the existing
+`singleplayer.integration.test.ts`). Frontend 72/72 passing (13 files, including three new:
+`DifficultyPicker.test.tsx`, `Tutorial.test.tsx`, `CandidateList.test.tsx`). Both packages:
+`tsc` clean, lint clean (oxlint/eslint, same pre-existing warning baseline as before this work),
+production build clean.
+
+**Real-provider verification (no mocking — actual Google Street View, Maps JS, and Open-Meteo),
+rebuilt backend container, `npm run maps:doctor` passed first:**
+
+- `e2e/singleplayer.live.spec.ts` ("Home to five rounds, final results, new game, and Home"):
+  **passed** (real five-round game, real distance/score formula verified against the response,
+  real Play Again, real Return Home).
+- `e2e/singleplayer-difficulty.live.spec.ts` (new): **passed**, both scenarios — easy difficulty's
+  6-option named-city list with Geographic Intelligence expanded by default, and hard difficulty's
+  free map placement with the panel starting collapsed and still fully reachable.
+- `e2e/intelligence.live.spec.ts`: covers the same (unmodified) R06/R15 behavior; updated only to
+  dismiss the tutorial and click Start before asserting panorama readiness (see below).
+- `e2e/singleplayer.live.spec.ts` ("mobile: touch map, preserve pin through collapse and refresh,
+  and submit"): **not verified passing**. It fails deterministically (reproduced twice) at a
+  synthetic-touch panorama drag check unrelated to any file this task modified — the browser
+  console shows real GPU/WebGL stalls in this headless Chromium environment
+  (`GPU stall due to ReadPixels`, `CVDisplayLinkCreateWithCGDisplay failed`). This is an
+  environment limitation consistent with the project's own existing caveat ("touch verification
+  uses Chromium emulation, not a physical phone"), not a regression from this work — no file
+  related to touch handling or the Street View viewer was changed. Flagged honestly rather than
+  claimed passing; worth re-checking on a machine with real GPU acceleration or a physical device.
+
+**A real bug found and fixed during this verification:** the Tutorial (R14) was originally
+offered via a `useEffect` gated on the async config-check resolving. In the real browser this
+raced the welcome screen's "Start exploring" button becoming clickable — the tutorial could pop
+open as a native modal *after* Playwright (or a fast real user) had already located the button,
+intercepting the click and hanging. Fixed by deciding whether to show the tutorial synchronously,
+in `useState`'s lazy initializer, before first paint — this is a correctness fix for real users,
+not just the test. The e2e specs were also updated to robustly wait for (and dismiss) the tutorial
+before proceeding, rather than racing an immediate visibility check.
+
+**R13 (automatic fallback on weather failure) verification strategy:** the failure-injection path
+is verified deterministically via unit tests (`singleplayer-location-selection.test.ts`: bounded
+retry, exclusion, exhaustion → `WEATHER_UNAVAILABLE`) and integration tests with explicit
+`intelligence` doubles (`singleplayer.integration.test.ts`), not by forcing the real Open-Meteo
+API to fail on demand — consistent with distinguishing mocked-failure tests from real-provider
+verification. Every real round created during the live tests above exercised the real R03 gate
+successfully against actual Open-Meteo responses, confirming the gate doesn't false-positive-reject
+valid real-world locations.
+
+---
+
 # Verification — 19 November 2026
 
 ## Actual Google gameplay verified

@@ -2,36 +2,8 @@
   "provider": "Google Maps JavaScript API / Google Street View",
   "rounds": [
     {
-      "roundId": "cmwoxyuyf00haindiuqzp6hhb",
+      "roundId": "cmwpadnab00184s7fspm953bv",
       "number": 1,
-      "actual": {
-        "lat": 59.91395941353706,
-        "lon": 10.75260827621718
-      },
-      "guess": {
-        "lat": 59.1735712368309,
-        "lon": -135
-      },
-      "distanceKm": 6443.558648276949,
-      "score": 199
-    },
-    {
-      "roundId": "cmwoxz1mg00hcindisjpyfvd2",
-      "number": 2,
-      "actual": {
-        "lat": -36.84853965208237,
-        "lon": 174.7632739509757
-      },
-      "guess": {
-        "lat": 59.1735712368309,
-        "lon": -135
-      },
-      "distanceKm": 11635.11121273664,
-      "score": 15
-    },
-    {
-      "roundId": "cmwoxz32h00heindit7m3o46w",
-      "number": 3,
       "actual": {
         "lat": 37.56651320443169,
         "lon": 126.978029624941
@@ -44,32 +16,60 @@
       "score": 158
     },
     {
-      "roundId": "cmwoxz51c00hgindiwevtgtbt",
-      "number": 4,
+      "roundId": "cmwpadw3m001f4s7fahkh4nwl",
+      "number": 2,
       "actual": {
-        "lat": 38.72231505681214,
-        "lon": -9.139250243960104
+        "lat": 35.65949870590288,
+        "lon": 139.7005130105214
       },
       "guess": {
         "lat": 59.1735712368309,
         "lon": -135
       },
-      "distanceKm": 8046.55970388936,
-      "score": 89
+      "distanceKm": 6413.133876755604,
+      "score": 202
     },
     {
-      "roundId": "cmwoxz6ax00hiindipy77zbjo",
-      "number": 5,
+      "roundId": "cmwpadye7001i4s7fn7y95fo4",
+      "number": 3,
       "actual": {
-        "lat": 13.75631103963557,
-        "lon": 100.5017744393435
+        "lat": -36.84853965208237,
+        "lon": 174.7632739509757
       },
       "guess": {
         "lat": 59.1735712368309,
         "lon": -135
       },
-      "distanceKm": 10503.16115708528,
-      "score": 26
+      "distanceKm": 11635.11121273664,
+      "score": 15
+    },
+    {
+      "roundId": "cmwpadzya001l4s7faq2s4k88",
+      "number": 4,
+      "actual": {
+        "lat": -33.44890088709747,
+        "lon": -70.66920882973146
+      },
+      "guess": {
+        "lat": 59.1735712368309,
+        "lon": -135
+      },
+      "distanceKm": 11869.50721634393,
+      "score": 13
+    },
+    {
+      "roundId": "cmwpae3i2001o4s7fcet04ohm",
+      "number": 5,
+      "actual": {
+        "lat": 6.524446761950688,
+        "lon": 3.37927337869743
+      },
+      "guess": {
+        "lat": 59.1735712368309,
+        "lon": -135
+      },
+      "distanceKm": 11835.67995705411,
+      "score": 13
     }
   ],
   "errors": [],

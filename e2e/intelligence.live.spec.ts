@@ -21,10 +21,21 @@ test('live geographic intelligence: protected data, desktop states, movement and
       calls.push(new URL(request.url()).pathname)
   })
   await page.setViewportSize({ width: 1792, height: 861 })
+  await page.goto('/game/singleplayer')
+  // R14: the tutorial dialog opens asynchronously (after the config check
+  // resolves), so an immediate isVisible() check can race it — then it sits
+  // on screen as a modal and blocks every subsequent click. Wait for it.
+  const skipTutorial = page.getByRole('button', { name: 'Skip' })
+  try {
+    await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
+    await skipTutorial.click()
+  } catch {
+    // Already seen in this profile this run; nothing to dismiss.
+  }
   const received = page.waitForResponse((r) =>
     r.url().endsWith('/intelligence'),
   )
-  await page.goto('/game/singleplayer')
+  await page.getByRole('button', { name: 'Start exploring' }).click()
   await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
     timeout: 45_000,
   })

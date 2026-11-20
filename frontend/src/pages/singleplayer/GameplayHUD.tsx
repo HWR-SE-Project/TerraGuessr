@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 export function GameIcon({
   name,
 }: {
-  name: 'settings' | 'menu' | 'return' | 'expand' | 'collapse' | 'pin'
+  name: 'settings' | 'menu' | 'return' | 'expand' | 'collapse' | 'pin' | 'info'
 }) {
   const paths: Record<typeof name, ReactNode> = {
     settings: (
@@ -27,6 +27,12 @@ export function GameIcon({
       <>
         <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z" />
         <circle cx="12" cy="10" r="2.5" />
+      </>
+    ),
+    info: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v6m0-10v.2" />
       </>
     ),
   }

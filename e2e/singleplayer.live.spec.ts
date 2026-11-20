@@ -74,6 +74,20 @@ test('live Google: Home to five rounds, final results, new game, and Home', asyn
       .getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })
       .click()
     await expect(page).toHaveURL(/\/game\/singleplayer$/)
+    // R14: a fresh browser profile sees the tutorial once, but it opens
+    // asynchronously (after the config check resolves), so an immediate
+    // isVisible() check races it and can miss a dialog that opens a moment
+    // later — then blocks every subsequent click as a modal. Wait for it.
+    const skipTutorial = page.getByRole('button', { name: 'Skip' })
+    try {
+      await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
+      await skipTutorial.click()
+    } catch {
+      // Already seen in this profile this run; nothing to dismiss.
+    }
+    // R05: a fresh visit lands on the difficulty picker, not an auto-started
+    // round. Default difficulty (medium) is used for this coverage.
+    await page.getByRole('button', { name: 'Start exploring' }).click()
     for (let number = 1; number <= 5; number++) {
       const viewer = await waitForPanorama()
       await expect(page.locator('.sp-welcome')).toHaveCount(0)
@@ -205,6 +219,16 @@ test('live Google mobile: touch map, preserve pin through collapse and refresh, 
   const page = await context.newPage()
   try {
     await page.goto('/game/singleplayer')
+    // See the R14 comment in the desktop test above: wait for the dialog
+    // rather than racing an immediate isVisible() check against it.
+    const skipTutorial = page.getByRole('button', { name: 'Skip' })
+    try {
+      await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
+      await skipTutorial.click()
+    } catch {
+      // Already seen in this profile this run; nothing to dismiss.
+    }
+    await page.getByRole('button', { name: 'Start exploring' }).click()
     await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
       timeout: 40_000,
     })

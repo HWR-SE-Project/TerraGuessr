@@ -7,7 +7,8 @@ export type PanoramaErrorCode =
   | 'PROVIDER_BILLING_DISABLED'
   | 'PROVIDER_QUOTA_EXCEEDED'
   | 'PROVIDER_ACCESS_DENIED'
-  | 'PANORAMA_UNAVAILABLE';
+  | 'PANORAMA_UNAVAILABLE'
+  | 'WEATHER_UNAVAILABLE';
 
 export class PanoramaError extends Error {
   readonly statusCode = 503;

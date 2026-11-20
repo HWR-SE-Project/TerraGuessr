@@ -280,6 +280,13 @@
   opacity: var(--map-opacity);
   transition: height 0.2s ease;
 }
+.sp-map-wrap:has(.tg-candidate-section) {
+  height: auto;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 14px;
+  background: #0d161cf0;
+}
 .sp-map-surface,
 .sp-google-map {
   position: relative;
@@ -484,6 +491,59 @@
   background: #8d9ba0;
   border-radius: 50%;
 }
+.sp-difficulty {
+  border: 0;
+  padding: 0;
+  margin: 0 0 22px;
+  text-align: left;
+}
+.sp-difficulty legend {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #8d9ba0;
+  padding: 0 0 8px;
+}
+.sp-difficulty-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.sp-difficulty-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 11px;
+  border-radius: var(--radius-control);
+  text-align: left;
+  cursor: pointer;
+}
+.sp-difficulty-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #edf3f6;
+}
+.sp-difficulty-tagline {
+  font-size: 10px;
+  color: var(--sp-green, #a3ed45);
+  font-weight: 600;
+}
+.sp-difficulty-description {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: #b9c3c9;
+}
+.sp-difficulty-option--selected {
+  border-color: var(--sp-green, #a3ed45);
+  box-shadow: inset 0 0 0 1px var(--sp-green, #a3ed45);
+}
+.sp-difficulty:disabled .sp-difficulty-option,
+.sp-difficulty-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .sp-unavailable {
   border: 1px solid #b7c6ce25;
   border-radius: var(--radius-control);
@@ -593,6 +653,24 @@
   font-size: 27px;
   border: none;
   cursor: pointer;
+}
+.sp-tutorial h3 {
+  margin: 10px 0 6px;
+  font-size: 19px;
+}
+.sp-tutorial-dots {
+  display: flex;
+  gap: 6px;
+  margin: 18px 0 4px;
+}
+.sp-tutorial-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff2a;
+}
+.sp-tutorial-dots .sp-tutorial-dot-active {
+  background: var(--sp-green, #a3ed45);
 }
 .sp-muted {
   font-size: 12px;
@@ -940,6 +1018,9 @@
     gap: 9px;
     margin: 17px 0;
     font-size: 8px;
+  }
+  .sp-difficulty-options {
+    grid-template-columns: 1fr;
   }
   .sp-welcome .sp-unavailable {
     padding: 12px;

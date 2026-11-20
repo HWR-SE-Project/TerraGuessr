@@ -125,11 +125,16 @@ function direction(value: number | null | undefined) {
 export function GeographicIntelligence({
   load,
   round,
+  defaultExpanded = true,
 }: {
   load: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
   round: StreetRound
+  /** Hard difficulty starts this collapsed — a real but non-misleading
+   * difficulty lever; the four mandatory fields remain fully available on
+   * demand (R05). */
+  defaultExpanded?: boolean
 }) {
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const [climateOpen, setClimateOpen] = useState(false)

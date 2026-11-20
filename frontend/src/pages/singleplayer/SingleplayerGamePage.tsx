@@ -2,30 +2,55 @@ import { useEffect, useState } from 'react'
 import { Brand } from '../../components/ui/Brand'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useGameSession } from './useGameSession'
+import { useGameSession, STREET_SESSION_STORAGE_KEY } from './useGameSession'
 import { StreetViewViewer } from './StreetViewViewer'
 import { GuessMap } from './GuessMap'
+import { CandidateList } from '../../components/CandidateList'
 import { GameplayHUD, GameIcon } from './GameplayHUD'
 import { GameDialog } from './GameDialog'
 import { GameSettings } from './GameSettings'
 import { GeographicIntelligence } from './GeographicIntelligence'
 import { readSettings } from './settings'
+import { DifficultyPicker } from './DifficultyPicker'
+import { readDifficulty, saveDifficulty } from './difficulty'
+import { Tutorial, hasSeenTutorial, markTutorialSeen } from './Tutorial'
 import { RoundResults, FinalResults } from './GameResults'
 import { useCosmicBackgroundMode } from '../../components/cosmic/CosmicContext'
 import './SingleplayerGamePage.css'
 
 export function SingleplayerGamePage() {
   const navigate = useNavigate()
-  const game = useGameSession(true)
+  const game = useGameSession()
   const [dialog, setDialog] = useState<
-    'settings' | 'menu' | 'leave' | 'restart' | null
-  >(null)
+    'settings' | 'menu' | 'leave' | 'restart' | 'tutorial' | null
+  >(() => {
+    // Decided synchronously at mount, before first paint: offering the
+    // tutorial reactively (after the async config/session check resolves)
+    // can race with the welcome screen's Start button already being
+    // clickable. A resumable session (sessionStorage) always wins — the
+    // tutorial must never interrupt an in-progress expedition.
+    try {
+      if (hasSeenTutorial() || sessionStorage.getItem(STREET_SESSION_STORAGE_KEY))
+        return null
+    } catch {
+      return null
+    }
+    return 'tutorial'
+  })
   const [settings, setSettings] = useState(readSettings)
+  const [difficulty, setDifficulty] = useState(readDifficulty)
   const [expanded, setExpanded] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const active = game.session.activeRound
   const exploring = Boolean(active && !game.result && !game.showFinal)
+  const selectedCandidateId =
+    active?.candidates?.find(
+      (candidate) =>
+        game.guess &&
+        candidate.lat === game.guess.lat &&
+        candidate.lon === game.guess.lon,
+    )?.id ?? null
   useCosmicBackgroundMode(!exploring)
   const mapExpanded = expanded || (hovered && settings.hoverExpand)
   useEffect(() => {
@@ -38,6 +63,9 @@ export function SingleplayerGamePage() {
       /* Settings remain available in memory. */
     }
   }, [settings])
+  useEffect(() => {
+    saveDifficulty(difficulty)
+  }, [difficulty])
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (
@@ -112,6 +140,13 @@ export function SingleplayerGamePage() {
       <div className="sp-top-controls">
         <button
           className="sp-icon tg-control sp-glass"
+          aria-label="How to play"
+          onClick={() => setDialog('tutorial')}
+        >
+          <GameIcon name="info" />
+        </button>
+        <button
+          className="sp-icon tg-control sp-glass"
           aria-label="Game settings"
           onClick={() => setDialog('settings')}
         >
@@ -170,18 +205,27 @@ export function SingleplayerGamePage() {
               </button>
             </div>
           ) : (
-            <button
-              className="sp-primary tg-control tg-control--primary"
-              disabled={game.busy}
-              onClick={() => void game.next()}
-            >
-              {game.busy
-                ? 'Finding your first location…'
-                : game.session.id
-                  ? 'Continue expedition'
-                  : 'Start exploring'}{' '}
-              <span aria-hidden="true">→</span>
-            </button>
+            <>
+              {!game.session.id && (
+                <DifficultyPicker
+                  value={difficulty}
+                  onChange={setDifficulty}
+                  disabled={game.busy}
+                />
+              )}
+              <button
+                className="sp-primary tg-control tg-control--primary"
+                disabled={game.busy}
+                onClick={() => void game.next({ difficulty })}
+              >
+                {game.busy
+                  ? 'Finding your first location…'
+                  : game.session.id
+                    ? 'Continue expedition'
+                    : 'Start exploring'}{' '}
+                <span aria-hidden="true">→</span>
+              </button>
+            </>
           )}
         </section>
       )}
@@ -197,6 +241,7 @@ export function SingleplayerGamePage() {
           key={`${active.id}:${active.panoId}`}
           load={game.loadIntelligence}
           round={active}
+          defaultExpanded={game.session.difficulty !== 'hard'}
         />
       )}
       {game.result && (
@@ -214,7 +259,7 @@ export function SingleplayerGamePage() {
         <FinalResults
           session={game.session}
           busy={game.busy}
-          onPlayAgain={() => void game.next(true)}
+          onPlayAgain={() => void game.next({ restart: true, difficulty })}
           onHome={() => navigate('/')}
         />
       )}
@@ -263,32 +308,43 @@ export function SingleplayerGamePage() {
             >
               <GameIcon name="pin" />
               <span>
-                World Explorer<small>NO TIME LIMIT · MOVING ALLOWED</small>
+                {active?.candidates ? 'Pick a city' : 'World Explorer'}
+                <small>NO TIME LIMIT · MOVING ALLOWED</small>
               </span>
               <span aria-hidden="true">{collapsed ? '▴' : '▾'}</span>
             </button>
-            <button
-              className="sp-icon tg-control"
-              aria-label={mapExpanded ? 'Shrink map' : 'Expand map'}
-              aria-expanded={mapExpanded}
-              onClick={() => {
-                setExpanded(!mapExpanded)
-                setHovered(false)
-                setCollapsed(false)
-              }}
-            >
-              <GameIcon name={mapExpanded ? 'collapse' : 'expand'} />
-            </button>
+            {!active?.candidates && (
+              <button
+                className="sp-icon tg-control"
+                aria-label={mapExpanded ? 'Shrink map' : 'Expand map'}
+                aria-expanded={mapExpanded}
+                onClick={() => {
+                  setExpanded(!mapExpanded)
+                  setHovered(false)
+                  setCollapsed(false)
+                }}
+              >
+                <GameIcon name={mapExpanded ? 'collapse' : 'expand'} />
+              </button>
+            )}
           </header>
           <div id="guess-map-content" hidden={collapsed}>
             <div className="sp-map-wrap">
-              <GuessMap
-                key={active?.id ?? 'idle'}
-                guess={game.guess}
-                onChange={game.setGuess}
-                interactive={exploring && game.panoramaReady && !game.busy}
-              />
-              {!game.guess && game.panoramaReady && (
+              {active?.candidates ? (
+                <CandidateList
+                  candidates={active.candidates}
+                  onChange={game.setGuess}
+                  selectedId={selectedCandidateId}
+                />
+              ) : (
+                <GuessMap
+                  key={active?.id ?? 'idle'}
+                  guess={game.guess}
+                  onChange={game.setGuess}
+                  interactive={exploring && game.panoramaReady && !game.busy}
+                />
+              )}
+              {!active?.candidates && !game.guess && game.panoramaReady && (
                 <span className="sp-map-hint">
                   Click the map to place your pin
                 </span>
@@ -316,6 +372,14 @@ export function SingleplayerGamePage() {
           </div>
         </aside>
       )}
+      {dialog === 'tutorial' && (
+        <Tutorial
+          onClose={() => {
+            setDialog(null)
+            markTutorialSeen()
+          }}
+        />
+      )}
       {dialog === 'settings' && (
         <GameSettings
           settings={settings}
@@ -337,7 +401,7 @@ export function SingleplayerGamePage() {
                 if (game.inProgress || game.session.id) setDialog('restart')
                 else {
                   setDialog(null)
-                  void game.next(true)
+                  void game.next({ restart: true, difficulty })
                 }
               }}
             >
@@ -382,7 +446,7 @@ export function SingleplayerGamePage() {
                 const action = dialog
                 setDialog(null)
                 if (action === 'leave') navigate('/')
-                else void game.next(true)
+                else void game.next({ restart: true, difficulty })
               }}
             >
               {dialog === 'leave' ? 'Return home' : 'Restart game'}

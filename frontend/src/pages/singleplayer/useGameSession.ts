@@ -2,18 +2,22 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import { singleplayerApi } from '../../api/singleplayer'
 import type {
+  Difficulty,
   StreetCredentials,
   StreetResult,
   StreetSession,
 } from '../../api/singleplayer'
 import type { LatLon } from '../../api/types'
 import { browserMapsKey } from './googleMaps'
+import { DEFAULT_DIFFICULTY } from './difficulty'
 
-const STORAGE = 'terraguessr.streetSession.v1'
+export const STREET_SESSION_STORAGE_KEY = 'terraguessr.streetSession.v1'
+const STORAGE = STREET_SESSION_STORAGE_KEY
 const GUESS_STORAGE = 'terraguessr.streetGuess.v1'
 const emptySession = (): StreetSession => ({
   id: '',
   roundsTotal: 5,
+  difficulty: DEFAULT_DIFFICULTY,
   totalScore: 0,
   completed: false,
   activeRound: null,
@@ -182,7 +186,8 @@ export function useGameSession(autoStart = false) {
     [],
   )
   const next = useCallback(
-    async (restart = false) => {
+    async (options: { restart?: boolean; difficulty?: Difficulty } = {}) => {
+      const { restart = false, difficulty } = options
       await run('location', async () => {
         if (restart) {
           credentials.current = null
@@ -194,7 +199,7 @@ export function useGameSession(autoStart = false) {
           setPanoramaReady(false)
         }
         if (!credentials.current) {
-          credentials.current = await singleplayerApi.create()
+          credentials.current = await singleplayerApi.create(difficulty)
           save(credentials.current)
           setSession({ ...emptySession(), id: credentials.current.id })
         }

@@ -24,15 +24,25 @@ export interface GeographicIntelligence {
   }
   climate: null
 }
+export type Difficulty = 'easy' | 'medium' | 'hard'
 export interface StreetProviderConfig {
   available: boolean
   provider: 'google'
   serverKeyConfigured: boolean
 }
+export interface StreetCandidate {
+  id: string
+  name: string
+  region: string
+  lat: number
+  lon: number
+}
 export interface StreetRound {
   id: string
   number: number
   panoId: string
+  /** Easy-difficulty list-mode options (R07); absent on medium/hard. */
+  candidates?: StreetCandidate[]
 }
 export interface StreetResult {
   roundId: string
@@ -45,6 +55,7 @@ export interface StreetResult {
 export interface StreetSession {
   id: string
   roundsTotal: number
+  difficulty: Difficulty
   totalScore: number
   completed: boolean
   activeRound: StreetRound | null
@@ -60,9 +71,10 @@ export const singleplayerApi = {
     apiFetch<StreetProviderConfig>('/singleplayer/config', {
       playerToken: null,
     }),
-  create: () =>
+  create: (difficulty?: Difficulty) =>
     apiFetch<StreetCredentials>('/singleplayer/games', {
       method: 'POST',
+      body: difficulty ? { difficulty } : undefined,
       playerToken: null,
     }),
   session: (credentials: StreetCredentials) =>

@@ -22,6 +22,7 @@ vi.mock('./googleMaps', () => ({
 const empty: StreetSession = {
   id: 'test-game',
   roundsTotal: 5,
+  difficulty: 'medium',
   activeRound: null,
   results: [],
   totalScore: 0,
@@ -124,6 +125,29 @@ describe('singleplayer session controller (API doubles)', () => {
     expect(singleplayerApi.create).toHaveBeenCalledTimes(1)
     expect(result.current.session.activeRound).toEqual(round)
   })
+  it('creates a new game with the requested difficulty (R05)', async () => {
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next({ difficulty: 'easy' }))
+    expect(singleplayerApi.create).toHaveBeenCalledWith('easy')
+  })
+  it('creates a new game without a difficulty when none is given, letting the server default apply', async () => {
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next())
+    expect(singleplayerApi.create).toHaveBeenCalledWith(undefined)
+  })
+  it('carries easy-mode candidates through to the active round (R07)', async () => {
+    const candidates = [
+      { id: '0', name: 'London', region: 'EUROPE', lat: 51.5, lon: -0.1 },
+      { id: '1', name: 'Paris', region: 'EUROPE', lat: 48.9, lon: 2.3 },
+    ]
+    vi.mocked(singleplayerApi.next).mockResolvedValue({ ...round, candidates })
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next({ difficulty: 'easy' }))
+    expect(result.current.session.activeRound?.candidates).toEqual(candidates)
+  })
 })
 
 describe('recovery and complete expedition', () => {
@@ -214,7 +238,7 @@ describe('recovery and complete expedition', () => {
       id: 'second-game',
       activeRound: round,
     })
-    await act(() => result.current.next(true))
+    await act(() => result.current.next({ restart: true }))
     expect(singleplayerApi.create).toHaveBeenCalledTimes(2)
     expect(result.current.session.totalScore).toBe(0)
     expect(result.current.showFinal).toBe(false)

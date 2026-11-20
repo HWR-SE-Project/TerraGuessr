@@ -8,6 +8,35 @@ import { PanoramaError } from '../../src/modules/singleplayer/provider.js';
 import { haversineKm } from '../../src/domain/distance.js';
 import { scoreForDistance } from '../../src/domain/scoring.js';
 import { runMigrations } from './helpers/database.js';
+import type { GeographicIntelligence } from '../../src/modules/intelligence/contract.js';
+
+/** A deterministic, always-valid weather payload (R03) — explicit provider
+ * double so these tests never depend on real network access. */
+function validIntelligence(): GeographicIntelligence {
+  return {
+    fetchedAt: new Date().toISOString(),
+    cached: false,
+    weather: {
+      modelTime: null,
+      temperatureC: 18,
+      condition: 'Clear sky',
+      windSpeedKmh: 10,
+      windDirectionDeg: 180,
+      humidityPct: 40,
+      pressureHpa: 1013,
+      precipitationMm: 0,
+      precipitationIntervalMinutes: null,
+    },
+    environment: {
+      elevationM: 100,
+      reliefM: 10,
+      terrain: 'Low relief',
+      biome: null,
+      vegetation: null,
+    },
+    climate: null,
+  };
+}
 
 // Real PostgreSQL persistence and HTTP validation, explicit provider doubles.
 describe('Street View singleplayer lifecycle (database integration; provider doubles)', () => {
@@ -21,10 +50,11 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
     lon: 10,
   }));
   const locate = vi.fn(async () => ({ lat: 50.0001, lon: 10.0001 }));
+  const intelligence = vi.fn(async () => validIntelligence());
   beforeAll(async () => {
     runMigrations(process.env.DATABASE_URL!);
     registerErrorHandler(app);
-    registerSingleplayerRoutes(app, { db, provider, locate });
+    registerSingleplayerRoutes(app, { db, provider, locate, intelligence });
   });
   afterAll(async () => {
     await app.close();
@@ -265,6 +295,7 @@ describe('Street View scoring availability (real database; provider doubles)', (
         lat: 50,
         lon: 10,
       }),
+      intelligence: async () => validIntelligence(),
     });
   });
   afterAll(async () => {
@@ -333,6 +364,7 @@ describe('replacing unavailable Street View locations (database integration)', (
         }
         return { lat: 50, lon: 10 };
       },
+      intelligence: async () => validIntelligence(),
     });
   });
   afterAll(async () => {
@@ -411,5 +443,334 @@ describe('replacing unavailable Street View locations (database integration)', (
     expect(persisted.score).toBeNull();
     expect(persisted.panoId).toBe('retry-test-pano-1');
     pauseLookup = false;
+  });
+});
+
+describe('difficulty levels and list-mode candidates (R05/R07)', () => {
+  const db = new PrismaClient();
+  const app = Fastify();
+  const ids: string[] = [];
+  const provider = vi.fn(async (used: number[]) => ({
+    panoId: `difficulty-pano-${used.length}`,
+    targetIndex: used.length,
+    lat: 50,
+    lon: 10,
+  }));
+  beforeAll(() => {
+    registerErrorHandler(app);
+    registerSingleplayerRoutes(app, {
+      db,
+      provider,
+      locate: async () => ({ lat: 50, lon: 10 }),
+      intelligence: async () => validIntelligence(),
+    });
+  });
+  afterAll(async () => {
+    await app.close();
+    await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.$disconnect();
+  });
+  async function create(difficulty?: string) {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/singleplayer/games',
+      payload: difficulty ? { difficulty } : undefined,
+    });
+    const auth = response.json();
+    ids.push(auth.id);
+    return {
+      base: `/api/singleplayer/games/${auth.id}`,
+      headers: { 'x-player-token': auth.playerToken },
+      id: auth.id,
+    };
+  }
+  it('defaults to medium (no candidates) when no difficulty is requested', async () => {
+    const auth = await create();
+    const session = (await app.inject({ url: auth.base, headers: auth.headers })).json();
+    expect(session.difficulty).toBe('medium');
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    expect(round.candidates).toBeUndefined();
+  });
+  it('rejects an unrecognized difficulty value by falling back to medium', async () => {
+    const auth = await create('expert');
+    const session = (await app.inject({ url: auth.base, headers: auth.headers })).json();
+    expect(session.difficulty).toBe('medium');
+  });
+  it('offers a 6-option candidate list including the actual target on easy, never leaking which one is correct', async () => {
+    const auth = await create('easy');
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    expect(round.candidates).toHaveLength(6);
+    const ids = round.candidates.map((c: { id: string }) => c.id);
+    expect(new Set(ids).size).toBe(6);
+    // The server never marks which candidate is correct in the payload.
+    for (const candidate of round.candidates) {
+      expect(Object.keys(candidate).sort()).toEqual(['id', 'lat', 'lon', 'name', 'region']);
+    }
+    // Resuming the session redisplays the same list instead of re-rolling it.
+    const resumed = (await app.inject({ url: auth.base, headers: auth.headers })).json();
+    expect(resumed.activeRound.candidates).toEqual(round.candidates);
+  });
+});
+
+describe('automatic location replacement on weather failure (R03/R13)', () => {
+  const db = new PrismaClient();
+  const app = Fastify();
+  const ids: string[] = [];
+  const provider = vi.fn(async (used: number[]) => ({
+    panoId: `weather-pano-${used.length}`,
+    targetIndex: used.length,
+    lat: 50,
+    lon: 10,
+  }));
+  const intelligence = vi.fn(async (): Promise<GeographicIntelligence> => ({
+    ...validIntelligence(),
+    weather: null,
+  }));
+  beforeAll(() => {
+    registerErrorHandler(app);
+    registerSingleplayerRoutes(app, {
+      db,
+      provider,
+      locate: async () => ({ lat: 50, lon: 10 }),
+      intelligence,
+    });
+  });
+  afterAll(async () => {
+    await app.close();
+    await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.$disconnect();
+  });
+  async function create() {
+    const auth = (
+      await app.inject({ method: 'POST', url: '/api/singleplayer/games' })
+    ).json();
+    ids.push(auth.id);
+    return {
+      base: `/api/singleplayer/games/${auth.id}`,
+      headers: { 'x-player-token': auth.playerToken },
+      id: auth.id as string,
+    };
+  }
+  it('skips a location whose weather cannot be loaded and automatically tries another', async () => {
+    const auth = await create();
+    intelligence
+      .mockResolvedValueOnce({ ...validIntelligence(), weather: null })
+      .mockResolvedValueOnce(validIntelligence());
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    expect(round.panoId).toBe('weather-pano-1'); // index 0 was rejected for missing weather
+    expect(await db.streetRound.count({ where: { panoId: 'weather-pano-0' } })).toBe(0);
+  });
+  it('never starts a round and returns a recoverable 503 when weather is unavailable everywhere', async () => {
+    const auth = await create();
+    const failed = await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds`,
+      headers: auth.headers,
+    });
+    expect(failed.statusCode).toBe(503);
+    expect(failed.json().error.code).toBe('WEATHER_UNAVAILABLE');
+    expect(await db.streetRound.count({ where: { gameId: auth.id } })).toBe(0);
+    // Recoverable: once weather is available, a normal retry succeeds.
+    intelligence.mockResolvedValueOnce(validIntelligence());
+    const retried = await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds`,
+      headers: auth.headers,
+    });
+    expect(retried.statusCode).toBe(200);
+  });
+});
+
+describe('next-round prefetch (R12)', () => {
+  const db = new PrismaClient();
+  const app = Fastify();
+  const ids: string[] = [];
+  const provider = vi.fn(async (used: number[]) => ({
+    panoId: `prefetch-pano-${used.length}`,
+    targetIndex: used.length,
+    lat: 50,
+    lon: 10,
+  }));
+  const intelligence = vi.fn(async () => validIntelligence());
+  beforeAll(() => {
+    registerErrorHandler(app);
+    registerSingleplayerRoutes(app, {
+      db,
+      provider,
+      locate: async () => ({ lat: 50, lon: 10 }),
+      intelligence,
+    });
+  });
+  afterAll(async () => {
+    await app.close();
+    await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.$disconnect();
+  });
+  async function create() {
+    const auth = (
+      await app.inject({ method: 'POST', url: '/api/singleplayer/games' })
+    ).json();
+    ids.push(auth.id);
+    return {
+      base: `/api/singleplayer/games/${auth.id}`,
+      headers: { 'x-player-token': auth.playerToken },
+      id: auth.id,
+    };
+  }
+  it('consumes a cached prefetch without calling the provider again, and clears it so it cannot be reused', async () => {
+    const auth = await create();
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    // Seed a prefetch directly, as the background job (fire-and-forget) would.
+    await db.streetGame.update({
+      where: { id: auth.id },
+      data: {
+        nextTargetIndex: 99,
+        nextPanoId: 'prefetched-pano',
+        nextTargetLat: 12,
+        nextTargetLon: 34,
+      },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/guess`,
+      headers: auth.headers,
+      payload: { lat: 50, lon: 10 },
+    });
+    const callsBefore = provider.mock.calls.length;
+    const next = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    expect(next.panoId).toBe('prefetched-pano');
+    expect(provider.mock.calls.length).toBe(callsBefore); // fast path: no new provider call
+    const game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
+    expect(game.nextPanoId).toBeNull();
+  });
+  it('actually populates a prefetch in the background after a guess (fire-and-forget, event-driven)', async () => {
+    const auth = await create();
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/guess`,
+      headers: auth.headers,
+      payload: { lat: 50, lon: 10 },
+    });
+    let game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
+    for (let i = 0; i < 40 && !game.nextPanoId; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
+    }
+    expect(game.nextPanoId).not.toBeNull();
+    expect(game.nextTargetIndex).not.toBeNull();
+  });
+  it('does not prefetch once the game is already complete', async () => {
+    const auth = await create();
+    for (let number = 1; number <= 5; number++) {
+      const round = (
+        await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+      ).json();
+      await app.inject({
+        method: 'POST',
+        url: `${auth.base}/rounds/${round.id}/guess`,
+        headers: auth.headers,
+        payload: { lat: 50, lon: 10 },
+      });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
+    expect(game.nextPanoId).toBeNull();
+  });
+});
+
+describe('durable result archive (R18)', () => {
+  const db = new PrismaClient();
+  const app = Fastify();
+  const ids: string[] = [];
+  beforeAll(() => {
+    registerErrorHandler(app);
+    registerSingleplayerRoutes(app, {
+      db,
+      provider: async (used) => ({
+        panoId: `archive-pano-${used.length}`,
+        targetIndex: used.length,
+        lat: 50,
+        lon: 10,
+      }),
+      locate: async () => ({ lat: 50.25, lon: 10.25 }),
+      intelligence: async () => validIntelligence(),
+    });
+  });
+  afterAll(async () => {
+    await app.close();
+    await db.streetResult.deleteMany({ where: { gameId: { in: ids } } });
+    await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.$disconnect();
+  });
+  it('archives the completed round with actual + guess coordinates, score, and difficulty', async () => {
+    const auth = (
+      await app.inject({
+        method: 'POST',
+        url: '/api/singleplayer/games',
+        payload: { difficulty: 'hard' },
+      })
+    ).json();
+    ids.push(auth.id);
+    const base = `/api/singleplayer/games/${auth.id}`;
+    const headers = { 'x-player-token': auth.playerToken };
+    const round = (
+      await app.inject({ method: 'POST', url: `${base}/rounds`, headers })
+    ).json();
+    const scored = (
+      await app.inject({
+        method: 'POST',
+        url: `${base}/rounds/${round.id}/guess`,
+        headers,
+        payload: { lat: 48, lon: 11 },
+      })
+    ).json();
+    const archived = await db.streetResult.findUniqueOrThrow({
+      where: { roundId: round.id },
+    });
+    expect(archived.gameId).toBe(auth.id);
+    expect(archived.difficulty).toBe('hard');
+    expect(archived.actualLat).toBe(50.25);
+    expect(archived.actualLon).toBe(10.25);
+    expect(archived.guessLat).toBe(48);
+    expect(archived.guessLon).toBe(11);
+    expect(archived.score).toBe(scored.score);
+    expect(archived.distanceKm).toBe(scored.distanceKm);
+  });
+  it('survives deletion of the 24h-expired session (decoupled retention, R18)', async () => {
+    const auth = (
+      await app.inject({ method: 'POST', url: '/api/singleplayer/games' })
+    ).json();
+    const base = `/api/singleplayer/games/${auth.id}`;
+    const headers = { 'x-player-token': auth.playerToken };
+    const round = (
+      await app.inject({ method: 'POST', url: `${base}/rounds`, headers })
+    ).json();
+    await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/${round.id}/guess`,
+      headers,
+      payload: { lat: 48, lon: 11 },
+    });
+    // Simulate the 24h session-expiry cleanup, which cascades StreetRound.
+    await db.streetGame.delete({ where: { id: auth.id } });
+    expect(await db.streetRound.count({ where: { id: round.id } })).toBe(0);
+    const archived = await db.streetResult.findUniqueOrThrow({
+      where: { roundId: round.id },
+    });
+    expect(archived.gameId).toBe(auth.id);
+    await db.streetResult.delete({ where: { roundId: round.id } });
   });
 });
