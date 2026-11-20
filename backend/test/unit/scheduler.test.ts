@@ -4,7 +4,7 @@ import {
   PURGE_CRON_TIMEZONE,
   startScheduler,
 } from '../../src/scheduler/index.js';
-import type { PurgeClient } from '../../src/scheduler/purge.js';
+import type { SchedulerClient } from '../../src/scheduler/index.js';
 
 describe('startScheduler (R18, node-cron v4 wiring)', () => {
   let task: { stop: () => void | Promise<void> } | undefined;
@@ -15,7 +15,7 @@ describe('startScheduler (R18, node-cron v4 wiring)', () => {
   });
 
   it('schedules the daily purge at 03:00 UTC and returns a controllable task', () => {
-    const db = {} as unknown as PurgeClient;
+    const db = {} as unknown as SchedulerClient;
 
     task = startScheduler(db);
 
@@ -29,7 +29,7 @@ describe('startScheduler (R18, node-cron v4 wiring)', () => {
     const log = { info: vi.fn(), error: vi.fn() };
     const db = {
       result: { findMany: vi.fn().mockRejectedValue(new Error('db down')) },
-    } as unknown as PurgeClient;
+    } as unknown as SchedulerClient;
 
     task = startScheduler(db, log);
     // Run the scheduled job body directly instead of waiting for 03:00 UTC.

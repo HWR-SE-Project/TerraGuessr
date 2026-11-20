@@ -24,11 +24,10 @@ export async function assertSameSiteMutation(request: FastifyRequest, config: En
   if (request.headers['sec-fetch-site'] === 'cross-site') throw new AuthError(403, 'Cross-site account request rejected');
   const origin = request.headers.origin;
   if (!origin) return;
-  const forwardedHost = request.headers['x-forwarded-host'];
-  const forwardedProto = request.headers['x-forwarded-proto'];
-  const effectiveHost = typeof forwardedHost === 'string' ? forwardedHost : request.headers.host;
-  const effectiveProto = typeof forwardedProto === 'string' ? forwardedProto.split(',')[0]!.trim() : request.protocol;
-  const requestOrigin = effectiveHost ? `${effectiveProto}://${effectiveHost}` : '';
+  // `request.host`/`request.protocol` only honor X-Forwarded-* when the app was
+  // configured with a matching `trustProxy`, so a client cannot spoof the
+  // forwarded headers to make its own origin look same-site.
+  const requestOrigin = request.host ? `${request.protocol}://${request.host}` : '';
   const allowed = new Set([config.appBaseUrl, typeof config.corsOrigin === 'string' ? config.corsOrigin : undefined].filter(Boolean).map((value) => new URL(value!).origin));
   if (origin !== requestOrigin && !allowed.has(origin)) throw new AuthError(403, 'Cross-site account request rejected');
 }

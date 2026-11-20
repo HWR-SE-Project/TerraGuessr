@@ -1,5 +1,7 @@
 export interface Env {
   databaseUrl: string;
+  /** NODE_ENV as provided by the runtime; drives production-only safeguards. */
+  nodeEnv: string;
   googleMapsServerKey?: string;
   port: number;
   /** false disables CORS entirely (same-origin only) — the safe default (Phase C). */
@@ -15,6 +17,13 @@ export interface Env {
   smtpUrl?: string;
   smtpFrom?: string;
   sessionCookieSecure: boolean;
+  /**
+   * Fastify `trustProxy` setting. `true` trusts every hop, a number trusts that
+   * many proxies, and any other string is treated as a comma-separated
+   * address/subnet list (proxy-addr syntax). Keep this scoped to the actual
+   * reverse proxy so client IPs cannot be spoofed.
+   */
+  trustProxy: boolean | number | string;
 }
 
 const DEFAULT_PORT = 3000;
@@ -29,6 +38,19 @@ function parsePort(raw: string | undefined): number {
   return port;
 }
 
+/**
+ * `TRUST_PROXY` accepts `true`/`false`, a hop count, or a comma-separated
+ * proxy-addr list. Defaults to `false`: never trust forwarded headers unless
+ * the deployment explicitly says which proxy sits in front of the app.
+ */
+function parseTrustProxy(raw: string | undefined): boolean | number | string {
+  const value = raw?.trim();
+  if (!value || value === 'false') return false;
+  if (value === 'true') return true;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
+}
+
 export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
   const databaseUrl = env.DATABASE_URL?.trim();
   if (!databaseUrl) {
@@ -37,6 +59,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
 
   return {
     databaseUrl,
+    nodeEnv: env.NODE_ENV?.trim() || 'development',
     googleMapsServerKey: env.GOOGLE_MAPS_SERVER_API_KEY?.trim() || undefined,
     port: parsePort(env.PORT),
     // No wildcard default (Phase C): an unset CORS_ORIGIN disables
@@ -56,5 +79,6 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     smtpFrom: env.SMTP_FROM?.trim() || undefined,
     sessionCookieSecure:
       env.NODE_ENV === 'production' || env.SESSION_COOKIE_SECURE === 'true',
+    trustProxy: parseTrustProxy(env.TRUST_PROXY),
   };
 }

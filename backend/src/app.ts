@@ -22,6 +22,10 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   const app: FastifyInstance = Fastify({
     logger: { level: config.logLevel },
+    // Use the real client address for rate limits and redirect/origin checks.
+    // Defaults to false; deployments behind Caddy/nginx set TRUST_PROXY.
+    // Fastify's types omit numeric hop counts even though proxy-addr supports them.
+    trustProxy: config.trustProxy as boolean | string | string[],
   });
 
   registerErrorHandler(app);

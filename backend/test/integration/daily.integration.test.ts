@@ -16,7 +16,7 @@ describe('Daily Challenge (integration)', () => {
     db = await setupDatabase();
     app = Fastify({ logger: { level: 'silent' } });
     registerErrorHandler(app);
-    const config = { databaseUrl: process.env.DATABASE_URL!, port: 3000, corsOrigin: false as const, adminApiToken: '', openMeteoBaseUrl: 'https://api.open-meteo.com', logLevel: 'silent', sessionCookieSecure: false };
+    const config = { databaseUrl: process.env.DATABASE_URL!, nodeEnv: 'test', port: 3000, corsOrigin: false as const, adminApiToken: '', openMeteoBaseUrl: 'https://api.open-meteo.com', logLevel: 'silent', sessionCookieSecure: false, trustProxy: false };
     registerAuthRoutes(app, { db, config });
     registerDailyRoutes(app, { db, config, weatherClient: new StubWeatherClient() });
     registerStatisticsRoutes(app, db);

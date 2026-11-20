@@ -28,4 +28,12 @@ describe('loadEnv', () => {
       loadEnv({ DATABASE_URL: 'postgresql://x', PORT: 'not-a-number' }),
     ).toThrow(/Invalid PORT value/);
   });
+
+  it('does not trust proxy headers by default and parses TRUST_PROXY forms', () => {
+    expect(loadEnv({ DATABASE_URL: 'postgresql://x' }).trustProxy).toBe(false);
+    expect(loadEnv({ DATABASE_URL: 'postgresql://x', TRUST_PROXY: 'false' }).trustProxy).toBe(false);
+    expect(loadEnv({ DATABASE_URL: 'postgresql://x', TRUST_PROXY: 'true' }).trustProxy).toBe(true);
+    expect(loadEnv({ DATABASE_URL: 'postgresql://x', TRUST_PROXY: '1' }).trustProxy).toBe(1);
+    expect(loadEnv({ DATABASE_URL: 'postgresql://x', TRUST_PROXY: '10.0.0.0/8' }).trustProxy).toBe('10.0.0.0/8');
+  });
 });

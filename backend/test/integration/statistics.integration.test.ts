@@ -18,7 +18,7 @@ describe('account statistics (integration)', () => {
     db = await setupDatabase();
     app = Fastify({ logger: { level: 'silent' } });
     registerErrorHandler(app);
-    const config: Env = { databaseUrl: process.env.DATABASE_URL!, port: 3000, corsOrigin: false, adminApiToken: '', openMeteoBaseUrl: 'https://api.open-meteo.com', logLevel: 'silent', sessionCookieSecure: false };
+    const config: Env = { databaseUrl: process.env.DATABASE_URL!, nodeEnv: 'test', port: 3000, corsOrigin: false, adminApiToken: '', openMeteoBaseUrl: 'https://api.open-meteo.com', logLevel: 'silent', sessionCookieSecure: false, trustProxy: false };
     registerAuthRoutes(app, { db, config });
     registerGamesRoutes(app, db);
     registerRoundsRoutes(app, db, new StubWeatherClient());

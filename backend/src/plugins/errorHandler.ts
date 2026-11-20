@@ -28,6 +28,11 @@ function resolveCode(error: FastifyError): string {
   if (error.validation) {
     return 'VALIDATION_ERROR';
   }
+  // Domain errors may set a stable app-level code (e.g. EMAIL_NOT_VERIFIED).
+  const appCode = (error as FastifyError & { appCode?: unknown }).appCode;
+  if (typeof appCode === 'string' && appCode.length > 0) {
+    return appCode;
+  }
   const statusCode = error.statusCode ?? 500;
   return STATUS_CODE_MAP[statusCode] ?? 'INTERNAL_ERROR';
 }
