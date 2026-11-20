@@ -1,0 +1,240 @@
+/* Control material is independent of layout. Add tg-control and an optional
+   variant to buttons/links; existing component classes retain sizing and logic.
+   Root scope gives this contract priority over the older page surface rules. */
+#root .tg-control {
+  --control-fill: var(--glass-fill);
+  --control-ink: var(--color-text);
+  --control-edge: var(--glass-border);
+  --control-light: #ffffff00;
+  --control-shading: var(--glass-shading);
+  --control-reflection: var(--glass-reflection);
+  --control-inner: var(--glass-inner);
+  --control-shadow: var(--glass-shadow);
+  border: 1px solid var(--control-edge);
+  background:
+    linear-gradient(var(--control-light), var(--control-light)),
+    var(--control-reflection), var(--control-shading), var(--control-fill);
+  color: var(--control-ink);
+  box-shadow: var(--control-inner), var(--control-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+  border-radius: var(--radius-control);
+  text-shadow: none;
+  font-weight: 600;
+  transition:
+    background 220ms var(--ease-out),
+    border-color 220ms var(--ease-out),
+    box-shadow 220ms var(--ease-out),
+    color 180ms var(--ease-out),
+    translate 220ms var(--ease-out),
+    scale 180ms var(--ease-out);
+}
+
+#root .tg-control--primary {
+  --control-fill: #b6e8799e;
+  --control-ink: #182b16;
+  --control-edge: #ecffcc78;
+  --control-shading: linear-gradient(165deg, #f6ffe060, #c0f66b16 48%, #3f6b2734);
+  --control-reflection: radial-gradient(ellipse at 15% 0%, #faffea5c, transparent 68%);
+  --control-inner: inset 0 1px 0 #f8ffeaa0, inset 0 -1px 0 #1f3a0c3a;
+}
+
+#root :is(.tg-control--tinted, .tg-control[aria-current='page'],
+  .tg-control[aria-pressed='true'], .settings-tabs .tg-control[aria-selected='true']) {
+  --control-fill: #8db85326;
+  --control-ink: #d5fba5;
+  --control-edge: #c0f66b57;
+  --control-reflection: radial-gradient(ellipse at 15% 0%, #d4ff9c1f, transparent 70%);
+  --control-inner: inset 0 1px 0 #e7ffc435, inset 0 -1px 0 #02081540;
+}
+
+#root .tg-control--cyan {
+  --control-fill: #31647a42;
+  --control-edge: #8cd4f040;
+  --control-ink: #e1f3ff;
+}
+
+#root .tg-control--danger {
+  --control-fill: #7e3d4938;
+  --control-ink: #ffc0c2;
+  --control-edge: #ff9b9e50;
+}
+
+#root .tg-control--light {
+  --control-fill: #e5edf5ed;
+  --control-ink: #192b3c;
+  --control-edge: #f4f9ffb3;
+  --control-shading: linear-gradient(160deg, #ffffff6b, #ffffff05 48%, #94b3d326);
+  --control-inner: inset 0 1px 0 #ffffffc4, inset 0 -1px 0 #7896b52e;
+}
+
+/* Lift uses the independent translate property so positioned controls keep
+   their existing centering transforms. Touch devices do not get sticky hover. */
+@media (hover: hover) and (pointer: fine) {
+  #root .tg-control:hover:not(:disabled):not([aria-disabled='true']) {
+    --control-light: #ffffff0b;
+    --control-edge: var(--glass-border-hover);
+    --control-shadow: var(--glass-shadow-hover);
+    translate: 0 -1px;
+  }
+}
+#root .tg-control:active:not(:disabled):not([aria-disabled='true']) {
+  --control-light: #030b161a;
+  --control-shadow: 0 2px 5px #01061026;
+  --control-inner: inset 0 2px 5px #02081526, inset 0 1px #ffffff14;
+  translate: 0 1px;
+  scale: 0.98;
+}
+#root .tg-control:focus-visible {
+  outline: 2px solid #d4ff9b;
+  outline-offset: 3px;
+  --control-edge: #d4ff9b99;
+  --control-shadow: 0 0 0 5px #0a1729cc, var(--glass-shadow-hover);
+}
+#root .tg-control:is(:disabled, [aria-disabled='true']) {
+  --control-fill: #263548cc;
+  --control-ink: #a4b3c5;
+  --control-edge: #bfcee01f;
+  --control-reflection: linear-gradient(#ffffff00, #ffffff00);
+  --control-shading: linear-gradient(160deg, #d8eaff08, #080f1b10);
+  --control-inner: inset 0 1px #ffffff0d;
+  --control-shadow: 0 2px 6px #0106101a;
+  opacity: 0.65;
+  cursor: not-allowed;
+  translate: none;
+  scale: none;
+}
+
+/* Shapes and small optical adjustments shared by each control family. */
+#root :is(.th-nav-item, .th-edit-avatar, .th-profile-link,
+  .geo-landing__login, .geo-landing__signup, .gi-mobile-trigger) {
+  border-radius: var(--radius-pill);
+}
+#root .th-profile-link { padding: 5px 12px 5px 5px; min-height: 44px; }
+#root .th-profile-avatar { box-shadow: inset 0 1px #e9ffc42b; }
+#root .th-edit-avatar { min-height: 40px; }
+#root :is(.th-mode, .tg-candidate) { border-radius: 24px; }
+#root .th-mode { transform: none; }
+#root .th-mode:hover { translate: 0 -2px; }
+#root .th-mode:active { translate: 0 1px; }
+#root .th-mode small { color: #bac9d9; }
+#root .th-mode-active small { color: #334c28; }
+#root .th-mode-icon {
+  border: 1px solid #d5e8ff1f;
+  background: linear-gradient(145deg, #ebf5ff12, #a2c2ed04);
+  box-shadow: inset 0 1px #ffffff17, 0 2px 5px #01061014;
+  border-radius: 15px;
+}
+#root .th-mode-active .th-mode-icon {
+  border-color: #34511c1c;
+  background: linear-gradient(145deg, #f2ffdf40, #3652210d);
+  box-shadow: inset 0 1px #f6ffe657;
+}
+#root .th-mode:not(.th-mode-active) .th-mode-arrow { color: #b0c1d2; }
+#root :is(.th-notice-close, .tg-duel-overlay-close, .sp-compass) { border-radius: 50%; }
+#root .sp-map-mode { border-radius: 12px; min-height: 40px; padding: 5px 8px; margin-right: 5px; }
+#root .sp-map-wrap { border-radius: 12px; }
+#root .sp-guess-panel { border-radius: 22px; padding: 7px; }
+#root .sp-guess-button kbd { border-radius: 6px; }
+#root .tg-button svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* Supporting shells use the same optics, without lifting or press feedback. */
+#root :is(.sp-glass:not(.tg-control), .gi-panel, .gi-sheet, .sp-dialog,
+  .tg-confirm-dialog, .tg-duel-overlay, .th-notice) {
+  background: var(--glass-reflection), var(--glass-shading), var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-inner), 0 16px 48px #0106104d;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
+}
+#root :is(.sp-hud, .gi-panel) { border-radius: 20px; }
+#root .settings-tabs { border-radius: 20px; gap: 5px; }
+
+/* Inset fields and tactile switches complete the control surface. */
+#root :is(.tg-email-field input, .settings-text-input, .settings-language-select,
+  .tg-challenge-entry-form input) {
+  background: linear-gradient(165deg, #040c1633, #8cb4de08), #080f1b80;
+  border: 1px solid #b4d2ed2e;
+  box-shadow: inset 0 2px 5px #0000001a, 0 1px #ffffff08;
+  transition: border-color 180ms, box-shadow 180ms;
+}
+#root :is(.tg-email-field input, .settings-text-input,
+  .tg-challenge-entry-form input):focus-visible {
+  outline: 2px solid #d4ff9b;
+  outline-offset: 3px;
+  border-color: #c0f66b70;
+}
+#root .settings-toggle > span {
+  background: var(--glass-shading), #27394f;
+  box-shadow: inset 0 1px 4px #01061066, 0 1px #ffffff14;
+  border: 1px solid #d3e6ff26;
+}
+#root .settings-toggle > span::after {
+  top: 3px;
+  left: 3px;
+  background: linear-gradient(145deg, #f2f7fc, #a5bbd1);
+  box-shadow: inset 0 1px #fff9, 0 2px 5px #0106104d;
+}
+#root .settings-toggle input:checked + span {
+  background: linear-gradient(160deg, #d3fc9c, #93c359);
+}
+#root .settings-toggle input:checked + span::after {
+  background: linear-gradient(145deg, #f3ffdf, #d4edba);
+}
+#root .sp-setting input[role='switch'] {
+  appearance: none;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border: 1px solid #d3e6ff26;
+  border-radius: var(--radius-pill);
+  background: var(--glass-shading), #27394f;
+  box-shadow: inset 0 1px 4px #01061066, 0 1px #ffffff14;
+  transition: background 180ms;
+}
+#root .sp-setting input[role='switch']::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f2f7fc, #a5bbd1);
+  box-shadow: inset 0 1px #fff9, 0 2px 5px #0106104d;
+  transition: transform 180ms var(--ease-out);
+}
+#root .sp-setting input[role='switch']:checked {
+  background: linear-gradient(160deg, #d3fc9c, #93c359);
+}
+#root .sp-setting input[role='switch']:checked::after { transform: translateX(20px); }
+#root .sp-setting input[type='range'] { accent-color: #c6f391; }
+
+@media (max-width: 600px) {
+  #root .th-profile-link { padding: 4px; }
+  #root .th-mode { border-radius: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .tg-control { transition: none; }
+  #root .tg-control:is(:hover, :active) { translate: none; scale: none; }
+  #root .sp-setting input[role='switch']::after { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .tg-control { --glass-fill: #192b40; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  #root .tg-control--primary { --control-fill: #b6e879; }
+  #root .tg-control--light { --control-fill: #e5edf5; }
+  #root :is(.sp-glass, .gi-panel, .gi-sheet, .sp-dialog, .tg-confirm-dialog, .tg-duel-overlay, .th-notice) {
+    --glass-fill: #192b40;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  #root .tg-control { border: 1px solid ButtonText; box-shadow: none; }
+  #root .tg-control:focus-visible { outline: 2px solid Highlight; }
+  #root .tg-control:is([aria-current='page'], [aria-pressed='true'], [aria-selected='true']) {
+    border: 2px solid Highlight;
+  }
+  #root .sp-setting input[role='switch'] { appearance: auto; }
+  #root .sp-setting input[role='switch']::after { display: none; }
+}

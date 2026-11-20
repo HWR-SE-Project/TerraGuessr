@@ -73,7 +73,7 @@ export function RoundResults({
         </div>
       </div>
       <footer className="sp-result-actions">
-        <Button className="sp-primary" disabled={busy} onClick={onNext}>
+        <Button className="sp-primary tg-control tg-control--primary" disabled={busy} onClick={onNext}>
           {busy
             ? 'Loading next location…'
             : result.number === roundsTotal
@@ -141,12 +141,12 @@ export function FinalResults({
         </div>
       </div>
       <footer className="sp-result-actions">
-        <Button className="sp-primary" disabled={busy} onClick={onPlayAgain}>
+        <Button className="sp-primary tg-control tg-control--primary" disabled={busy} onClick={onPlayAgain}>
           {busy ? 'Starting…' : 'Play again'} <span aria-hidden="true">↗</span>
         </Button>
         <Button
           variant="secondary"
-          className="sp-secondary"
+          className="sp-secondary tg-control"
           disabled={busy}
           onClick={onHome}
         >

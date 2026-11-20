@@ -54,7 +54,7 @@
 }
 .sp-glass {
   background: #101c2ce8;
-  border: 1px solid var(--color-border-strong) !important;
+  border: 1px solid var(--color-border-strong);
   box-shadow: 0 3px 16px #0002;
   backdrop-filter: blur(14px);
 }
@@ -138,8 +138,8 @@
   min-height: 44px;
   padding: 11px 19px;
   border-radius: var(--radius-control);
-  font-size: 13px !important;
-  font-weight: 650 !important;
+  font-size: 13px;
+  font-weight: 650;
 }
 .sp-hud {
   position: absolute;
@@ -242,8 +242,8 @@
   text-align: left;
   padding: 0;
   background: transparent;
-  font-size: 12px !important;
-  font-weight: 600 !important;
+  font-size: 12px;
+  font-weight: 600;
 }
 .sp-map-mode svg {
   width: 18px;
@@ -334,14 +334,14 @@
   align-items: center;
   justify-content: center;
   gap: 17px;
-  border: 1px solid #b3f36c !important;
+  border: 1px solid #b3f36c;
   background: var(--sp-green, #a3ed45);
-  color: #17270c !important;
+  color: #17270c;
   min-height: 46px;
   padding: 12px 24px;
   border-radius: var(--radius-control);
-  font-weight: 650 !important;
-  font-size: 13px !important;
+  font-weight: 650;
+  font-size: 13px;
   cursor: pointer;
 }
 .sp-primary:hover:enabled {
@@ -349,15 +349,15 @@
 }
 .sp-primary:disabled {
   background: #909a8a;
-  border-color: #ffffff20 !important;
+  border-color: #ffffff20;
 }
 .sp-secondary {
   padding: 12px 19px;
   min-height: 44px;
-  border: 1px solid #ffffff25 !important;
+  border: 1px solid #ffffff25;
   border-radius: var(--radius-control);
   background: #ffffff08;
-  color: #e8eef1 !important;
+  color: #e8eef1;
   cursor: pointer;
 }
 .sp-secondary:hover {
@@ -895,7 +895,7 @@
     padding: 12px;
   }
   .sp-map-mode {
-    font-size: 10px !important;
+    font-size: 10px;
   }
   .sp-map-mode small {
     font-size: 5.8px;
@@ -1031,8 +1031,8 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-page *,
   .sp-page *::before {
-    transition: none !important;
-    animation-duration: 2s !important;
+    transition: none;
+    animation-duration: 2s;
   }
 }
 /* Keep the compact HUD clear of Return on narrow phones. */
@@ -1121,7 +1121,7 @@
   padding-inline: 8px 0;
 }
 .sp-map-mode {
-  font-weight: 550 !important;
+  font-weight: 550;
 }
 .sp-map-mode small {
   font-size: 8px;
@@ -1138,11 +1138,11 @@
 .sp-guess-button {
   min-height: 48px;
   border-radius: 11px;
-  font-size: 14px !important;
+  font-size: 14px;
 }
 .sp-primary {
-  font-weight: 650 !important;
-  border-color: transparent !important;
+  font-weight: 650;
+  border-color: transparent;
   background: var(--color-lime);
 }
 .sp-primary:hover:enabled {
@@ -1150,12 +1150,12 @@
 }
 .sp-primary:disabled {
   background: #2d3c32;
-  color: #9aaa91 !important;
+  color: #9aaa91;
   opacity: 0.75;
 }
 .sp-secondary {
   font-size: 13px;
-  border-color: var(--color-border-strong) !important;
+  border-color: var(--color-border-strong);
 }
 .sp-welcome {
   background: linear-gradient(145deg, #15263ce8, #0e1b2af2);

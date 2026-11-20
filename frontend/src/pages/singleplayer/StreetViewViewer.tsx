@@ -154,7 +154,7 @@ export function StreetViewViewer({
       />
       {showCompass && (
         <button
-          className="sp-compass sp-glass"
+          className="sp-compass tg-control sp-glass"
           aria-label="Face north"
           title="Face north"
           onClick={() => panorama.current?.setPov({ heading: 0, pitch: 0 })}
@@ -169,7 +169,7 @@ export function StreetViewViewer({
           <strong>Street View unavailable</strong>
           <p>{error}</p>
           <button
-            className="sp-primary"
+            className="sp-primary tg-control tg-control--primary"
             onClick={() => setAttempt((a) => a + 1)}
             disabled={retrying}
           >
@@ -177,7 +177,7 @@ export function StreetViewViewer({
           </button>
           {onRetryLocation && (
             <button
-              className="sp-secondary"
+              className="sp-secondary tg-control"
               disabled={retrying}
               onClick={onRetryLocation}
             >

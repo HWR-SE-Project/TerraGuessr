@@ -33,14 +33,14 @@ export function AuthLandingPage() {
         authActions={
           <>
             <button
-              className="geo-landing__login"
+              className="geo-landing__login tg-control"
               type="button"
               onClick={() => showProviders('login')}
             >
               Log in
             </button>
             <button
-              className="geo-landing__signup"
+              className="geo-landing__signup tg-control tg-control--primary"
               type="button"
               onClick={() => showProviders('register')}
             >
@@ -90,7 +90,7 @@ export function AuthLandingPage() {
               </p>
               <div className="geo-landing__provider-buttons">
                 <button
-                  className="geo-landing__provider geo-landing__provider--google"
+                  className="geo-landing__provider tg-control tg-control--light geo-landing__provider--google"
                   type="button"
                   onClick={() => {
                     if (authConfig?.googleAvailable)
@@ -102,7 +102,7 @@ export function AuthLandingPage() {
                   <span>Continue with Google</span>
                 </button>
                 <button
-                  className="geo-landing__provider geo-landing__provider--apple"
+                  className="geo-landing__provider tg-control geo-landing__provider--apple"
                   type="button"
                   onClick={() => setUnavailableProvider('Apple')}
                 >
@@ -110,7 +110,7 @@ export function AuthLandingPage() {
                   <span>Continue with Apple</span>
                 </button>
                 <button
-                  className="geo-landing__provider geo-landing__provider--facebook"
+                  className="geo-landing__provider tg-control tg-control--cyan geo-landing__provider--facebook"
                   type="button"
                   onClick={() => setUnavailableProvider('Facebook')}
                 >
@@ -124,7 +124,7 @@ export function AuthLandingPage() {
                   <span>Continue with Facebook</span>
                 </button>
                 <button
-                  className="geo-landing__provider geo-landing__provider--email"
+                  className="geo-landing__provider tg-control tg-control--tinted geo-landing__provider--email"
                   type="button"
                   onClick={() => setCardView('email')}
                 >

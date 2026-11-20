@@ -81,7 +81,7 @@ export function DuelsPage() {
           <button
             ref={playButton}
             type="button"
-            className="td-play"
+            className="td-play tg-control tg-control--primary"
             onClick={start}
             disabled={busy || status === 'loading'}
           >

@@ -60,7 +60,7 @@ export function GameSettings({
           }
         />
       </label>
-      <Button className="sp-primary sp-wide" onClick={onClose}>
+      <Button className="sp-primary tg-control tg-control--primary sp-wide" onClick={onClose}>
         Back to exploring
       </Button>
     </GameDialog>

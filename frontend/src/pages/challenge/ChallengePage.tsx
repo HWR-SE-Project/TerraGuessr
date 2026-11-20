@@ -130,7 +130,7 @@ export function ChallengePage() {
         {shareState?.justCreated && (
           <div className="tg-challenge-share-banner">
             <span>Challenge created — share this link so a friend can play the same spot:</span>
-            <button type="button" onClick={copyLink}>
+            <button type="button" className="tg-control tg-control--primary" onClick={copyLink}>
               {copied ? 'Copied!' : 'Copy link'}
             </button>
           </div>
@@ -147,7 +147,7 @@ export function ChallengePage() {
             {alreadyPlayed ? (
               <p className="tg-challenge-note">You've already played this challenge — check the leaderboard below.</p>
             ) : (
-              <button type="button" className="tg-challenge-cta" disabled={joining} onClick={handleJoin}>
+              <button type="button" className="tg-challenge-cta tg-control tg-control--primary" disabled={joining} onClick={handleJoin}>
                 {joining ? 'Loading…' : 'Play this challenge'}
               </button>
             )}
@@ -168,7 +168,7 @@ export function ChallengePage() {
               </div>
             </div>
             {error && <p className="tg-challenge-error" role="alert">{error}</p>}
-            <button type="button" className="tg-challenge-cta" disabled={!guess || submitting} onClick={handleSubmitGuess}>
+            <button type="button" className="tg-challenge-cta tg-control tg-control--primary" disabled={!guess || submitting} onClick={handleSubmitGuess}>
               {submitting ? 'Submitting…' : 'Submit guess'}
             </button>
           </div>
@@ -187,7 +187,7 @@ export function ChallengePage() {
                   <input value={displayName} maxLength={40} onChange={(event) => setDisplayName(event.target.value)} placeholder="Stay anonymous" />
                 </label>
                 {error && <p className="tg-challenge-error" role="alert">{error}</p>}
-                <button type="button" className="tg-challenge-cta" disabled={submitting} onClick={handleSubmitEntry}>
+                <button type="button" className="tg-challenge-cta tg-control tg-control--primary" disabled={submitting} onClick={handleSubmitEntry}>
                   {submitting ? 'Submitting…' : 'Add to leaderboard'}
                 </button>
               </div>

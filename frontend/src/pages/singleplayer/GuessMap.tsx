@@ -222,7 +222,7 @@ export function GuessMap({
       {error && (
         <div className="sp-map-failure" role="alert">
           <p>{error}</p>
-          <button onClick={() => setRetry((r) => r + 1)}>Retry map</button>
+          <button className="tg-control tg-control--light" onClick={() => setRetry((r) => r + 1)}>Retry map</button>
         </div>
       )}
     </div>

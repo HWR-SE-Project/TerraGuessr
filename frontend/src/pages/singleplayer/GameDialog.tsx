@@ -69,7 +69,7 @@ export function GameDialog({
           <span className="sp-eyebrow">TERRAGUESSR</span>
           <h2>{title}</h2>
         </div>
-        <button className="sp-icon" aria-label="Close dialog" onClick={onClose}>
+        <button className="sp-icon tg-control" aria-label="Close dialog" onClick={onClose}>
           ×
         </button>
       </header>

@@ -215,7 +215,7 @@ export function GeographicIntelligence({
                 Environmental data couldn’t be retrieved. Keep exploring and try
                 again.
               </p>
-              <button onClick={retryRequest}>
+              <button className="tg-control tg-control--tinted" onClick={retryRequest}>
                 Retry connection <span aria-hidden="true">↻</span>
               </button>
             </div>
@@ -506,7 +506,7 @@ export function GeographicIntelligence({
       </aside>
       <button
         ref={trigger}
-        className="gi-mobile-trigger"
+        className="gi-mobile-trigger tg-control"
         aria-label="Open geographic intelligence"
         aria-haspopup="dialog"
         aria-expanded={mobileOpen}

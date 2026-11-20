@@ -77,7 +77,7 @@ export function WeatherPanel({
             </p>
             <button
               type="button"
-              className="tg-weather-unlock-btn"
+              className="tg-weather-unlock-btn tg-control"
               disabled={unlocking || secondsLeft > 0 || !onUnlock}
               onClick={onUnlock}
             >

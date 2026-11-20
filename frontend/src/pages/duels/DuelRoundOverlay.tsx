@@ -24,14 +24,14 @@ export function DuelRoundOverlay({ round, creating, busy, error, onSubmit, onClo
   return (
     <dialog ref={dialog} className="tg-duel-overlay-scrim" aria-label="Play this duel location" onCancel={(event) => { event.preventDefault(); if (!busy) onClose() }}>
       <div className="tg-duel-overlay">
-        <button type="button" className="tg-duel-overlay-close" onClick={onClose} disabled={busy} aria-label="Cancel">
+        <button type="button" className="tg-duel-overlay-close tg-control" onClick={onClose} disabled={busy} aria-label="Cancel">
           ×
         </button>
 
         {error && !round ? (
           <>
             <p className="tg-duel-overlay-error" role="alert">{error}</p>
-            <button type="button" className="tg-duel-overlay-submit" onClick={onClose}>
+            <button type="button" className="tg-duel-overlay-submit tg-control tg-control--primary" onClick={onClose}>
               Close
             </button>
           </>
@@ -50,7 +50,7 @@ export function DuelRoundOverlay({ round, creating, busy, error, onSubmit, onClo
               </div>
             </div>
             {error && <p className="tg-duel-overlay-error" role="alert">{error}</p>}
-            <button type="button" className="tg-duel-overlay-submit" disabled={!guess || busy} onClick={() => guess && onSubmit(guess)}>
+            <button type="button" className="tg-duel-overlay-submit tg-control tg-control--primary" disabled={!guess || busy} onClick={() => guess && onSubmit(guess)}>
               {busy ? 'Submitting…' : 'Lock in guess & create duel link'}
             </button>
           </>

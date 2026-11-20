@@ -14,7 +14,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`tg-button tg-button--${variant} ${className}`}
+      className={`tg-button tg-button--${variant} tg-control tg-control--${variant} ${className}`}
       {...props}
     />
   )

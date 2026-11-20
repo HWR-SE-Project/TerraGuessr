@@ -31,12 +31,12 @@ export function ConfirmDialog({
         {description && <p>{description}</p>}
         {children}
         <div className="tg-confirm-actions">
-          <button type="button" className="tg-confirm-cancel" onClick={onCancel}>
+          <button type="button" className="tg-confirm-cancel tg-control" onClick={onCancel}>
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={destructive ? 'tg-confirm-confirm tg-confirm-confirm--destructive' : 'tg-confirm-confirm'}
+            className={destructive ? 'tg-confirm-confirm tg-control tg-control--danger tg-confirm-confirm--destructive' : 'tg-confirm-confirm tg-control tg-control--primary'}
             onClick={onConfirm}
             disabled={busy}
           >

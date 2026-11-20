@@ -111,14 +111,14 @@ export function SingleplayerGamePage() {
       </button>
       <div className="sp-top-controls">
         <button
-          className="sp-icon sp-glass"
+          className="sp-icon tg-control sp-glass"
           aria-label="Game settings"
           onClick={() => setDialog('settings')}
         >
           <GameIcon name="settings" />
         </button>
         <button
-          className="sp-icon sp-glass"
+          className="sp-icon tg-control sp-glass"
           aria-label="Game menu"
           onClick={() => setDialog('menu')}
         >
@@ -163,7 +163,7 @@ export function SingleplayerGamePage() {
                   'The map provider could not be reached. Check the connection and retry.'}
               </p>
               <button
-                className="sp-secondary"
+                className="sp-secondary tg-control"
                 onClick={() => void game.refreshConfig()}
               >
                 Check again
@@ -171,7 +171,7 @@ export function SingleplayerGamePage() {
             </div>
           ) : (
             <button
-              className="sp-primary"
+              className="sp-primary tg-control tg-control--primary"
               disabled={game.busy}
               onClick={() => void game.next()}
             >
@@ -225,7 +225,7 @@ export function SingleplayerGamePage() {
       )}
       <button
         aria-label="Return"
-        className="sp-return sp-glass"
+        className="sp-return tg-control sp-glass"
         onClick={leave}
       >
         <GameIcon name="return" />
@@ -256,7 +256,7 @@ export function SingleplayerGamePage() {
         >
           <header className="sp-map-header">
             <button
-              className="sp-map-mode"
+              className="sp-map-mode tg-control"
               aria-expanded={!collapsed}
               aria-controls="guess-map-content"
               onClick={() => setCollapsed(!collapsed)}
@@ -268,7 +268,7 @@ export function SingleplayerGamePage() {
               <span aria-hidden="true">{collapsed ? '▴' : '▾'}</span>
             </button>
             <button
-              className="sp-icon"
+              className="sp-icon tg-control"
               aria-label={mapExpanded ? 'Shrink map' : 'Expand map'}
               aria-expanded={mapExpanded}
               onClick={() => {
@@ -301,7 +301,7 @@ export function SingleplayerGamePage() {
                   : 'Where in the world are you?'}
               </span>
               <button
-                className="sp-primary sp-guess-button"
+                className="sp-primary tg-control tg-control--primary sp-guess-button"
                 aria-label="Guess"
                 disabled={
                   !game.guess || !game.panoramaReady || game.busy || !exploring
@@ -327,11 +327,11 @@ export function SingleplayerGamePage() {
         <GameDialog title="Take a breather" onClose={() => setDialog(null)}>
           <p className="sp-muted">Your next discovery can wait.</p>
           <div className="sp-menu-actions">
-            <button className="sp-primary" onClick={() => setDialog(null)}>
+            <button className="sp-primary tg-control tg-control--primary" onClick={() => setDialog(null)}>
               Resume game <span>→</span>
             </button>
             <button
-              className="sp-secondary"
+              className="sp-secondary tg-control"
               disabled={game.busy || !game.available}
               onClick={() => {
                 if (game.inProgress || game.session.id) setDialog('restart')
@@ -344,7 +344,7 @@ export function SingleplayerGamePage() {
               Restart game
             </button>
             <button
-              className="sp-secondary"
+              className="sp-secondary tg-control"
               disabled={game.busy}
               onClick={leave}
             >
@@ -369,14 +369,14 @@ export function SingleplayerGamePage() {
           </p>
           <div className="sp-dialog-actions">
             <button
-              className="sp-secondary"
+              className="sp-secondary tg-control"
               disabled={game.busy}
               onClick={() => setDialog(null)}
             >
               Keep exploring
             </button>
             <button
-              className="sp-primary"
+              className="sp-primary tg-control tg-control--primary"
               disabled={game.busy}
               onClick={() => {
                 const action = dialog

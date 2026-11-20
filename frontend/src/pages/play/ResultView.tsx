@@ -41,10 +41,10 @@ export function ResultView({
       {challengeError && <p className="tg-play-error" role="alert">{challengeError}</p>}
 
       <div className="tg-play-result-actions">
-        <button type="button" className="tg-play-secondary" disabled={creatingChallenge} onClick={onCreateChallenge}>
+        <button type="button" className="tg-play-secondary tg-control" disabled={creatingChallenge} onClick={onCreateChallenge}>
           {creatingChallenge ? 'Creating…' : 'Challenge a friend to this round'}
         </button>
-        <button type="button" className="tg-play-cta" disabled={advancing} onClick={onNext}>
+        <button type="button" className="tg-play-cta tg-control tg-control--primary" disabled={advancing} onClick={onNext}>
           {advancing ? 'Loading…' : isLastRound ? 'View summary' : 'Next round'}
         </button>
       </div>

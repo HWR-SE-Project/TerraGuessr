@@ -57,7 +57,7 @@ export function CandidateList({ candidates, onChange, selectedId = null }: Candi
                 data-testid="candidate-option"
                 aria-pressed={selected}
                 onClick={() => onChange({ lat: candidate.lat, lon: candidate.lon })}
-                className={`tg-candidate${selected ? ' tg-candidate--selected' : ''}`}
+                className={`tg-candidate tg-control${selected ? ' tg-candidate--selected' : ''}`}
               >
                 <span className="tg-candidate-index" aria-hidden="true">{String.fromCharCode(65 + index)}</span>
                 <span>

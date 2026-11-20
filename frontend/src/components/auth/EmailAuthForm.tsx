@@ -111,6 +111,7 @@ export function EmailAuthForm({ onSuccess, onForgotPassword, initialMode = 'logi
         </p>
       )}
 
+<<<<<<< HEAD
       {canResend && email && (
         <button
           type="button"
@@ -123,6 +124,9 @@ export function EmailAuthForm({ onSuccess, onForgotPassword, initialMode = 'logi
       )}
 
       <button type="submit" className="tg-email-submit" disabled={submitting}>
+=======
+      <button type="submit" className="tg-email-submit tg-control tg-control--primary" disabled={submitting}>
+>>>>>>> 13dbf98 (design update)
         {submitting ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}
       </button>
 

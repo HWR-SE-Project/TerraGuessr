@@ -199,14 +199,14 @@ export function SettingsPage() {
             <p>Sign in to manage your account and preferences.</p>
             <button
               type="button"
-              className="settings-save-btn"
+              className="settings-save-btn tg-control tg-control--primary"
               onClick={() => navigate('/auth')}
             >
               Sign in
             </button>
             <button
               type="button"
-              className="settings-footer__close"
+              className="settings-footer__close tg-control"
               onClick={() => navigate('/')}
             >
               Return home
@@ -223,7 +223,7 @@ export function SettingsPage() {
       <main className="settings-screen">
         <section className="settings-panel" aria-label="Settings">
         <button
-          className="settings-top-close"
+          className="settings-top-close tg-control"
           type="button"
           aria-label="Close settings"
           onClick={() => navigate('/')}
@@ -236,14 +236,16 @@ export function SettingsPage() {
           <nav className="settings-tabs" aria-label="Settings sections">
             <button
               type="button"
-              className={tab === 'account' ? 'is-active' : ''}
+              className={`tg-control${tab === 'account' ? ' is-active' : ''}`}
+              aria-pressed={tab === 'account'}
               onClick={() => setTab('account')}
             >
               Account
             </button>
             <button
               type="button"
-              className={tab === 'preferences' ? 'is-active' : ''}
+              className={`tg-control${tab === 'preferences' ? ' is-active' : ''}`}
+              aria-pressed={tab === 'preferences'}
               onClick={() => setTab('preferences')}
             >
               Preferences
@@ -275,7 +277,7 @@ export function SettingsPage() {
                   />
                   <button
                     type="submit"
-                    className="settings-save-btn"
+                    className="settings-save-btn tg-control tg-control--primary"
                     disabled={
                       profileSaving || displayName.trim() === user.displayName
                     }
@@ -374,7 +376,7 @@ export function SettingsPage() {
                 <h2 className="settings-row__label">Session</h2>
                 <button
                   type="button"
-                  className="settings-save-btn settings-save-btn--muted"
+                  className="settings-save-btn tg-control tg-control--secondary settings-save-btn--muted"
                   onClick={handleLogout}
                 >
                   Log out
@@ -390,7 +392,7 @@ export function SettingsPage() {
                   </p>
                   <button
                     type="button"
-                    className="settings-save-btn settings-save-btn--danger"
+                    className="settings-save-btn tg-control tg-control--danger settings-save-btn--danger"
                     onClick={() => setDeleteOpen(true)}
                   >
                     Delete my account
@@ -462,7 +464,7 @@ export function SettingsPage() {
 
         <footer className="settings-footer">
           <button
-            className="settings-footer__close"
+            className="settings-footer__close tg-control"
             type="button"
             onClick={() => navigate('/')}
           >

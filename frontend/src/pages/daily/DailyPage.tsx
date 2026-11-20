@@ -81,7 +81,7 @@ export function DailyPage() {
         <div className="tg-daily-shell">
           <h1 className="tg-daily-title">Daily challenge</h1>
           <p className="tg-daily-subtitle">Sign in to play today's shared challenge and track your streak.</p>
-          <button type="button" className="tg-daily-cta" onClick={() => navigate('/auth')}>
+          <button type="button" className="tg-daily-cta tg-control tg-control--primary" onClick={() => navigate('/auth')}>
             Sign in
           </button>
         </div>
@@ -126,7 +126,7 @@ export function DailyPage() {
               </div>
             </div>
             {error && <p className="tg-daily-error" role="alert">{error}</p>}
-            <button type="button" className="tg-daily-cta" disabled={!guess || submitting} onClick={submitGuess}>
+            <button type="button" className="tg-daily-cta tg-control tg-control--primary" disabled={!guess || submitting} onClick={submitGuess}>
               {submitting ? 'Submitting…' : 'Submit guess'}
             </button>
           </>

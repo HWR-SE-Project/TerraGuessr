@@ -25,7 +25,7 @@ export function SummaryView({ results, onPlayAgain }: SummaryViewProps) {
           ))}
       </ul>
 
-      <button type="button" className="tg-play-cta" onClick={onPlayAgain}>
+      <button type="button" className="tg-play-cta tg-control tg-control--primary" onClick={onPlayAgain}>
         Play again
       </button>
     </div>

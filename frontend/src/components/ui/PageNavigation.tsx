@@ -65,7 +65,7 @@ export function PageNavigation({
         >
           <Link
             to="/game/singleplayer"
-            className={`th-nav-item${active === 'singleplayer' ? ' th-nav-active' : ''}`}
+            className={`th-nav-item tg-control${active === 'singleplayer' ? ' th-nav-active' : ''}`}
             aria-current={active === 'singleplayer' ? 'page' : undefined}
             onClick={() => setMenuOpen(false)}
           >
@@ -74,7 +74,7 @@ export function PageNavigation({
           </Link>
           <Link
             to="/duels"
-            className={`th-nav-item${active === 'multiplayer' ? ' th-nav-active' : ''}`}
+            className={`th-nav-item tg-control${active === 'multiplayer' ? ' th-nav-active' : ''}`}
             aria-current={active === 'multiplayer' ? 'page' : undefined}
             onClick={() => setMenuOpen(false)}
           >
@@ -83,7 +83,7 @@ export function PageNavigation({
           </Link>
           <Link
             to="/daily"
-            className={`th-nav-item${active === 'daily' ? ' th-nav-active' : ''}`}
+            className={`th-nav-item tg-control${active === 'daily' ? ' th-nav-active' : ''}`}
             aria-current={active === 'daily' ? 'page' : undefined}
             onClick={() => setMenuOpen(false)}
           >
@@ -95,7 +95,7 @@ export function PageNavigation({
           <div className="th-player-tools">
             <Link
               to="/settings"
-              className="th-profile-link"
+              className="th-profile-link tg-control"
               aria-label="Settings"
             >
               <span className="th-profile-avatar" aria-hidden="true">
@@ -114,7 +114,7 @@ export function PageNavigation({
           </div>
         ) : (
           <div className="th-player-tools">
-            <Link to="/auth" className="th-profile-link" aria-label="Sign in">
+            <Link to="/auth" className="th-profile-link tg-control" aria-label="Sign in">
               <span className="th-profile-avatar" aria-hidden="true">
                 G
               </span>
@@ -130,7 +130,7 @@ export function PageNavigation({
         )}
         <button
           ref={menuRef}
-          className="th-menu-button"
+          className="th-menu-button tg-control"
           type="button"
           aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
           aria-expanded={menuOpen}

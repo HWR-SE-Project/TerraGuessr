@@ -51,7 +51,7 @@ export function GameSetupForm({
             <button
               key={option.value}
               type="button"
-              className={`tg-play-choice${difficulty === option.value ? ' tg-play-choice--active' : ''}`}
+              className={`tg-play-choice tg-control${difficulty === option.value ? ' tg-play-choice--active' : ''}`}
               aria-pressed={difficulty === option.value}
               onClick={() => chooseDifficulty(option.value)}
             >
@@ -66,7 +66,7 @@ export function GameSetupForm({
         <div className="tg-play-choice-row">
           <button
             type="button"
-            className={`tg-play-choice${selectionMode === 'map' ? ' tg-play-choice--active' : ''}`}
+            className={`tg-play-choice tg-control${selectionMode === 'map' ? ' tg-play-choice--active' : ''}`}
             disabled={difficulty === 'easy'}
             aria-pressed={selectionMode === 'map'}
             onClick={() => setSelectionMode('map')}
@@ -75,7 +75,7 @@ export function GameSetupForm({
           </button>
           <button
             type="button"
-            className={`tg-play-choice${selectionMode === 'list' ? ' tg-play-choice--active' : ''}`}
+            className={`tg-play-choice tg-control${selectionMode === 'list' ? ' tg-play-choice--active' : ''}`}
             disabled={difficulty === 'hard'}
             aria-pressed={selectionMode === 'list'}
             onClick={() => setSelectionMode('list')}
@@ -99,7 +99,7 @@ export function GameSetupForm({
             <button
               key={option}
               type="button"
-              className={`tg-play-choice${roundsTotal === option ? ' tg-play-choice--active' : ''}`}
+              className={`tg-play-choice tg-control${roundsTotal === option ? ' tg-play-choice--active' : ''}`}
               aria-pressed={roundsTotal === option}
               onClick={() => setRoundsTotal(option)}
             >
@@ -117,7 +117,7 @@ export function GameSetupForm({
 
       <button
         type="button"
-        className="tg-play-cta"
+        className="tg-play-cta tg-control tg-control--primary"
         disabled={submitting}
         onClick={() =>
           onStart({

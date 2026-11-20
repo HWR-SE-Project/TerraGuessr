@@ -56,7 +56,7 @@ function HeroSection({
             {characterStatus === 'loading' ? 'Loading avatar…' : 'Avatar unavailable'}
           </span>}
         </div>
-        <button ref={buttonRef} className="th-edit-avatar" type="button" aria-haspopup="dialog" onClick={onEditAvatar}>
+        <button ref={buttonRef} className="th-edit-avatar tg-control" type="button" aria-haspopup="dialog" onClick={onEditAvatar}>
           <HomeIcon name="pencil" /> Edit Avatar
         </button>
       </div>
@@ -80,7 +80,7 @@ function GameModeCard({
   return (
     <Link
       to={to}
-      className={`th-mode th-glass${active ? ' th-mode-active' : ''}`}
+      className={`th-mode tg-control th-glass${active ? ' th-mode-active tg-control--primary' : ''}`}
     >
       <span className="th-mode-icon">
         <HomeIcon name={icon} />
@@ -119,7 +119,7 @@ export function AvailabilityNotice({
       }}
     >
       <button
-        className="th-notice-close"
+        className="th-notice-close tg-control"
         type="button"
         aria-label="Close notice"
         onClick={close}
@@ -130,7 +130,7 @@ export function AvailabilityNotice({
       <p>{message}</p>
       <button
         type="button"
-        className="th-notice-action"
+        className="th-notice-action tg-control tg-control--primary"
         onClick={close}
         autoFocus
       >

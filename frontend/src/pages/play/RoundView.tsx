@@ -51,7 +51,7 @@ export function RoundView({ round, roundsTotal, onSubmit, submitting, error, onU
 
       {error && <p className="tg-play-error" role="alert">{error}</p>}
 
-      <button type="button" className="tg-play-cta" disabled={!guess || submitting} onClick={() => guess && onSubmit(guess)}>
+      <button type="button" className="tg-play-cta tg-control tg-control--primary" disabled={!guess || submitting} onClick={() => guess && onSubmit(guess)}>
         {submitting ? 'Submitting…' : 'Submit guess'}
       </button>
     </div>

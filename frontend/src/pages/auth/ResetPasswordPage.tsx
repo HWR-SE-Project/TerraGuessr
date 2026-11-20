@@ -54,7 +54,7 @@ export function ResetPasswordPage() {
             </p>
             <button
               type="button"
-              className="tg-email-submit"
+              className="tg-email-submit tg-control tg-control--primary"
               onClick={() => navigate('/auth')}
             >
               Back to sign in
@@ -68,7 +68,7 @@ export function ResetPasswordPage() {
             </p>
             <button
               type="button"
-              className="tg-email-submit"
+              className="tg-email-submit tg-control tg-control--primary"
               onClick={() => navigate('/auth')}
             >
               Go to sign in
@@ -96,7 +96,7 @@ export function ResetPasswordPage() {
             )}
             <button
               type="submit"
-              className="tg-email-submit"
+              className="tg-email-submit tg-control tg-control--primary"
               disabled={submitting}
             >
               {submitting ? 'Updating…' : 'Update password'}
