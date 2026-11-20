@@ -1,10 +1,13 @@
 name: terraguessr
 
-# TerraGuessr local/production stack (R17 prep). Copy .env.example -> .env first.
-#   docker compose up --build
-# The frontend SPA has no production Docker image/compose service yet; run it
-# separately via `npm run dev` in frontend/ — only postgres + backend are
-# defined here.
+# TerraGuessr local dev stack. Copy .env.example -> .env first.
+#   docker compose up --build -d
+# The frontend runs separately via `npm run dev --prefix frontend` at
+# http://localhost:8080. postgres, backend and a Mailpit test SMTP inbox are
+# defined here: verification emails land at http://localhost:8025. Point
+# SMTP_URL at a real provider in .env to deliver real mail.
+# All local URLs use localhost; the Vite dev server reads BACKEND_HOST_PORT
+# from .env and proxies /api to http://localhost:<BACKEND_HOST_PORT>.
 services:
   postgres:
     image: postgres:16
@@ -23,6 +26,16 @@ services:
       timeout: 5s
       retries: 12
 
+  # Test SMTP sink + web inbox for email verification / password reset.
+  mailpit:
+    image: axllent/mailpit:v1.20
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
   backend:
     build:
       context: ./backend
@@ -36,6 +49,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-terraguessr}:${POSTGRES_PASSWORD:-terraguessr}@postgres:5432/${POSTGRES_DB:-terraguessr}
       PORT: ${PORT:-3000}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-}
       OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
       OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
@@ -45,14 +59,17 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
-      SMTP_URL: ${SMTP_URL:-}
-      SMTP_FROM: ${SMTP_FROM:-}
+      # Empty/omitted values fall back to the mailpit service.
+      SMTP_URL: "${SMTP_URL:-smtp://mailpit:1025}"
+      SMTP_FROM: "${SMTP_FROM:-TerraGuessr <no-reply@terraguessr.local>}"
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     ports:
       - "${BACKEND_HOST_PORT:-3000}:${PORT:-3000}"
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT:-3000}/api/health || exit 1"]
       interval: 10s

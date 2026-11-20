@@ -2,13 +2,8 @@
 # TerraGuessr — production reverse proxy (Caddy 2, R17 / task O-02)
 # =============================================================================
 # Caddy terminates TLS (automatic Let's Encrypt certificates) and routes:
-#   /api/*  -> backend:3000   (Fastify REST API)
-#
-# The frontend SPA (frontend/) exists and is actively developed via the Vite
-# dev server, but it has no production Docker image/compose service yet, so
-# there is no frontend catch-all route here. Reintroduce the
-# `handle { reverse_proxy frontend:80 }` block (and the matching compose
-# service) once a frontend Dockerfile + compose service are added.
+#   /api/*   -> backend:3000   (Fastify REST API)
+#   /*       -> frontend:80    (static SPA served by nginx)
 #
 # The site address comes from the DOMAIN environment variable, so no real
 # domain is hardcoded or committed. Example value (placeholder only):
@@ -34,6 +29,11 @@
 	# REST API — proxied straight to the backend service.
 	handle /api/* {
 		reverse_proxy backend:3000
+	}
+
+	# Static SPA; nginx handles the client-side route fallback.
+	handle {
+		reverse_proxy frontend:80
 	}
 
 	header {

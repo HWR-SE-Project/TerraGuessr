@@ -17,7 +17,7 @@ const browserKey =
   server.VITE_GOOGLE_MAPS_API_KEY
 const serverKey =
   process.env.GOOGLE_MAPS_SERVER_API_KEY || server.GOOGLE_MAPS_SERVER_API_KEY
-const base = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:5173'
+const base = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'
 let failed = false
 function result(ok, title, explanation) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${title}: ${explanation}`)

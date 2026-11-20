@@ -10,6 +10,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch src/server.ts",
+    "dev:host": "tsx watch --env-file=../.env --env-file=dev-host.env src/server.ts",
     "test": "vitest run --exclude '**/integration/**'",
     "lint": "eslint .",
     "test:integration": "vitest run test/integration --no-file-parallelism",

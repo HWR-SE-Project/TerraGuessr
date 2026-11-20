@@ -4,14 +4,24 @@ import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
-  const frontend = loadEnv(mode, import.meta.dirname, 'VITE_')
-  const root = loadEnv(mode, resolve(import.meta.dirname, '..'), 'VITE_')
+  const rootDir = resolve(import.meta.dirname, '..')
+  const frontend = loadEnv(mode, import.meta.dirname, '')
+  const root = loadEnv(mode, rootDir, '')
   // Only this public credential may cross the frontend/backend boundary.
   // Server API keys are never included in define or the browser bundle.
   const mapsKey =
     process.env.VITE_GOOGLE_MAPS_API_KEY ||
     frontend.VITE_GOOGLE_MAPS_API_KEY ||
     root.VITE_GOOGLE_MAPS_API_KEY
+  // One source of truth for the host-side backend port. If you change
+  // BACKEND_HOST_PORT in the root .env, the dev proxy follows automatically.
+  const backendHostPort =
+    process.env.BACKEND_HOST_PORT || root.BACKEND_HOST_PORT || '3000'
+  const apiProxyTarget =
+    process.env.VITE_DEV_API_PROXY_TARGET ||
+    frontend.VITE_DEV_API_PROXY_TARGET ||
+    root.VITE_DEV_API_PROXY_TARGET ||
+    `http://localhost:${backendHostPort}`
   return {
     plugins: [react()],
     define:
@@ -26,18 +36,15 @@ export default defineConfig(({ mode }) => {
       globals: true,
     },
     server: {
-      // Explicit IPv4 loopback: plain 'localhost' resolves to the IPv6
-      // loopback first on this host, which left http://127.0.0.1:5173
-      // (used by maps-doctor.mjs, verify-live-game.mjs, and some tooling)
-      // unable to connect at all.
-      host: '127.0.0.1',
+      // Canonical local origin: http://localhost:8080. Keep CORS_ORIGIN,
+      // APP_BASE_URL, Playwright, and docs on this exact hostname so the
+      // browser and tooling never disagree about IPv4 vs IPv6 loopback.
+      port: 8080,
+      strictPort: true,
+      host: 'localhost',
       proxy: {
         '/api': {
-          target:
-            process.env.VITE_DEV_API_PROXY_TARGET ||
-            frontend.VITE_DEV_API_PROXY_TARGET ||
-            root.VITE_DEV_API_PROXY_TARGET ||
-            'http://localhost:3000',
+          target: apiProxyTarget,
           // Keep Host so the existing same-site account checks remain valid.
           changeOrigin: false,
         },

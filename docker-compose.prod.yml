@@ -20,8 +20,14 @@ name: terraguessr-prod
 # NEVER commit .env. Do not purchase a domain or publish this stack without
 # Product Owner approval (decision B.7).
 #
-# The frontend SPA has no production Docker image/compose service yet — Caddy
-# currently only proxies /api/* to backend; see Caddyfile.
+# The frontend SPA is built into a static nginx image (frontend/Dockerfile) and
+# served through Caddy; /api/* is proxied to backend.
+#
+# mailpit is a local SMTP capture box for TESTING the email-verification flow.
+# Its web UI binds to 127.0.0.1 only: reach it with an SSH tunnel
+#   ssh -L 8025:127.0.0.1:8025 user@host  →  http://localhost:8025
+# Set SMTP_URL + SMTP_FROM in .env to a real provider to deliver real mail;
+# no code or compose changes are needed.
 
 x-logging: &default-logging
   driver: json-file
@@ -48,6 +54,20 @@ services:
       start_period: 30s
     logging: *default-logging
 
+  # Test SMTP sink + web inbox. Safe defaults keep verification working with no
+  # .env edits; override SMTP_URL/SMTP_FROM in .env for real delivery.
+  mailpit:
+    image: axllent/mailpit:v1.20
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+    # UI is host-local only; SMTP stays on the compose network.
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    expose:
+      - "1025"
+    logging: *default-logging
+
   backend:
     build:
       context: ./backend
@@ -60,6 +80,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-terraguessr}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}@postgres:5432/${POSTGRES_DB:-terraguessr}
       PORT: "${PORT:-3000}"
       CORS_ORIGIN: https://${DOMAIN:?DOMAIN is required — set it in .env}
+      # Caddy is the only hop in front of the API; trust exactly that one so
+      # rate limits use the real client IP without trusting spoofable XFF values.
+      TRUST_PROXY: "1"
       ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?ADMIN_API_TOKEN is required — set it in .env}
       OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
       OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
@@ -69,8 +92,10 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       APP_BASE_URL: ${APP_BASE_URL:-https://${DOMAIN}}
-      SMTP_URL: ${SMTP_URL:-}
-      SMTP_FROM: ${SMTP_FROM:-}
+      # Empty/omitted values fall back to the mailpit service. Set both to a
+      # real provider URL/sender in .env to send real verification email.
+      SMTP_URL: "${SMTP_URL:-smtp://mailpit:1025}"
+      SMTP_FROM: "${SMTP_FROM:-TerraGuessr <no-reply@terraguessr.local>}"
       SESSION_COOKIE_SECURE: "true"
     # No published ports: Caddy proxies /api to this service over the network.
     expose:
@@ -78,12 +103,38 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT:-3000}/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
+    logging: *default-logging
+
+  # Static SPA build. VITE_* values are inlined at build time, so changing one
+  # requires rebuilding: docker compose -f docker-compose.prod.yml up -d --build frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+        VITE_MAP_ATTRIBUTION: ${VITE_MAP_ATTRIBUTION:-}
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     logging: *default-logging
 
   # TLS termination + reverse proxy. Caddy obtains and renews Let's Encrypt
@@ -104,6 +155,8 @@ services:
       - caddy_config:/config
     depends_on:
       backend:
+        condition: service_healthy
+      frontend:
         condition: service_healthy
     logging: *default-logging
 

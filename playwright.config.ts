@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
  * unset by default and `baseURL` comes from the environment.
  *
  * Set PLAYWRIGHT_BASE_URL to the frontend origin (default http://localhost:8080,
- * the port nginx is published on in docker-compose*.yml).
+ * used by both `npm run dev --prefix frontend` and docker-compose.test.yml).
  */
 const baseURL =
   process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:8080';

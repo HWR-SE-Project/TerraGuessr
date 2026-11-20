@@ -1,18 +1,13 @@
 name: terraguessr-test
 
-# Deterministic stack for CI e2e / integration tests (ADR-0012). Values are
-# hardcoded so tests never depend on a local .env file. Published ports:
-# postgres 5433, backend 3000 by default. Set the TERRAGUESSR_TEST_*_PORT
-# variables when another local stack owns those ports.
-# KNOWN GAP: this stack has no frontend service/port 8080, but CI's e2e job
-# (.github/workflows/ci.yml) and playwright.config.ts's default baseURL both
-# still assume one (left over from when the frontend was removed for a
-# rebuild). The frontend SPA exists again (frontend/), but has no production
-# Docker image yet — see the matching note in docker-compose.prod.yml and
-# Caddyfile. Until a frontend service is added here, run e2e locally against
-# the Vite dev server instead (`PLAYWRIGHT_WEBSERVER="npm run dev --prefix
-# frontend" PLAYWRIGHT_BASE_URL=http://localhost:5173 npx playwright test`),
-# or treat CI's e2e job as not yet runnable end-to-end.
+# Deterministic full-stack environment for CI e2e / integration tests
+# (ADR-0012). Values are hardcoded so tests never depend on a local .env file.
+# Published ports (all on localhost): frontend 8080, backend 3000, postgres
+# 5433, fake weather 4001. Set the TERRAGUESSR_TEST_*_PORT variables when
+# another local stack owns those ports.
+#
+# The frontend nginx image proxies /api to the backend, so the whole app is
+# reachable at http://localhost:8080 exactly like production behind Caddy.
 services:
   postgres:
     image: postgres:16
@@ -45,9 +40,15 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
+      # Keep the test stack out of production mode: cookies stay usable over
+      # plain HTTP and registration falls back to auto-verification when no
+      # SMTP server is configured.
+      NODE_ENV: test
       DATABASE_URL: postgresql://terraguessr:terraguessr@postgres:5432/terraguessr_test
       PORT: "3000"
       CORS_ORIGIN: http://localhost:8080
+      # nginx proxies /api, so trust exactly that one hop for client IPs.
+      TRUST_PROXY: "1"
       ADMIN_API_TOKEN: test-admin-token
       OPEN_METEO_BASE_URL: http://fake-weather:4000
       LOG_LEVEL: warn
@@ -64,6 +65,25 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_GOOGLE_MAPS_API_KEY: ""
+    ports:
+      - "${TERRAGUESSR_TEST_FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
 volumes:
   pg_test_data:
