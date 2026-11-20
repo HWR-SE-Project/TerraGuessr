@@ -123,25 +123,32 @@
   .ae-preview { min-height: 0; }
 }
 
-/* A scrolling body keeps customization controls clear of persistent actions. */
-.ae-dialog[open] { display: flex; flex-direction: column; height: min(54rem, calc(100dvh - 2rem)); }
-.ae-dialog .ae-header, .ae-dialog .ae-footer { flex: 0 0 auto; }
-.ae-dialog .ae-body { min-height: 0; flex: 1 1 auto; overflow: auto; }
-.ae-dialog .ae-footer { position: static; }
-.ae-dialog .ae-header { gap: 1rem; }
-.ae-dialog .ae-icon-button { flex-shrink: 0; }
-.ae-dialog .ae-actions { flex-wrap: wrap; }
-@media (max-width: 600px) {
-  .ae-dialog { overflow: hidden; }
-  .ae-shell { display: flex; flex-direction: column; height: min(900px, calc(100dvh - 18px)); }
-  .ae-header, .ae-footer { flex: 0 0 auto; }
-  .ae-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-  .ae-customization { flex-shrink: 0; }
-  .ae-footer { position: relative; }
+
+/* The shell, rather than its header/body siblings, fills the native dialog. */
+.ae-dialog[open] { display: flex; height: min(54rem, calc(100dvh - 2rem)); overflow: auto; }
+.ae-shell { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.ae-header, .ae-footer { flex: 0 0 auto; }
+.ae-header { gap: 1rem; padding: clamp(1rem, 2.5dvh, 1.75rem) clamp(1rem, 3vw, 2rem); }
+.ae-icon-button { flex-shrink: 0; }
+.ae-body { flex: 1 1 auto; min-height: 0; height: auto; grid-template-columns: minmax(20rem, 0.85fr) minmax(0, 1.3fr); }
+.ae-customization { min-height: 0; }
+.ae-controls-fieldset, .ae-categories { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.ae-preview { min-height: 16rem; }
+.ae-footer { position: static; }
+.ae-actions { flex-wrap: wrap; }
+@media (max-width: 50rem) {
+  .ae-body { grid-template-columns: minmax(18rem, 1fr) minmax(0, 1fr); }
+  .ae-footer { gap: 0.75rem; }
 }
-@media (max-width: 600px) { .ae-swatches { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-@media (max-width: 360px) {
-  .ae-swatches { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .ae-actions .ae-reset { min-width: 44px; font-size: 18px; }
+@media (max-width: 37.5rem), (max-height: 32rem) {
+  .ae-body { display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
+  .ae-preview { order: -1; min-height: 19rem; flex: 0 0 19rem; }
+  .ae-customization { flex: 0 0 auto; }
+  .ae-categories, .ae-controls-fieldset { overflow: visible; }
+  .ae-swatches { grid-template-columns: repeat(auto-fit, minmax(2.25rem, 1fr)); }
+}
+@media (max-width: 22.5rem) {
+  .ae-actions button { padding-inline: 0.5rem; }
+  .ae-actions .ae-reset { min-width: 2.75rem; font-size: 1.125rem; }
   .ae-reset span { display: none; }
 }

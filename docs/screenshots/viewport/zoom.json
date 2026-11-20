@@ -1,0 +1,212 @@
+[
+  {
+    "name": "home",
+    "zoom": 80,
+    "width": 2138,
+    "height": 971,
+    "scrollWidth": 2138,
+    "scrollHeight": 971,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "setup",
+    "zoom": 80,
+    "width": 2138,
+    "height": 971,
+    "scrollWidth": 2138,
+    "scrollHeight": 971,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "duels",
+    "zoom": 80,
+    "width": 2138,
+    "height": 971,
+    "scrollWidth": 2138,
+    "scrollHeight": 971,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "home",
+    "zoom": 90,
+    "width": 1901,
+    "height": 863,
+    "scrollWidth": 1901,
+    "scrollHeight": 863,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "setup",
+    "zoom": 90,
+    "width": 1901,
+    "height": 863,
+    "scrollWidth": 1901,
+    "scrollHeight": 863,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "duels",
+    "zoom": 90,
+    "width": 1901,
+    "height": 863,
+    "scrollWidth": 1901,
+    "scrollHeight": 863,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "home",
+    "zoom": 100,
+    "width": 1711,
+    "height": 777,
+    "scrollWidth": 1711,
+    "scrollHeight": 777,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "setup",
+    "zoom": 100,
+    "width": 1711,
+    "height": 777,
+    "scrollWidth": 1711,
+    "scrollHeight": 777,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "duels",
+    "zoom": 100,
+    "width": 1711,
+    "height": 777,
+    "scrollWidth": 1711,
+    "scrollHeight": 777,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "home",
+    "zoom": 110,
+    "width": 1555,
+    "height": 706,
+    "scrollWidth": 1555,
+    "scrollHeight": 706,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "setup",
+    "zoom": 110,
+    "width": 1555,
+    "height": 706,
+    "scrollWidth": 1555,
+    "scrollHeight": 706,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "duels",
+    "zoom": 110,
+    "width": 1555,
+    "height": 706,
+    "scrollWidth": 1555,
+    "scrollHeight": 706,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "home",
+    "zoom": 125,
+    "width": 1369,
+    "height": 622,
+    "scrollWidth": 1369,
+    "scrollHeight": 642,
+    "vertical": true,
+    "horizontal": false
+  },
+  {
+    "name": "setup",
+    "zoom": 125,
+    "width": 1369,
+    "height": 622,
+    "scrollWidth": 1369,
+    "scrollHeight": 622,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "duels",
+    "zoom": 125,
+    "width": 1369,
+    "height": 622,
+    "scrollWidth": 1369,
+    "scrollHeight": 622,
+    "vertical": false,
+    "horizontal": false
+  },
+  {
+    "name": "home",
+    "zoom": 150,
+    "width": 1141,
+    "height": 518,
+    "scrollWidth": 1141,
+    "scrollHeight": 601,
+    "vertical": true,
+    "horizontal": false
+  },
+  {
+    "name": "setup",
+    "zoom": 150,
+    "width": 1141,
+    "height": 518,
+    "scrollWidth": 1141,
+    "scrollHeight": 575,
+    "vertical": true,
+    "horizontal": false
+  },
+  {
+    "name": "duels",
+    "zoom": 150,
+    "width": 1141,
+    "height": 518,
+    "scrollWidth": 1141,
+    "scrollHeight": 609,
+    "vertical": true,
+    "horizontal": false
+  },
+  {
+    "name": "home",
+    "zoom": 200,
+    "width": 855,
+    "height": 388,
+    "scrollWidth": 855,
+    "scrollHeight": 566,
+    "vertical": true,
+    "horizontal": false
+  },
+  {
+    "name": "setup",
+    "zoom": 200,
+    "width": 855,
+    "height": 388,
+    "scrollWidth": 855,
+    "scrollHeight": 557,
+    "vertical": true,
+    "horizontal": false
+  },
+  {
+    "name": "duels",
+    "zoom": 200,
+    "width": 855,
+    "height": 388,
+    "scrollWidth": 855,
+    "scrollHeight": 608,
+    "vertical": true,
+    "horizontal": false
+  }
+]

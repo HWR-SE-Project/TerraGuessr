@@ -8,6 +8,7 @@ import type { Difficulty, StreetSession } from '../../api/singleplayer'
 import { markTutorialSeen } from './Tutorial'
 
 // Real page, tutorial, selection list and session controller; only external services are doubled.
+vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user: null }) }))
 vi.mock('../../api/singleplayer', () => ({ singleplayerApi: {
   config: vi.fn(), create: vi.fn(), next: vi.fn(), session: vi.fn(), intelligence: vi.fn(), guess: vi.fn(), end: vi.fn(),
 } }))
@@ -40,14 +41,16 @@ function renderGame(url = '/game/singleplayer') {
   return render(<MemoryRouter initialEntries={[url]}><SingleplayerGamePage /></MemoryRouter>)
 }
 async function openFromMenu() {
-  fireEvent.click(screen.getByRole('button', { name: 'Game menu' }))
+  const menu = screen.queryByRole('button', { name: 'Game menu' })
+  if (menu) fireEvent.click(menu)
+  else fireEvent.keyDown(window, { key: 'Escape' })
   fireEvent.click(screen.getByRole('button', { name: 'How to Play / Tutorial' }))
   await screen.findByRole('heading', { name: 'Read the world around you' })
 }
 async function startGameAndDismissAutoTutorial(difficulty: Difficulty) {
   vi.mocked(singleplayerApi.session).mockResolvedValue(session(difficulty))
   renderGame()
-  fireEvent.click(await screen.findByRole('button', { name: /Start exploring/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Start exploring/i }))
   await screen.findByRole('dialog', { name: 'How to play / Tutorial' })
   await waitFor(() => expect(singleplayerApi.create).toHaveBeenCalledOnce())
   fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
@@ -95,7 +98,7 @@ describe('R14 Singleplayer integration', () => {
   it('automatically opens for every new game despite seen status, but never while simply reopening the menu', async () => {
     markTutorialSeen()
     renderGame()
-    fireEvent.click(await screen.findByRole('button', { name: /Start exploring/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Start exploring/i }))
     await screen.findByRole('dialog', { name: 'How to play / Tutorial' })
     await waitFor(() => expect(singleplayerApi.create).toHaveBeenCalledOnce())
     fireEvent.click(screen.getByRole('button', { name: 'Skip' }))

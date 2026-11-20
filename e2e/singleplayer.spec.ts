@@ -16,118 +16,81 @@ async function dismissTutorialIfShown(page: Page) {
 }
 
 test.describe('Street View singleplayer without credentials', () => {
-  test('honest unavailable state, disabled guessing, map expansion, collapse, and home navigation', async ({
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/singleplayer/config', route => route.fulfill({ json: { available: false, provider: 'google', serverKeyConfigured: false } }))
+  })
+  test('honest unavailable state, no premature gameplay UI, and home navigation', async ({
     page,
   }) => {
     await page.goto('/game/singleplayer')
-    await expect(
-      page.getByRole('main', { name: 'TerraGuessr singleplayer game' }),
-    ).toBeVisible()
+    const main = page.getByRole('main', { name: 'TerraGuessr singleplayer game' })
+    await expect(main).toBeVisible()
     await dismissTutorialIfShown(page)
+    await expect(main).toHaveAttribute('data-view', 'setup')
     await expect(
       page.getByText('Street View is currently unavailable', { exact: true }),
     ).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: 'Guess', exact: true }),
-    ).toBeDisabled()
+    // Setup is the only foreground content: no guess map and no round/score
+    // HUD exist until an expedition has actually started (R-UI setup state).
+    await expect(page.locator('.sp-guess-panel')).toHaveCount(0)
+    await expect(page.locator('.sp-hud')).toHaveCount(0)
     await expect(
       page.locator('script[src*="maps.googleapis.com"]'),
     ).toHaveCount(0)
-    const map = page.getByRole('complementary', { name: 'Guessing map' })
-    await page.getByRole('button', { name: 'Expand map', exact: true }).click()
-    await page.mouse.move(400, 90)
-    await expect(map).toHaveClass(/sp-guess-expanded/)
-    await page.getByRole('button', { name: 'Shrink map', exact: true }).click()
-    await page.mouse.move(400, 90)
-    await expect(map).not.toHaveClass(/sp-guess-expanded/)
-    await page.getByRole('button', { name: 'World Explorer' }).click()
-    await expect(page.locator('#guess-map-content')).toBeHidden()
-    await page.getByRole('button', { name: 'World Explorer' }).click()
-    await expect(page.locator('#guess-map-content')).toBeVisible()
     await page.getByRole('button', { name: 'Return', exact: true }).click()
     await expect(page).toHaveURL(/\/$/)
     await expect(
       page.getByRole('heading', { name: 'Explore the World' }),
     ).toBeVisible()
   })
-  test('settings persist, dialogs support Escape and restore focus, and the menu resumes', async ({
-    page,
-  }) => {
+  test('setup shares site navigation and its mobile menu supports Escape', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/game/singleplayer')
-    await dismissTutorialIfShown(page)
-    const settings = page.getByRole('button', { name: 'Game settings' })
-    await settings.click()
-    await page.getByRole('switch', { name: 'Expand map on hover' }).uncheck()
-    await page.getByRole('switch', { name: 'Show compass' }).uncheck()
-    await page.getByRole('slider', { name: 'Map opacity' }).fill('75')
+    await expect(page.getByRole('link', { name: 'Singleplayer', exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('link', { name: 'Multiplayer', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const menu = page.getByRole('button', { name: 'Open navigation' })
+    await menu.click()
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(page.getByRole('dialog')).toHaveCount(0)
-    await expect(settings).toBeFocused()
-    await page.reload()
-    await settings.click()
-    await expect(
-      page.getByRole('switch', { name: 'Expand map on hover' }),
-    ).not.toBeChecked()
-    await expect(
-      page.getByRole('switch', { name: 'Show compass' }),
-    ).not.toBeChecked()
-    await expect(page.getByRole('slider', { name: 'Map opacity' })).toHaveValue(
-      '75',
-    )
-    await page.getByRole('button', { name: 'Back to exploring' }).click()
-    await page.getByRole('button', { name: 'Game menu' }).click()
-    await expect(
-      page.getByRole('dialog', { name: 'Take a breather' }),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: 'Restart game' }),
-    ).toBeDisabled()
-    await page.getByRole('button', { name: /Back to game/ }).click()
+    await expect(menu).toBeFocused()
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden()
     await expect(page.getByRole('dialog')).toHaveCount(0)
   })
-  test('touch map expands within the viewport and all corner controls remain reachable', async ({
+  test('setup screen stays uncut and its controls remain reachable across viewports', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/game/singleplayer')
     await dismissTutorialIfShown(page)
-    await page.getByRole('button', { name: 'Expand map', exact: true }).click()
-    const map = page.getByRole('complementary', { name: 'Guessing map' })
-    await expect(map).toHaveClass(/sp-guess-expanded/)
-    const bounds = await map.boundingBox()
-    expect(bounds!.x).toBeGreaterThanOrEqual(0)
-    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390)
-    await page.getByRole('button', { name: 'Game menu' }).click()
-    await page.getByRole('button', { name: /Back to game/ }).click()
-    await page.getByRole('button', { name: 'Shrink map', exact: true }).click()
-    await page.mouse.move(1, 1)
-    for (const width of [320, 390, 701, 768, 1024, 1280, 1792]) {
-      await page.setViewportSize({ width, height: 844 })
+    for (const [width, height] of [
+      [320, 844],
+      [390, 844],
+      [701, 864],
+      [768, 1024],
+      [1024, 768],
+      [1366, 768],
+      [1792, 1080],
+    ] as const) {
+      await page.setViewportSize({ width, height })
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth),
-      ).toBe(width)
-      const overlaps = () =>
-        page.evaluate(() => {
-          const rect = (selector: string) =>
-            document.querySelector(selector)!.getBoundingClientRect()
-          const intersects = (a: DOMRect, b: DOMRect) =>
-            a.left < b.right &&
-            a.right > b.left &&
-            a.top < b.bottom &&
-            a.bottom > b.top
-          const hud = rect('.sp-hud')
-          return {
-            returnHud: intersects(rect('.sp-return'), hud),
-            mapHud: intersects(rect('.sp-guess-panel'), hud),
-          }
-        })
-      await expect.poll(overlaps).toEqual({ returnHud: false, mapHud: false })
+      ).toBeLessThanOrEqual(width)
+      // Setup never reserves a guess-map column: no gameplay-only UI exists
+      // yet, and the welcome card + its primary action must stay on screen.
+      await expect(page.locator('.sp-guess-panel')).toHaveCount(0)
+      await expect(page.locator('.sp-hud')).toHaveCount(0)
+      await expect(page.locator('.sp-welcome')).toBeInViewport()
       await expect(
-        page.getByRole('button', { name: 'Game settings' }),
-      ).toBeVisible()
+        page.getByRole('link', { name: 'TerraGuessr home', exact: true }),
+      ).toBeInViewport()
       await expect(
         page.getByRole('button', { name: 'Return', exact: true }),
-      ).toBeVisible()
+      ).toBeInViewport()
+      const start = page.locator('.sp-welcome .sp-primary, .sp-welcome .sp-secondary').first()
+      await start.scrollIntoViewIfNeeded()
+      await expect(start).toBeInViewport()
     }
   })
 })

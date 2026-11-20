@@ -18,9 +18,7 @@ async function isolateProviders(page: Page, available = false) {
 }
 async function open(page: Page, difficulty = 'medium') {
   await page.addInitScript(difficulty => localStorage.setItem('terraguessr.difficulty.v1', difficulty), difficulty)
-  await page.goto('/game/singleplayer')
-  await page.getByRole('button', { name: 'Game menu' }).click()
-  await page.getByRole('button', { name: 'How to Play / Tutorial' }).click()
+  await page.goto('/game/singleplayer?tutorial=1')
   await expect(tutorial(page)).toBeVisible()
 }
 
@@ -94,8 +92,8 @@ test('R14: Haversine result, true scoring curve and finishing', async ({ page })
   }
   await tutorial(page).getByRole('button', { name: 'Finish tutorial' }).click()
   await expect(tutorial(page)).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Game menu', exact: true })).toBeFocused()
-  await page.getByRole('button', { name: 'How to play', exact: true }).click()
+  await expect(tutorial(page)).toHaveCount(0)
+  await open(page)
   await expect(tutorial(page).getByText('STEP 1 OF 5 · MEDIUM')).toBeVisible()
 })
 
@@ -106,7 +104,7 @@ test('R14: exit at every step preserves the active round, score, difficulty and 
   await page.route('**/api/singleplayer/games/r14-game/rounds', route => route.fulfill({ status: 201, json: round }))
   await page.route('**/api/singleplayer/games/r14-game/rounds/*/intelligence', route => route.fulfill({ status: 503, json: { error: { code: 'UNAVAILABLE', message: 'Offline' } } }))
   await page.goto('/game/singleplayer')
-  await page.getByRole('button', { name: /Start exploring/ }).click()
+  await page.getByRole('button', { name: /Start exploring/i }).click()
   await expect(tutorial(page)).toBeVisible() // starting a brand-new game opens the guide automatically
   await tutorial(page).getByRole('button', { name: 'Skip' }).click()
   await expect(tutorial(page)).toHaveCount(0)
@@ -144,7 +142,7 @@ test('R14: temporary always-show starts on new games even after completion or sk
   await page.route('**/api/singleplayer/games/r14-game/rounds', route => route.fulfill({ status: 201, json: round }))
   await page.route('**/api/singleplayer/games/r14-game/rounds/*/intelligence', route => route.fulfill({ status: 503, json: { error: { code: 'UNAVAILABLE', message: 'Offline' } } }))
   await page.goto('/game/singleplayer')
-  await page.getByRole('button', { name: /Start exploring/ }).click()
+  await page.getByRole('button', { name: /Start exploring/i }).click()
   await expect(tutorial(page)).toBeVisible()
   await expect.poll(() => creates).toBe(1)
   await tutorial(page).getByRole('button', { name: 'Skip' }).click()
@@ -177,7 +175,7 @@ test('R14: mobile, tablet, narrow zoom-sized viewport and keyboard focus remain 
   await page.keyboard.press('Tab')
   await expect(tutorial(page).getByRole('button', { name: 'Restart tutorial' })).toBeFocused()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: 'Game menu', exact: true })).toBeFocused()
+  await expect(tutorial(page)).toHaveCount(0)
 })
 
 

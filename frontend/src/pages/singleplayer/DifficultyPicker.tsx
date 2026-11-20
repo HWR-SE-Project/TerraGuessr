@@ -64,7 +64,7 @@ export function DifficultyPicker({
 
   return (
     <fieldset className="sp-difficulty" disabled={disabled}>
-      <legend>Difficulty</legend>
+      <legend>Choose your difficulty</legend>
       <div
         className="sp-difficulty-options"
         role="radiogroup"
@@ -92,7 +92,6 @@ export function DifficultyPicker({
                 </span>
               )}
               <span className="sp-difficulty-label">{level.label}</span>
-              <span className="sp-difficulty-tagline">{level.tagline}</span>
               <span className="sp-difficulty-description">{level.description}</span>
             </button>
           )

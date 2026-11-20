@@ -1,15 +1,11 @@
-/* Fixed to exactly one viewport: every section below sizes itself off vh so
-   the whole composition — nav, hero, planet clearance, actions — always
-   resolves to <= 100dvh with no page scroll, instead of growing/shrinking
-   independently and spilling past the fold. */
 .th-home {
   --lime: var(--color-lime);
   position: relative;
   isolation: isolate;
-  height: 100dvh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   background:
     radial-gradient(ellipse at 50% 72%, #16304a66, transparent 58%),
     var(--color-bg);
@@ -136,7 +132,7 @@
 .th-hero {
   position: relative;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: min-content;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -372,4 +368,16 @@
   /* Stacked cards eat more vertical space here, so the character/planet
      group needs to run smaller and leave more clearance before the actions. */
   .th-avatar-display { --avatar-height: clamp(7.5rem, 19vh, 15rem); margin-bottom: clamp(6.5rem, 23vh, 12rem); }
+}
+
+/* Only the decorative orbit artwork is cropped; the screen can grow when
+   readable content needs more room (mobile, short windows and browser zoom). */
+.th-orbits { position: absolute; inset: 0; overflow: clip; pointer-events: none; z-index: -1; }
+.th-hero { padding-block: clamp(1rem, 3dvh, 2rem); }
+.th-game-modes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.th-avatar-display { --avatar-height: clamp(11rem, 26dvh, 22rem); }
+@media (max-width: 45rem) {
+  .th-game-modes { grid-template-columns: minmax(0, 1fr); width: min(28rem, calc(100% - 2.5rem)); }
+  .th-avatar-display { --avatar-height: clamp(11rem, 24dvh, 16rem); margin-bottom: clamp(9rem, 22dvh, 12rem); }
+  .th-hero { flex: 1 0 auto; }
 }

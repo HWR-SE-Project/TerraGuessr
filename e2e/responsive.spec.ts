@@ -124,14 +124,7 @@ async function routes(page: Page, screenshot?: string) {
   for (const label of ['Easy','Medium','Hard']) await page.getByRole('radio',{name:new RegExp(label)}).click()
   await reachable(page, '.sp-welcome .sp-primary')
   if (screenshot) await capture(page, `${output}/setup-${screenshot}.png`)
-  await page.getByRole('button',{name:'Game settings'}).click()
-  await audit(page)
-  await reachable(page, '.sp-dialog .sp-wide')
-  if (screenshot) await capture(page, `${output}/settings-${screenshot}.png`)
-  await page.keyboard.press('Escape')
-  await page.getByRole('button',{name:'Game menu'}).click()
-  await audit(page)
-  await page.getByRole('button',{name:'How to Play / Tutorial'}).click()
+  await page.goto('/game/singleplayer?tutorial=1')
   const dialog=page.getByRole('dialog',{name:'How to play / Tutorial'})
   for (const [i,subject] of ['Weather','Location','Confirmation','Distance','Points'].entries()) {
     await dialog.getByRole('button',{name:`Step ${i+1}: ${subject}`}).click()
@@ -160,7 +153,7 @@ async function zoomGameSurfaces(page: Page, suffix?: string) {
   await page.route('**/api/singleplayer/games/responsive-zoom', route =>
     route.request().method() === 'DELETE' ? route.fulfill({ status:204 }) : route.fulfill({ json: session }))
   await page.goto('/game/singleplayer')
-  await page.getByRole('button', {name:/Start exploring/}).click()
+  await page.getByRole('button', {name:/Start exploring/i}).click()
   await page.getByRole('dialog', {name:'How to play / Tutorial'}).getByRole('button', {name:'Skip'}).click()
   for (const phase of ['active', 'final']) {
     if (phase === 'active') {
@@ -248,7 +241,7 @@ for (const phase of ['active','final']) {
       route.request().method()==='DELETE' ? route.fulfill({status:204}) : route.fulfill({json:session}))
     await page.route('**/intelligence',r=>r.fulfill({status:503,json:{error:{code:'UNAVAILABLE',message:'Offline fixture'}}}))
     await page.goto('/game/singleplayer')
-    await page.getByRole('button',{name:/Start exploring/}).click()
+    await page.getByRole('button',{name:/Start exploring/i}).click()
     await page.getByRole('dialog',{name:'How to play / Tutorial'}).getByRole('button',{name:'Skip'}).click()
     if (phase === 'final') {
       await page.getByRole('button',{name:'Return',exact:true}).click()

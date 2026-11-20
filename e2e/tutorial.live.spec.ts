@@ -33,7 +33,7 @@ test('R14 live: five contextual sections, safe confirmation, preserved actual ga
   await screenshot(page, info, '00-main-menu')
   await page.getByRole('link', { name: 'Play Solo Challenge yourself' }).click()
   await page.getByRole('radio', { name: /Medium/ }).click()
-  await page.getByRole('button', { name: /Start exploring/ }).click()
+  await page.getByRole('button', { name: /Start exploring/i }).click()
   await expect(guide(page)).toBeVisible() // temporary always-show
   await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({ timeout: 45_000 })
   await expect(guide(page).getByText('Current round · model weather clues')).toBeVisible({ timeout: 30_000 })

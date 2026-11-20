@@ -121,3 +121,9 @@
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
+
+/* The location details may scroll; the close and submit actions stay available. */
+#root .tg-duel-overlay { display: flex; flex-direction: column; padding: clamp(1rem, 3dvh, 2rem); }
+.tg-duel-overlay-title { padding-right: 2.75rem; }
+.tg-duel-overlay-title, .tg-duel-overlay-lead, .tg-duel-overlay-submit, .tg-duel-overlay-error { flex-shrink: 0; }
+.tg-duel-overlay-body { min-height: 0; overflow-y: auto; padding: 0.25rem; scrollbar-width: thin; }

@@ -273,3 +273,14 @@
   font-weight: 700;
   color: #9ee28a;
 }
+
+/* The secondary weather expedition uses the same compact screen rhythm. */
+.tg-play-page { min-height: 100dvh; overflow: visible; }
+#root .tg-play-shell { padding-block: clamp(1rem, 3dvh, 2rem); }
+#root .tg-play-setup { padding: clamp(1.25rem, 3dvh, 2.5rem); }
+.tg-play-subtitle { margin-bottom: 1.25rem; }
+.tg-play-field { margin-bottom: 1rem; }
+#root .tg-play-mode-hint { margin: 0 0 1rem; }
+.tg-play-result-map { height: clamp(14rem, 38dvh, 24rem); }
+.tg-play-result-actions > button { max-width: 100%; white-space: normal; }
+.tg-play-summary-list { max-height: 48dvh; overflow-y: auto; }

@@ -28,7 +28,6 @@ export function saveDifficulty(difficulty: Difficulty): void {
 export interface DifficultyInfo {
   id: Difficulty
   label: string
-  tagline: string
   description: string
 }
 
@@ -36,22 +35,16 @@ export const DIFFICULTY_LEVELS: readonly DifficultyInfo[] = [
   {
     id: 'easy',
     label: 'Easy',
-    tagline: 'Pick from a shortlist',
-    description:
-      'Choose your guess from a handful of named cities instead of the open map. Geographic intelligence starts open.',
+    description: 'Choose from 4 locations.',
   },
   {
     id: 'medium',
     label: 'Medium',
-    tagline: 'Free placement',
-    description:
-      'Drop your pin anywhere on the world map. Geographic intelligence starts open.',
+    description: 'World map with country borders.',
   },
   {
     id: 'hard',
     label: 'Hard',
-    tagline: 'No hand-holding',
-    description:
-      'Drop your pin anywhere on the world map. Geographic intelligence starts collapsed — open it yourself if you want the clues.',
+    description: 'World map without country borders.',
   },
 ]

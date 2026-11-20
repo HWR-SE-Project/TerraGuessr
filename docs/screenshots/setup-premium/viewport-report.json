@@ -1,0 +1,72 @@
+[
+  {
+    "width": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "scrollHeight": 1080,
+    "pixelRatio": 1
+  },
+  {
+    "width": 1711,
+    "height": 864,
+    "scrollWidth": 1711,
+    "scrollHeight": 864,
+    "pixelRatio": 1
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "scrollHeight": 900,
+    "pixelRatio": 1
+  },
+  {
+    "width": 1366,
+    "height": 768,
+    "scrollWidth": 1366,
+    "scrollHeight": 768,
+    "pixelRatio": 1
+  },
+  {
+    "width": 1024,
+    "height": 768,
+    "scrollWidth": 1024,
+    "scrollHeight": 768,
+    "pixelRatio": 1
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "scrollWidth": 768,
+    "scrollHeight": 1024,
+    "pixelRatio": 1
+  },
+  {
+    "width": 701,
+    "height": 864,
+    "scrollWidth": 701,
+    "scrollHeight": 939,
+    "pixelRatio": 1
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollHeight": 915,
+    "pixelRatio": 1
+  },
+  {
+    "width": 375,
+    "height": 812,
+    "scrollWidth": 375,
+    "scrollHeight": 911,
+    "pixelRatio": 1
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "scrollWidth": 320,
+    "scrollHeight": 908,
+    "pixelRatio": 1
+  }
+]

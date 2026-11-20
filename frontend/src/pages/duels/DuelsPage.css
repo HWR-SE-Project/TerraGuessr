@@ -3,7 +3,8 @@
   position: relative;
   isolation: isolate;
   min-height: 100svh;
-  overflow: clip;
+  display: flex;
+  flex-direction: column;
   background: var(--color-bg);
   color: var(--color-text);
 }
@@ -284,3 +285,23 @@
 .td-title h1 { font-size: clamp(2.5rem, 8vw, 5.75rem); }
 .td-title > p { font-size: 0.875rem; }
 .td-player-label { font-size: 0.75rem; }
+
+/* A proportional arena keeps the artwork prominent while reserving space
+   for the title and play actions, including on shorter laptops. */
+.td-main { flex: 1; display: grid; grid-template-rows: auto minmax(17rem, 1fr) auto; gap: clamp(0.75rem, 2dvh, 1.5rem); padding-block: clamp(1.25rem, 4dvh, 3rem); }
+.td-arena { min-height: 17rem; height: 100%; max-height: 32rem; margin: 0; align-self: center; }
+.td-characters { inset: 0 auto auto 50%; height: 100%; width: auto; max-width: 100%; object-fit: contain; }
+.td-blades { top: 30%; width: min(28%, 24dvh); height: auto; aspect-ratio: 1; }
+.td-player-label { top: 0; width: min(35%, 13rem); }
+.td-player-left { left: 0; }
+.td-player-right { right: 0; }
+.td-title h1 { font-size: clamp(2.75rem, 8dvh, 5.75rem); }
+.td-title > p { margin-top: 0.75rem; }
+.td-play { margin-top: 0; }
+.td-lobby-link { min-height: 2.75rem; display: flex; align-items: center; margin-top: 0.5rem; }
+@media (max-width: 37.5rem) {
+  .td-main { width: calc(100% - 2rem); }
+  .td-title > p { max-width: 100%; }
+  .td-arena { height: clamp(17rem, 38dvh, 24rem); }
+  .td-player-label { width: 45%; }
+}

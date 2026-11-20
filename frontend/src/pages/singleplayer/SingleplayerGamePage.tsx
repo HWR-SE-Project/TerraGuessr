@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Brand } from '../../components/ui/Brand'
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import type { CSSProperties } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { GuessButton } from './GuessButton'
@@ -14,11 +15,23 @@ import { GeographicIntelligence } from './GeographicIntelligence'
 import { readSettings } from './settings'
 import { DifficultyPicker } from './DifficultyPicker'
 import { ExitGameDialog } from './ExitGameDialog'
-import { DIFFICULTY_LEVELS, readDifficulty, saveDifficulty } from './difficulty'
+import { readDifficulty, saveDifficulty } from './difficulty'
 import { Tutorial, markTutorialSeen, shouldShowTutorialForNewGame } from './Tutorial'
 import { RoundResults, FinalResults } from './GameResults'
 import { useCosmicBackgroundMode } from '../../components/cosmic/CosmicContext'
 import './SingleplayerGamePage.css'
+import './SingleplayerSetup.css'
+
+// Derived from the existing game-session flags rather than tracked as its
+// own state, so there is exactly one source of truth for "what is on
+// screen" — the setup/guess-map/score-HUD bugs this fixes all came from
+// components each re-deriving (and disagreeing on) that same answer.
+type SingleplayerView =
+  | 'setup'
+  | 'loading'
+  | 'playing'
+  | 'round-results'
+  | 'session-summary'
 
 export function SingleplayerGamePage() {
   const navigate = useNavigate()
@@ -38,7 +51,17 @@ export function SingleplayerGamePage() {
   const [hovered, setHovered] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const active = game.session.activeRound
-  const exploring = Boolean(active && !game.result && !game.showFinal)
+  const view: SingleplayerView = game.showFinal
+    ? 'session-summary'
+    : game.result
+      ? 'round-results'
+      : active
+        ? 'playing'
+        : game.busy
+          ? 'loading'
+          : 'setup'
+  const exploring = view === 'playing'
+  const started = view !== 'setup' && view !== 'loading'
   const selectedCandidateId =
     active?.candidates?.find(
       (candidate) =>
@@ -65,7 +88,7 @@ export function SingleplayerGamePage() {
     const escape = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
-        (event.target instanceof Element && event.target.closest('dialog'))
+        (event.target instanceof Element && event.target.closest('dialog, .tg-page-nav'))
       )
         return
       if (
@@ -148,119 +171,112 @@ export function SingleplayerGamePage() {
       className="sp-page"
       aria-label="TerraGuessr singleplayer game"
       data-game-phase={game.phase}
+      data-view={view}
       data-cosmic={exploring ? 'off' : 'on'}
     >
       <div className="sp-top-shade" />
-      <header className="sp-topbar">
-        <button
-          className="sp-brand"
-          aria-label="TerraGuessr home"
-          onClick={leave}
-        >
-          <Brand />
-        </button>
-        <div className="sp-top-controls">
+      {!started ? (
+        <PageNavigation active="singleplayer" />
+      ) : (
+        <header className="sp-topbar">
           <button
-            className="sp-icon tg-control sp-glass"
-            aria-label="How to play"
-            data-tutorial-trigger
-            onClick={() => setDialog('tutorial')}
+            className="sp-brand"
+            aria-label="TerraGuessr home"
+            onClick={leave}
           >
-            <GameIcon name="info" />
+            <Brand />
           </button>
-          <button
-            className="sp-icon tg-control sp-glass"
-            aria-label="Game settings"
-            onClick={() => setDialog('settings')}
-          >
-            <GameIcon name="settings" />
-          </button>
-          <button
-            className="sp-icon tg-control sp-glass"
-            aria-label="Game menu"
-            onClick={() => setDialog('menu')}
-          >
-            <GameIcon name="menu" />
+          <div className="sp-top-controls">
+            <button
+              className="sp-icon tg-control sp-glass"
+              aria-label="How to play"
+              data-tutorial-trigger
+              onClick={() => setDialog('tutorial')}
+            >
+              <GameIcon name="info" />
+            </button>
+            <button
+              className="sp-icon tg-control sp-glass"
+              aria-label="Game settings"
+              onClick={() => setDialog('settings')}
+            >
+              <GameIcon name="settings" />
+            </button>
+            <button
+              className="sp-icon tg-control sp-glass"
+              aria-label="Game menu"
+              onClick={() => setDialog('menu')}
+            >
+              <GameIcon name="menu" />
+            </button>
+          </div>
+
+        </header>
+      )}
+
+      {(view === 'setup' || view === 'loading') && (
+        <div className="sp-setup-shell">
+          <section className="sp-welcome sp-glass" aria-label="Start expedition">
+            <div className="sp-setup-intro">
+              <h1>
+                <span>The world is out there.</span>
+                <em>Find your place.</em>
+              </h1>
+              <p>Explore the world. Follow the clues. Make your guess.</p>
+              <p className="sp-setup-meta">
+                Unlimited rounds · Up to 5,000 points per round · No time limit
+              </p>
+            </div>
+            <div className="sp-setup-options">
+              {view === 'loading' ? (
+                <div className="sp-setup-loading" role="status">
+                  <span className="sp-spinner" />
+                  <p>
+                    {game.session.id
+                      ? 'Scouting your next location…'
+                      : 'Preparing your first expedition…'}
+                  </p>
+                </div>
+              ) : game.checking ? (
+                <p role="status">Checking game availability…</p>
+              ) : !game.available ? (
+                <div className="sp-unavailable" role="status">
+                  <strong>Street View is currently unavailable</strong>
+                  <p>
+                    {game.setupIssues.join(' ') ||
+                      'The map provider could not be reached. Check the connection and retry.'}
+                  </p>
+                  <button
+                    className="sp-secondary tg-control"
+                    onClick={() => void game.refreshConfig()}
+                  >
+                    Check again
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {!game.session.id && (
+                    <DifficultyPicker
+                      value={difficulty}
+                      onChange={setDifficulty}
+                      disabled={game.busy}
+                    />
+                  )}
+                  <button
+                    className="sp-primary tg-control tg-control--primary"
+                    disabled={game.busy}
+                    onClick={startExpedition}
+                  >
+                    {game.session.id ? 'Continue expedition' : 'Start Exploring'}
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+          <button className="sp-return sp-setup-back" aria-label="Return" onClick={leave}>
+            <GameIcon name="return" /><span>Return home</span>
           </button>
         </div>
-
-      </header>
-
-      {!active && !game.result && !game.showFinal && (
-        <section className="sp-welcome sp-glass" aria-label="Start expedition">
-          <span className="sp-welcome-globe" aria-hidden="true">
-            ◎
-          </span>
-          <span className="sp-eyebrow">SINGLEPLAYER · WORLD EXPLORER</span>
-          <h1>
-            The world is out there.
-            <br />
-            <em>Find your place.</em>
-          </h1>
-          <p>
-            Explore real streets. Follow the clues.
-            <br />
-            Drop your pin and see how close you get.
-          </p>
-          <div className="sp-rules">
-            <span>
-              <b>Unlimited</b> rounds
-            </span>
-            <i />
-            <span>
-              Up to <b>5,000</b> points / round
-            </span>
-            <i />
-            <span>No time limit</span>
-          </div>
-          {game.checking ? (
-            <p role="status">Checking game availability…</p>
-          ) : !game.available ? (
-            <div className="sp-unavailable" role="status">
-              <strong>Street View is currently unavailable</strong>
-              <p>
-                {game.setupIssues.join(' ') ||
-                  'The map provider could not be reached. Check the connection and retry.'}
-              </p>
-              <button
-                className="sp-secondary tg-control"
-                onClick={() => void game.refreshConfig()}
-              >
-                Check again
-              </button>
-            </div>
-          ) : (
-            <>
-              {!game.session.id && (
-                <DifficultyPicker
-                  value={difficulty}
-                  onChange={setDifficulty}
-                  disabled={game.busy}
-                />
-              )}
-              <button
-                className="sp-primary tg-control tg-control--primary"
-                disabled={game.busy}
-                onClick={startExpedition}
-              >
-                <span>
-                  {game.busy
-                    ? 'Finding your first location…'
-                    : game.session.id
-                      ? 'Continue expedition'
-                      : 'Start exploring'}
-                  {!game.busy && !game.session.id && (
-                    <span className="sp-primary-difficulty">
-                      {' '}
-                      · {DIFFICULTY_LEVELS.find((level) => level.id === difficulty)?.label ?? difficulty}
-                    </span>
-                  )}
-                </span>
-                <span aria-hidden="true">→</span>
-              </button>
-            </>
-          )}
-        </section>
       )}
       {exploring && <section className="sp-stage" aria-label="Exploration controls">
         {active && (
@@ -309,28 +325,29 @@ export function SingleplayerGamePage() {
           {game.error}
         </div>
       )}
-      <footer className="sp-bottom-bar">
+      {view !== 'setup' && view !== 'loading' && <footer className="sp-bottom-bar">
         <button
           aria-label="Return"
           className="sp-return tg-control sp-glass"
           onClick={leave}
         >
           <GameIcon name="return" />
-          <span>Return</span>
+          <span>{exploring ? 'Exit game' : 'Return home'}</span>
         </button>
-        <GameplayHUD
-          round={
-            active?.number ??
-            game.result?.number ??
-            (game.showFinal ? game.session.results.length : 1)
-          }
-          score={game.session.totalScore}
-          status={status}
-        />
+        {started && (
+          <GameplayHUD
+            round={
+              active?.number ??
+              game.result?.number ??
+              (game.showFinal ? game.session.results.length : 1)
+            }
+            score={game.session.totalScore}
+            status={status}
+          />
+        )}
+      </footer>}
 
-      </footer>
-
-      {!game.result && !game.showFinal && (
+      {exploring && (
         <aside
           className={`sp-guess-panel sp-glass${mapExpanded ? ' sp-guess-expanded' : ''}${collapsed ? ' sp-guess-collapsed' : ''}`}
           style={

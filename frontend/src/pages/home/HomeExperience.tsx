@@ -110,8 +110,10 @@ export function HomeExperience() {
         Skip to content
       </a>
       <Home3DScene onCharacterStatus={setCharacterStatus} onFeetOffset={setFeetOffset} />
-      <div className="th-orbit th-orbit-one" aria-hidden="true" />
-      <div className="th-orbit th-orbit-two" aria-hidden="true" />
+      <div className="th-orbits" aria-hidden="true">
+        <div className="th-orbit th-orbit-one" />
+        <div className="th-orbit th-orbit-two" />
+      </div>
       <PageNavigation active="none" />
       <HeroSection characterStatus={characterStatus} feetOffset={feetOffset} onEditAvatar={(button) => {
         editAvatarRef.current = button
