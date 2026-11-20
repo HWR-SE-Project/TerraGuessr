@@ -8,7 +8,7 @@ import { EmailAuthForm } from './EmailAuthForm'
 
 vi.mock('../../api/auth')
 
-const authConfig = { googleAvailable: false, passwordRecoveryAvailable: true }
+const authConfig = { googleAvailable: false, passwordRecoveryAvailable: true, emailVerificationAvailable: true }
 
 function renderForm(onSuccess = vi.fn()) {
   vi.mocked(authApi.fetchSession).mockResolvedValue({ user: null })
@@ -24,9 +24,10 @@ function renderForm(onSuccess = vi.fn()) {
 describe('EmailAuthForm', () => {
   afterEach(() => vi.resetAllMocks())
 
-  it('submits registration with the entered fields and calls onSuccess', async () => {
+  it('submits registration and asks the user to confirm their email', async () => {
     vi.mocked(authApi.register).mockResolvedValue({
       user: { id: '1', email: 'new@example.com', displayName: 'New Player', emailVerifiedAt: null, createdAt: '2024-01-01' },
+      verificationRequired: true,
     })
     const onSuccess = renderForm()
 
@@ -42,6 +43,23 @@ describe('EmailAuthForm', () => {
         displayName: 'New Player',
       }),
     )
+    expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeInTheDocument()
+    expect(screen.getByText(/new@example\.com/)).toBeInTheDocument()
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('signs in immediately when the server auto-verifies (no-SMTP dev fallback)', async () => {
+    vi.mocked(authApi.register).mockResolvedValue({
+      user: { id: '1', email: 'new@example.com', displayName: 'New Player', emailVerifiedAt: '2024-01-01', createdAt: '2024-01-01' },
+      verificationRequired: false,
+    })
+    const onSuccess = renderForm()
+
+    await userEvent.type(screen.getByLabelText('Display name'), 'New Player')
+    await userEvent.type(screen.getByLabelText('Email'), 'new@example.com')
+    await userEvent.type(screen.getByLabelText('Password', { exact: false }), 'correct-horse-battery-staple')
+    await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
+
     await waitFor(() => expect(onSuccess).toHaveBeenCalled())
   })
 

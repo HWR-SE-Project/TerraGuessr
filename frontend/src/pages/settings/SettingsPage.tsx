@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
+import { requestEmailChange } from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Brand } from '../../components/ui/Brand'
@@ -79,6 +80,13 @@ export function SettingsPage() {
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
 
+  const [emailFormOpen, setEmailFormOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailPassword, setEmailPassword] = useState('')
+  const [emailBusy, setEmailBusy] = useState(false)
+  const [emailMessage, setEmailMessage] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
+
   const [prefsError, setPrefsError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
@@ -108,6 +116,30 @@ export function SettingsPage() {
       setProfileMessage(mapApiError(cause))
     } finally {
       setProfileSaving(false)
+    }
+  }
+
+  async function submitEmailChange(event: React.FormEvent) {
+    event.preventDefault()
+    setEmailBusy(true)
+    setEmailMessage(null)
+    setEmailError(null)
+    try {
+      const result = await requestEmailChange(newEmail.trim(), emailPassword || undefined)
+      setEmailMessage(result.message)
+      setEmailFormOpen(false)
+      setNewEmail('')
+      setEmailPassword('')
+    } catch (cause) {
+      setEmailError(
+        mapApiError(cause, {
+          EMAIL_IN_USE: 'That email is already used by another account.',
+          EMAIL_UNCHANGED: 'Choose a different email address.',
+          UNAUTHORIZED: 'Current password is incorrect.',
+        }),
+      )
+    } finally {
+      setEmailBusy(false)
     }
   }
 
@@ -260,9 +292,82 @@ export function SettingsPage() {
 
               <div className="settings-row">
                 <h2 className="settings-row__label">Email</h2>
-                <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 16 }}>
-                  {user.email}
-                </span>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 12,
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span
+                      style={{ color: 'rgba(255,255,255,0.75)', fontSize: 16 }}
+                    >
+                      {user.email}
+                    </span>
+                    <button
+                      type="button"
+                      className="settings-save-btn settings-save-btn--muted"
+                      onClick={() => {
+                        setEmailFormOpen((open) => !open)
+                        setEmailError(null)
+                        setEmailMessage(null)
+                      }}
+                    >
+                      {emailFormOpen ? 'Cancel' : 'Change email'}
+                    </button>
+                  </div>
+                  {emailMessage && (
+                    <span className="settings-inline-message">{emailMessage}</span>
+                  )}
+                  {emailFormOpen && (
+                    <form
+                      onSubmit={submitEmailChange}
+                      style={{ display: 'grid', gap: 10, maxWidth: 420 }}
+                    >
+                      <input
+                        type="email"
+                        required
+                        aria-label="New email address"
+                        className="settings-text-input"
+                        placeholder="New email address"
+                        value={newEmail}
+                        onChange={(event) => setNewEmail(event.target.value)}
+                      />
+                      {user.hasPassword && (
+                        <input
+                          type="password"
+                          required
+                          aria-label="Current password"
+                          className="settings-text-input"
+                          placeholder="Current password"
+                          value={emailPassword}
+                          onChange={(event) =>
+                            setEmailPassword(event.target.value)
+                          }
+                        />
+                      )}
+                      <p className="settings-note" style={{ margin: 0 }}>
+                        We will email both your current address and the new one.
+                        The change applies only after both confirm.
+                      </p>
+                      <button
+                        type="submit"
+                        className="settings-save-btn"
+                        disabled={emailBusy || !newEmail.trim()}
+                        style={{ justifySelf: 'start' }}
+                      >
+                        {emailBusy ? 'Sending…' : 'Send confirmation'}
+                      </button>
+                      {emailError && (
+                        <p className="settings-inline-message settings-inline-message--error">
+                          {emailError}
+                        </p>
+                      )}
+                    </form>
+                  )}
+                </div>
               </div>
 
               <div className="settings-row">

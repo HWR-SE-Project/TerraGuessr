@@ -60,10 +60,15 @@ model User {
   googleSub       String?              @unique
   displayName     String
   emailVerifiedAt DateTime?
+  failedLoginAttempts Int              @default(0)
+  lastFailedLoginAt   DateTime?
+  lockedUntil         DateTime?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   sessions        AuthSession[]
   resetTokens     PasswordResetToken[]
+  emailVerifications EmailVerificationToken[]
+  emailChangeRequests EmailChangeRequest[]
   preferences     UserPreference?
   games           Game[]
   dailySubmissions DailySubmission[]
@@ -75,6 +80,7 @@ model AuthSession {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String   @unique
   expiresAt DateTime
+  lastUsedAt DateTime @default(now())
   createdAt DateTime @default(now())
 
   @@index([userId, expiresAt])
@@ -88,6 +94,37 @@ model PasswordResetToken {
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+// A pending address change. Both inboxes must confirm before `User.email`
+// moves, so the current owner can veto and the new address is proven.
+model EmailChangeRequest {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oldEmail       String
+  newEmail       String
+  oldTokenHash   String    @unique
+  newTokenHash   String    @unique
+  oldConfirmedAt DateTime?
+  newConfirmedAt DateTime?
+  completedAt    DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
 
   @@index([userId, expiresAt])
 }

@@ -149,6 +149,8 @@ export interface PublicUser {
   displayName: string
   emailVerifiedAt: string | null
   createdAt: string
+  hasPassword?: boolean
+  hasGoogle?: boolean
 }
 
 export interface UserPreferences {
@@ -173,6 +175,7 @@ export interface SessionResponse {
 export interface AuthConfigResponse {
   googleAvailable: boolean
   passwordRecoveryAvailable: boolean
+  emailVerificationAvailable: boolean
 }
 
 export interface RegisterInput {
@@ -181,9 +184,27 @@ export interface RegisterInput {
   displayName: string
 }
 
+export interface RegisterResponse {
+  user: PublicUser
+  /** True when a verification email was sent and sign-in is blocked until confirmed. */
+  verificationRequired: boolean
+}
+
 export interface LoginInput {
   email: string
   password: string
+}
+
+export interface EmailChangeRequestResponse {
+  message: string
+  pendingEmail: string
+}
+
+export interface EmailChangeConfirmation {
+  side: 'old' | 'new'
+  changed: boolean
+  email?: string
+  pending: 'old' | 'new' | null
 }
 
 // --- Daily challenge -------------------------------------------------------

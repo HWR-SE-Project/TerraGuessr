@@ -11,8 +11,56 @@ export interface EmailAuthFormProps {
 /** Shared email login/register form — used inside the modal dialog and the embedded landing-page card. No Figma coverage exists for this step; styled to match the surrounding dark/pill design tokens. */
 export function EmailAuthForm({ onSuccess, onForgotPassword, initialMode = 'login' }: EmailAuthFormProps) {
   const { authConfig } = useSession()
-  const { mode, toggleMode, email, setEmail, password, setPassword, displayName, setDisplayName, submitting, error, submit } =
-    useAuthForm(onSuccess, initialMode)
+  const {
+    mode,
+    toggleMode,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    displayName,
+    setDisplayName,
+    submitting,
+    error,
+    notice,
+    canResend,
+    resending,
+    resent,
+    resend,
+    submit,
+  } = useAuthForm(onSuccess, initialMode)
+
+  if (notice) {
+    return (
+      <div className="tg-email-form">
+        <h2 className="tg-email-form-title">Check your email</h2>
+        <p className="tg-email-hint" style={{ textAlign: 'center' }}>
+          {notice}
+        </p>
+        {resent && (
+          <p className="tg-email-hint" style={{ textAlign: 'center' }}>
+            Verification email sent again.
+          </p>
+        )}
+        {error && (
+          <p className="tg-email-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          type="button"
+          className="tg-email-link"
+          onClick={resend}
+          disabled={resending}
+        >
+          {resending ? 'Sending…' : 'Resend verification email'}
+        </button>
+        <button type="button" className="tg-email-submit" onClick={toggleMode}>
+          Back to sign in
+        </button>
+      </div>
+    )
+  }
 
   return (
     <form className="tg-email-form" onSubmit={submit}>
@@ -61,6 +109,17 @@ export function EmailAuthForm({ onSuccess, onForgotPassword, initialMode = 'logi
         <p className="tg-email-error" role="alert">
           {error}
         </p>
+      )}
+
+      {canResend && email && (
+        <button
+          type="button"
+          className="tg-email-link"
+          onClick={resend}
+          disabled={resending}
+        >
+          {resending ? 'Sending…' : resent ? 'Verification email sent' : 'Resend verification email'}
+        </button>
       )}
 
       <button type="submit" className="tg-email-submit" disabled={submitting}>

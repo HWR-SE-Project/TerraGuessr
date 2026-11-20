@@ -9,7 +9,7 @@ import { SessionProvider, useSession } from './SessionContext'
 vi.mock('../api/auth')
 
 const user: PublicUser = { id: '1', email: 'a@b.com', displayName: 'Ada', emailVerifiedAt: null, createdAt: '2024-01-01' }
-const authConfig = { googleAvailable: false, passwordRecoveryAvailable: false }
+const authConfig = { googleAvailable: false, passwordRecoveryAvailable: false, emailVerificationAvailable: false }
 
 function Probe() {
   const session = useSession()

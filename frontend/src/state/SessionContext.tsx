@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import * as authApi from '../api/auth'
-import type { AuthConfigResponse, DailyStreak, LoginInput, PublicUser, RegisterInput, UserPreferences } from '../api/types'
+import type { AuthConfigResponse, DailyStreak, LoginInput, PublicUser, RegisterInput, RegisterResponse, UserPreferences } from '../api/types'
 import { ApiError } from '../api/client'
 
 interface SessionState {
@@ -15,7 +15,7 @@ interface SessionState {
 interface SessionContextValue extends SessionState {
   refresh: () => Promise<void>
   login: (input: LoginInput) => Promise<void>
-  register: (input: RegisterInput) => Promise<void>
+  register: (input: RegisterInput) => Promise<RegisterResponse>
   logout: () => Promise<void>
   updateProfile: (displayName: string) => Promise<void>
   updatePreferences: (changes: Partial<Pick<UserPreferences, 'language' | 'soundFxVolume' | 'musicVolume' | 'fullscreen'>>) => Promise<void>
@@ -71,8 +71,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh])
 
   const register = useCallback(async (input: RegisterInput) => {
-    await authApi.register(input)
-    await refresh()
+    const result = await authApi.register(input)
+    // Unverified accounts are not signed in until the email link is confirmed;
+    // the local/dev fallback returns verificationRequired=false and sets a cookie.
+    if (!result.verificationRequired) await refresh()
+    return result
   }, [refresh])
 
   const logout = useCallback(async () => {

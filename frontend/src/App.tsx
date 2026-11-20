@@ -11,6 +11,16 @@ const ResetPasswordPage = lazy(() =>
     default: m.ResetPasswordPage,
   })),
 )
+const VerifyEmailPage = lazy(() =>
+  import('./pages/auth/VerifyEmailPage').then((m) => ({
+    default: m.VerifyEmailPage,
+  })),
+)
+const EmailChangePage = lazy(() =>
+  import('./pages/auth/EmailChangePage').then((m) => ({
+    default: m.EmailChangePage,
+  })),
+)
 const DuelsPage = lazy(() =>
   import('./pages/duels/DuelsPage').then((m) => ({ default: m.DuelsPage })),
 )
@@ -48,6 +58,8 @@ function App() {
       '/daily': 'Daily challenge',
       '/settings': 'Settings',
       '/reset-password': 'Reset password',
+      '/verify-email': 'Verify email',
+      '/confirm-email-change': 'Confirm email change',
     }
     document.title = `${titles[pathname] ?? 'Challenge a friend'} · TerraGuessr`
   }, [pathname])
@@ -64,6 +76,8 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/confirm-email-change" element={<EmailChangePage />} />
           <Route path="/duels" element={<DuelsPage />} />
           <Route path="/game/singleplayer" element={<SingleplayerGamePage />} />
           <Route path="/play" element={<PlayPage />} />
