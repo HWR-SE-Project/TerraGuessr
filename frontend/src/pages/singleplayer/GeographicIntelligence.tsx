@@ -126,7 +126,7 @@ export function GeographicIntelligence({
   load,
   round,
   defaultExpanded = true,
-  embedded = false,
+  tutorialFocused = false,
 }: {
   load: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
   round: StreetRound
@@ -134,10 +134,11 @@ export function GeographicIntelligence({
    * difficulty lever; the four mandatory fields remain fully available on
    * demand (R05). */
   defaultExpanded?: boolean
-  /** Reuse the same weather UI inside the tutorial's isolated practice layer. */
-  embedded?: boolean
+  /** Temporarily reveal the real panel without changing the player’s preference. */
+  tutorialFocused?: boolean
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  const isExpanded = tutorialFocused || expanded
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const [climateOpen, setClimateOpen] = useState(false)
@@ -464,19 +465,10 @@ export function GeographicIntelligence({
       )}
     </>
   )
-  if (embedded) return (
-    <aside className="gi-panel gi-panel-embedded" aria-label="Geographic intelligence practice">
-      <div className="gi-header">
-        <span className="gi-header-icon"><GeoIcon name="scan" /></span>
-        <span><strong>GEOGRAPHIC<br /> INTELLIGENCE</strong><small>READ THE WORLD AROUND YOU</small></span>
-      </div>
-      {body('gi-tutorial')}
-    </aside>
-  )
   return (
     <>
       <aside
-        className={`gi-panel${expanded ? '' : ' gi-panel-collapsed'}`}
+        className={`gi-panel${isExpanded ? '' : ' gi-panel-collapsed'}`}
         aria-label="Geographic intelligence"
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
@@ -489,7 +481,7 @@ export function GeographicIntelligence({
         <button
           ref={desktopToggle}
           className="gi-header"
-          aria-expanded={expanded}
+          aria-expanded={isExpanded}
           aria-controls="gi-desktop-content"
           onClick={() => setExpanded(!expanded)}
         >
@@ -502,7 +494,7 @@ export function GeographicIntelligence({
               <br /> INTELLIGENCE
             </strong>
             <small>
-              {expanded
+              {isExpanded
                 ? 'READ THE WORLD AROUND YOU'
                 : loading
                   ? 'Connecting…'
@@ -516,7 +508,7 @@ export function GeographicIntelligence({
         <div
           className="gi-desktop-content"
           id="gi-desktop-content"
-          inert={!expanded}
+          inert={!isExpanded}
         >
           <div>{body('gi-desktop')}</div>
         </div>

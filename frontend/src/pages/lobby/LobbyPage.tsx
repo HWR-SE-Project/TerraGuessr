@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import * as lobbiesApi from '../../api/lobbies'
 import { ApiError } from '../../api/client'
 import { mapApiError } from '../../api/errorMessages'
@@ -13,10 +13,11 @@ const DIFFICULTIES: Array<{
   value: Difficulty
   label: string
   detail: string
+  selection: string
 }> = [
-  { value: 'easy', label: 'Easy', detail: '7 min · 3 attempts · pick from a list' },
-  { value: 'medium', label: 'Medium', detail: '4 min · 2 attempts · world map' },
-  { value: 'hard', label: 'Hard', detail: '2 min · 1 attempt · world map' },
+  { value: 'easy', label: 'Easy', detail: '7 min · 3 attempts', selection: 'Pick from a list' },
+  { value: 'medium', label: 'Medium', detail: '4 min · 2 attempts', selection: 'World map' },
+  { value: 'hard', label: 'Hard', detail: '2 min · 1 attempt', selection: 'World map' },
 ]
 
 const ROUND_OPTIONS = Array.from({ length: 8 }, (_, index) => index + 3)
@@ -65,6 +66,9 @@ export function LobbyPage() {
   const location = useLocation()
   const { user } = useSession()
 
+  const [entryMode, setEntryMode] = useState<'create' | 'join' | null>(routeCode ? 'join' : null)
+  const [codeInvalid, setCodeInvalid] = useState(false)
+  const codeInputRef = useRef<HTMLInputElement>(null)
   const [displayName, setDisplayName] = useState('')
   const [nameTouched, setNameTouched] = useState(false)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
@@ -87,15 +91,14 @@ export function LobbyPage() {
     waiting: boolean
   }>({ code: null, token: null, waiting: false })
 
-  // Errors and notices are transient: clear them after a few seconds.
+  // Notices are transient; errors remain available until the player retries.
   useEffect(() => {
-    if (!error && !notice) return
+    if (!notice) return
     const timer = window.setTimeout(() => {
-      setError(null)
       setNotice(null)
     }, FEEDBACK_TIMEOUT_MS)
     return () => window.clearTimeout(timer)
-  }, [error, notice])
+  }, [notice])
 
   // Prefill from the account without an effect: the user may still be loading.
   const effectiveName =
@@ -263,7 +266,8 @@ export function LobbyPage() {
   async function handleJoin() {
     const code = joinCode.trim().toUpperCase()
     if (!CODE_PATTERN.test(code)) {
-      setError('Enter the 6-character lobby code.')
+      setCodeInvalid(true)
+      codeInputRef.current?.focus()
       return
     }
     setBusy(true)
@@ -352,7 +356,8 @@ export function LobbyPage() {
   return (
     <div className="tl-page">
       <PageNavigation active="multiplayer" />
-      <main className="tl-main">
+      <main className={`tl-main${session && routeCode ? '' : ' tl-entry'}`}>
+        {session && routeCode && feedback}
         {session && routeCode ? (
           lobby ? (
             <LobbyRoom
@@ -377,10 +382,7 @@ export function LobbyPage() {
             <header className="tl-hero">
               <span className="tl-eyebrow">Play together</span>
               <h1>Multiplayer</h1>
-              <p>
-                Host a lobby or join friends with a 6-character code. Everyone
-                shares the same difficulty and rounds.
-              </p>
+              <p>The same world. A little friendly competition.</p>
             </header>
 
             {resumable && (
@@ -389,160 +391,145 @@ export function LobbyPage() {
                   <strong>Your lobby {resumable.code} is still open</strong>
                   <small>Jump back into the waiting room.</small>
                 </span>
-                <button
-                  type="button"
-                  className="tl-secondary"
-                  onClick={handleResume}
-                >
+                <button type="button" className="tl-secondary" onClick={handleResume}>
                   Return to lobby
                 </button>
               </section>
             )}
 
-            <label className="tl-name">
-              <span>Your display name</span>
-              <input
-                value={effectiveName}
-                maxLength={40}
-                placeholder="Guest explorer"
-                onChange={(event) => {
-                  setNameTouched(true)
-                  setDisplayName(event.target.value)
-                }}
-              />
-            </label>
-
-            {feedback}
-
-            <div className="tl-grid">
-              <section className="tl-panel" aria-labelledby="tl-create-title">
-                <div className="tl-panel-head">
-                  <span className="tl-panel-icon" aria-hidden="true">
-                    <HomeIcon name="crown" />
-                  </span>
-                  <div>
-                    <h2 id="tl-create-title">Create a lobby</h2>
-                    <p className="tl-panel-copy">
-                      You become the host. Difficulty applies to everyone and
-                      sets the round time, attempts and selection mode. Choose
-                      how many rounds the match lasts.
-                    </p>
-                  </div>
-                </div>
-
-                <div
-                  className="tl-difficulty"
-                  role="radiogroup"
-                  aria-label="Difficulty"
-                >
-                  {DIFFICULTIES.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={difficulty === option.value}
-                      className={`tl-difficulty-option${
-                        difficulty === option.value
-                          ? ' tl-difficulty-option-active'
-                          : ''
-                      }`}
-                      onClick={() => setDifficulty(option.value)}
-                    >
-                      <span className="tl-difficulty-label">
-                        {option.label}
-                      </span>
-                      <span className="tl-difficulty-detail">
-                        {option.detail}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="tl-rounds">
-                  <span id="tl-rounds-label" className="tl-rounds-label">
-                    Number of rounds
-                  </span>
-                  <div
-                    className="tl-rounds-options"
-                    role="radiogroup"
-                    aria-labelledby="tl-rounds-label"
-                  >
-                    {ROUND_OPTIONS.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        role="radio"
-                        aria-checked={roundsTotal === option}
-                        className={`tl-difficulty-option tl-rounds-option${
-                          roundsTotal === option
-                            ? ' tl-difficulty-option-active'
-                            : ''
-                        }`}
-                        onClick={() => setRoundsTotal(option)}
-                      >
-                        <span className="tl-difficulty-label">{option}</span>
-                        <span className="tl-difficulty-detail">rounds</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
+            <div className="tl-choices" aria-label="Choose how to play">
+              {(['create', 'join'] as const).map((mode) => (
                 <button
+                  key={mode}
                   type="button"
-                  className="tl-primary"
-                  onClick={handleCreate}
+                  className={`tl-choice${entryMode === mode ? ' tl-choice-selected' : ''}`}
+                  aria-expanded={entryMode === mode}
+                  aria-controls="tl-entry-flow"
                   disabled={busy}
+                  onClick={() => {
+                    setEntryMode(mode)
+                    setError(null)
+                    setCodeInvalid(false)
+                  }}
                 >
-                  {busy ? 'Creating…' : 'Create lobby'}
-                </button>
-              </section>
-
-              <section className="tl-panel" aria-labelledby="tl-join-title">
-                <div className="tl-panel-head">
-                  <span className="tl-panel-icon" aria-hidden="true">
-                    <HomeIcon name="users" />
+                  <span className="tl-choice-icon"><HomeIcon name={mode === 'create' ? 'crown' : 'users'} /></span>
+                  <span className="tl-choice-copy">
+                    <span role="heading" aria-level={2}>{mode === 'create' ? 'Create a lobby' : 'Join a lobby'}</span>
+                    <span>{mode === 'create' ? 'Start a game with friends.' : 'Enter a code to join.'}</span>
                   </span>
-                  <div>
-                    <h2 id="tl-join-title">Join a lobby</h2>
-                    <p className="tl-panel-copy">
-                      Ask the host for the code shown in their lobby, then enter
-                      it here.
-                    </p>
-                  </div>
-                </div>
-
-                <label className="tl-name tl-name-join">
-                  <span>Lobby code</span>
-                  <input
-                    value={joinCode}
-                    maxLength={6}
-                    placeholder="ABC234"
-                    autoCapitalize="characters"
-                    autoComplete="off"
-                    spellCheck={false}
-                    onChange={(event) =>
-                      setJoinCode(
-                        event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''),
-                      )
-                    }
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  className="tl-secondary"
-                  onClick={handleJoin}
-                  disabled={busy}
-                >
-                  {busy ? 'Joining…' : 'Join lobby'}
+                  <HomeIcon name={entryMode === mode ? 'check' : 'arrow'} className="tl-choice-indicator" />
                 </button>
-              </section>
+              ))}
             </div>
 
-            <p className="tl-alt">
-              Looking for a quick one-location duel?{' '}
-              <Link to="/duels">Play a duel</Link>
-            </p>
+            <div id="tl-entry-flow">
+              {entryMode && (
+                <form
+                  key={entryMode}
+                  className="tl-entry-form"
+                  aria-label={entryMode === 'create' ? 'Create a lobby' : 'Join a lobby'}
+                  aria-busy={busy}
+                  noValidate
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    if (busy) return
+                    void (entryMode === 'create' ? handleCreate() : handleJoin())
+                  }}
+                >
+                  {entryMode === 'create' ? (
+                    <fieldset className="tl-difficulty" disabled={busy}>
+                      <legend>Difficulty</legend>
+                      <div className="tl-difficulty-options">
+                        {DIFFICULTIES.map((option) => (
+                          <label key={option.value} className="tl-difficulty-option">
+                            <input
+                              type="radio"
+                              name="difficulty"
+                              value={option.value}
+                              checked={difficulty === option.value}
+                              onChange={() => setDifficulty(option.value)}
+                            />
+                            <span className="tl-difficulty-label">{option.label}</span>
+                            <span className="tl-difficulty-detail">{option.detail}</span>
+                            <span className="tl-difficulty-selection">{option.selection}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : (
+                    <label className="tl-name tl-name-join">
+                      <span>Lobby code</span>
+                      <input
+                        ref={codeInputRef}
+                        name="lobbyCode"
+                        value={joinCode}
+                        maxLength={6}
+                        placeholder="ABC234"
+                        autoCapitalize="characters"
+                        autoComplete="off"
+                        spellCheck={false}
+                        inputMode="text"
+                        enterKeyHint="go"
+                        aria-invalid={codeInvalid || undefined}
+                        aria-describedby="tl-code-hint"
+                        disabled={busy}
+                        onChange={(event) => {
+                          setJoinCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
+                          setCodeInvalid(false)
+                          setError(null)
+                        }}
+                        onPaste={(event) => {
+                          event.preventDefault()
+                          setJoinCode(event.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
+                          setCodeInvalid(false)
+                          setError(null)
+                        }}
+                      />
+                      <span id="tl-code-hint" className={codeInvalid ? 'tl-field-error' : 'tl-field-hint'} role={codeInvalid ? 'alert' : undefined}>
+                        {codeInvalid ? 'Enter all 6 letters or numbers to join.' : '6 letters or numbers, shared by your host.'}
+                      </span>
+                    </label>
+                  )}
+
+                  <div className={`tl-entry-fields${entryMode === 'create' ? ' tl-entry-fields-create' : ''}`}>
+                    <label className="tl-name">
+                      <span>Display name <span className="tl-optional">optional</span></span>
+                      <input
+                        name="displayName"
+                        autoComplete="nickname"
+                        value={effectiveName}
+                        maxLength={40}
+                        placeholder="Guest explorer"
+                        disabled={busy}
+                        onChange={(event) => {
+                          setNameTouched(true)
+                          setDisplayName(event.target.value)
+                        }}
+                      />
+                    </label>
+                    {entryMode === 'create' && (
+                      <label className="tl-name tl-rounds">
+                        <span>Number of rounds</span>
+                        <select name="rounds" value={roundsTotal} disabled={busy} onChange={(event) => setRoundsTotal(Number(event.target.value))}>
+                          {ROUND_OPTIONS.map((rounds) => <option key={rounds} value={rounds}>{rounds} rounds</option>)}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+
+                  {feedback}
+                  <div className="tl-entry-footer">
+                    <span>{entryMode === 'create' ? 'Your lobby. Your invite list.' : 'Your next adventure is one code away.'}</span>
+                    <button type="submit" className="tl-primary" disabled={busy}>
+                      {busy && <span className="tl-spinner" aria-hidden="true" />}
+                      {entryMode === 'create' ? (busy ? 'Creating…' : 'Create lobby') : (busy ? 'Joining…' : 'Join lobby')}
+                      {!busy && <HomeIcon name="arrow" />}
+                    </button>
+                  </div>
+                </form>
+              )}
+              {!entryMode && feedback}
+            </div>
           </>
         )}
       </main>

@@ -1,3 +1,4 @@
+import { LeaveGameGuard } from '../../components/ui/LeaveGameGuard'
 import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useEffect, useState } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
@@ -126,6 +127,7 @@ export function ChallengePage() {
   return (
     <div className="tg-challenge-page">
       <PageNavigation active="none" />
+      <LeaveGameGuard active={phase.kind === 'playing'} busy={submitting} />
       <div className="tg-challenge-shell">
         {shareState?.justCreated && (
           <div className="tg-challenge-share-banner">

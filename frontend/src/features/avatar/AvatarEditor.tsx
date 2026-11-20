@@ -5,6 +5,7 @@ import { AvatarCustomizationPanel } from './AvatarCustomizationPanel'
 import { CATEGORIES } from './avatarCategories'
 import type { AvatarCategory } from './avatarCategories'
 import type { PreviewCommand } from './AvatarPreview'
+import { Button } from '../../components/ui/Button'
 import './AvatarEditor.css'
 
 const AvatarPreview = lazy(() => import('./AvatarPreview').then(module => ({ default: module.AvatarPreview })))
@@ -64,7 +65,7 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
     <div className="ae-shell">
       <header className="ae-header">
         <div><span className="ae-eyebrow">EXPLORER STUDIO</span><h2 id="ae-title">A world of <em>you.</em></h2><p id="ae-subtitle">Small details. Your signature explorer.</p></div>
-        <button type="button" className="ae-icon-button" aria-label="Close avatar editor" onClick={cancel} disabled={saving} autoFocus>×</button>
+        <button type="button" className="ae-icon-button tg-control tg-icon-button" aria-label="Close avatar editor" onClick={cancel} disabled={saving} autoFocus>×</button>
       </header>
       <div className="ae-body">
         <aside className="ae-customization">
@@ -100,8 +101,8 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
         <div className="ae-feedback" aria-live="polite">{loadError ? <p role="alert">{loadError} <button type="button" onClick={onRetry}>Retry</button></p> : error ? <p role="alert">{error}</p> : loading ? <p>Loading saved appearance…</p> : null}</div>
         <div className="ae-actions">
           <button type="button" className="ae-reset" aria-label="Reset to Default" onClick={() => { setDraft({ ...DEFAULT_AVATAR }); setError('') }} disabled={saving || loading}>↺ <span>Reset to Default</span></button>
-          <button type="button" className="ae-cancel" onClick={cancel} disabled={saving}>Cancel</button>
-          <button type="button" className="ae-save" onClick={save} disabled={saving || loading || !ready || previewError}>{saving ? 'Saving…' : 'Save Changes'} <span aria-hidden="true">↗</span></button>
+          <Button variant="secondary" className="ae-cancel" onClick={cancel} disabled={saving}>Cancel</Button>
+          <Button className="ae-save" onClick={save} disabled={saving || loading || !ready || previewError}>{saving ? 'Saving…' : 'Save Changes'}</Button>
         </div>
       </footer>
     </div>

@@ -1,3 +1,4 @@
+import { requestGameExit } from './support/navigation'
 import { expect, test } from '@playwright/test'
 import type { StreetResult } from '../frontend/src/api/singleplayer'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -12,7 +13,7 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     'Run npm run maps:verify with configured Google Maps credentials.',
   )
   test.setTimeout(300_000)
-  const out = 'docs/screenshots/playable'
+  const out = 'docs/screenshots/session-navigation'
   await mkdir(out, { recursive: true })
   const errors: string[] = []
   const redact = (text: string) =>
@@ -72,6 +73,20 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
   try {
     await page.setViewportSize({ width: 1792, height: 861 })
     await page.goto('/')
+    await expect(page.locator('.th-character-slot')).toHaveAttribute('data-character-status', 'ready', { timeout: 30_000 })
+    await page.screenshot({ path: `${out}/home.png` })
+    await page.goto('/duels')
+    await expect(page.getByRole('heading', { name: 'Duels', exact: true })).toBeVisible()
+    await page.screenshot({ path: `${out}/duels.png` })
+    await page.goto('/multiplayer')
+    await expect(page.getByRole('heading', { name: 'Multiplayer', exact: true })).toBeVisible()
+    await page.screenshot({ path: `${out}/multiplayer.png` })
+    await page.goto('/')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    await page.screenshot({ path: `${out}/mobile-navigation.png`, fullPage: true })
+    await page.keyboard.press('Escape')
+    await page.setViewportSize({ width: 1792, height: 861 })
     const config = await page.request.get('/api/singleplayer/config')
     expect(config.ok()).toBe(true)
     expect((await config.json()).available).toBe(true)
@@ -81,11 +96,13 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     await expect(page).toHaveURL(/\/game\/singleplayer$/)
     // R05: a fresh visit lands on the difficulty picker, not an auto-started
     // round. Default difficulty (medium) is used for this coverage.
+    await expect(page.getByRole('radio', { name: /Medium/ })).toBeVisible()
+    await page.screenshot({ path: `${out}/setup.png` })
     await page.getByRole('button', { name: 'Start exploring' }).click()
     // R14: the tutorial opens from the Start-exploring click itself (a new
     // game starting), not from mount — so wait for it only after that click,
     // then dismiss it before the round it's loading in the background is on screen.
-    const skipTutorial = page.getByRole('button', { name: 'Skip' })
+    const skipTutorial = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
     try {
       await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
       await skipTutorial.click()
@@ -184,17 +201,17 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     }
     // Exiting mid-game always confirms first, and "Keep Playing" truly keeps
     // the session active rather than ending it.
-    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    await requestGameExit(page)
     const exitDialog = page.getByRole('dialog', { name: 'End your adventure?' })
     await expect(exitDialog).toBeVisible()
     await page.waitForTimeout(300)
     await page.screenshot({ path: `${out}/end-game-confirm.png` })
     await exitDialog.getByRole('button', { name: 'Keep Playing' }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
-    await expect(page.locator('.sp-hud')).toContainText(`${ROUNDS}`)
+    await expect(page.locator('.sp-hud')).toHaveCount(0)
     report.keptPlayingAfterExitPrompt = true
     // Now actually end the game — this finalizes the session and shows its summary.
-    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    await requestGameExit(page)
     await page
       .getByRole('dialog', { name: 'End your adventure?' })
       .getByRole('button', { name: 'End Game' })
@@ -203,29 +220,40 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
       page.getByRole('region', { name: 'Final results' }),
     ).toBeVisible()
     await expect(page.locator('.sp-round-list details')).toHaveCount(ROUNDS)
-    await expect(page.getByLabel('Total distance')).toBeVisible()
-    await expect(page.locator('.sp-final .sp-earned strong')).toHaveText(
+    await expect(page.locator('.sp-summary-breakdown')).not.toHaveAttribute('open', '')
+    await expect(page.locator('.sp-hud, .sp-guess-panel, .sp-panorama, .gi-panel')).toHaveCount(0)
+    await expect(page.locator('.sp-summary-score strong')).toHaveText(
       report.rounds
         .reduce((sum, round) => sum + round.score, 0)
         .toLocaleString('en-US'),
     )
     await page.waitForTimeout(1500)
     await page.screenshot({ path: `${out}/final-results.png` })
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await expect(page.getByRole('button', { name: 'Return Home' })).toBeInViewport()
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(768)
+    await page.screenshot({ path: `${out}/completed-desktop.png` })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.screenshot({ path: `${out}/completed-mobile.png`, fullPage: true })
+    await page.setViewportSize({ width: 1792, height: 861 })
     report.ended = true
     await page.getByRole('button', { name: 'Play again' }).click()
-    await page.getByRole('dialog', { name: 'How to play / Tutorial' }).getByRole('button', { name: 'Skip' }).click()
+    await page.getByRole('dialog', { name: 'How to play / Tutorial' }).getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
     await waitForPanorama()
     report.restarted = true
     // Ending again immediately, before completing any rounds, must show the
     // empty-session state rather than fabricated results.
-    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    await requestGameExit(page)
     await page
       .getByRole('dialog', { name: 'End your adventure?' })
       .getByRole('button', { name: 'End Game' })
       .click()
-    await expect(page.getByText('No rounds played yet.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Adventure ended' })).toBeVisible()
+    await page.screenshot({ path: `${out}/empty-desktop.png` })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.screenshot({ path: `${out}/empty-mobile.png`, fullPage: true })
     report.endedEmptySession = true
-    await page.getByRole('button', { name: 'Return home' }).click()
+    await page.getByRole('button', { name: 'Return Home' }).click()
     await expect(page).toHaveURL(/\/$/)
     report.returnedHome = true
     expect(errors).toEqual([])
@@ -259,7 +287,7 @@ test('live Google mobile: touch map, preserve pin through collapse, refuse to re
     // See the R14 comment in the desktop test above: the tutorial opens from
     // this click, so wait for the dialog rather than racing an immediate
     // isVisible() check against it.
-    const skipTutorial = page.getByRole('button', { name: 'Skip' })
+    const skipTutorial = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
     try {
       await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
       await skipTutorial.click()
@@ -317,7 +345,7 @@ test('live Google mobile: touch map, preserve pin through collapse, refuse to re
     await expect(page.getByRole('button', { name: 'Back to game' })).toHaveCount(0)
     // A fresh game starts cleanly after the refresh — no resumed round, pin, or score.
     await page.getByRole('button', { name: 'Start exploring' }).click()
-    const skipAfterReload = page.getByRole('button', { name: 'Skip' })
+    const skipAfterReload = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
     try {
       await skipAfterReload.waitFor({ state: 'visible', timeout: 8_000 })
       await skipAfterReload.click()

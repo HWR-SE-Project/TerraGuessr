@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Brand } from '../../components/ui/Brand'
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
 import './tokens.css'
@@ -34,17 +34,18 @@ export function VerifyEmailPage() {
   }, [token])
 
   return (
+    <>
+    <PageNavigation active="none" />
     <div
       className="tg-auth-root"
       style={{
-        minHeight: '100vh',
+        minHeight: 'calc(100dvh - var(--nav-height))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
       <div className="tg-reset-card">
-        <Brand />
         <div className="tg-email-form">
           {status === 'verifying' ? (
             <>
@@ -80,5 +81,6 @@ export function VerifyEmailPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

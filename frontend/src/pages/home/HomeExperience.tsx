@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
 import { GameModeCard } from '../../components/ui/GameModeCard'
 import { PageNavigation } from '../../components/ui/PageNavigation'
 import './HomePage.css'
-import './TutorialEntry.css'
 import { HomeIcon } from './HomeIcon'
 import { ResumeLobbyBanner } from './ResumeLobbyBanner'
 import { Home3DScene } from './scene/Home3DScene'
@@ -122,9 +120,6 @@ export function HomeExperience() {
       }} />
       <ResumeLobbyBanner />
       <section className="th-actions">
-        <Link className="th-tutorial-entry" to="/game/singleplayer?tutorial=1">
-          <HomeIcon name="info" /> How to Play / Tutorial
-        </Link>
         <nav className="th-game-modes" aria-label="Game modes">
           <GameModeCard
             to="/game/singleplayer"

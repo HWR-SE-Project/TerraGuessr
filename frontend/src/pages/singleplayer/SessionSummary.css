@@ -1,0 +1,46 @@
+/* The summary is a content-sized destination, independent of the round map. */
+.sp-page[data-view='session-summary'] {
+  height: auto;
+  min-height: 100dvh;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(min-content, 1fr);
+  padding-bottom: clamp(1.25rem, 4dvh, 3rem);
+}
+.sp-page .sp-session-summary {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  place-self: center;
+  width: min(100%, 42rem);
+  padding: clamp(1.5rem, 3vw, 2rem);
+  border-radius: var(--radius-panel);
+  text-align: center;
+}
+#root .sp-session-summary.sp-glass { background: #101b2a80; border-color: #d5e8ff1c; box-shadow: 0 16px 48px #01061026; }
+.sp-page .sp-session-empty { width: min(100%, 32rem); }
+.sp-summary-symbol { display: inline-flex; width: 2.25rem; height: 2.25rem; color: var(--color-lime); margin-bottom: 0.75rem; }
+.sp-summary-symbol svg { width: 100%; height: 100%; }
+.sp-summary-intro h1 { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; letter-spacing: -0.04em; margin: 0 0 0.75rem; }
+.sp-summary-intro p { color: var(--color-muted); font-size: 1rem; line-height: 1.65; max-width: 30rem; margin: 0 auto; text-wrap: pretty; }
+.sp-summary-score { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.sp-summary-score strong { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; font-weight: 650; color: var(--color-lime); letter-spacing: -0.045em; }
+.sp-summary-score > span { color: var(--color-muted); font-size: 0.875rem; }
+.sp-session-summary .sp-summary-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1.25rem; padding: 0; border: 0; text-align: left; }
+.sp-session-summary .sp-summary-stats > div { grid-column: span 2; min-width: 0; }
+.sp-session-summary .sp-summary-stats > div:nth-last-child(-n+2) { grid-column: span 3; }
+.sp-session-summary .sp-summary-stats dt { font-size: 0.875rem; color: var(--color-muted); letter-spacing: normal; text-transform: none; margin-bottom: 0.375rem; }
+.sp-session-summary .sp-summary-stats dd { font-size: 1.125rem; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.sp-summary-stats small { display: block; margin-top: 0.25rem; color: var(--color-muted); font-size: 0.8125rem; font-weight: 400; }
+.tg-page-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.75rem; }
+.sp-session-empty .tg-page-actions { margin-top: 1.75rem; }
+.tg-page-actions .tg-button { min-height: 2.75rem; font-size: 0.9375rem; }
+.sp-summary-breakdown { text-align: left; margin-top: 1rem; color: var(--color-muted); font-size: 0.875rem; }
+.sp-summary-breakdown > summary { display: flex; justify-content: space-between; cursor: pointer; padding: 0.5rem 0; min-height: 2.75rem; align-items: center; gap: 1rem; }
+.sp-summary-breakdown > summary::after { content: '+'; font-size: 1.25rem; }
+.sp-summary-breakdown[open] > summary::after { content: '−'; }
+.sp-summary-breakdown > summary > span { margin-left: auto; }
+.sp-summary-breakdown .sp-round-list { margin: 0; max-height: 16rem; overflow: auto; scrollbar-width: thin; }
+@media (max-width: 32rem) {
+  .sp-session-summary .sp-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 0.75rem; }
+  .sp-session-summary .sp-summary-stats > div, .sp-session-summary .sp-summary-stats > div:nth-last-child(-n+2) { grid-column: span 1; }
+  .tg-page-actions .tg-button { flex: 1 1 auto; padding-inline: 1rem; }
+}

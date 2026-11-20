@@ -1,3 +1,4 @@
+import { requestGameExit } from './support/navigation'
 import { chromium, expect, test, type Page } from '@playwright/test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -6,7 +7,7 @@ import { join } from 'node:path'
 test.use({ channel: 'chromium' })
 const output = 'docs/screenshots/setup-minimal'
 const sizes = [[1920, 1080], [1711, 864], [1440, 900], [1366, 768], [1024, 768], [768, 1024], [701, 864], [390, 844], [375, 812], [320, 568]] as const
-const controls = '.sp-difficulty-option, .sp-setup-options > .sp-primary, .sp-setup-back, .tg-page-nav a:visible, .tg-page-nav button:visible'
+const controls = '.sp-difficulty-option, .sp-setup-options > .sp-primary, .tg-back-navigation, .tg-page-nav a:visible, .tg-page-nav button:visible'
 
 async function ready(page: Page) {
   await page.goto('/game/singleplayer')
@@ -73,7 +74,7 @@ test('setup fits desktops; all difficulty states and mobile controls are clear a
   await expect(page.getByRole('radio', { name: /Medium/ })).toHaveAttribute('aria-checked', 'true')
   await page.keyboard.press('Tab')
   await expect(page.getByRole('button', { name: /Start exploring/i })).toBeFocused()
-  await page.getByRole('button', { name: 'Return', exact: true }).click()
+  await requestGameExit(page)
   await expect(page).toHaveURL(/\/$/)
   await writeFile(`${output}/viewport-report.json`, JSON.stringify(report, null, 2))
 })
@@ -130,7 +131,7 @@ test('setup uses shared navigation; unavailable retry and tutorial still work', 
   await expect(page.getByText('Street View is currently unavailable', { exact: true })).toBeVisible()
   await page.goto('/game/singleplayer?tutorial=1')
   await expect(page.getByRole('dialog', { name: 'How to play / Tutorial' })).toBeVisible()
-  await page.getByRole('button', { name: 'Skip', exact: true }).click()
+  await page.getByRole('button', { name: /^(Skip|Exit tutorial)$/, exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Open navigation' }).click()
   await expect(page.getByRole('link', { name: 'Singleplayer', exact: true })).toBeVisible()
@@ -139,7 +140,7 @@ test('setup uses shared navigation; unavailable retry and tutorial still work', 
   await expect(page.getByRole('button', { name: 'Open navigation' })).toBeFocused()
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Return', exact: true }).click()
+  await requestGameExit(page)
   await expect(page).toHaveURL(/\/$/)
 })
 
@@ -156,7 +157,7 @@ for (const difficulty of ['easy', 'medium', 'hard']) {
     expect(creation.ok()).toBe(true)
     expect(creation.request().postDataJSON()).toEqual({ difficulty })
     await expect(page.getByRole('dialog', { name: 'How to play / Tutorial' })).toBeVisible()
-    await page.getByRole('button', { name: 'Skip', exact: true }).click()
+    await page.getByRole('button', { name: /^(Skip|Exit tutorial)$/, exact: true }).click()
     await expect(page.locator('.sp-panorama')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 })
     await expect(page.locator('.sp-page')).toHaveAttribute('data-view', 'playing')
     await expect(page.locator('.sp-setup-shell')).toHaveCount(0)
@@ -169,7 +170,7 @@ for (const difficulty of ['easy', 'medium', 'hard']) {
     await page.getByRole('button', { name: 'Guess', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Round results' })).toBeVisible()
     await expect(page.locator('.sp-page')).toHaveAttribute('data-view', 'round-results')
-    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    await requestGameExit(page)
     await page.getByRole('button', { name: 'End Game', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Final results' })).toBeVisible()
     await expect(page.locator('.sp-page')).toHaveAttribute('data-view', 'session-summary')

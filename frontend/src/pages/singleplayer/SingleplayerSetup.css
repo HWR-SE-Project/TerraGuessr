@@ -3,12 +3,6 @@
   grid-template-rows: auto minmax(min-content, 1fr);
   padding-top: env(safe-area-inset-top, 0px);
 }
-.sp-page > .tg-page-nav {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  margin-inline: calc(-1 * var(--sp-gap));
-  z-index: 10;
-}
 .sp-setup-shell {
   grid-column: 1 / -1;
   grid-row: 2;

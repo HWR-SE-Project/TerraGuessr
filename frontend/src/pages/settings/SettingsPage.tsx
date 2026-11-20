@@ -11,14 +11,6 @@ import './SettingsPage.css'
 
 type SettingsTab = 'account' | 'preferences'
 
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m5 5 14 14M19 5 5 19" />
-    </svg>
-  )
-}
-
 function LanguageIcon() {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -222,15 +214,6 @@ export function SettingsPage() {
       <PageNavigation active="none" />
       <main className="settings-screen">
         <section className="settings-panel" aria-label="Settings">
-        <button
-          className="settings-top-close tg-control"
-          type="button"
-          aria-label="Close settings"
-          onClick={() => navigate('/')}
-        >
-          <CloseIcon />
-        </button>
-
         <header className="settings-header">
           <h1>Settings</h1>
           <nav className="settings-tabs" aria-label="Settings sections">

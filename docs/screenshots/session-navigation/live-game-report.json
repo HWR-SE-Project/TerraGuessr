@@ -1,0 +1,98 @@
+{
+  "provider": "Google Maps JavaScript API / Google Street View",
+  "rounds": [
+    {
+      "roundId": "cmwplzy8p006k12q215l9gz70",
+      "number": 1,
+      "actual": {
+        "lat": 51.50093964650021,
+        "lon": -0.1245828717730149
+      },
+      "guess": {
+        "lat": 34.68364562769864,
+        "lon": -127.96875
+      },
+      "distanceKm": 9168.660504300442,
+      "score": 51
+    },
+    {
+      "roundId": "cmwpm06mv006n12q2r6spwa4c",
+      "number": 2,
+      "actual": {
+        "lat": 49.28259841975399,
+        "lon": -123.1207142245267
+      },
+      "guess": {
+        "lat": 34.68364562769864,
+        "lon": -127.96875
+      },
+      "distanceKm": 1671.151454176137,
+      "score": 2168
+    },
+    {
+      "roundId": "cmwpm083d006q12q21u989ksc",
+      "number": 3,
+      "actual": {
+        "lat": 37.56651320443169,
+        "lon": 126.978029624941
+      },
+      "guess": {
+        "lat": 34.68364562769864,
+        "lon": -127.96875
+      },
+      "distanceKm": 8869.682805324046,
+      "score": 59
+    },
+    {
+      "roundId": "cmwpm09wm006t12q2qq3atenf",
+      "number": 4,
+      "actual": {
+        "lat": 40.41681508344647,
+        "lon": -3.703871583642928
+      },
+      "guess": {
+        "lat": 34.68364562769864,
+        "lon": -127.96875
+      },
+      "distanceKm": 9902.739240184244,
+      "score": 35
+    },
+    {
+      "roundId": "cmwpm0b4e006w12q2lu1jpzwu",
+      "number": 5,
+      "actual": {
+        "lat": 59.91395941353706,
+        "lon": 10.75260827621718
+      },
+      "guess": {
+        "lat": 34.68364562769864,
+        "lon": -127.96875
+      },
+      "distanceKm": 8837.709990781334,
+      "score": 60
+    },
+    {
+      "roundId": "cmwpm0css006z12q2x5vgeapk",
+      "number": 6,
+      "actual": {
+        "lat": 13.75631103963557,
+        "lon": 100.5017744393435
+      },
+      "guess": {
+        "lat": 34.68364562769864,
+        "lon": -127.96875
+      },
+      "distanceKm": 12589.35172286518,
+      "score": 9
+    }
+  ],
+  "errors": [],
+  "cameraMoved": true,
+  "streetNavigated": true,
+  "continuedPastFiveRounds": true,
+  "keptPlayingAfterExitPrompt": true,
+  "ended": true,
+  "restarted": true,
+  "endedEmptySession": true,
+  "returnedHome": true
+}

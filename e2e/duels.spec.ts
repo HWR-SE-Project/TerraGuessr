@@ -30,7 +30,7 @@ test('duels stays usable without horizontal scrolling across phone, tablet and d
     await expect(page.getByRole('heading', { name: 'Duels', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'TerraGuessr home', exact: true })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Multiplayer', exact: true, includeHidden: true })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('link', { name: 'Duels', exact: true, includeHidden: true })).toHaveAttribute('aria-current', 'page')
     const play = await page.getByRole('button', { name: 'Play', exact: true }).boundingBox()
     expect(play!.width).toBeGreaterThan(150)
     expect(play!.height).toBeGreaterThanOrEqual(44)

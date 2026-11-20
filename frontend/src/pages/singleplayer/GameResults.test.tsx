@@ -37,8 +37,11 @@ const baseSession: StreetSession = {
 describe('FinalResults: session summary', () => {
   it('shows an empty-session state instead of fabricated stats when no rounds were played', () => {
     render(<FinalResults session={baseSession} busy={false} onPlayAgain={vi.fn()} onHome={vi.fn()} />)
-    expect(screen.getByText(/no rounds played yet/i)).toBeVisible()
-    expect(screen.getByText(/Hard/)).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Adventure ended' })).toBeVisible()
+    expect(screen.getByText('No rounds completed this time. Ready for another journey?')).toBeVisible()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Round breakdown/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Difficulty/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/average score/i)).not.toBeInTheDocument()
   })
 
@@ -59,7 +62,8 @@ describe('FinalResults: session summary', () => {
     expect(screen.getByText('total points')).toBeVisible()
     expect(stats).toHaveTextContent('Rounds completed2')
     expect(stats).toHaveTextContent('Average score / round4,500 pts')
-    expect(stats).toHaveTextContent('Best round5,000 pts')
+    expect(stats).toHaveTextContent('Best round5,000 pts Round 2')
+    expect(container.querySelector('.sp-summary-breakdown')).not.toHaveAttribute('open')
     expect(stats).toHaveTextContent('Average distance200.0 km')
     expect(stats).toHaveTextContent('DifficultyHard')
     expect(screen.queryByText(/\/ \d.*points/)).not.toBeInTheDocument() // no total-score cap

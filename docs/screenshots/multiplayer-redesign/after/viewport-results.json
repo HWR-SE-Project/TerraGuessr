@@ -1,0 +1,212 @@
+[
+  {
+    "mode": "default",
+    "width": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "scrollHeight": 1080
+  },
+  {
+    "mode": "Create",
+    "width": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "scrollHeight": 1080
+  },
+  {
+    "mode": "Join",
+    "width": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "scrollHeight": 1080
+  },
+  {
+    "mode": "default",
+    "width": 1711,
+    "height": 864,
+    "scrollWidth": 1711,
+    "scrollHeight": 864
+  },
+  {
+    "mode": "Create",
+    "width": 1711,
+    "height": 864,
+    "scrollWidth": 1711,
+    "scrollHeight": 864
+  },
+  {
+    "mode": "Join",
+    "width": 1711,
+    "height": 864,
+    "scrollWidth": 1711,
+    "scrollHeight": 864
+  },
+  {
+    "mode": "default",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "scrollHeight": 900
+  },
+  {
+    "mode": "Create",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "scrollHeight": 900
+  },
+  {
+    "mode": "Join",
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "scrollHeight": 900
+  },
+  {
+    "mode": "default",
+    "width": 1366,
+    "height": 768,
+    "scrollWidth": 1366,
+    "scrollHeight": 768
+  },
+  {
+    "mode": "Create",
+    "width": 1366,
+    "height": 768,
+    "scrollWidth": 1366,
+    "scrollHeight": 768
+  },
+  {
+    "mode": "Join",
+    "width": 1366,
+    "height": 768,
+    "scrollWidth": 1366,
+    "scrollHeight": 768
+  },
+  {
+    "mode": "default",
+    "width": 1024,
+    "height": 768,
+    "scrollWidth": 1024,
+    "scrollHeight": 768
+  },
+  {
+    "mode": "Create",
+    "width": 1024,
+    "height": 768,
+    "scrollWidth": 1024,
+    "scrollHeight": 768
+  },
+  {
+    "mode": "Join",
+    "width": 1024,
+    "height": 768,
+    "scrollWidth": 1024,
+    "scrollHeight": 768
+  },
+  {
+    "mode": "default",
+    "width": 768,
+    "height": 1024,
+    "scrollWidth": 768,
+    "scrollHeight": 1024
+  },
+  {
+    "mode": "Create",
+    "width": 768,
+    "height": 1024,
+    "scrollWidth": 768,
+    "scrollHeight": 1024
+  },
+  {
+    "mode": "Join",
+    "width": 768,
+    "height": 1024,
+    "scrollWidth": 768,
+    "scrollHeight": 1024
+  },
+  {
+    "mode": "default",
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollHeight": 844
+  },
+  {
+    "mode": "Create",
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollHeight": 983
+  },
+  {
+    "mode": "Join",
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollHeight": 844
+  },
+  {
+    "mode": "default",
+    "width": 375,
+    "height": 812,
+    "scrollWidth": 375,
+    "scrollHeight": 812
+  },
+  {
+    "mode": "Create",
+    "width": 375,
+    "height": 812,
+    "scrollWidth": 375,
+    "scrollHeight": 983
+  },
+  {
+    "mode": "Join",
+    "width": 375,
+    "height": 812,
+    "scrollWidth": 375,
+    "scrollHeight": 812
+  },
+  {
+    "mode": "default",
+    "width": 320,
+    "height": 568,
+    "scrollWidth": 320,
+    "scrollHeight": 568
+  },
+  {
+    "mode": "Create",
+    "width": 320,
+    "height": 568,
+    "scrollWidth": 320,
+    "scrollHeight": 983
+  },
+  {
+    "mode": "Join",
+    "width": 320,
+    "height": 568,
+    "scrollWidth": 320,
+    "scrollHeight": 783
+  },
+  {
+    "mode": "default",
+    "width": 683,
+    "height": 384,
+    "scrollWidth": 683,
+    "scrollHeight": 384
+  },
+  {
+    "mode": "Create",
+    "width": 683,
+    "height": 384,
+    "scrollWidth": 683,
+    "scrollHeight": 694
+  },
+  {
+    "mode": "Join",
+    "width": 683,
+    "height": 384,
+    "scrollWidth": 683,
+    "scrollHeight": 688
+  }
+]

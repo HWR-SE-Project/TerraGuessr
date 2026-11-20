@@ -6,11 +6,13 @@ export function GameDialog({
   onClose,
   children,
   className = '',
+  closeDisabled = false,
 }: {
   title: string
   onClose: () => void
   children: ReactNode
   className?: string
+  closeDisabled?: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -49,7 +51,7 @@ export function GameDialog({
       }}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        if (!closeDisabled) onClose()
       }}
       onClick={(event) => {
         if (event.target === ref.current) {
@@ -60,7 +62,7 @@ export function GameDialog({
             event.clientY < bounds.top ||
             event.clientY > bounds.bottom
           )
-            onClose()
+            if (!closeDisabled) onClose()
         }
       }}
     >
@@ -69,7 +71,7 @@ export function GameDialog({
           <span className="sp-eyebrow">TERRAGUESSR</span>
           <h2>{title}</h2>
         </div>
-        <button className="sp-icon tg-control" aria-label="Close dialog" onClick={onClose}>
+        <button className="sp-icon tg-control" aria-label="Close dialog" onClick={onClose} disabled={closeDisabled}>
           ×
         </button>
       </header>

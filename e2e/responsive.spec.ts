@@ -1,3 +1,4 @@
+import { requestGameExit } from './support/navigation'
 import { chromium, expect, test, type Page } from '@playwright/test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -154,7 +155,7 @@ async function zoomGameSurfaces(page: Page, suffix?: string) {
     route.request().method() === 'DELETE' ? route.fulfill({ status:204 }) : route.fulfill({ json: session }))
   await page.goto('/game/singleplayer')
   await page.getByRole('button', {name:/Start exploring/i}).click()
-  await page.getByRole('dialog', {name:'How to play / Tutorial'}).getByRole('button', {name:'Skip'}).click()
+  await page.getByRole('dialog', {name:'How to play / Tutorial'}).getByRole('button', {name:/^(Skip|Exit tutorial)$/}).click()
   for (const phase of ['active', 'final']) {
     if (phase === 'active') {
       await expect(page.locator('.sp-panorama')).toBeVisible()
@@ -166,10 +167,10 @@ async function zoomGameSurfaces(page: Page, suffix?: string) {
         await page.keyboard.press('Escape')
       }
     } else {
-      await page.getByRole('button', {name:'Return', exact:true}).click()
+      await requestGameExit(page)
       await page.getByRole('dialog', {name:'End your adventure?'}).getByRole('button', {name:'End Game'}).click()
       await expect(page.getByRole('region', {name:'Final results'})).toBeVisible()
-      await reachable(page, '.sp-result-actions button')
+      await reachable(page, '.tg-page-actions button')
     }
     if (suffix) await capture(page, `${output}/${phase}-${suffix}.png`)
   }
@@ -242,9 +243,9 @@ for (const phase of ['active','final']) {
     await page.route('**/intelligence',r=>r.fulfill({status:503,json:{error:{code:'UNAVAILABLE',message:'Offline fixture'}}}))
     await page.goto('/game/singleplayer')
     await page.getByRole('button',{name:/Start exploring/i}).click()
-    await page.getByRole('dialog',{name:'How to play / Tutorial'}).getByRole('button',{name:'Skip'}).click()
+    await page.getByRole('dialog',{name:'How to play / Tutorial'}).getByRole('button',{name:/^(Skip|Exit tutorial)$/}).click()
     if (phase === 'final') {
-      await page.getByRole('button',{name:'Return',exact:true}).click()
+      await requestGameExit(page)
       await page.getByRole('dialog',{name:'End your adventure?'}).getByRole('button',{name:'End Game'}).click()
       await expect(page.getByRole('region',{name:'Final results'})).toBeVisible()
     }
@@ -265,9 +266,9 @@ for (const phase of ['active','final']) {
         }
       } else {
         await expect(page.getByRole('region',{name:'Final results'})).toBeVisible()
-        await reachable(page,'.sp-result-actions button')
+        await reachable(page,'.tg-page-actions button')
         await page.locator('.sp-round-list summary').click()
-        await reachable(page,'.sp-result-actions button:last-child')
+        await reachable(page,'.tg-page-actions button:last-child')
       }
       if([1920,390,856].includes(width)) await capture(page, `${output}/${phase}-${width}x${height}.png`)
     }

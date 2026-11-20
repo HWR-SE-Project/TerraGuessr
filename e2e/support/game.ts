@@ -48,6 +48,9 @@ export async function registerAndLogin(page: Page, displayName: string): Promise
   const password = 'correct-horse-battery-staple';
 
   await page.goto('/auth');
+  if ((page.viewportSize()?.width ?? 1280) <= 1200) {
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+  }
   await page.getByRole('button', { name: 'Sign up' }).first().click();
   await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByLabel('Display name').fill(displayName);

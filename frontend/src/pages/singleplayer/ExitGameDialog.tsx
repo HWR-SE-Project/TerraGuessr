@@ -15,6 +15,7 @@ export function ExitGameDialog({
   onContinue,
   onEnd,
   pending,
+  waiting = false,
   error,
   round,
   score,
@@ -22,13 +23,14 @@ export function ExitGameDialog({
   onContinue: () => void
   onEnd: () => void
   pending: 'end' | null
+  waiting?: boolean
   error: ExitDialogError | null
   round: number
   score: number
 }) {
   const busy = pending !== null
   return (
-    <GameDialog title="End your adventure?" onClose={onContinue}>
+    <GameDialog title="End your adventure?" onClose={onContinue} closeDisabled={busy}>
       <p className="sp-muted">
         Your current game will end. You won&apos;t be able to continue this
         session afterward.
@@ -55,7 +57,7 @@ export function ExitGameDialog({
           type="button"
           className="sp-secondary tg-control tg-control--danger"
           onClick={onEnd}
-          disabled={busy}
+          disabled={busy || waiting}
         >
           {pending === 'end' ? 'Ending…' : 'End Game'}
         </button>

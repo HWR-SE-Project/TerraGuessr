@@ -36,6 +36,7 @@ export function useGameSession(autoStart = false) {
   // expiry sweep instead (see StreetGame lifecycle doc in schema.prisma).
   const credentials = useRef<StreetCredentials | null>(null)
   const locked = useRef(false)
+  const exitLock = useRef(false)
   const checked = useRef(0)
   const autoStarted = useRef(false)
   const refreshConfig = useCallback(async () => {
@@ -72,7 +73,7 @@ export function useGameSession(autoStart = false) {
   }, [refreshConfig])
   const run = useCallback(
     async (kind: 'location' | 'guess', action: () => Promise<void>) => {
-      if (locked.current) return
+      if (locked.current || exitLock.current) return
       locked.current = true
       setOperation(kind)
       setError(null)
@@ -200,7 +201,6 @@ export function useGameSession(autoStart = false) {
       })
     })
   }
-  const exitLock = useRef(false)
   const [exitPending, setExitPending] = useState<'end' | null>(null)
   const [exitError, setExitError] = useState<{
     action: 'end'
@@ -211,7 +211,7 @@ export function useGameSession(autoStart = false) {
   // it can never be resumed or continued through the API) while keeping the
   // in-memory results so the session summary can display them.
   const endGame = useCallback(async () => {
-    if (exitLock.current) return false
+    if (exitLock.current || locked.current) return false
     exitLock.current = true
     setExitPending('end')
     setExitError(null)
@@ -228,6 +228,8 @@ export function useGameSession(autoStart = false) {
       setResult(null)
       setGuess(null)
       setPanoramaReady(false)
+      setError(null)
+      setSession(current => ({ ...current, activeRound: null }))
       setShowFinal(true)
       return true
     } catch {
@@ -250,6 +252,10 @@ export function useGameSession(autoStart = false) {
     },
     [],
   )
+  const view = showFinal ? 'session-summary'
+    : result ? 'round-results'
+      : session.activeRound ? 'playing'
+        : busy ? 'loading' : 'setup'
   const inProgress = Boolean((session.id || busy) && !showFinal)
   useEffect(() => {
     if (!inProgress) return
@@ -283,6 +289,7 @@ export function useGameSession(autoStart = false) {
               : 'not-started'
   return {
     session,
+    view,
     loadIntelligence,
     result,
     guess,

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { registerAndLogin } from './support/game'
 
-test('home retains its availability notice and restores keyboard focus', async ({
+test('home opens the avatar editor and restores keyboard focus', async ({
   page,
 }) => {
   await registerAndLogin(page, 'Home Explorer')
@@ -11,9 +11,9 @@ test('home retains its availability notice and restores keyboard focus', async (
   const editAvatar = page.getByRole('button', { name: 'Edit Avatar' })
   await editAvatar.focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog')).toContainText(
-    'Avatar customization is not available',
-  )
+  await expect(page.getByRole('dialog', { name: 'A world of you.' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save Changes', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(editAvatar).toBeFocused()

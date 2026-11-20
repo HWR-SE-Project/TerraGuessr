@@ -11,7 +11,10 @@ import type {
   LobbyMatchResult,
 } from '../../api/types'
 import type { StreetResult, StreetRound } from '../../api/singleplayer'
-import { Brand } from '../../components/ui/Brand'
+import { AppNavigation, PageNavigation } from '../../components/ui/PageNavigation'
+import { useNavigationGuard } from '../../components/ui/NavigationGuard'
+import { GameDialog } from '../singleplayer/GameDialog'
+import { Button } from '../../components/ui/Button'
 import { CandidateList } from '../../components/CandidateList'
 import { StreetViewViewer } from '../singleplayer/StreetViewViewer'
 import { GuessMap } from '../singleplayer/GuessMap'
@@ -427,6 +430,24 @@ export function MultiplayerGamePage() {
     )
   }, [])
 
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const [leaveError, setLeaveError] = useState('')
+  const navigation = useNavigationGuard(data?.match.status === 'playing')
+  async function confirmLeave() {
+    if (leaving) return
+    setLeaving(true)
+    setLeaveError('')
+    try {
+      if (token) await lobbiesApi.leaveLobby(code, token)
+      lobbiesApi.clearLobbyToken(code)
+      lobbiesApi.clearCurrentLobbyCode()
+      if (navigation.state === 'blocked') navigation.proceed()
+    } catch {
+      setLeaveError('Could not leave the match. Check your connection and try again.')
+    } finally { setLeaving(false) }
+  }
+
   const backToLobby = useCallback(() => {
     navigate(`/lobby/${code}`)
   }, [code, navigate])
@@ -660,29 +681,24 @@ export function MultiplayerGamePage() {
         />
       )}
       <div className="sp-top-shade" />
-      <button
-        className="sp-brand"
-        aria-label="Back to lobby"
-        onClick={backToLobby}
-      >
-        <Brand />
-      </button>
-      <div className="sp-top-controls">
-        <button
-          className="sp-icon tg-control sp-glass"
-          aria-label="Show leaderboard"
-          onClick={() => setShowBoard((value) => !value)}
-        >
-          <GameIcon name="info" />
-        </button>
-        <button
-          className="sp-icon tg-control sp-glass"
-          aria-label="Back to lobby"
-          onClick={backToLobby}
-        >
-          <GameIcon name="return" />
-        </button>
-      </div>
+      <PageNavigation active="multiplayer" game={match?.status === 'playing'} summary onMenu={() => setMenuOpen(true)}>
+        <button className="tg-control tg-icon-button th-game-menu" aria-label="Show leaderboard" title="Show leaderboard" onClick={() => setShowBoard(value => !value)}><GameIcon name="info" /></button>
+      </PageNavigation>
+      {menuOpen && navigation.state !== 'blocked' && <GameDialog title="Match menu" onClose={() => setMenuOpen(false)}>
+        <div className="sp-menu-actions">
+          <AppNavigation active="multiplayer" onNavigate={() => setMenuOpen(false)} />
+          <button className="sp-secondary tg-control" onClick={() => { setMenuOpen(false); backToLobby() }}>Back to lobby</button>
+        </div>
+      </GameDialog>}
+      {navigation.state === 'blocked' && <GameDialog title="Leave this match?" closeDisabled={leaving}
+        onClose={() => { navigation.reset(); setLeaveError('') }}>
+        <p>Leaving ends your participation in this match.</p>
+        {leaveError && <p role="alert">{leaveError}</p>}
+        <div className="sp-dialog-actions">
+          <Button disabled={leaving} onClick={() => { navigation.reset(); setLeaveError('') }}>Keep Playing</Button>
+          <Button variant="secondary" disabled={leaving} onClick={() => void confirmLeave()}>{leaving ? 'Leaving…' : 'Leave match'}</Button>
+        </div>
+      </GameDialog>}
 
       {match?.status === 'finished' ? (
         <FinalMatchResults

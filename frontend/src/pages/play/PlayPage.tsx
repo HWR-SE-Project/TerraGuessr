@@ -1,3 +1,4 @@
+import { LeaveGameGuard } from '../../components/ui/LeaveGameGuard'
 import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -109,6 +110,7 @@ export function PlayPage() {
   return (
     <div className="tg-play-page">
       <PageNavigation active="none" />
+      <LeaveGameGuard active={stage.kind === 'round'} busy={busy} />
       <div className="tg-play-shell">
         {stage.kind === 'setup' && <GameSetupForm onStart={handleStart} submitting={busy} error={error} />}
         {stage.kind === 'round' && (

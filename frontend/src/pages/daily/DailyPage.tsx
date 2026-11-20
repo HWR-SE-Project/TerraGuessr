@@ -1,3 +1,4 @@
+import { LeaveGameGuard } from '../../components/ui/LeaveGameGuard'
 import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -105,6 +106,7 @@ export function DailyPage() {
   return (
     <div className="tg-daily-page">
       <PageNavigation active="daily" />
+      <LeaveGameGuard active={today.status === 'open' && guess !== null} busy={submitting} />
       <div className="tg-daily-shell">
         <div className="tg-daily-header">
           <div>

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { registerAndLogin } from './support/game';
+import { registerAndLogin, startSoloGame } from './support/game';
 
 test.describe('navigation', () => {
   test('signed-out visitors can open Duels while account settings stay gated', async ({ page }) => {
@@ -42,3 +42,15 @@ test.describe('navigation', () => {
     await expect(page).toHaveURL(/\/settings$/);
   });
 });
+
+
+test('legacy weather rounds share the route guard without losing a selection when cancelled', async ({ page }) => {
+  await startSoloGame(page)
+  await expect(page.getByRole('button', { name: 'Submit guess', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'TerraGuessr home' }).click()
+  await page.getByRole('alertdialog', { name: 'Leave this game?' }).getByRole('button', { name: 'Keep Playing' }).click()
+  await expect(page.getByRole('button', { name: 'Submit guess', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'TerraGuessr home' }).click()
+  await page.getByRole('button', { name: 'Leave Game', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible()
+})

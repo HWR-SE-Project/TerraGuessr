@@ -1,3 +1,4 @@
+import { requestGameExit } from './support/navigation'
 import { chromium, expect, test, type Page } from '@playwright/test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -65,9 +66,9 @@ test('primary screens fit desktops and keep mobile controls reachable', async ({
   const report: unknown[] = []
   for (const [name, path, controls] of [
     ['home', '/', '.th-edit-avatar, .tg-mode-card, .th-tutorial-entry'],
-    ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .sp-return'],
+    ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .tg-back-navigation'],
     ['duels', '/duels', '.td-play, .td-lobby-link'],
-    ['lobby', '/multiplayer', '.tl-primary, .tl-secondary, .tl-difficulty-option'],
+    ['lobby', '/multiplayer', '.tl-choice, .tl-primary, .tl-secondary, .tl-difficulty-option'],
     ['weather-setup', '/play', '.tg-play-choice, .tg-play-cta'],
   ]) {
     if (name === 'setup') await setup(page)
@@ -117,7 +118,7 @@ test('genuine browser zoom 80–200% keeps primary screens accessible', async ({
       await settings.locator('#zoomLevel').selectOption({ label: `${zoom}%` })
       for (const [name, path, controls] of [
         ['home', '/', '.th-edit-avatar, .tg-mode-card'],
-        ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .sp-return'],
+        ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .tg-back-navigation'],
         ['duels', '/duels', '.td-play, .td-lobby-link'],
       ]) {
         if (name === 'setup') await setup(page)
@@ -159,7 +160,7 @@ test('live gameplay, round results and summary fit the reference sizes', async (
   await page.setViewportSize({ width: 1366, height: 768 })
   await page.goto('/game/singleplayer')
   await page.getByRole('button', { name: /Start exploring/i }).click()
-  const skip = page.getByRole('button', { name: 'Skip', exact: true })
+  const skip = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/, exact: true })
   await skip.waitFor({ state: 'visible' })
   await skip.click()
   await expect(page.locator('.sp-panorama')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 })
@@ -174,7 +175,7 @@ test('live gameplay, round results and summary fit the reference sizes', async (
       await expect(page.getByRole('region', { name: 'Round results' })).toBeVisible()
     }
     if (phase === 'summary') {
-      await page.getByRole('button', { name: 'Return', exact: true }).click()
+      await requestGameExit(page)
       await page.getByRole('button', { name: 'End Game', exact: true }).click()
       await expect(page.getByRole('region', { name: 'Final results' })).toBeVisible()
     }
@@ -183,7 +184,7 @@ test('live gameplay, round results and summary fit the reference sizes', async (
       await page.evaluate(() => scrollTo(0, 0))
       const desktop = width >= 1024
       report.push({ name: phase, ...await metrics(page, desktop) })
-      await reachable(page, phase === 'active' ? '.sp-top-controls button, .sp-return, .sp-guess-button, .sp-compass, .gi-header, .gi-mobile-trigger' : '.sp-result-actions button, .sp-return', desktop)
+      await reachable(page, phase === 'active' ? '.sp-top-controls button, .sp-return, .sp-guess-button, .sp-compass, .gi-header, .gi-mobile-trigger' : '.tg-page-actions button, .tg-back-navigation', desktop)
       if (phase === 'active') {
         await page.getByRole('button', { name: 'Expand map', exact: true }).click()
         await page.mouse.move(0, 0)

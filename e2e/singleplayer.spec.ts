@@ -1,3 +1,4 @@
+import { requestGameExit } from './support/navigation'
 import { expect, test, type Page } from '@playwright/test'
 
 // R14: a fresh browser profile sees the tutorial once. It opens
@@ -6,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test'
 // opens a moment later — then it sits on screen as a modal and blocks every
 // subsequent click. Wait for it instead.
 async function dismissTutorialIfShown(page: Page) {
-  const skipTutorial = page.getByRole('button', { name: 'Skip' })
+  const skipTutorial = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
   try {
     await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
     await skipTutorial.click()
@@ -37,7 +38,7 @@ test.describe('Street View singleplayer without credentials', () => {
     await expect(
       page.locator('script[src*="maps.googleapis.com"]'),
     ).toHaveCount(0)
-    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    await requestGameExit(page)
     await expect(page).toHaveURL(/\/$/)
     await expect(
       page.getByRole('heading', { name: 'Explore the World' }),
@@ -86,7 +87,7 @@ test.describe('Street View singleplayer without credentials', () => {
         page.getByRole('link', { name: 'TerraGuessr home', exact: true }),
       ).toBeInViewport()
       await expect(
-        page.getByRole('button', { name: 'Return', exact: true }),
+        page.getByRole('link', { name: 'Return Home', exact: true }),
       ).toBeInViewport()
       const start = page.locator('.sp-welcome .sp-primary, .sp-welcome .sp-secondary').first()
       await start.scrollIntoViewIfNeeded()
