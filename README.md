@@ -26,6 +26,9 @@ Both `frontend/` and `backend/` are independent npm projects (separate
   unavailable or the scene is still loading.
 - **Singleplayer** (`/game/singleplayer`): Street View round play, map or
   list-based guessing, scoring, round progression and results.
+- **Multiplayer** (`/multiplayer`, `/lobby/:code`): live lobbies with a host,
+  6-character join codes, shared Street View rounds, difficulty-derived timers
+  and attempts, and a shared in-match/final leaderboard.
 - **Duels** (`/duels`): asynchronous challenge rounds — create a challenge
   from a round, join by link/code, compare results. No live/ranked
   matchmaking.

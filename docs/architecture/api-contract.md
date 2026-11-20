@@ -39,23 +39,39 @@ routes, which require authentication (decision B.14) — not yet designed in thi
 - `GET /challenges/{challengeId}/leaderboard` — ranked entries, `displayName` only, no account
   data (decision B.6).
 
-## Lobbies (R16, pre-game waiting room)
+## Lobbies (R16, live shared rounds)
 
-A lobby is membership plus the host's difficulty. It stores no round or location data; level
-generation is intentionally out of scope, so these endpoints can ship before the match engine.
+A lobby is membership plus the host's difficulty and round count. Once the host starts the
+match, the server generates shared Street View rounds; every member receives the same panorama,
+candidates and difficulty rules, while guesses and scores remain per player.
 
-- `POST /lobbies` — `{difficulty, displayName?}` → 201 `{lobby, lobbyToken}`. The creator is the
-  host. Difficulty is `easy|medium|hard`; R5 rules (time limit, attempts, selection mode) are
-  derived from it. Fixed defaults: 5 rounds, 8 players, 2-hour expiry.
-- `GET /lobbies/{code}` — public lobby view `{lobbyId, code, difficulty, status, maxPlayers,
+- `POST /lobbies` — `{difficulty, roundsTotal?, displayName?}` → 201 `{lobby, lobbyToken}`. The
+  creator is the host. Difficulty is `easy|medium|hard`; R5 rules (time limit, attempts,
+  selection mode) are derived from it. `roundsTotal` is an integer from 3 to 10 and defaults to
+  5. The lobby expires after 2 hours.
+- `GET /lobbies/{code}` — public lobby view `{lobbyId, code, difficulty, status,
   roundsTotal, rules, members, youAreHost, createdAt, expiresAt}`. Polled every ~3s. An optional
   `X-Lobby-Token` sets `youAreHost`. Expired lobbies return `404 NOT_FOUND`.
 - `POST /lobbies/{code}/join` — `{displayName?}` → 201 `{lobby, lobbyToken}`. Issues a fresh
-  lobby token (ADR-0011). `409 CONFLICT` when full or no longer `waiting`.
-- `POST /lobbies/{code}/leave` — auth `X-Lobby-Token`; 204. A guest is removed from the lobby.
-  The host leaving disbands the lobby (cascades members).
+  lobby token (ADR-0011). `409 CONFLICT` when no longer `waiting`.
+- `POST /lobbies/{code}/leave` — auth `X-Lobby-Token`; 204. A guest is removed from the lobby
+  (with their match history). A host leaving before the match starts disbands the lobby (cascades
+  members); after the match starts the host is removed and the earliest remaining player becomes
+  host, so the game continues.
 - `DELETE /lobbies/{code}` — auth `X-Lobby-Token`; 204. Host only; a non-host member gets
   `403 FORBIDDEN`, an unknown token `404 NOT_FOUND`.
+- `POST /lobbies/{code}/start` — host only; generates all shared rounds and switches the lobby to
+  `playing`.
+- `GET /lobbies/{code}/match` — poll the active round, your attempts/result and the shared
+  leaderboard. The actual location stays hidden until you finish the round. A finalized result
+  carries a `guesses` list with every participant who has submitted, so their map markers (and,
+  in easy mode, the candidate city they picked) can be shown once you are allowed to see results.
+- `POST /lobbies/{code}/selection` — save the current pin without consuming an attempt.
+- `POST /lobbies/{code}/rounds/{roundNumber}/guess` — submit an attempt (`final` finishes early);
+  intermediate attempts never reveal the actual location or score.
+- `POST /lobbies/{code}/rounds/{roundNumber}/finish` — lock in the best submitted attempt.
+- `GET /lobbies/{code}/rounds/{roundNumber}/intelligence` — environmental clues for the active
+  shared round.
 
 Lobby tokens are scoped per code and stored client-side separately from the game `playerToken`.
 

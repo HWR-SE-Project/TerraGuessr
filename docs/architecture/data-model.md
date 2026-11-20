@@ -205,7 +205,6 @@ model Lobby {
   code          String        @unique @db.VarChar(6)
   difficulty    Difficulty
   hostTokenHash String                              // sha256(rawToken), ADR-0011
-  maxPlayers    Int           @default(8)
   roundsTotal   Int           @default(5)
   status        LobbyStatus   @default(waiting)
   createdAt     DateTime      @default(now())

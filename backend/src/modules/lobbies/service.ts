@@ -1,7 +1,8 @@
 /**
- * Lobby service (R16). A lobby is a waiting room: it owns membership and the
- * host's difficulty, never round/location generation. Player identity follows
- * ADR-0011 — the server stores only SHA-256 hashes of client-held tokens.
+ * Lobby service (R16). A lobby is a waiting room: it owns membership plus the
+ * host's difficulty and round count, never location generation. Player
+ * identity follows ADR-0011 — the server stores only SHA-256 hashes of
+ * client-held tokens.
  */
 
 import { randomInt } from 'node:crypto';
@@ -10,7 +11,6 @@ import type { Lobby, LobbyMember, PrismaClient } from '@prisma/client';
 
 import {
   LOBBY_CODE_LENGTH,
-  LOBBY_MAX_PLAYERS,
   LOBBY_ROUNDS_TOTAL,
   LOBBY_TTL_MS,
 } from '../../config/constants.js';
@@ -53,8 +53,8 @@ export class LobbyConflictError extends Error {
 export class LobbyForbiddenError extends Error {
   public readonly statusCode = 403;
 
-  public constructor() {
-    super('Only the host can delete this lobby');
+  public constructor(message = 'Only the host can delete this lobby') {
+    super(message);
     this.name = 'LobbyForbiddenError';
   }
 }
@@ -114,7 +114,6 @@ export function toLobbyView(
     code: lobby.code,
     difficulty: lobby.difficulty,
     status: lobby.status,
-    maxPlayers: lobby.maxPlayers,
     roundsTotal: lobby.roundsTotal,
     rules: lobbyRulesFor(lobby.difficulty),
     createdAt: lobby.createdAt.toISOString(),
@@ -142,8 +141,8 @@ async function loadLobbyOrThrow(
 }
 
 /**
- * Create a lobby with the host as its first member. Difficulty is the only
- * host choice; R5 rules and fixed round/size defaults are derived here.
+ * Create a lobby with the host as its first member. The host chooses the
+ * difficulty and round count; R5 rules are derived from the difficulty.
  */
 export async function createLobby(
   input: CreateLobbyBody,
@@ -163,8 +162,7 @@ export async function createLobby(
           code,
           difficulty: input.difficulty as LobbyDifficulty,
           hostTokenHash: playerTokenHash,
-          maxPlayers: LOBBY_MAX_PLAYERS,
-          roundsTotal: LOBBY_ROUNDS_TOTAL,
+          roundsTotal: input.roundsTotal ?? LOBBY_ROUNDS_TOTAL,
           expiresAt,
           members: {
             create: { playerTokenHash, displayName },
@@ -211,9 +209,6 @@ export async function joinLobby(
   if (lobby.status !== 'waiting') {
     throw new LobbyConflictError('Lobby is no longer accepting players');
   }
-  if (lobby.members.length >= lobby.maxPlayers) {
-    throw new LobbyConflictError('Lobby is full');
-  }
 
   const playerToken = generatePlayerToken();
   const member = await db.lobbyMember.create({
@@ -234,8 +229,11 @@ export async function joinLobby(
 }
 
 /**
- * Leave a lobby. The host leaving disbands it (and cascades all members);
- * an ordinary member is removed. An unknown token is a 404.
+ * Leave a lobby. While the lobby is still waiting, the host leaving disbands it
+ * (and cascades all members). Once a match has started, the host leaving must
+ * not end the game: the host is removed and the earliest remaining player is
+ * promoted so the lobby can carry on. An ordinary member is removed, along
+ * with their match history. An unknown token is a 404.
  */
 export async function leaveLobby(
   code: string,
@@ -246,7 +244,29 @@ export async function leaveLobby(
   const playerTokenHash = hashPlayerToken(rawToken);
 
   if (playerTokenHash === lobby.hostTokenHash) {
-    await db.lobby.delete({ where: { id: lobby.id } });
+    if (lobby.status === 'waiting') {
+      await db.lobby.delete({ where: { id: lobby.id } });
+      return;
+    }
+
+    const remaining = lobby.members.filter(
+      (candidate) => candidate.playerTokenHash !== playerTokenHash,
+    );
+    if (remaining.length === 0) {
+      await db.lobby.delete({ where: { id: lobby.id } });
+      return;
+    }
+
+    const nextHost = remaining[0]!;
+    await db.$transaction(async (tx) => {
+      await tx.lobbyMember.deleteMany({
+        where: { lobbyId: lobby.id, playerTokenHash },
+      });
+      await tx.lobby.update({
+        where: { id: lobby.id },
+        data: { hostTokenHash: nextHost.playerTokenHash },
+      });
+    });
     return;
   }
 

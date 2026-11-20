@@ -162,6 +162,78 @@ describe('map and panorama controls (explicit SDK doubles, no imagery)', () => {
     )
     expect(change).not.toHaveBeenCalled()
   })
+  it('shows read-only participant markers alongside the round results', async () => {
+    const { rerender } = render(
+      <GuessMap
+        interactive={false}
+        results={[
+          {
+            roundId: 'fixture',
+            number: 1,
+            score: 1000,
+            distanceKm: 3218.88,
+            actual: { lat: 50, lon: 10 },
+            guess: { lat: 10, lon: 20 },
+          },
+        ]}
+        markers={[
+          {
+            position: { lat: 48, lon: 2 },
+            title: 'Guest: Paris',
+            color: '#f59e0b',
+            label: '1',
+          },
+        ]}
+      />,
+    )
+    await waitFor(() => expect(pins).toHaveLength(3))
+    expect(pins[2]!.options).toMatchObject({
+      title: 'Guest: Paris',
+      label: '1',
+    })
+    expect(maps).toHaveLength(1)
+
+    rerender(
+      <GuessMap
+        interactive={false}
+        results={[
+          {
+            roundId: 'fixture',
+            number: 1,
+            score: 1000,
+            distanceKm: 3218.88,
+            actual: { lat: 50, lon: 10 },
+            guess: { lat: 10, lon: 20 },
+          },
+        ]}
+        markers={[
+          {
+            position: { lat: 48, lon: 2 },
+            title: 'Guest: Paris',
+            color: '#f59e0b',
+            label: '1',
+          },
+          {
+            position: { lat: 40, lon: -3 },
+            title: 'Rival: Madrid',
+            color: '#38bdf8',
+            label: '2',
+          },
+        ]}
+      />,
+    )
+    await waitFor(() =>
+      expect(pins.some((pin) => pin.options.title === 'Rival: Madrid')).toBe(
+        true,
+      ),
+    )
+    expect(
+      pins
+        .filter((pin) => pin.options.title === 'Rival: Madrid')
+        .at(-1)!.options,
+    ).toMatchObject({ label: '2' })
+    expect(maps).toHaveLength(1)
+  })
   it('shows a map loading error instead of a successful fake map', async () => {
     vi.mocked(loadGoogleMaps).mockRejectedValue(new Error('Map network failed'))
     render(<GuessMap />)

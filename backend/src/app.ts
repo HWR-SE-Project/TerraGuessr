@@ -50,13 +50,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerStatisticsRoutes(app);
   registerChallengesRoutes(app);
   registerGamesRoutes(app);
-  registerLobbiesRoutes(app);
+  const intelligence = createIntelligenceProvider({
+    baseUrl: config.openMeteoBaseUrl,
+    apiKey: config.openMeteoApiKey,
+  });
+  registerLobbiesRoutes(app, undefined, {
+    key: config.googleMapsServerKey,
+    intelligence,
+  });
   registerSingleplayerRoutes(app, {
     key: config.googleMapsServerKey,
-    intelligence: createIntelligenceProvider({
-      baseUrl: config.openMeteoBaseUrl,
-      apiKey: config.openMeteoApiKey,
-    }),
+    intelligence,
   });
   registerRoundsRoutes(app);
   registerResultsRoutes(app);

@@ -4,10 +4,18 @@ import type { LatLon } from '../../api/types'
 import type { StreetResult } from '../../api/singleplayer'
 import { browserMapsKey, loadGoogleMaps, onMapsAuthFailure } from './googleMaps'
 
+export interface GuessMapMarker {
+  position: LatLon
+  title: string
+  label?: string
+  color?: string
+}
+
 export function GuessMap({
   guess,
   onChange,
   results = [],
+  markers = [],
   interactive = true,
   countryBorders = true,
   fallback,
@@ -15,6 +23,8 @@ export function GuessMap({
   guess?: LatLon | null
   onChange?: (point: LatLon) => void
   results?: StreetResult[]
+  /** Read-only participant pins shown alongside the round results. */
+  markers?: GuessMapMarker[]
   interactive?: boolean
   countryBorders?: boolean
   /** Optional, explicitly labeled tutorial practice when the provider is unavailable. */
@@ -23,6 +33,8 @@ export function GuessMap({
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<google.maps.Map | null>(null)
   const marker = useRef<google.maps.Marker | null>(null)
+  const extraMarkers = useRef<google.maps.Marker[]>([])
+  const [mapReady, setMapReady] = useState(0)
   const canSelect = useRef(interactive)
   useEffect(() => {
     canSelect.current = interactive
@@ -33,9 +45,19 @@ export function GuessMap({
     callback.current = onChange
   }, [onChange])
   const initialResults = useRef(results)
+  const markersRef = useRef(markers)
+  const markerSignature = markers
+    .map(
+      (entry) =>
+        `${entry.position.lat},${entry.position.lon},${entry.title},${entry.color ?? ''},${entry.label ?? ''}`,
+    )
+    .join('|')
   const [error, setError] = useState<string | null>(null)
   const [tilesReady, setTilesReady] = useState(false)
   const [retry, setRetry] = useState(0)
+  useEffect(() => {
+    markersRef.current = markers
+  }, [markers])
   useEffect(() => {
     if (!browserMapsKey()) return
     let cancelled = false
@@ -140,6 +162,7 @@ export function GuessMap({
             if ((instance.getZoom() ?? 0) > 13) instance.setZoom(13)
           })
         }
+        setMapReady((version) => version + 1)
         observer = new ResizeObserver(() => {
           cancelAnimationFrame(resizeFrame)
           resizeFrame = requestAnimationFrame(() => {
@@ -169,12 +192,66 @@ export function GuessMap({
       observer?.disconnect()
       cancelAnimationFrame(resizeFrame)
       overlays.forEach((overlay) => overlay.setMap(null))
+      extraMarkers.current.forEach((overlay) => overlay.setMap(null))
+      extraMarkers.current = []
       marker.current?.setMap(null)
       marker.current = null
       if (map.current) google.maps.event.clearInstanceListeners(map.current)
       map.current = null
     }
   }, [retry, countryBorders])
+  // Participant pins arrive progressively while a multiplayer round settles,
+  // so synchronize them without recreating the map.
+  useEffect(() => {
+    if (!mapReady || !browserMapsKey()) return
+    let cancelled = false
+    void loadGoogleMaps()
+      .then((maps) => {
+        if (cancelled || !map.current) return
+        const nextMarkers = markersRef.current
+        extraMarkers.current.forEach((overlay) => overlay.setMap(null))
+        extraMarkers.current = nextMarkers.map(
+          (entry) =>
+            new maps.Marker({
+              map: map.current!,
+              position: { lat: entry.position.lat, lng: entry.position.lon },
+              title: entry.title,
+              ...(entry.label ? { label: entry.label } : {}),
+              icon: {
+                path: maps.SymbolPath.CIRCLE,
+                fillColor: entry.color ?? '#f59e0b',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 3,
+                scale: 8,
+              },
+            }),
+        )
+        if (initialResults.current.length || nextMarkers.length) {
+          const bounds = new maps.LatLngBounds()
+          initialResults.current.forEach((result) => {
+            bounds.extend({ lat: result.actual.lat, lng: result.actual.lon })
+            bounds.extend({ lat: result.guess.lat, lng: result.guess.lon })
+          })
+          nextMarkers.forEach((entry) =>
+            bounds.extend({
+              lat: entry.position.lat,
+              lng: entry.position.lon,
+            }),
+          )
+          map.current.fitBounds(bounds, 56)
+          maps.event.addListenerOnce(map.current, 'idle', () => {
+            if ((map.current?.getZoom() ?? 0) > 13) map.current?.setZoom(13)
+          })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+      extraMarkers.current.forEach((overlay) => overlay.setMap(null))
+      extraMarkers.current = []
+    }
+  }, [markerSignature, mapReady, retry])
   // Synchronize the pin after map initialization, including saved guesses.
   // Changing editability preserves the map, its zoom, and its center.
   useEffect(() => {

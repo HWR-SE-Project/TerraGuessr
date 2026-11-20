@@ -13,6 +13,11 @@ import {
   JoinLobbyBody,
   JoinLobbyResponse,
   LobbyCodeParams,
+  LobbyCoordinates,
+  LobbyGuessBody,
+  LobbyGuessResponse,
+  LobbyMatchResponse,
+  LobbyRoundParams,
   LobbyView,
 } from '../../contracts/lobbies.js';
 import {
@@ -23,6 +28,21 @@ import {
   joinLobby,
   leaveLobby,
 } from './service.js';
+import {
+  finishLobbyRound,
+  getLobbyMatch,
+  getLobbyRoundIntelligence,
+  requestLobbyContinue,
+  saveLobbySelection,
+  startLobbyMatch,
+  submitLobbyGuess,
+} from './match.js';
+import { IntelligenceResponse } from '../intelligence/contract.js';
+import type { IntelligenceLookup } from '../singleplayer/locationSelection.js';
+import {
+  googlePanoramaProvider,
+  type PanoramaProvider,
+} from '../singleplayer/provider.js';
 
 /** Read the lobby token header; missing/blank is a 404, never a 401. */
 function requireLobbyToken(request: FastifyRequest): string {
@@ -41,11 +61,21 @@ function optionalLobbyToken(request: FastifyRequest): string | undefined {
     : undefined;
 }
 
-/** Register the lobby routes. `db` is injectable for tests. */
+export interface LobbyRouteOptions {
+  key?: string;
+  provider?: PanoramaProvider;
+  intelligence?: IntelligenceLookup;
+}
+
+/** Register the lobby routes. `db` and provider are injectable for tests. */
 export function registerLobbiesRoutes(
   app: FastifyInstance,
   db: PrismaClient = prisma,
+  options: LobbyRouteOptions = {},
 ): void {
+  const provider = options.provider ?? googlePanoramaProvider(options.key);
+  const intelligence = options.intelligence;
+
   app.post(
     '/api/lobbies',
     {
@@ -118,6 +148,158 @@ export function registerLobbiesRoutes(
       const { code } = request.params as { code: string };
       await deleteLobby(code, requireLobbyToken(request), db);
       reply.code(204).send();
+    },
+  );
+
+  app.post(
+    '/api/lobbies/:code/start',
+    {
+      schema: {
+        params: LobbyCodeParams,
+        response: { 200: LobbyMatchResponse },
+      },
+    },
+    async (request) => {
+      const { code } = request.params as { code: string };
+      return startLobbyMatch(
+        code,
+        requireLobbyToken(request),
+        db,
+        provider,
+        intelligence,
+      );
+    },
+  );
+
+  app.get(
+    '/api/lobbies/:code/match',
+    {
+      schema: {
+        params: LobbyCodeParams,
+        response: { 200: LobbyMatchResponse },
+      },
+    },
+    async (request) => {
+      const { code } = request.params as { code: string };
+      return getLobbyMatch(
+        code,
+        requireLobbyToken(request),
+        db,
+        provider,
+        intelligence,
+      );
+    },
+  );
+
+  app.post(
+    '/api/lobbies/:code/continue',
+    {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: {
+        params: LobbyCodeParams,
+        response: { 200: LobbyMatchResponse },
+      },
+    },
+    async (request) => {
+      const { code } = request.params as { code: string };
+      return requestLobbyContinue(
+        code,
+        requireLobbyToken(request),
+        db,
+        provider,
+        intelligence,
+      );
+    },
+  );
+
+  app.post(
+    '/api/lobbies/:code/selection',
+    {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: { params: LobbyCodeParams, body: LobbyCoordinates },
+    },
+    async (request, reply) => {
+      const { code } = request.params as { code: string };
+      await saveLobbySelection(
+        code,
+        requireLobbyToken(request),
+        request.body as { lat: number; lon: number },
+        db,
+      );
+      reply.code(204).send();
+    },
+  );
+
+  app.post(
+    '/api/lobbies/:code/rounds/:roundNumber/guess',
+    {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: {
+        params: LobbyRoundParams,
+        body: LobbyGuessBody,
+        response: { 200: LobbyGuessResponse },
+      },
+    },
+    async (request) => {
+      const { code, roundNumber } = request.params as {
+        code: string;
+        roundNumber: number;
+      };
+      return submitLobbyGuess(
+        code,
+        roundNumber,
+        requireLobbyToken(request),
+        request.body as LobbyGuessBody,
+        db,
+      );
+    },
+  );
+
+  app.post(
+    '/api/lobbies/:code/rounds/:roundNumber/finish',
+    {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: {
+        params: LobbyRoundParams,
+        response: { 200: LobbyGuessResponse },
+      },
+    },
+    async (request) => {
+      const { code, roundNumber } = request.params as {
+        code: string;
+        roundNumber: number;
+      };
+      return finishLobbyRound(
+        code,
+        roundNumber,
+        requireLobbyToken(request),
+        db,
+      );
+    },
+  );
+
+  app.get(
+    '/api/lobbies/:code/rounds/:roundNumber/intelligence',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        params: LobbyRoundParams,
+        response: { 200: IntelligenceResponse },
+      },
+    },
+    async (request, reply) => {
+      const { code, roundNumber } = request.params as {
+        code: string;
+        roundNumber: number;
+      };
+      reply.header('Cache-Control', 'private, no-store');
+      return getLobbyRoundIntelligence(
+        code,
+        roundNumber,
+        requireLobbyToken(request),
+        db,
+        intelligence,
+      );
     },
   );
 }

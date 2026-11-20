@@ -22,6 +22,7 @@ import { registerErrorHandler } from '../../../src/plugins/errorHandler.js';
 import { registerChallengesRoutes } from '../../../src/modules/challenges/routes.js';
 import { registerGamesRoutes } from '../../../src/modules/games/routes.js';
 import { registerLobbiesRoutes } from '../../../src/modules/lobbies/routes.js';
+import type { LobbyRouteOptions } from '../../../src/modules/lobbies/routes.js';
 import { registerRoundsRoutes } from '../../../src/modules/rounds/routes.js';
 import { registerResultsRoutes } from '../../../src/modules/results/routes.js';
 import type { WeatherClient, WeatherData } from '../../../src/modules/weather/types.js';
@@ -160,11 +161,12 @@ export class FailingWeatherClient implements WeatherClient {
 export function buildTestApp(
   prisma: PrismaClient,
   weatherClient: WeatherClient,
+  lobbyOptions: LobbyRouteOptions = {},
 ): FastifyInstance {
   const app = Fastify({ logger: { level: 'silent' } });
   registerErrorHandler(app);
   registerGamesRoutes(app, prisma);
-  registerLobbiesRoutes(app, prisma);
+  registerLobbiesRoutes(app, prisma, lobbyOptions);
   registerRoundsRoutes(app, prisma, weatherClient);
   registerResultsRoutes(app, prisma);
   registerChallengesRoutes(app, prisma);

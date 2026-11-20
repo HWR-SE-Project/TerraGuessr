@@ -28,6 +28,8 @@ export interface ApiRequestOptions {
   /** Lobby membership token (R16), sent as X-Lobby-Token. Omitted when undefined. */
   lobbyToken?: string | null
   signal?: AbortSignal
+  /** Best-effort keepalive for unload-time cleanup requests. */
+  keepalive?: boolean
 }
 
 function getApiBaseUrl(): string {
@@ -78,7 +80,7 @@ async function toApiError(response: Response): Promise<ApiError> {
 
 /** Fetch wrapper: JSON in/out, cookies + X-Player-Token on every request, ApiError on any non-2xx response. */
 export async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, playerToken, lobbyToken, signal } = options
+  const { method = 'GET', body, playerToken, lobbyToken, signal, keepalive } = options
   const token = playerToken === undefined ? getPlayerToken() : playerToken
 
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -94,6 +96,7 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: 'include',
       signal,
+      keepalive,
     })
   } catch (cause) {
     throw new ApiError('NETWORK_ERROR', cause instanceof Error ? cause.message : 'Network request failed', 0)

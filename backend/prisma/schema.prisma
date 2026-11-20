@@ -340,12 +340,15 @@ model Lobby {
   code          String        @unique @db.VarChar(6)
   difficulty    Difficulty
   hostTokenHash String // sha256(rawToken), ADR-0011
-  maxPlayers    Int           @default(8)
   roundsTotal   Int           @default(5)
   status        LobbyStatus   @default(waiting)
+  currentRound  Int           @default(0)
+  startedAt     DateTime?
+  finishedAt    DateTime?
   createdAt     DateTime      @default(now())
   expiresAt     DateTime
   members       LobbyMember[]
+  rounds        LobbyRound[]
 
   @@index([expiresAt])
   @@index([status])
@@ -357,10 +360,70 @@ model LobbyMember {
   lobby           Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
   playerTokenHash String // sha256(rawToken), ADR-0011
   displayName     String?
+  selectionLat    Float?
+  selectionLon    Float?
+  // Set when this player chooses to continue after a finished match.
+  continueRequestedAt DateTime?
   joinedAt        DateTime @default(now())
+  attempts        LobbyRoundAttempt[]
+  results         LobbyRoundResult[]
 
   @@unique([lobbyId, playerTokenHash])
   @@index([lobbyId])
+}
+
+model LobbyRound {
+  id              String   @id @default(cuid())
+  lobbyId         String
+  lobby           Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  number          Int
+  panoId          String
+  targetIndex     Int
+  targetLat       Float
+  targetLon       Float
+  candidatesJson  Json?
+  startedAt       DateTime?
+  endsAt          DateTime?
+  createdAt       DateTime @default(now())
+  attempts        LobbyRoundAttempt[]
+  results         LobbyRoundResult[]
+
+  @@unique([lobbyId, number])
+  @@index([lobbyId])
+}
+
+model LobbyRoundAttempt {
+  id            String     @id @default(cuid())
+  roundId       String
+  round         LobbyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        LobbyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  attemptNumber Int
+  guessLat      Float
+  guessLon      Float
+  distanceKm    Float
+  score         Int
+  createdAt     DateTime   @default(now())
+
+  @@unique([roundId, memberId, attemptNumber])
+  @@index([roundId, memberId])
+}
+
+model LobbyRoundResult {
+  id           String     @id @default(cuid())
+  roundId      String
+  round        LobbyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  memberId     String
+  member       LobbyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  guessLat     Float?
+  guessLon     Float?
+  distanceKm   Float?
+  score        Int
+  attemptsUsed Int
+  createdAt    DateTime   @default(now())
+
+  @@unique([roundId, memberId])
+  @@index([roundId])
 }
 
 // Street View is isolated from the existing weather game contracts.

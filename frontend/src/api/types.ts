@@ -162,7 +162,6 @@ export interface LobbyDTO {
   code: string
   difficulty: Difficulty
   status: LobbyStatus
-  maxPlayers: number
   roundsTotal: number
   rules: LobbyRulesDTO
   createdAt: string
@@ -175,6 +174,92 @@ export interface LobbyDTO {
 export interface LobbySessionDTO {
   lobby: LobbyDTO
   lobbyToken: string
+}
+
+export interface LobbyMatchCandidate {
+  id: string
+  name: string
+  region: string
+  lat: number
+  lon: number
+}
+
+export interface LobbyMatchRound {
+  id: string
+  number: number
+  panoId: string
+  candidates?: LobbyMatchCandidate[]
+}
+
+export interface LobbyMatchParticipantGuess {
+  displayName: string | null
+  isHost: boolean
+  isYou: boolean
+  guess: LatLon | null
+  distanceKm: number | null
+  score: number
+  /** Easy mode: the candidate city they picked; null on map placements. */
+  answer: string | null
+}
+
+export interface LobbyMatchResult {
+  roundNumber: number
+  score: number
+  distanceKm: number | null
+  guess: LatLon | null
+  actual: LatLon
+  attemptsUsed: number
+  guesses: LobbyMatchParticipantGuess[]
+}
+
+export interface LobbyMatchLeaderboardEntry {
+  rank: number
+  displayName: string | null
+  isHost: boolean
+  isYou: boolean
+  totalScore: number
+  roundsCompleted: number
+}
+
+export interface LobbyContinuePromptDTO {
+  deadline: string
+  readyPlayers: string[]
+  pendingPlayers: string[]
+  youRequested: boolean
+}
+
+export interface LobbyMatchDTO {
+  status: LobbyStatus
+  currentRound: number | null
+  roundsTotal: number
+  difficulty: Difficulty
+  rules: LobbyRulesDTO
+  startedAt: string | null
+  endsAt: string | null
+  round: LobbyMatchRound | null
+  roundComplete: boolean
+  pendingPlayers: string[]
+  you: {
+    attemptsUsed: number
+    attemptsTotal: number
+    selection: LatLon | null
+    finalized: boolean
+    result: LobbyMatchResult | null
+  }
+  leaderboard: LobbyMatchLeaderboardEntry[]
+  results: LobbyMatchResult[]
+  continuePrompt: LobbyContinuePromptDTO | null
+}
+
+export interface LobbyMatchResponseDTO {
+  lobby: LobbyDTO
+  match: LobbyMatchDTO
+}
+
+export interface LobbyGuessResponseDTO {
+  finalized: boolean
+  attemptsRemaining: number
+  result?: LobbyMatchResult
 }
 
 // --- Auth / account -------------------------------------------------------

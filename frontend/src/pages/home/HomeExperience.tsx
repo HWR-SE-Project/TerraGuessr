@@ -6,6 +6,7 @@ import { PageNavigation } from '../../components/ui/PageNavigation'
 import './HomePage.css'
 import './TutorialEntry.css'
 import { HomeIcon } from './HomeIcon'
+import { ResumeLobbyBanner } from './ResumeLobbyBanner'
 import { Home3DScene } from './scene/Home3DScene'
 import type { CharacterStatus } from './scene/CharacterModel'
 import { AvatarEditor } from '../../features/avatar/AvatarEditor'
@@ -117,6 +118,7 @@ export function HomeExperience() {
         setAvatarFeedback('')
         setEditorOpen(true)
       }} />
+      <ResumeLobbyBanner />
       <section className="th-actions">
         <Link className="th-tutorial-entry" to="/game/singleplayer?tutorial=1">
           <HomeIcon name="info" /> How to Play / Tutorial
@@ -151,7 +153,6 @@ export function HomeExperience() {
           if (saved) setAvatarFeedback(avatar.account ? 'Avatar saved to your account.' : 'Avatar saved on this device.')
           editAvatarRef.current?.focus()
         }} />}
-
     </div>
   )
 }

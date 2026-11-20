@@ -6,7 +6,6 @@ import {
 } from '../../src/plugins/auth.js';
 import { lobbyRulesFor } from '../../src/domain/lobbyRules.js';
 import {
-  LobbyConflictError,
   LobbyForbiddenError,
   LobbyNotFoundError,
   createLobby,
@@ -43,7 +42,6 @@ function lobbyRow(overrides: Record<string, unknown> = {}): LobbyRow {
     code: 'ABC234',
     difficulty: 'medium',
     hostTokenHash: HOST_HASH,
-    maxPlayers: 8,
     roundsTotal: 5,
     status: 'waiting',
     createdAt: CREATED_AT,
@@ -114,8 +112,31 @@ describe('createLobby', () => {
     expect(data.hostTokenHash).toBe(hashPlayerToken(result.lobbyToken));
     expect(data.hostTokenHash).not.toBe(result.lobbyToken);
     expect((data.members as { create: { displayName: string } }).create.displayName).toBe('Alice');
-    expect(data.maxPlayers).toBe(8);
     expect(data.roundsTotal).toBe(5);
+  });
+
+  it('persists a host-selected round count', async () => {
+    const create = vi.fn().mockImplementation(async (args: { data: unknown }) => {
+      const data = args.data as Record<string, unknown>;
+      return {
+        ...data,
+        id: 'lobby-1',
+        status: 'waiting',
+        createdAt: CREATED_AT,
+        members: [member({ playerTokenHash: data.hostTokenHash })],
+      };
+    });
+    const db = { lobby: { create } } as unknown as PrismaLike;
+
+    const result = await createLobby(
+      { difficulty: 'medium', roundsTotal: 9 },
+      db,
+    );
+
+    expect(result.lobby.roundsTotal).toBe(9);
+    const data = (create.mock.calls[0] as unknown as [{ data: Record<string, unknown> }])[0]
+      .data;
+    expect(data.roundsTotal).toBe(9);
   });
 
   it('retries on a code collision and then succeeds', async () => {
@@ -127,7 +148,6 @@ describe('createLobby', () => {
         code: 'ZZZ234',
         difficulty: 'hard',
         hostTokenHash: HOST_HASH,
-        maxPlayers: 8,
         roundsTotal: 5,
         status: 'waiting',
         createdAt: CREATED_AT,
@@ -216,24 +236,12 @@ describe('joinLobby', () => {
     expect(createData.playerTokenHash).toBe(hashPlayerToken(result.lobbyToken));
   });
 
-  it('rejects joining a full lobby with 409', async () => {
-    const db = {
-      lobby: {
-        findUnique: vi.fn().mockResolvedValue(lobbyRow({ maxPlayers: 1 })),
-      },
-    } as unknown as PrismaLike;
-
-    await expect(joinLobby('ABC234', {}, db)).rejects.toBeInstanceOf(
-      LobbyConflictError,
-    );
-  });
-
   it('rejects joining a lobby that is already playing with 409', async () => {
     const db = {
       lobby: {
         findUnique: vi
           .fn()
-          .mockResolvedValue(lobbyRow({ status: 'playing', maxPlayers: 8 })),
+          .mockResolvedValue(lobbyRow({ status: 'playing' })),
       },
     } as unknown as PrismaLike;
 
@@ -256,6 +264,50 @@ describe('leaveLobby', () => {
     await leaveLobby('ABC234', HOST_TOKEN, db);
 
     expect(del).toHaveBeenCalledWith({ where: { id: 'lobby-1' } });
+  });
+
+  it('keeps a started match alive and promotes a guest when the host leaves', async () => {
+    const guestToken = 'guest-token';
+    const guestHash = hashPlayerToken(guestToken);
+    const deleteHost = vi.fn().mockResolvedValue({});
+    const updateLobby = vi.fn().mockResolvedValue({});
+    const tx = {
+      lobbyMember: { deleteMany: deleteHost },
+      lobby: { update: updateLobby },
+    };
+    const db = {
+      lobby: {
+        findUnique: vi.fn().mockResolvedValue(
+          lobbyRow({
+            status: 'playing',
+            members: [
+              member(),
+              member({
+                id: 'member-2',
+                playerTokenHash: guestHash,
+                displayName: 'Guest',
+                joinedAt: new Date('2026-11-20T12:01:00.000Z'),
+              }),
+            ],
+          }),
+        ),
+        delete: vi.fn(),
+      },
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    } as unknown as PrismaLike;
+
+    await leaveLobby('ABC234', HOST_TOKEN, db);
+
+    expect((db.lobby.delete as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(deleteHost).toHaveBeenCalledWith({
+      where: { lobbyId: 'lobby-1', playerTokenHash: HOST_HASH },
+    });
+    expect(updateLobby).toHaveBeenCalledWith({
+      where: { id: 'lobby-1' },
+      data: { hostTokenHash: guestHash },
+    });
   });
 
   it('removes only the member when a guest leaves', async () => {

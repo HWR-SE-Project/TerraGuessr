@@ -48,6 +48,11 @@ const SingleplayerGamePage = lazy(() =>
 const LobbyPage = lazy(() =>
   import('./pages/lobby/LobbyPage').then((m) => ({ default: m.LobbyPage })),
 )
+const MultiplayerGamePage = lazy(() =>
+  import('./pages/lobby/MultiplayerGamePage').then((m) => ({
+    default: m.MultiplayerGamePage,
+  })),
+)
 
 function App() {
   const { pathname } = useLocation()
@@ -90,6 +95,7 @@ function App() {
           <Route path="/multiplayer" element={<LobbyPage />} />
           <Route path="/lobby" element={<Navigate to="/multiplayer" replace />} />
           <Route path="/lobby/:code" element={<LobbyPage />} />
+          <Route path="/lobby/:code/game" element={<MultiplayerGamePage />} />
           <Route path="/game/singleplayer" element={<SingleplayerGamePage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/daily" element={<DailyPage />} />

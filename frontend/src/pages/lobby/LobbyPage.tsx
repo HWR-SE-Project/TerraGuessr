@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import * as lobbiesApi from '../../api/lobbies'
 import { ApiError } from '../../api/client'
 import { mapApiError } from '../../api/errorMessages'
@@ -19,6 +19,7 @@ const DIFFICULTIES: Array<{
   { value: 'hard', label: 'Hard', detail: '2 min · 1 attempt · world map' },
 ]
 
+const ROUND_OPTIONS = Array.from({ length: 8 }, (_, index) => index + 3)
 const POLL_INTERVAL_MS = 3000
 const FEEDBACK_TIMEOUT_MS = 5000
 const CODE_PATTERN = /^[A-Z0-9]{6}$/
@@ -31,6 +32,28 @@ function memberName(name: string | null): string {
   return name && name.length > 0 ? name : 'Guest'
 }
 
+function sameLobby(current: LobbyDTO, next: LobbyDTO): boolean {
+  if (
+    current.code !== next.code ||
+    current.status !== next.status ||
+    current.difficulty !== next.difficulty ||
+    current.roundsTotal !== next.roundsTotal ||
+    current.youAreHost !== next.youAreHost ||
+    current.members.length !== next.members.length
+  ) {
+    return false
+  }
+  return current.members.every((member, index) => {
+    const candidate = next.members[index]
+    return (
+      candidate !== undefined &&
+      member.displayName === candidate.displayName &&
+      member.isHost === candidate.isHost &&
+      member.joinedAt === candidate.joinedAt
+    )
+  })
+}
+
 interface LobbySession {
   code: string
   token: string
@@ -39,11 +62,13 @@ interface LobbySession {
 export function LobbyPage() {
   const { code: routeCode } = useParams<{ code?: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useSession()
 
   const [displayName, setDisplayName] = useState('')
   const [nameTouched, setNameTouched] = useState(false)
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [roundsTotal, setRoundsTotal] = useState(5)
   const [joinCode, setJoinCode] = useState((routeCode ?? '').toUpperCase())
   const [session, setSession] = useState<LobbySession | null>(null)
   const [lobby, setLobby] = useState<LobbyDTO | null>(null)
@@ -51,6 +76,16 @@ export function LobbyPage() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [resumable, setResumable] = useState<LobbySession | null>(null)
+  const [starting, setStarting] = useState(false)
+  const leavingRef = useRef(false)
+  const armedRef = useRef(false)
+  const statusRef = useRef<LobbyDTO['status'] | null>(null)
+  const cleanupState = useRef<{
+    code: string | null
+    token: string | null
+    waiting: boolean
+  }>({ code: null, token: null, waiting: false })
 
   // Errors and notices are transient: clear them after a few seconds.
   useEffect(() => {
@@ -73,12 +108,77 @@ export function LobbyPage() {
   useEffect(() => {
     if (!routeCode) {
       setSession(null)
+      armedRef.current = false
       return
     }
     const code = routeCode.toUpperCase()
     setJoinCode(code)
     const token = lobbiesApi.getLobbyToken(code)
     setSession(token ? { code, token } : null)
+  }, [routeCode])
+
+  useEffect(() => {
+    cleanupState.current = {
+      code: session?.code ?? null,
+      token: session?.token ?? null,
+      waiting: Boolean(session && lobby?.status === 'waiting'),
+    }
+  }, [session, lobby?.status])
+
+  useEffect(() => {
+    if (!session) return
+    if (location.pathname.startsWith(`/lobby/${session.code}`)) {
+      armedRef.current = true
+      return
+    }
+    if (!armedRef.current || lobby?.status !== 'waiting' || leavingRef.current)
+      return
+    leavingRef.current = true
+    void lobbiesApi
+      .leaveLobby(session.code, session.token)
+      .catch(() => {})
+      .finally(() => {
+        lobbiesApi.clearLobbyToken(session.code)
+        lobbiesApi.clearCurrentLobbyCode()
+      })
+  }, [location.pathname, session, lobby?.status])
+
+  useEffect(() => {
+    return () => {
+      const state = cleanupState.current
+      if (!state.code || !state.token || !state.waiting || leavingRef.current)
+        return
+      if (window.location.pathname.endsWith('/game')) return
+      lobbiesApi.leaveLobbyBeacon(state.code, state.token)
+      lobbiesApi.clearLobbyToken(state.code)
+      lobbiesApi.clearCurrentLobbyCode()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (routeCode) return
+    const code = lobbiesApi.getCurrentLobbyCode()
+    const token = code ? lobbiesApi.getLobbyToken(code) : null
+    if (!code || !token) {
+      setResumable(null)
+      return
+    }
+    let cancelled = false
+    lobbiesApi
+      .getLobby(code, token)
+      .then(() => {
+        if (cancelled) return
+        setResumable({ code, token })
+      })
+      .catch(() => {
+        if (cancelled) return
+        lobbiesApi.clearLobbyToken(code)
+        lobbiesApi.clearCurrentLobbyCode()
+        setResumable(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [routeCode])
 
   // Poll while inside a lobby so joins/leaves appear without a websocket.
@@ -92,7 +192,17 @@ export function LobbyPage() {
       try {
         const next = await lobbiesApi.getLobby(session.code, session.token)
         if (cancelled) return
-        setLobby(next)
+        setLobby((current) =>
+          current && sameLobby(current, next) ? current : next,
+        )
+        if (
+          (next.status === 'finished' ||
+            (next.status === 'playing' && statusRef.current === 'waiting')) &&
+          location.pathname === `/lobby/${next.code}`
+        ) {
+          navigate(`/lobby/${next.code}/game`)
+        }
+        statusRef.current = next.status
       } catch (cause) {
         if (cancelled) return
         if (cause instanceof ApiError && cause.status === 404) {
@@ -115,7 +225,7 @@ export function LobbyPage() {
       cancelled = true
       if (timer !== undefined) window.clearTimeout(timer)
     }
-  }, [session, routeCode, navigate])
+  }, [session, routeCode, navigate, location.pathname])
 
   function normalizedName(): string | undefined {
     const trimmed = effectiveName.trim()
@@ -124,8 +234,10 @@ export function LobbyPage() {
 
   function enterLobby(result: { lobby: LobbyDTO; lobbyToken: string }) {
     lobbiesApi.setLobbyToken(result.lobby.code, result.lobbyToken)
+    lobbiesApi.setCurrentLobbyCode(result.lobby.code)
     setLobby(result.lobby)
     setSession({ code: result.lobby.code, token: result.lobbyToken })
+    statusRef.current = result.lobby.status
     navigate(`/lobby/${result.lobby.code}`, { replace: true })
   }
 
@@ -137,6 +249,7 @@ export function LobbyPage() {
       enterLobby(
         await lobbiesApi.createLobby({
           difficulty,
+          roundsTotal,
           displayName: normalizedName(),
         }),
       )
@@ -167,6 +280,7 @@ export function LobbyPage() {
 
   async function handleLeave() {
     if (!session) return
+    leavingRef.current = true
     setBusy(true)
     setError(null)
     try {
@@ -179,11 +293,39 @@ export function LobbyPage() {
       }
     }
     lobbiesApi.clearLobbyToken(session.code)
+    lobbiesApi.clearCurrentLobbyCode()
     setSession(null)
     setLobby(null)
     setNotice('You left the lobby.')
     navigate('/multiplayer', { replace: true })
     setBusy(false)
+    leavingRef.current = false
+  }
+
+  async function handleStart() {
+    if (!session || (lobby?.members.length ?? 0) < 2) return
+    setStarting(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const next = await lobbiesApi.startLobbyMatch(
+        session.code,
+        session.token,
+      )
+      setLobby(next.lobby)
+      statusRef.current = next.lobby.status
+      navigate(`/lobby/${session.code}/game`)
+    } catch (cause) {
+      setError(mapApiError(cause))
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  function handleResume() {
+    if (!resumable) return
+    setSession(resumable)
+    navigate(`/lobby/${resumable.code}`)
   }
 
   async function handleCopy() {
@@ -216,9 +358,14 @@ export function LobbyPage() {
             <LobbyRoom
               lobby={lobby}
               busy={busy}
+              starting={starting}
               copied={copied}
               onCopy={handleCopy}
               onLeave={handleLeave}
+              onStart={handleStart}
+              onReturnToMatch={() =>
+                navigate(`/lobby/${lobby.code}/game`)
+              }
             />
           ) : (
             <p className="tl-loading" role="status">
@@ -235,6 +382,22 @@ export function LobbyPage() {
                 shares the same difficulty and rounds.
               </p>
             </header>
+
+            {resumable && (
+              <section className="tl-resume" aria-label="Return to lobby">
+                <span>
+                  <strong>Your lobby {resumable.code} is still open</strong>
+                  <small>Jump back into the waiting room.</small>
+                </span>
+                <button
+                  type="button"
+                  className="tl-secondary"
+                  onClick={handleResume}
+                >
+                  Return to lobby
+                </button>
+              </section>
+            )}
 
             <label className="tl-name">
               <span>Your display name</span>
@@ -261,7 +424,8 @@ export function LobbyPage() {
                     <h2 id="tl-create-title">Create a lobby</h2>
                     <p className="tl-panel-copy">
                       You become the host. Difficulty applies to everyone and
-                      sets the round time, attempts and selection mode.
+                      sets the round time, attempts and selection mode. Choose
+                      how many rounds the match lasts.
                     </p>
                   </div>
                 </div>
@@ -292,6 +456,35 @@ export function LobbyPage() {
                       </span>
                     </button>
                   ))}
+                </div>
+
+                <div className="tl-rounds">
+                  <span id="tl-rounds-label" className="tl-rounds-label">
+                    Number of rounds
+                  </span>
+                  <div
+                    className="tl-rounds-options"
+                    role="radiogroup"
+                    aria-labelledby="tl-rounds-label"
+                  >
+                    {ROUND_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={roundsTotal === option}
+                        className={`tl-difficulty-option tl-rounds-option${
+                          roundsTotal === option
+                            ? ' tl-difficulty-option-active'
+                            : ''
+                        }`}
+                        onClick={() => setRoundsTotal(option)}
+                      >
+                        <span className="tl-difficulty-label">{option}</span>
+                        <span className="tl-difficulty-detail">rounds</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <button
@@ -360,15 +553,21 @@ export function LobbyPage() {
 function LobbyRoom({
   lobby,
   busy,
+  starting,
   copied,
   onCopy,
   onLeave,
+  onStart,
+  onReturnToMatch,
 }: {
   lobby: LobbyDTO
   busy: boolean
+  starting: boolean
   copied: boolean
   onCopy: () => void
   onLeave: () => void
+  onStart: () => void
+  onReturnToMatch: () => void
 }) {
   const statusLabel =
     lobby.status === 'waiting'
@@ -420,9 +619,7 @@ function LobbyRoom({
       <section className="tl-members" aria-labelledby="tl-members-title">
         <div className="tl-members-head">
           <h2 id="tl-members-title">Players</h2>
-          <span>
-            {lobby.members.length} / {lobby.maxPlayers}
-          </span>
+          <span>{lobby.members.length}</span>
         </div>
         <ul>
           {lobby.members.map((member, index) => (
@@ -442,9 +639,39 @@ function LobbyRoom({
         </ul>
       </section>
 
+      {lobby.status === 'waiting' && lobby.youAreHost && (
+        <>
+          <button
+            type="button"
+            className="tl-primary"
+            onClick={onStart}
+            disabled={busy || starting || lobby.members.length < 2}
+          >
+            {starting ? 'Starting match…' : 'Start match'}
+          </button>
+          {lobby.members.length < 2 && (
+            <p className="tl-room-hint" role="status">
+              Invite at least one more player before starting the match.
+            </p>
+          )}
+        </>
+      )}
+      {lobby.status === 'playing' && (
+        <button
+          type="button"
+          className="tl-primary"
+          onClick={onReturnToMatch}
+        >
+          Return to match
+        </button>
+      )}
+
       <p className="tl-room-note">
-        Share the code with friends. This page refreshes automatically every few
-        seconds.
+        {lobby.status === 'waiting'
+          ? 'Share the code with friends. This page refreshes automatically every few seconds.'
+          : lobby.status === 'playing'
+            ? 'The match is underway. Return to the match to keep guessing.'
+            : 'This match has finished.'}
       </p>
 
       <button
@@ -455,7 +682,7 @@ function LobbyRoom({
       >
         {busy
           ? 'Leaving…'
-          : lobby.youAreHost
+          : lobby.youAreHost && lobby.status === 'waiting'
             ? 'Disband lobby'
             : 'Leave lobby'}
       </button>
