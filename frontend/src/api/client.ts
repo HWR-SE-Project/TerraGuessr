@@ -25,6 +25,8 @@ export interface ApiRequestOptions {
   body?: unknown
   /** Overrides the token read from localStorage (e.g. right after game creation, or `null` for anonymous entry points). */
   playerToken?: string | null
+  /** Lobby membership token (R16), sent as X-Lobby-Token. Omitted when undefined. */
+  lobbyToken?: string | null
   signal?: AbortSignal
 }
 
@@ -76,11 +78,12 @@ async function toApiError(response: Response): Promise<ApiError> {
 
 /** Fetch wrapper: JSON in/out, cookies + X-Player-Token on every request, ApiError on any non-2xx response. */
 export async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, playerToken, signal } = options
+  const { method = 'GET', body, playerToken, lobbyToken, signal } = options
   const token = playerToken === undefined ? getPlayerToken() : playerToken
 
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (token) headers['X-Player-Token'] = token
+  if (lobbyToken) headers['X-Lobby-Token'] = lobbyToken
   if (body !== undefined) headers['Content-Type'] = 'application/json; charset=utf-8'
 
   let response: Response

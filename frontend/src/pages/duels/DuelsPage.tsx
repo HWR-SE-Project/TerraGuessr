@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
 import { HomeIcon } from '../home/HomeIcon'
 import { PageNavigation } from '../../components/ui/PageNavigation'
@@ -88,6 +89,9 @@ export function DuelsPage() {
             <HomeIcon name="play" />
             <span>{busy ? 'Starting…' : 'Play'}</span>
           </button>
+          <Link to="/multiplayer" className="td-lobby-link">
+            Create or join a lobby
+          </Link>
         </div>
       </main>
       {stage.kind !== 'idle' && (

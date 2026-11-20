@@ -73,7 +73,7 @@ export function PageNavigation({
             Singleplayer
           </Link>
           <Link
-            to="/duels"
+            to="/multiplayer"
             className={`th-nav-item tg-control${active === 'multiplayer' ? ' th-nav-active' : ''}`}
             aria-current={active === 'multiplayer' ? 'page' : undefined}
             onClick={() => setMenuOpen(false)}

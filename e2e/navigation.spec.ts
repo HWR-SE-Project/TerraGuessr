@@ -22,8 +22,10 @@ test.describe('navigation', () => {
     await registerAndLogin(page, 'Nav Tester');
 
     await page.getByRole('link', { name: 'Multiplayer', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Duels' })).toBeVisible();
-    await expect(page).toHaveURL(/\/duels$/);
+    await expect(page.getByRole('heading', { name: 'Multiplayer' })).toBeVisible();
+    await expect(page).toHaveURL(/\/multiplayer$/);
+    await expect(page.getByRole('heading', { name: 'Create a lobby' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Join a lobby' })).toBeVisible();
 
     await page.getByRole('link', { name: 'Singleplayer', exact: true }).click();
     await expect(page.getByRole('main', { name: 'TerraGuessr singleplayer game' })).toBeVisible();

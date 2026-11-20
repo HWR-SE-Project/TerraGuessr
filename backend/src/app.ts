@@ -11,6 +11,7 @@ import { registerErrorHandler } from './plugins/errorHandler.js';
 import { registerChallengesRoutes } from './modules/challenges/routes.js';
 import { registerAdminRoutes } from './modules/admin/routes.js';
 import { registerGamesRoutes } from './modules/games/routes.js';
+import { registerLobbiesRoutes } from './modules/lobbies/routes.js';
 import { registerResultsRoutes } from './modules/results/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerDailyRoutes } from './modules/daily/routes.js';
@@ -49,6 +50,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerStatisticsRoutes(app);
   registerChallengesRoutes(app);
   registerGamesRoutes(app);
+  registerLobbiesRoutes(app);
   registerSingleplayerRoutes(app, {
     key: config.googleMapsServerKey,
     intelligence: createIntelligenceProvider({

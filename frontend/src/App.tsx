@@ -45,6 +45,9 @@ const SingleplayerGamePage = lazy(() =>
     default: m.SingleplayerGamePage,
   })),
 )
+const LobbyPage = lazy(() =>
+  import('./pages/lobby/LobbyPage').then((m) => ({ default: m.LobbyPage })),
+)
 
 function App() {
   const { pathname } = useLocation()
@@ -53,6 +56,7 @@ function App() {
       '/': 'Explore the World',
       '/auth': 'Your next adventure',
       '/duels': 'Duels',
+      '/multiplayer': 'Multiplayer',
       '/game/singleplayer': 'World Explorer',
       '/play': 'Weather expedition',
       '/daily': 'Daily challenge',
@@ -61,7 +65,11 @@ function App() {
       '/verify-email': 'Verify email',
       '/confirm-email-change': 'Confirm email change',
     }
-    document.title = `${titles[pathname] ?? 'Challenge a friend'} · TerraGuessr`
+    const title =
+      pathname.startsWith('/multiplayer') || pathname.startsWith('/lobby')
+        ? 'Multiplayer'
+        : (titles[pathname] ?? 'Challenge a friend')
+    document.title = `${title} · TerraGuessr`
   }, [pathname])
   return (
     <CosmicBackground>
@@ -79,6 +87,9 @@ function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/confirm-email-change" element={<EmailChangePage />} />
           <Route path="/duels" element={<DuelsPage />} />
+          <Route path="/multiplayer" element={<LobbyPage />} />
+          <Route path="/lobby" element={<Navigate to="/multiplayer" replace />} />
+          <Route path="/lobby/:code" element={<LobbyPage />} />
           <Route path="/game/singleplayer" element={<SingleplayerGamePage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/daily" element={<DailyPage />} />

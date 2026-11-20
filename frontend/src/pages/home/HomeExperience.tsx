@@ -167,7 +167,7 @@ export function HomeExperience() {
           active
         />
         <GameModeCard
-          to="/duels"
+          to="/multiplayer"
           icon="users"
           title="Play Together"
           subtitle="With friends"

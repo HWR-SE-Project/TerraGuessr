@@ -44,6 +44,12 @@ enum RoundStatus {
   completed
 }
 
+enum LobbyStatus {
+  waiting
+  playing
+  finished
+}
+
 enum LocationSrc {
   grid
   city
@@ -315,6 +321,36 @@ model ChallengeEntry {
   @@unique([challengeId, resultId])
   @@unique([challengeId, playerTokenHash])
   @@index([challengeId])
+}
+
+// Pre-game multiplayer waiting room (R16). A lobby only stores membership and
+// the host's difficulty choice; it deliberately owns no round/location logic.
+model Lobby {
+  id            String        @id @default(cuid())
+  code          String        @unique @db.VarChar(6)
+  difficulty    Difficulty
+  hostTokenHash String // sha256(rawToken), ADR-0011
+  maxPlayers    Int           @default(8)
+  roundsTotal   Int           @default(5)
+  status        LobbyStatus   @default(waiting)
+  createdAt     DateTime      @default(now())
+  expiresAt     DateTime
+  members       LobbyMember[]
+
+  @@index([expiresAt])
+  @@index([status])
+}
+
+model LobbyMember {
+  id              String   @id @default(cuid())
+  lobbyId         String
+  lobby           Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  playerTokenHash String // sha256(rawToken), ADR-0011
+  displayName     String?
+  joinedAt        DateTime @default(now())
+
+  @@unique([lobbyId, playerTokenHash])
+  @@index([lobbyId])
 }
 
 // Street View is isolated from the existing weather game contracts.

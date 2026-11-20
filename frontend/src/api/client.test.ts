@@ -57,6 +57,25 @@ describe('apiFetch', () => {
     const init = fetchMock.mock.calls[0]![1] as RequestInit
     expect((init.headers as Record<string, string>)['X-Player-Token']).toBeUndefined()
   })
+
+  it('sends a lobby token as X-Lobby-Token without touching the player token', async () => {
+    setPlayerToken('game-token')
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}))
+    vi.stubGlobal('fetch', fetchMock)
+    await apiFetch('/lobbies/ABC234', { lobbyToken: 'lobby-token' })
+    const init = fetchMock.mock.calls[0]![1] as RequestInit
+    const headers = init.headers as Record<string, string>
+    expect(headers['X-Lobby-Token']).toBe('lobby-token')
+    expect(headers['X-Player-Token']).toBe('game-token')
+  })
+
+  it('omits the lobby token header when it is not provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}))
+    vi.stubGlobal('fetch', fetchMock)
+    await apiFetch('/lobbies/ABC234')
+    const init = fetchMock.mock.calls[0]![1] as RequestInit
+    expect((init.headers as Record<string, string>)['X-Lobby-Token']).toBeUndefined()
+  })
 })
 
 describe('player token storage', () => {
