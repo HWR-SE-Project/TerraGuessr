@@ -22,31 +22,19 @@ export type HomeIconName =
   | 'menu'
   | 'close'
   | 'coin'
+  | 'arrow'
 
 const paths: Record<HomeIconName, ReactNode> = {
   gamepad: (
     <>
-      <path
-        d="M7 5h10c3 0 5 11 3 13-1 1-3-2-5-3H9c-2 1-4 4-5 3C2 16 4 5 7 5Z"
-        fill="currentColor"
-        stroke="none"
-      />
-      <path
-        d="M7 8v5M4.5 10.5h5M15.5 9h.01M18 12h.01"
-        stroke="var(--icon-cutout, #34401e)"
-      />
+      <path d="M8 6h8c3 0 4 4 5 9 .8 4-1 5-3 3l-3-3H9l-3 3c-2 2-3.8 1-3-3 1-5 2-9 5-9Z" />
+      <path d="M8 9v4M6 11h4M15 10h.01M18 12h.01" />
     </>
   ),
   users: (
     <>
-      <circle cx="9" cy="7" r="4" fill="currentColor" stroke="none" />
-      <path d="M1 21v-3c0-6 16-6 16 0v3Z" fill="currentColor" stroke="none" />
-      <circle cx="18" cy="8" r="3" fill="currentColor" stroke="none" />
-      <path
-        d="M18 14c4 0 5 2 5 5v2h-4v-3c0-2-.5-3-1-4Z"
-        fill="currentColor"
-        stroke="none"
-      />
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20v-2a6.5 6.5 0 0 1 13 0v2M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14a5 5 0 0 1 3.5 4.8V20" />
     </>
   ),
   bolt: (
@@ -121,9 +109,7 @@ const paths: Record<HomeIconName, ReactNode> = {
     </>
   ),
   pencil: (
-    <>
-      <path d="m15 3 6 6L8 22H2v-6ZM12 6l6 6M2 22l6-2-4-4" />
-    </>
+    <path d="m14.5 5.5 4 4M4 20l4.5-1 12-12a2.8 2.8 0 0 0-4-4l-12 12L4 20Z" />
   ),
   crown: (
     <>
@@ -142,12 +128,9 @@ const paths: Record<HomeIconName, ReactNode> = {
     </>
   ),
   play: (
-    <path
-      d="M5 3c0-2 2-3 4-2l14 9c2 1 2 3 0 4L9 23c-2 1-4 0-4-2Z"
-      fill="currentColor"
-      stroke="none"
-    />
+    <path d="M7 5.5c0-1.2 1-1.8 2-1.2l10 6.5a1.4 1.4 0 0 1 0 2.4L9 19.7c-1 .6-2 0-2-1.2Z" fill="currentColor" stroke="none" />
   ),
+  arrow: <path d="M5 12h14m-5-5 5 5-5 5" />,
   rank: (
     <>
       <rect

@@ -279,6 +279,95 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
   });
 });
 
+describe('abandoning an expedition (explicit exit, database integration)', () => {
+  const db = new PrismaClient();
+  const app = Fastify();
+  const ids: string[] = [];
+  beforeAll(() => {
+    registerErrorHandler(app);
+    registerSingleplayerRoutes(app, {
+      db,
+      provider: async (used) => ({
+        panoId: `abandon-pano-${used.length}`,
+        targetIndex: used.length,
+        lat: 50,
+        lon: 10,
+      }),
+      locate: async () => ({ lat: 50, lon: 10 }),
+      intelligence: async () => validIntelligence(),
+    });
+  });
+  afterAll(async () => {
+    await app.close();
+    await db.streetResult.deleteMany({ where: { gameId: { in: ids } } });
+    await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.$disconnect();
+  });
+  async function create() {
+    const auth = (
+      await app.inject({ method: 'POST', url: '/api/singleplayer/games' })
+    ).json();
+    ids.push(auth.id);
+    return {
+      base: `/api/singleplayer/games/${auth.id}`,
+      headers: { 'x-player-token': auth.playerToken },
+      id: auth.id as string,
+    };
+  }
+  it('rejects abandon without ownership and leaves the session untouched', async () => {
+    const auth = await create();
+    expect((await app.inject({ method: 'DELETE', url: auth.base })).statusCode).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: auth.base,
+          headers: { 'x-player-token': 'wrong' },
+        })
+      ).statusCode,
+    ).toBe(404);
+    // Still there: the failed attempts never deleted it.
+    expect((await app.inject({ url: auth.base, headers: auth.headers })).statusCode).toBe(200);
+  });
+  it('deletes the session and cascades its unscored round, but preserves the archived result of a scored one', async () => {
+    const auth = await create();
+    const first = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${first.id}/guess`,
+      headers: auth.headers,
+      payload: { lat: 48, lon: 11 },
+    });
+    const second = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    const deleted = await app.inject({ method: 'DELETE', url: auth.base, headers: auth.headers });
+    expect(deleted.statusCode).toBe(204);
+    expect(
+      (await app.inject({ url: auth.base, headers: auth.headers })).statusCode,
+    ).toBe(404);
+    expect(
+      await db.streetRound.count({ where: { id: { in: [first.id, second.id] } } }),
+    ).toBe(0);
+    const archived = await db.streetResult.findUniqueOrThrow({
+      where: { roundId: first.id },
+    });
+    expect(archived.gameId).toBe(auth.id);
+    expect(archived.score).toBeGreaterThan(0);
+  });
+  it('is idempotent: abandoning an already-deleted session reports not-found rather than erroring', async () => {
+    const auth = await create();
+    expect(
+      (await app.inject({ method: 'DELETE', url: auth.base, headers: auth.headers })).statusCode,
+    ).toBe(204);
+    expect(
+      (await app.inject({ method: 'DELETE', url: auth.base, headers: auth.headers })).statusCode,
+    ).toBe(404);
+  });
+});
+
 describe('Street View scoring availability (real database; provider doubles)', () => {
   const db = new PrismaClient();
   const app = Fastify();

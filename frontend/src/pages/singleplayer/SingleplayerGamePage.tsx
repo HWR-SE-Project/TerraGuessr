@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Brand } from '../../components/ui/Brand'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useGameSession, STREET_SESSION_STORAGE_KEY } from './useGameSession'
+import { useGameSession } from './useGameSession'
 import { StreetViewViewer } from './StreetViewViewer'
 import { GuessMap } from './GuessMap'
 import { CandidateList } from '../../components/CandidateList'
@@ -12,8 +12,9 @@ import { GameSettings } from './GameSettings'
 import { GeographicIntelligence } from './GeographicIntelligence'
 import { readSettings } from './settings'
 import { DifficultyPicker } from './DifficultyPicker'
-import { readDifficulty, saveDifficulty } from './difficulty'
-import { Tutorial, hasSeenTutorial, markTutorialSeen } from './Tutorial'
+import { ExitGameDialog } from './ExitGameDialog'
+import { DIFFICULTY_LEVELS, readDifficulty, saveDifficulty } from './difficulty'
+import { Tutorial, markTutorialSeen, shouldShowTutorialForNewGame } from './Tutorial'
 import { RoundResults, FinalResults } from './GameResults'
 import { useCosmicBackgroundMode } from '../../components/cosmic/CosmicContext'
 import './SingleplayerGamePage.css'
@@ -23,20 +24,7 @@ export function SingleplayerGamePage() {
   const game = useGameSession()
   const [dialog, setDialog] = useState<
     'settings' | 'menu' | 'leave' | 'restart' | 'tutorial' | null
-  >(() => {
-    // Decided synchronously at mount, before first paint: offering the
-    // tutorial reactively (after the async config/session check resolves)
-    // can race with the welcome screen's Start button already being
-    // clickable. A resumable session (sessionStorage) always wins — the
-    // tutorial must never interrupt an in-progress expedition.
-    try {
-      if (hasSeenTutorial() || sessionStorage.getItem(STREET_SESSION_STORAGE_KEY))
-        return null
-    } catch {
-      return null
-    }
-    return 'tutorial'
-  })
+  >(null)
   const [settings, setSettings] = useState(readSettings)
   const [difficulty, setDifficulty] = useState(readDifficulty)
   const [expanded, setExpanded] = useState(false)
@@ -98,6 +86,49 @@ export function SingleplayerGamePage() {
   function leave() {
     if (game.inProgress) setDialog('leave')
     else navigate('/')
+  }
+  // The only two places a brand-new expedition actually begins: the welcome
+  // screen's start button (no session yet) and an explicit restart/play-again.
+  // Resuming a restored session and advancing to the next round must never
+  // pass through here, so the tutorial can't re-trigger for those.
+  function startExpedition() {
+    const isNewGame = !game.session.id
+    setDialog(isNewGame && shouldShowTutorialForNewGame() ? 'tutorial' : null)
+    void game.next({ difficulty })
+  }
+  function restartExpedition() {
+    setDialog(shouldShowTutorialForNewGame() ? 'tutorial' : null)
+    void game.next({ restart: true, difficulty })
+  }
+  // Browser back must never silently discard an active expedition: while one
+  // is in progress, swallow the implicit back navigation (re-pushing the
+  // entry it would have left) and open the same confirmation every other
+  // exit path uses instead.
+  useEffect(() => {
+    if (!game.inProgress) return
+    window.history.pushState({ spExitGuard: true }, '')
+    const onPopState = () => {
+      window.history.pushState({ spExitGuard: true }, '')
+      setDialog('leave')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [game.inProgress])
+  function closeExitDialog() {
+    setDialog(null)
+    game.clearExitError()
+  }
+  async function handleSaveAndExit() {
+    if (await game.saveAndExit()) {
+      setDialog(null)
+      navigate('/')
+    }
+  }
+  async function handleLeaveGame() {
+    if (await game.leaveGame()) {
+      setDialog(null)
+      navigate('/')
+    }
   }
   const status = game.busy
     ? 'Please wait…'
@@ -216,13 +247,21 @@ export function SingleplayerGamePage() {
               <button
                 className="sp-primary tg-control tg-control--primary"
                 disabled={game.busy}
-                onClick={() => void game.next({ difficulty })}
+                onClick={startExpedition}
               >
-                {game.busy
-                  ? 'Finding your first location…'
-                  : game.session.id
-                    ? 'Continue expedition'
-                    : 'Start exploring'}{' '}
+                <span>
+                  {game.busy
+                    ? 'Finding your first location…'
+                    : game.session.id
+                      ? 'Continue expedition'
+                      : 'Start exploring'}
+                  {!game.busy && !game.session.id && (
+                    <span className="sp-primary-difficulty">
+                      {' '}
+                      · {DIFFICULTY_LEVELS.find((level) => level.id === difficulty)?.label ?? difficulty}
+                    </span>
+                  )}
+                </span>
                 <span aria-hidden="true">→</span>
               </button>
             </>
@@ -259,7 +298,7 @@ export function SingleplayerGamePage() {
         <FinalResults
           session={game.session}
           busy={game.busy}
-          onPlayAgain={() => void game.next({ restart: true, difficulty })}
+          onPlayAgain={restartExpedition}
           onHome={() => navigate('/')}
         />
       )}
@@ -399,10 +438,7 @@ export function SingleplayerGamePage() {
               disabled={game.busy || !game.available}
               onClick={() => {
                 if (game.inProgress || game.session.id) setDialog('restart')
-                else {
-                  setDialog(null)
-                  void game.next({ restart: true, difficulty })
-                }
+                else restartExpedition()
               }}
             >
               Restart game
@@ -417,19 +453,27 @@ export function SingleplayerGamePage() {
           </div>
         </GameDialog>
       )}
-      {(dialog === 'leave' || dialog === 'restart') && (
-        <GameDialog
-          title={
-            dialog === 'leave'
-              ? 'Leave this expedition?'
-              : 'Start a new expedition?'
+      {dialog === 'leave' && (
+        <ExitGameDialog
+          onContinue={closeExitDialog}
+          onSaveExit={() => void handleSaveAndExit()}
+          onLeave={() => void handleLeaveGame()}
+          pending={game.exitPending}
+          error={game.exitError}
+          round={
+            active?.number ??
+            game.result?.number ??
+            (game.showFinal ? game.session.roundsTotal : 1)
           }
-          onClose={() => setDialog(null)}
-        >
+          roundsTotal={game.session.roundsTotal}
+          score={game.session.totalScore}
+        />
+      )}
+      {dialog === 'restart' && (
+        <GameDialog title="Start a new expedition?" onClose={() => setDialog(null)}>
           <p className="sp-muted">
-            {dialog === 'leave'
-              ? 'You can resume this expedition in this tab for up to 24 hours. Leave the current view?'
-              : 'Your current expedition will be replaced. Start again with five new locations?'}
+            Your current expedition will be replaced. Start again with five
+            new locations?
           </p>
           <div className="sp-dialog-actions">
             <button
@@ -442,14 +486,9 @@ export function SingleplayerGamePage() {
             <button
               className="sp-primary tg-control tg-control--primary"
               disabled={game.busy}
-              onClick={() => {
-                const action = dialog
-                setDialog(null)
-                if (action === 'leave') navigate('/')
-                else void game.next({ restart: true, difficulty })
-              }}
+              onClick={restartExpedition}
             >
-              {dialog === 'leave' ? 'Return home' : 'Restart game'}
+              Restart game
             </button>
           </div>
         </GameDialog>

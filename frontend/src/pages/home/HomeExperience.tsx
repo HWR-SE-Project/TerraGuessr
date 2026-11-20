@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { GameModeCard } from '../../components/ui/GameModeCard'
 import { PageNavigation } from '../../components/ui/PageNavigation'
 import './HomePage.css'
 import { HomeIcon } from './HomeIcon'
-import type { HomeIconName } from './HomeIcon'
+import { ResumeGameBanner } from './ResumeGameBanner'
 import { Home3DScene } from './scene/Home3DScene'
 import type { CharacterStatus } from './scene/CharacterModel'
 
@@ -56,43 +56,11 @@ function HeroSection({
             {characterStatus === 'loading' ? 'Loading avatar…' : 'Avatar unavailable'}
           </span>}
         </div>
-        <button ref={buttonRef} className="th-edit-avatar tg-control" type="button" aria-haspopup="dialog" onClick={onEditAvatar}>
+        <button ref={buttonRef} className="th-edit-avatar tg-control tg-action" type="button" aria-haspopup="dialog" onClick={onEditAvatar}>
           <HomeIcon name="pencil" /> Edit Avatar
         </button>
       </div>
     </main>
-  )
-}
-
-function GameModeCard({
-  to,
-  icon,
-  title,
-  subtitle,
-  active = false,
-}: {
-  to: string
-  icon: HomeIconName
-  title: string
-  subtitle: string
-  active?: boolean
-}) {
-  return (
-    <Link
-      to={to}
-      className={`th-mode tg-control th-glass${active ? ' th-mode-active tg-control--primary' : ''}`}
-    >
-      <span className="th-mode-icon">
-        <HomeIcon name={icon} />
-      </span>
-      <span className="th-mode-copy">
-        <strong>{title}</strong>
-        <small>{subtitle}</small>
-      </span>
-      <span className="th-mode-arrow" aria-hidden="true">
-        ↗
-      </span>
-    </Link>
   )
 }
 
@@ -158,13 +126,14 @@ export function HomeExperience() {
         editAvatarRef.current = document.activeElement as HTMLElement
         setNotice(true)
       }} />
+      <ResumeGameBanner />
       <nav className="th-game-modes" aria-label="Game modes">
         <GameModeCard
           to="/game/singleplayer"
           icon="play"
           title="Play Solo"
           subtitle="Challenge yourself"
-          active
+          primary
         />
         <GameModeCard
           to="/multiplayer"
@@ -174,7 +143,7 @@ export function HomeExperience() {
         />
         <GameModeCard
           to="/duels"
-          icon="rank"
+          icon="trophy"
           title="Compete"
           subtitle="Climb the leaderboards"
         />

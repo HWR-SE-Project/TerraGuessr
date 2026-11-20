@@ -86,6 +86,11 @@ export const singleplayerApi = {
       method: 'POST',
       playerToken: credentials.playerToken,
     }),
+  abandon: (credentials: StreetCredentials) =>
+    apiFetch<void>(path(credentials.id), {
+      method: 'DELETE',
+      playerToken: credentials.playerToken,
+    }),
   retry: (credentials: StreetCredentials, roundId: string) =>
     apiFetch<StreetRound>(
       `${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/retry`,

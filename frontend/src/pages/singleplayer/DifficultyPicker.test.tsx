@@ -1,6 +1,14 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { DifficultyPicker } from './DifficultyPicker'
+import type { Difficulty } from './difficulty'
+
+/** A real controlled usage, so arrow-key presses visibly move the selection. */
+function ControlledPicker({ initial = 'medium' as Difficulty }) {
+  const [value, setValue] = useState<Difficulty>(initial)
+  return <DifficultyPicker value={value} onChange={setValue} />
+}
 
 describe('DifficultyPicker (R05)', () => {
   it('renders all three levels with exactly one marked as selected', () => {
@@ -44,5 +52,49 @@ describe('DifficultyPicker (R05)', () => {
     render(<DifficultyPicker value="easy" onChange={vi.fn()} />)
     expect(screen.getByText(/handful of named cities/i)).toBeVisible()
     expect(screen.getByText(/starts collapsed/i)).toBeVisible()
+  })
+
+  it('marks the selected option with a non-color checkmark indicator', () => {
+    render(<DifficultyPicker value="hard" onChange={vi.fn()} />)
+    const hard = screen.getByRole('radio', { name: /Hard/ })
+    const easy = screen.getByRole('radio', { name: /Easy/ })
+    expect(hard.querySelector('.sp-difficulty-check')).not.toBeNull()
+    expect(easy.querySelector('.sp-difficulty-check')).toBeNull()
+  })
+
+  it('gives only the selected option a tab stop (roving tabindex)', () => {
+    render(<DifficultyPicker value="medium" onChange={vi.fn()} />)
+    expect(screen.getByRole('radio', { name: /Easy/ })).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByRole('radio', { name: /Medium/ })).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('radio', { name: /Hard/ })).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('moves selection and focus together with ArrowRight/ArrowLeft, wrapping at the ends', () => {
+    render(<ControlledPicker initial="medium" />)
+    const group = screen.getByRole('radiogroup')
+    fireEvent.keyDown(group, { key: 'ArrowRight' })
+    expect(screen.getByRole('radio', { name: /Hard/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: /Hard/ })).toHaveFocus()
+    fireEvent.keyDown(group, { key: 'ArrowRight' })
+    expect(screen.getByRole('radio', { name: /Easy/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: /Easy/ })).toHaveFocus()
+    fireEvent.keyDown(group, { key: 'ArrowLeft' })
+    expect(screen.getByRole('radio', { name: /Hard/ })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('jumps to the first/last option with Home/End', () => {
+    render(<ControlledPicker initial="medium" />)
+    const group = screen.getByRole('radiogroup')
+    fireEvent.keyDown(group, { key: 'End' })
+    expect(screen.getByRole('radio', { name: /Hard/ })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.keyDown(group, { key: 'Home' })
+    expect(screen.getByRole('radio', { name: /Easy/ })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('ignores arrow keys while disabled', () => {
+    const onChange = vi.fn()
+    render(<DifficultyPicker value="medium" onChange={onChange} disabled />)
+    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'ArrowRight' })
+    expect(onChange).not.toHaveBeenCalled()
   })
 })

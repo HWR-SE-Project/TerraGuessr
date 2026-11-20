@@ -245,6 +245,24 @@ export function registerSingleplayerRoutes(
       };
     },
   );
+  app.delete<{ Params: { gameId: string } }>(
+    '/api/singleplayer/games/:gameId',
+    {
+      config: limited,
+      errorHandler,
+      schema: { params: Params },
+    },
+    async (request, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      // Explicit abandonment: the player chose to leave rather than let the
+      // session expire naturally. A hard delete cascades StreetRound (see
+      // schema) but never touches StreetResult, so already-scored rounds
+      // remain in the durable archive (R18) untouched.
+      const game = await owned(request);
+      await db.streetGame.delete({ where: { id: game.id } });
+      reply.code(204);
+    },
+  );
   app.post<{ Params: { gameId: string } }>(
     '/api/singleplayer/games/:gameId/rounds',
     {

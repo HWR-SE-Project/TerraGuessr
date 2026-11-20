@@ -104,6 +104,8 @@ export const SEED_LOCATIONS: readonly SeedLocation[] = [
   { id: 'test-eu-3', lat: 40.4168, lon: -3.7038, region: 'EUROPE', name: null },
   { id: 'test-af-1', lat: 30.0, lon: 20.0, region: 'AFRICA', name: null },
   { id: 'test-as-1', lat: 35.0, lon: 100.0, region: 'ASIA', name: null },
+  { id: 'test-as-2', lat: 35.68, lon: 139.69, region: 'ASIA', name: null },
+  { id: 'test-as-3', lat: -6.2, lon: 106.8, region: 'ASIA', name: null },
   { id: 'test-na-1', lat: 40.0, lon: -100.0, region: 'NORTH_AMERICA', name: null },
   { id: 'test-sa-1', lat: -15.0, lon: -60.0, region: 'SOUTH_AMERICA', name: null },
   { id: 'test-oc-1', lat: -25.0, lon: 135.0, region: 'OCEANIA', name: null },

@@ -286,6 +286,75 @@ export function useGameSession(autoStart = false) {
       })
     })
   }
+  const exitLock = useRef(false)
+  const [exitPending, setExitPending] = useState<'save' | 'leave' | null>(
+    null,
+  )
+  const [exitError, setExitError] = useState<{
+    action: 'save' | 'leave'
+    message: string
+  } | null>(null)
+  const clearExitError = useCallback(() => setExitError(null), [])
+  // Every round/guess is already persisted server-side as it happens (see
+  // api docs); "saving" here just confirms the session is still reachable
+  // and unexpired before the player walks away believing it is safe to.
+  const saveAndExit = useCallback(async () => {
+    if (exitLock.current) return false
+    if (!credentials.current) return true
+    exitLock.current = true
+    setExitPending('save')
+    setExitError(null)
+    try {
+      await singleplayerApi.session(credentials.current)
+      return true
+    } catch (cause) {
+      setExitError({
+        action: 'save',
+        message:
+          cause instanceof ApiError && cause.status === 404
+            ? 'This expedition has expired and can no longer be saved. You can still leave the game.'
+            : 'Unable to reach the game server to save your progress. Check your connection and try again.',
+      })
+      return false
+    } finally {
+      exitLock.current = false
+      setExitPending(null)
+    }
+  }, [])
+  const leaveGame = useCallback(async () => {
+    if (exitLock.current) return false
+    exitLock.current = true
+    setExitPending('leave')
+    setExitError(null)
+    try {
+      if (credentials.current) {
+        try {
+          await singleplayerApi.abandon(credentials.current)
+        } catch (cause) {
+          // Already gone is still a successful abandonment.
+          if (!(cause instanceof ApiError && cause.status === 404)) throw cause
+        }
+      }
+      credentials.current = null
+      save(null)
+      setSession(emptySession())
+      setResult(null)
+      setGuess(null)
+      setPanoramaReady(false)
+      setShowFinal(false)
+      return true
+    } catch {
+      setExitError({
+        action: 'leave',
+        message:
+          'Unable to reach the game server. Check your connection and try again.',
+      })
+      return false
+    } finally {
+      exitLock.current = false
+      setExitPending(null)
+    }
+  }, [])
   const loadIntelligence = useCallback(
     (roundId: string, signal?: AbortSignal) => {
       const auth = credentials.current
@@ -349,5 +418,10 @@ export function useGameSession(autoStart = false) {
     submit,
     refreshConfig,
     inProgress,
+    saveAndExit,
+    leaveGame,
+    exitPending,
+    exitError,
+    clearExitError,
   }
 }

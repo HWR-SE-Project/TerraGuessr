@@ -3,6 +3,11 @@ import { GameDialog } from './GameDialog'
 
 const STORAGE_KEY = 'terraguessr.tutorialSeen.v1'
 
+// Temporary development/testing flag: forces the tutorial to open for every
+// new Singleplayer game (any difficulty), ignoring completion/skip tracking.
+// Flip to false to restore the normal first-time-only behavior.
+const ALWAYS_SHOW_SINGLEPLAYER_TUTORIAL = true
+
 export function hasSeenTutorial(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) === '1'
@@ -17,6 +22,14 @@ export function markTutorialSeen(): void {
   } catch {
     /* Re-shown next visit if storage is unavailable; not a gameplay blocker. */
   }
+}
+
+// Decides whether the tutorial should open for a brand-new game. Call this
+// only from the actual new-game initialization action (starting fresh,
+// restarting, or playing again) — never from component mount/render, resume,
+// or next-round transitions, which must never re-trigger it.
+export function shouldShowTutorialForNewGame(): boolean {
+  return ALWAYS_SHOW_SINGLEPLAYER_TUTORIAL || !hasSeenTutorial()
 }
 
 interface Step {

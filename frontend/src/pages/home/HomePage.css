@@ -35,6 +35,9 @@
 }
 .th-brand {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 .th-navigation {
   position: absolute;
@@ -48,20 +51,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  min-height: 44px;
-  padding: 11px 18px;
+  gap: 10px;
+  min-height: 46px;
+  padding: 12px 18px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   color: var(--color-muted);
   background: transparent;
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 550;
   white-space: nowrap;
 }
 .th-nav-item .th-icon {
-  width: 17px;
-  height: 17px;
+  width: 19px;
+  height: 19px;
 }
 .th-nav-active {
   color: var(--color-lime);
@@ -102,15 +105,15 @@
   max-width: 140px;
 }
 .th-profile-name {
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .th-profile-caption {
-  font-size: 10px;
-  color: var(--color-subtle);
+  font-size: 0.75rem;
+  color: #b0bfd1;
 }
 .th-profile-link > .th-icon {
   width: 12px;
@@ -146,8 +149,8 @@
 }
 .th-description {
   margin: 0 auto;
-  font-size: 15px;
-  color: var(--color-muted);
+  font-size: 1rem;
+  color: #b3c1d2;
   line-height: 1.8;
   font-weight: 400;
 }
@@ -194,86 +197,91 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 36px;
-  padding: 8px 16px;
+  min-height: 44px;
+  padding: 10px 17px;
   border: 1px solid #d0e1ee24;
   border-radius: var(--radius-pill);
   background: #101c2bd9;
   backdrop-filter: blur(12px);
   color: #dce6ee;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 550;
   white-space: nowrap;
 }
-.th-edit-avatar .th-icon { width: 12px; height: 12px; }
+.th-edit-avatar .th-icon { width: 15px; height: 15px; }
 .th-edit-avatar:hover { background: #1e3045; border-color: #c0f66b55; }
-.th-game-modes {
+.th-resume {
   position: relative;
   z-index: 3;
-  width: min(1000px, calc(100% - 96px));
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin: 25px auto 0;
-}
-.th-mode {
-  position: relative;
+  width: min(1080px, calc(100% - 96px));
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 24px;
-  min-height: 108px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  border: 1px solid #c0f66b2e;
+  border-radius: var(--radius-card);
+  background: #101c2ce8;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 32px #0004;
 }
-.th-mode-icon {
-  width: 44px;
-  height: 44px;
+.th-resume-icon {
   display: grid;
   place-items: center;
-  color: #d5e1ee;
-  flex-shrink: 0;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: #c0f66b14;
+  color: var(--color-lime);
 }
-.th-mode-icon .th-icon {
-  width: 23px;
-  height: 23px;
+.th-resume-icon .th-icon {
+  width: 20px;
+  height: 20px;
 }
-.th-mode-copy {
+.th-resume-copy {
   min-width: 0;
 }
-.th-mode strong {
+.th-resume-copy strong {
   display: block;
-  font-size: 17px;
+  font-size: 0.9375rem;
   font-weight: 650;
-  letter-spacing: -0.4px;
 }
-.th-mode small {
+.th-resume-copy small {
   display: block;
-  margin-top: 7px;
-  font-size: 11px;
-  line-height: 1.5;
+  margin-top: 3px;
+  font-size: 0.8125rem;
   color: var(--color-muted);
 }
-.th-mode-arrow {
+.th-resume-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
-  align-self: flex-start;
-  color: var(--color-subtle);
-  font-size: 18px;
-  line-height: 1;
-}
-.th-mode-active {
+  flex-shrink: 0;
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--color-lime);
   color: var(--color-on-lime);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  white-space: nowrap;
 }
-.th-mode-active .th-mode-icon {
-  color: var(--color-on-lime);
+.th-resume-action:hover {
+  background: var(--color-lime-hover);
 }
-.th-mode-active small,
-.th-mode-active .th-mode-arrow {
-  color: #354b27;
+.th-resume + .th-game-modes {
+  margin-top: 14px;
 }
-.th-mode:hover {
-  transform: translateY(-4px);
-}
-.th-mode:active {
-  transform: translateY(-1px);
+.th-game-modes {
+  position: relative;
+  z-index: 3;
+  width: min(1080px, calc(100% - 96px));
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin: 25px auto 0;
 }
 .th-scene3d,
 .th-earth {
@@ -435,9 +443,6 @@
   .th-game-modes {
     margin-top: 14px;
   }
-  .th-mode {
-    min-height: 100px;
-  }
 }
 @media (max-width: 1200px) {
   .th-header {
@@ -508,22 +513,10 @@
   .th-hero h1 {
     font-size: clamp(42px, 7.5vw, 76px);
   }
+  .th-resume,
   .th-game-modes {
     width: calc(100% - 56px);
     gap: 12px;
-  }
-  .th-mode {
-    padding: 18px;
-    gap: 12px;
-  }
-  .th-mode-arrow {
-    display: none;
-  }
-  .th-mode strong {
-    font-size: 16px;
-  }
-  .th-mode small {
-    font-size: 10px;
   }
 }
 @media (max-width: 600px) {
@@ -536,8 +529,8 @@
     gap: 12px;
   }
   .th-profile-avatar {
-    width: 33px;
-    height: 33px;
+    width: 34px;
+    height: 34px;
     font-size: 12px;
   }
   .th-menu-button {
@@ -567,8 +560,8 @@
   }
   .th-description {
     max-width: 310px;
-    font-size: 12px;
-    line-height: 1.75;
+    font-size: 0.875rem;
+    line-height: 1.65;
   }
   .th-desktop-break {
     display: none;
@@ -582,54 +575,21 @@
     width: 146px;
     height: 219px;
   }
+  .th-resume {
+    width: calc(100% - 40px);
+    flex-wrap: wrap;
+    padding: 14px 16px;
+  }
+  .th-resume-action {
+    margin-left: 56px;
+    width: calc(100% - 56px);
+    justify-content: center;
+  }
   .th-game-modes {
     width: calc(100% - 40px);
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 12px;
     margin-top: 25px;
-  }
-  .th-mode {
-    min-height: 88px;
-    border-radius: 16px;
-    padding: 16px 12px;
-    gap: 10px;
-  }
-  .th-mode-active {
-    grid-column: 1 / -1;
-    min-height: 82px;
-    padding: 16px 20px;
-  }
-  .th-mode-icon {
-    width: 30px;
-    height: 36px;
-    background: transparent;
-  }
-  .th-mode-icon .th-icon {
-    width: 22px;
-    height: 22px;
-  }
-  .th-mode strong {
-    font-size: 13px;
-  }
-  .th-mode small {
-    font-size: 9px;
-    line-height: 1.5;
-    margin-top: 5px;
-  }
-  .th-mode-active strong {
-    font-size: 18px;
-  }
-  .th-mode-active small {
-    font-size: 11px;
-  }
-  .th-mode-active .th-mode-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-  }
-  .th-mode-active .th-mode-arrow {
-    display: block;
-    align-self: center;
   }
   .th-orbit {
     top: 190px;

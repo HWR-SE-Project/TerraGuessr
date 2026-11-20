@@ -65,7 +65,7 @@ export function PageNavigation({
         >
           <Link
             to="/game/singleplayer"
-            className={`th-nav-item tg-control${active === 'singleplayer' ? ' th-nav-active' : ''}`}
+            className={`th-nav-item tg-control tg-nav-pill${active === 'singleplayer' ? ' th-nav-active' : ''}`}
             aria-current={active === 'singleplayer' ? 'page' : undefined}
             onClick={() => setMenuOpen(false)}
           >
@@ -74,7 +74,7 @@ export function PageNavigation({
           </Link>
           <Link
             to="/multiplayer"
-            className={`th-nav-item tg-control${active === 'multiplayer' ? ' th-nav-active' : ''}`}
+            className={`th-nav-item tg-control tg-nav-pill${active === 'multiplayer' ? ' th-nav-active' : ''}`}
             aria-current={active === 'multiplayer' ? 'page' : undefined}
             onClick={() => setMenuOpen(false)}
           >
@@ -83,7 +83,7 @@ export function PageNavigation({
           </Link>
           <Link
             to="/daily"
-            className={`th-nav-item tg-control${active === 'daily' ? ' th-nav-active' : ''}`}
+            className={`th-nav-item tg-control tg-nav-pill${active === 'daily' ? ' th-nav-active' : ''}`}
             aria-current={active === 'daily' ? 'page' : undefined}
             onClick={() => setMenuOpen(false)}
           >
@@ -130,7 +130,7 @@ export function PageNavigation({
         )}
         <button
           ref={menuRef}
-          className="th-menu-button tg-control"
+          className="th-menu-button tg-control tg-icon-button"
           type="button"
           aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
           aria-expanded={menuOpen}

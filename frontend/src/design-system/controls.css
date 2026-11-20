@@ -71,14 +71,14 @@
 /* Lift uses the independent translate property so positioned controls keep
    their existing centering transforms. Touch devices do not get sticky hover. */
 @media (hover: hover) and (pointer: fine) {
-  #root .tg-control:hover:not(:disabled):not([aria-disabled='true']) {
+  #root .tg-control:hover:where(:not(:disabled):not([aria-disabled='true'])) {
     --control-light: #ffffff0b;
     --control-edge: var(--glass-border-hover);
     --control-shadow: var(--glass-shadow-hover);
     translate: 0 -1px;
   }
 }
-#root .tg-control:active:not(:disabled):not([aria-disabled='true']) {
+#root .tg-control:active:where(:not(:disabled):not([aria-disabled='true'])) {
   --control-light: #030b161a;
   --control-shadow: 0 2px 5px #01061026;
   --control-inner: inset 0 2px 5px #02081526, inset 0 1px #ffffff14;
@@ -112,25 +112,38 @@
 }
 #root .th-profile-link { padding: 5px 12px 5px 5px; min-height: 44px; }
 #root .th-profile-avatar { box-shadow: inset 0 1px #e9ffc42b; }
-#root .th-edit-avatar { min-height: 40px; }
-#root :is(.th-mode, .tg-candidate) { border-radius: 24px; }
-#root .th-mode { transform: none; }
-#root .th-mode:hover { translate: 0 -2px; }
-#root .th-mode:active { translate: 0 1px; }
-#root .th-mode small { color: #bac9d9; }
-#root .th-mode-active small { color: #334c28; }
-#root .th-mode-icon {
-  border: 1px solid #d5e8ff1f;
-  background: linear-gradient(145deg, #ebf5ff12, #a2c2ed04);
-  box-shadow: inset 0 1px #ffffff17, 0 2px 5px #01061014;
-  border-radius: 15px;
+#root .tg-candidate { border-radius: 24px; }
+
+/* Reusable quiet pills and small scene actions share the same soft optics. */
+#root :is(.tg-nav-pill, .tg-action, .tg-icon-button) {
+  --control-fill: #18283d80;
+  --control-edge: #c1daef29;
+  --control-shading: linear-gradient(155deg, #cae6ff10, #bfdcff03 55%, #030a1614);
+  --control-reflection: radial-gradient(ellipse at 15% 0%, #e7f6ff12, transparent 75%);
+  --control-inner: inset 0 1px #eaf5ff24, inset 0 -1px #02081524;
+  --control-shadow: 0 4px 12px #0106101f;
+  border-radius: var(--radius-pill);
+  font-weight: 550;
 }
-#root .th-mode-active .th-mode-icon {
-  border-color: #34511c1c;
-  background: linear-gradient(145deg, #f2ffdf40, #3652210d);
-  box-shadow: inset 0 1px #f6ffe657;
+#root .tg-nav-pill { --control-ink: #c7d4e3; }
+#root .tg-nav-pill .th-icon { color: #b0c7df; }
+#root .tg-nav-pill[aria-current='page'] {
+  --control-fill: #9bc96429;
+  --control-ink: #d5fba5;
+  --control-edge: #c6f39166;
+  --control-reflection: radial-gradient(ellipse at 15% 0%, #dfffba24, transparent 75%);
+  --control-shadow: 0 4px 16px #01061024, 0 0 18px #c0f66b08;
 }
-#root .th-mode:not(.th-mode-active) .th-mode-arrow { color: #b0c1d2; }
+#root .tg-nav-pill[aria-current='page'] .th-icon { color: #d5fba5; }
+#root .tg-action { min-height: 44px; --control-fill: #1c3049b3; }
+#root .tg-icon-button { border-radius: var(--radius-control); min-height: 44px; min-width: 44px; }
+@media (hover: hover) and (pointer: fine) {
+  #root :is(.tg-nav-pill, .tg-action, .tg-icon-button):hover {
+    --control-edge: #cce7ff66;
+    --control-ink: #f4f7fb;
+    --control-shadow: 0 6px 16px #01061032;
+  }
+}
 #root :is(.th-notice-close, .tg-duel-overlay-close, .sp-compass) { border-radius: 50%; }
 #root .sp-map-mode { border-radius: 12px; min-height: 40px; padding: 5px 8px; margin-right: 5px; }
 #root .sp-map-wrap { border-radius: 12px; }
@@ -212,7 +225,6 @@
 
 @media (max-width: 600px) {
   #root .th-profile-link { padding: 4px; }
-  #root .th-mode { border-radius: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
   #root .tg-control { transition: none; }

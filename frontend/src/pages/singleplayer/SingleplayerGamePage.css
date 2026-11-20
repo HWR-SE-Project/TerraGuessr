@@ -354,6 +354,11 @@
 .sp-primary:hover:enabled {
   background: #b5f469;
 }
+.sp-primary-difficulty {
+  font-weight: 550;
+  font-size: 11px;
+  opacity: 0.72;
+}
 .sp-primary:disabled {
   background: #909a8a;
   border-color: #ffffff20;
@@ -503,41 +508,98 @@
   letter-spacing: 1.6px;
   text-transform: uppercase;
   color: #8d9ba0;
-  padding: 0 0 8px;
+  padding: 0 0 10px;
 }
 .sp-difficulty-options {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
+  align-items: stretch;
 }
 .sp-difficulty-option {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  padding: 12px 11px;
+  gap: 6px;
+  padding: 16px 16px 17px;
   border-radius: var(--radius-control);
   text-align: left;
   cursor: pointer;
 }
 .sp-difficulty-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
+  letter-spacing: -0.1px;
   color: #edf3f6;
 }
 .sp-difficulty-tagline {
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--sp-green, #a3ed45);
-  font-weight: 600;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .sp-difficulty-description {
-  font-size: 10.5px;
-  line-height: 1.5;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.65;
   color: #b9c3c9;
 }
-.sp-difficulty-option--selected {
-  border-color: var(--sp-green, #a3ed45);
-  box-shadow: inset 0 0 0 1px var(--sp-green, #a3ed45);
+/* A non-color signal of selection: never rely on border/glow color alone. */
+.sp-difficulty-check {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-lime);
+  color: #172512;
+  box-shadow: 0 0 0 3px #0c1520cc;
+  animation: sp-difficulty-check-in 220ms var(--ease-out);
+}
+.sp-difficulty-check svg {
+  width: 12px;
+  height: 12px;
+}
+@keyframes sp-difficulty-check-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* #root + two classes is required to outrank the shared `#root .tg-control`
+   material rule, which otherwise silently wins the cascade on border/
+   background/box-shadow (same specificity pitfall as elsewhere on this
+   page) and makes every card look identical regardless of selection. */
+#root .sp-difficulty-option.sp-difficulty-option--selected {
+  --control-fill: #c0f66b22;
+  --control-edge: var(--color-lime);
+  --control-shading: linear-gradient(
+    165deg,
+    #eaffc850,
+    #c0f66b18 50%,
+    #3f6b2730
+  );
+  --control-reflection: radial-gradient(
+    ellipse at 15% 0%,
+    #eaffc84a,
+    transparent 72%
+  );
+  --control-inner: inset 0 1px 0 #f3ffd890, inset 0 -1px 0 #1f3a0c30;
+  border-color: var(--color-lime);
+  box-shadow:
+    0 0 0 1px var(--color-lime),
+    0 0 22px 2px #c0f66b3d,
+    var(--control-inner),
+    var(--control-shadow);
 }
 .sp-difficulty:disabled .sp-difficulty-option,
 .sp-difficulty-option:disabled {
@@ -681,6 +743,32 @@
   display: grid;
   gap: 10px;
   margin-top: 25px;
+}
+.sp-exit-recap {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: #ffffff08;
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  color: #d4dde1;
+  text-align: center;
+}
+.sp-dialog-error {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: #5b3538ed;
+  color: var(--color-red, #ff9b9e);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.sp-dialog-hint {
+  margin: 16px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--color-muted);
+  text-align: center;
 }
 .sp-dialog-actions {
   display: flex;
