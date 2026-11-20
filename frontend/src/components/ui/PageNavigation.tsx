@@ -81,15 +81,6 @@ export function PageNavigation({
             <HomeIcon name="users" />
             Multiplayer
           </Link>
-          <Link
-            to="/daily"
-            className={`th-nav-item tg-control tg-nav-pill${active === 'daily' ? ' th-nav-active' : ''}`}
-            aria-current={active === 'daily' ? 'page' : undefined}
-            onClick={() => setMenuOpen(false)}
-          >
-            <HomeIcon name="calendar" />
-            Daily challenge
-          </Link>
         </nav>
         {user ? (
           <div className="th-player-tools">

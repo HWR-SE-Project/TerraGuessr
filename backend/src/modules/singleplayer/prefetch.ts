@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { PanoramaProvider } from './provider.js';
 import type { IntelligenceLookup } from './locationSelection.js';
-import { selectValidatedTarget } from './locationSelection.js';
+import { nextExclusions, selectValidatedTarget } from './locationSelection.js';
 
 /**
  * Best-effort prefetch of the round after the one just completed (R12).
@@ -22,10 +22,16 @@ export async function prefetchNextStreetRound(
       where: { id: gameId },
       include: { rounds: { select: { targetIndex: true } } },
     });
-    if (!game || game.rounds.length >= game.roundsTotal) return;
+    if (!game) return;
     if (game.nextPanoId) return; // Already cached; don't spend another API call.
+    // Endless mode: there is always a next round, so always try to prefetch
+    // one. R08: once the pool is exhausted, only avoid an immediate repeat.
     const used = game.rounds.map((r) => r.targetIndex);
-    const target = await selectValidatedTarget(used, provider, intelligence);
+    const target = await selectValidatedTarget(
+      nextExclusions(used),
+      provider,
+      intelligence,
+    );
     // Plain update: a lost race just means the next POST /rounds call
     // recomputes synchronously instead of hitting this cache.
     await db.streetGame.update({

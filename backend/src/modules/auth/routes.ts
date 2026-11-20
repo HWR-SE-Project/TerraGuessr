@@ -1,3 +1,4 @@
+import { registerAvatarRoutes } from './avatar.js';
 import { createHash } from 'node:crypto';
 import { CodeChallengeMethod, OAuth2Client } from 'google-auth-library';
 import { Type } from '@sinclair/typebox';
@@ -96,6 +97,7 @@ export function registerAuthRoutes(
   const { config } = options;
   const db = options.db ?? prisma;
   const mailer = options.mailer ?? createAuthMailer(config);
+  registerAvatarRoutes(app, db, config);
   const sameSiteMutation = (request: FastifyRequest) => assertSameSiteMutation(request, config);
 
   /**

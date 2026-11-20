@@ -14,7 +14,7 @@ vi.mock('../../api/singleplayer', () => ({
     next: vi.fn(),
     guess: vi.fn(),
     retry: vi.fn(),
-    abandon: vi.fn(),
+    end: vi.fn(),
   },
 }))
 vi.mock('./googleMaps', () => ({
@@ -22,12 +22,10 @@ vi.mock('./googleMaps', () => ({
 }))
 const empty: StreetSession = {
   id: 'test-game',
-  roundsTotal: 5,
   difficulty: 'medium',
   activeRound: null,
   results: [],
   totalScore: 0,
-  completed: false,
 }
 const round = { id: 'test-round', number: 1, panoId: 'test-only-panorama' }
 beforeEach(() => {
@@ -99,20 +97,26 @@ describe('singleplayer session controller (API doubles)', () => {
     expect(result.current.guess).toEqual({ lat: 10, lon: 20 })
     expect(result.current.session.activeRound).toEqual(round)
   })
-  it('restores the completed game and shows final results on refresh', async () => {
+  it('never auto-resumes from a stale sessionStorage entry left by a previous build or tab (R06/R13)', async () => {
     sessionStorage.setItem(
       'terraguessr.streetSession.v1',
       JSON.stringify({ id: 'test-game', playerToken: 'test-token' }),
     )
-    vi.mocked(singleplayerApi.session).mockResolvedValue({
-      ...empty,
-      completed: true,
-      totalScore: 21000,
-    })
     const { result } = renderHook(useGameSession)
-    await waitFor(() => expect(result.current.showFinal).toBe(true))
-    expect(result.current.session.totalScore).toBe(21000)
+    await waitFor(() => expect(result.current.checking).toBe(false))
+    expect(result.current.session.id).toBe('')
+    expect(result.current.session.activeRound).toBeNull()
+    expect(result.current.showFinal).toBe(false)
+    expect(singleplayerApi.session).not.toHaveBeenCalled()
     expect(singleplayerApi.create).not.toHaveBeenCalled()
+  })
+  it('never writes session credentials or guesses to storage — nothing can be resumed after a reload', async () => {
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next())
+    act(() => result.current.setGuess({ lat: 10, lon: 20 }))
+    expect(sessionStorage.length).toBe(0)
+    expect(localStorage.getItem('terraguessr.streetSession.v1')).toBeNull()
   })
   it('retries the existing session after first-round provider failure', async () => {
     vi.mocked(singleplayerApi.next).mockRejectedValueOnce(
@@ -189,11 +193,12 @@ describe('recovery and complete expedition', () => {
     expect(result.current.error).toContain('Unable to reach')
     expect(singleplayerApi.create).not.toHaveBeenCalled()
   })
-  it('advances through five rounds with API doubles, shows the total, then restarts with a new session', async () => {
+  it('advances through ten consecutive rounds with no cap, then ends the game to show its summary, then restarts with a fresh session', async () => {
     const { result } = renderHook(useGameSession)
     await waitFor(() => expect(result.current.available).toBe(true))
     const history: StreetSession['results'] = []
-    for (let number = 1; number <= 5; number++) {
+    const ROUNDS = 10 // Past the old five-round cap — endless mode.
+    for (let number = 1; number <= ROUNDS; number++) {
       const activeRound = {
         id: `test-round-${number}`,
         number,
@@ -224,12 +229,23 @@ describe('recovery and complete expedition', () => {
       vi.mocked(singleplayerApi.guess).mockResolvedValueOnce(accepted)
       await act(() => result.current.submit())
       history.push(accepted)
+      // Next Round is always available — no fixed-round completion flag exists.
+      expect(result.current.showFinal).toBe(false)
     }
-    expect(result.current.session.completed).toBe(true)
-    expect(result.current.session.totalScore).toBe(5000)
-    expect(result.current.session.results).toHaveLength(5)
-    act(() => result.current.finish())
+    expect(result.current.session.totalScore).toBe(10_000)
+    expect(result.current.session.results).toHaveLength(ROUNDS)
+    // The game only ends when the player explicitly ends it.
+    vi.mocked(singleplayerApi.end).mockResolvedValueOnce(undefined)
+    let ended = false
+    await act(async () => {
+      ended = await result.current.endGame()
+    })
+    expect(ended).toBe(true)
+    expect(singleplayerApi.end).toHaveBeenCalledTimes(1)
     expect(result.current.showFinal).toBe(true)
+    // The summary still shows the full session — ending never discards results.
+    expect(result.current.session.totalScore).toBe(10_000)
+    expect(result.current.session.results).toHaveLength(ROUNDS)
     vi.mocked(singleplayerApi.create).mockResolvedValueOnce({
       id: 'second-game',
       playerToken: 'second-token',
@@ -242,6 +258,7 @@ describe('recovery and complete expedition', () => {
     await act(() => result.current.next({ restart: true }))
     expect(singleplayerApi.create).toHaveBeenCalledTimes(2)
     expect(result.current.session.totalScore).toBe(0)
+    expect(result.current.session.results).toHaveLength(0)
     expect(result.current.showFinal).toBe(false)
   })
 })
@@ -275,11 +292,7 @@ describe('configured gameplay recovery', () => {
     expect(singleplayerApi.create).toHaveBeenCalledTimes(1)
     expect(singleplayerApi.next).toHaveBeenCalledTimes(1)
   })
-  it('restores the selected pin on refresh', async () => {
-    sessionStorage.setItem(
-      'terraguessr.streetSession.v1',
-      JSON.stringify({ id: 'test-game', playerToken: 'test-token' }),
-    )
+  it('ignores a stale selected-pin entry left in storage by a previous build — guesses are never read back (R06/R13)', async () => {
     sessionStorage.setItem(
       'terraguessr.streetGuess.v1',
       JSON.stringify({
@@ -289,10 +302,10 @@ describe('configured gameplay recovery', () => {
       }),
     )
     const { result } = renderHook(useGameSession)
-    await waitFor(() =>
-      expect(result.current.session.activeRound).toEqual(round),
-    )
-    expect(result.current.guess).toEqual({ lat: 12, lon: 34 })
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next())
+    expect(result.current.session.activeRound).toEqual(round)
+    expect(result.current.guess).toBeNull()
   })
   it('replaces a failed panorama without skipping or scoring the round', async () => {
     const { result } = renderHook(useGameSession)
@@ -326,125 +339,83 @@ describe('configured gameplay recovery', () => {
     await act(() => result.current.submit())
     expect(result.current.session.id).toBe('')
     expect(result.current.error).toContain('expired')
-    expect(sessionStorage.getItem('terraguessr.streetSession.v1')).toBeNull()
   })
 })
 
-describe('exit flow: save-and-exit and leave-game', () => {
-  it('confirms the session is still reachable, reports success, and leaves the session intact for later resume', async () => {
+describe('exit flow: end game (R04/R06 — no Save & Exit, no resume)', () => {
+  it('finalizes the session server-side and keeps the results visible for the summary screen', async () => {
     const { result } = renderHook(useGameSession)
     await waitFor(() => expect(result.current.available).toBe(true))
     await act(() => result.current.next())
+    vi.mocked(singleplayerApi.end).mockResolvedValueOnce(undefined)
     let ok = false
     await act(async () => {
-      ok = await result.current.saveAndExit()
+      ok = await result.current.endGame()
     })
     expect(ok).toBe(true)
-    expect(singleplayerApi.session).toHaveBeenCalled()
-    expect(result.current.exitError).toBeNull()
-    expect(sessionStorage.getItem('terraguessr.streetSession.v1')).not.toBeNull()
-    expect(result.current.session.activeRound).toEqual(round)
-  })
-  it('reports a clear error and does not pretend to have saved when the backend is unreachable', async () => {
-    const { result } = renderHook(useGameSession)
-    await waitFor(() => expect(result.current.available).toBe(true))
-    await act(() => result.current.next())
-    vi.mocked(singleplayerApi.session).mockRejectedValueOnce(
-      new Error('Network unavailable'),
-    )
-    let ok = true
-    await act(async () => {
-      ok = await result.current.saveAndExit()
-    })
-    expect(ok).toBe(false)
-    expect(result.current.exitError).toEqual({
-      action: 'save',
-      message: expect.stringContaining('Unable to reach'),
-    })
-    expect(sessionStorage.getItem('terraguessr.streetSession.v1')).not.toBeNull()
-  })
-  it('reports expiry distinctly from a network failure', async () => {
-    const { result } = renderHook(useGameSession)
-    await waitFor(() => expect(result.current.available).toBe(true))
-    await act(() => result.current.next())
-    vi.mocked(singleplayerApi.session).mockRejectedValueOnce(
-      new ApiError('NOT_FOUND', 'Game not found', 404),
-    )
-    await act(async () => {
-      await result.current.saveAndExit()
-    })
-    expect(result.current.exitError?.message).toContain('expired')
-  })
-  it('abandons the session, clears it from storage, and never resumes it again', async () => {
-    const { result } = renderHook(useGameSession)
-    await waitFor(() => expect(result.current.available).toBe(true))
-    await act(() => result.current.next())
-    vi.mocked(singleplayerApi.abandon).mockResolvedValueOnce(undefined)
-    let ok = false
-    await act(async () => {
-      ok = await result.current.leaveGame()
-    })
-    expect(ok).toBe(true)
-    expect(singleplayerApi.abandon).toHaveBeenCalledWith({
+    expect(singleplayerApi.end).toHaveBeenCalledWith({
       id: 'test-game',
       playerToken: 'test-token',
     })
-    expect(result.current.session.id).toBe('')
-    expect(result.current.session.activeRound).toBeNull()
-    expect(sessionStorage.getItem('terraguessr.streetSession.v1')).toBeNull()
+    expect(result.current.exitError).toBeNull()
+    expect(result.current.showFinal).toBe(true)
+    // The round the player was mid-way through is cleared, but the session
+    // (id, difficulty, accumulated results) is not reset to empty.
+    expect(result.current.session.id).toBe('test-game')
   })
-  it('treats an already-gone session as a successful abandonment instead of an error', async () => {
+  it('treats an already-gone session as a successful end instead of an error', async () => {
     const { result } = renderHook(useGameSession)
     await waitFor(() => expect(result.current.available).toBe(true))
     await act(() => result.current.next())
-    vi.mocked(singleplayerApi.abandon).mockRejectedValueOnce(
+    vi.mocked(singleplayerApi.end).mockRejectedValueOnce(
       new ApiError('NOT_FOUND', 'Game not found', 404),
     )
     let ok = false
     await act(async () => {
-      ok = await result.current.leaveGame()
+      ok = await result.current.endGame()
     })
     expect(ok).toBe(true)
     expect(result.current.exitError).toBeNull()
-    expect(sessionStorage.getItem('terraguessr.streetSession.v1')).toBeNull()
+    expect(result.current.showFinal).toBe(true)
   })
-  it('keeps the session resumable and surfaces an error when abandonment fails for a real reason', async () => {
+  it('keeps the session active and surfaces an error when ending fails for a real reason', async () => {
     const { result } = renderHook(useGameSession)
     await waitFor(() => expect(result.current.available).toBe(true))
     await act(() => result.current.next())
-    vi.mocked(singleplayerApi.abandon).mockRejectedValueOnce(
+    vi.mocked(singleplayerApi.end).mockRejectedValueOnce(
       new Error('Network unavailable'),
     )
     let ok = true
     await act(async () => {
-      ok = await result.current.leaveGame()
+      ok = await result.current.endGame()
     })
     expect(ok).toBe(false)
     expect(result.current.exitError).toEqual({
-      action: 'leave',
+      action: 'end',
       message: expect.stringContaining('Unable to reach'),
     })
-    expect(sessionStorage.getItem('terraguessr.streetSession.v1')).not.toBeNull()
+    expect(result.current.showFinal).toBe(false)
     expect(result.current.session.id).toBe('test-game')
+    expect(result.current.session.activeRound).toEqual(round)
   })
-  it('guards against duplicate concurrent exit requests', async () => {
+  it('guards against duplicate concurrent End Game requests', async () => {
     const { result } = renderHook(useGameSession)
     await waitFor(() => expect(result.current.available).toBe(true))
     await act(() => result.current.next())
-    let resolveSession: (value: StreetSession) => void = () => {}
-    vi.mocked(singleplayerApi.session).mockReturnValueOnce(
+    let resolveEnd: (value: void) => void = () => {}
+    vi.mocked(singleplayerApi.end).mockReturnValueOnce(
       new Promise((resolve) => {
-        resolveSession = resolve
+        resolveEnd = resolve
       }),
     )
     let first: Promise<boolean> = Promise.resolve(false)
     let second = false
     await act(async () => {
-      first = result.current.saveAndExit()
-      second = await result.current.leaveGame()
+      first = result.current.endGame()
+      second = await result.current.endGame()
     })
     expect(second).toBe(false)
-    resolveSession({ ...empty, activeRound: round })
+    resolveEnd()
     await act(async () => {
       expect(await first).toBe(true)
     })

@@ -94,10 +94,11 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
     expect(response.json().error.code).toBe('MISSING_SERVER_KEY');
     await unavailable.close();
   });
-  it('plays five rounds, reveals answers only after guessing, and persists exact geodesic scores', async () => {
+  it('plays ten consecutive rounds with no cap, reveals answers only after guessing, and persists exact geodesic scores', async () => {
     const auth = await create();
     let total = 0;
-    for (let number = 1; number <= 5; number++) {
+    const ROUNDS = 10; // Past the old five-round cap (R01/endless mode).
+    for (let number = 1; number <= ROUNDS; number++) {
       const started = await app.inject({
         method: 'POST',
         url: `${auth.base}/rounds`,
@@ -118,6 +119,8 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
       ).json();
       expect(session.activeRound).toEqual(round);
       expect(session.results).toHaveLength(number - 1);
+      expect(session).not.toHaveProperty('roundsTotal');
+      expect(session).not.toHaveProperty('completed');
       const url = `${auth.base}/rounds/${round.id}/guess`;
       const payload = { lat: 48.8566, lon: 2.3522 };
       const scored = await app.inject({
@@ -157,22 +160,20 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
         ).statusCode,
       ).toBe(409);
     }
-    const final = (
+    const afterTen = (
       await app.inject({ url: auth.base, headers: auth.headers })
     ).json();
-    expect(final.completed).toBe(true);
-    expect(final.activeRound).toBeNull();
-    expect(final.results).toHaveLength(5);
-    expect(final.totalScore).toBe(total);
-    expect(
-      (
-        await app.inject({
-          method: 'POST',
-          url: `${auth.base}/rounds`,
-          headers: auth.headers,
-        })
-      ).statusCode,
-    ).toBe(409);
+    expect(afterTen.activeRound).toBeNull();
+    expect(afterTen.results).toHaveLength(ROUNDS);
+    expect(afterTen.totalScore).toBe(total);
+    // Endless mode: starting round eleven (and beyond) never 409s.
+    const eleventh = await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds`,
+      headers: auth.headers,
+    });
+    expect(eleventh.statusCode).toBe(200);
+    expect(eleventh.json().number).toBe(ROUNDS + 1);
   });
   it('rejects missing/wrong ownership and invalid coordinates and client-submitted scores', async () => {
     const auth = await create();
@@ -761,9 +762,9 @@ describe('next-round prefetch (R12)', () => {
     expect(game.nextPanoId).not.toBeNull();
     expect(game.nextTargetIndex).not.toBeNull();
   });
-  it('does not prefetch once the game is already complete', async () => {
+  it('keeps prefetching past round five — endless mode has no completion point that stops it', async () => {
     const auth = await create();
-    for (let number = 1; number <= 5; number++) {
+    for (let number = 1; number <= 6; number++) {
       const round = (
         await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
       ).json();
@@ -774,9 +775,12 @@ describe('next-round prefetch (R12)', () => {
         payload: { lat: 50, lon: 10 },
       });
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    const game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
-    expect(game.nextPanoId).toBeNull();
+    let game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
+    for (let i = 0; i < 40 && !game.nextPanoId; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
+    }
+    expect(game.nextPanoId).not.toBeNull();
   });
 });
 

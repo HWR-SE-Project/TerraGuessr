@@ -23,6 +23,7 @@ export type HomeIconName =
   | 'close'
   | 'coin'
   | 'arrow'
+  | 'info'
 
 const paths: Record<HomeIconName, ReactNode> = {
   gamepad: (
@@ -176,6 +177,13 @@ const paths: Record<HomeIconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="10" fill="#9850ee" stroke="#b77aff" />
       <ellipse cx="12" cy="12" rx="4" ry="6" stroke="#dcbaff" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9.5" />
+      <path d="M12 11v6" />
+      <circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none" />
     </>
   ),
 }

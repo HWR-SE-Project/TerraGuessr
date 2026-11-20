@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Brand } from '../../components/ui/Brand'
 import type { CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { GuessButton } from './GuessButton'
 import { useGameSession } from './useGameSession'
 import { StreetViewViewer } from './StreetViewViewer'
 import { GuessMap } from './GuessMap'
@@ -22,9 +23,15 @@ import './SingleplayerGamePage.css'
 export function SingleplayerGamePage() {
   const navigate = useNavigate()
   const game = useGameSession()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [dialog, setDialog] = useState<
-    'settings' | 'menu' | 'leave' | 'restart' | 'tutorial' | null
-  >(null)
+    'settings' | 'menu' | 'end' | 'restart' | 'tutorial' | null
+  >(() => searchParams.get('tutorial') === '1' ? 'tutorial' : null)
+  useEffect(() => {
+    if (searchParams.get('tutorial') === '1') {
+      setSearchParams(params => { params.delete('tutorial'); return params }, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
   const [settings, setSettings] = useState(readSettings)
   const [difficulty, setDifficulty] = useState(readDifficulty)
   const [expanded, setExpanded] = useState(false)
@@ -84,7 +91,7 @@ export function SingleplayerGamePage() {
     return () => window.removeEventListener('keydown', escape)
   }, [dialog, expanded, hovered, exploring, game])
   function leave() {
-    if (game.inProgress) setDialog('leave')
+    if (game.inProgress) setDialog('end')
     else navigate('/')
   }
   // The only two places a brand-new expedition actually begins: the welcome
@@ -109,7 +116,7 @@ export function SingleplayerGamePage() {
     window.history.pushState({ spExitGuard: true }, '')
     const onPopState = () => {
       window.history.pushState({ spExitGuard: true }, '')
-      setDialog('leave')
+      setDialog('end')
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -118,17 +125,10 @@ export function SingleplayerGamePage() {
     setDialog(null)
     game.clearExitError()
   }
-  async function handleSaveAndExit() {
-    if (await game.saveAndExit()) {
-      setDialog(null)
-      navigate('/')
-    }
-  }
-  async function handleLeaveGame() {
-    if (await game.leaveGame()) {
-      setDialog(null)
-      navigate('/')
-    }
+  // Ending finalizes the session server-side and switches this same page
+  // into the session summary view (game.showFinal) — no route change.
+  async function handleEndGame() {
+    if (await game.endGame()) setDialog(null)
   }
   const status = game.busy
     ? 'Please wait…'
@@ -142,7 +142,7 @@ export function SingleplayerGamePage() {
             ? 'Explore. Find your bearings.'
             : active
               ? 'Loading Street View…'
-              : 'Five rounds. A whole world.'
+              : 'Endless rounds. A whole world.'
   return (
     <main
       className="sp-page"
@@ -150,47 +150,41 @@ export function SingleplayerGamePage() {
       data-game-phase={game.phase}
       data-cosmic={exploring ? 'off' : 'on'}
     >
-      {active && (
-        <StreetViewViewer
-          round={active}
-          onReady={game.setPanoramaReady}
-          showCompass={settings.compass}
-          scrollZoom={settings.scrollZoom}
-          onRetryLocation={() => void game.retryLocation()}
-          retrying={game.busy}
-        />
-      )}
       <div className="sp-top-shade" />
-      <button
-        className="sp-brand"
-        aria-label="TerraGuessr home"
-        onClick={leave}
-      >
-        <Brand />
-      </button>
-      <div className="sp-top-controls">
+      <header className="sp-topbar">
         <button
-          className="sp-icon tg-control sp-glass"
-          aria-label="How to play"
-          onClick={() => setDialog('tutorial')}
+          className="sp-brand"
+          aria-label="TerraGuessr home"
+          onClick={leave}
         >
-          <GameIcon name="info" />
+          <Brand />
         </button>
-        <button
-          className="sp-icon tg-control sp-glass"
-          aria-label="Game settings"
-          onClick={() => setDialog('settings')}
-        >
-          <GameIcon name="settings" />
-        </button>
-        <button
-          className="sp-icon tg-control sp-glass"
-          aria-label="Game menu"
-          onClick={() => setDialog('menu')}
-        >
-          <GameIcon name="menu" />
-        </button>
-      </div>
+        <div className="sp-top-controls">
+          <button
+            className="sp-icon tg-control sp-glass"
+            aria-label="How to play"
+            data-tutorial-trigger
+            onClick={() => setDialog('tutorial')}
+          >
+            <GameIcon name="info" />
+          </button>
+          <button
+            className="sp-icon tg-control sp-glass"
+            aria-label="Game settings"
+            onClick={() => setDialog('settings')}
+          >
+            <GameIcon name="settings" />
+          </button>
+          <button
+            className="sp-icon tg-control sp-glass"
+            aria-label="Game menu"
+            onClick={() => setDialog('menu')}
+          >
+            <GameIcon name="menu" />
+          </button>
+        </div>
+
+      </header>
 
       {!active && !game.result && !game.showFinal && (
         <section className="sp-welcome sp-glass" aria-label="Start expedition">
@@ -210,11 +204,11 @@ export function SingleplayerGamePage() {
           </p>
           <div className="sp-rules">
             <span>
-              <b>5</b> rounds
+              <b>Unlimited</b> rounds
             </span>
             <i />
             <span>
-              <b>25,000</b> possible points
+              Up to <b>5,000</b> points / round
             </span>
             <i />
             <span>No time limit</span>
@@ -268,30 +262,38 @@ export function SingleplayerGamePage() {
           )}
         </section>
       )}
-      {exploring && !game.panoramaReady && (
-        <div className="sp-loading sp-glass" role="status">
-          <span className="sp-spinner" />
-          Loading your location…
-        </div>
-      )}
+      {exploring && <section className="sp-stage" aria-label="Exploration controls">
+        {active && (
+          <StreetViewViewer
+            round={active}
+            onReady={game.setPanoramaReady}
+            showCompass={settings.compass}
+            scrollZoom={settings.scrollZoom}
+            onRetryLocation={() => void game.retryLocation()}
+            retrying={game.busy}
+          />
+        )}
+        {exploring && !game.panoramaReady && (
+          <div className="sp-loading sp-glass" role="status">
+            <span className="sp-spinner" />
+            Loading your location…
+          </div>
+        )}
 
-      {exploring && active && (
-        <GeographicIntelligence
-          key={`${active.id}:${active.panoId}`}
-          load={game.loadIntelligence}
-          round={active}
-          defaultExpanded={game.session.difficulty !== 'hard'}
-        />
-      )}
+        {exploring && active && (
+          <GeographicIntelligence
+            key={`${active.id}:${active.panoId}`}
+            load={game.loadIntelligence}
+            round={active}
+            defaultExpanded={game.session.difficulty !== 'hard'}
+          />
+        )}
+      </section>}
       {game.result && (
         <RoundResults
           result={game.result}
-          roundsTotal={game.session.roundsTotal}
           busy={game.busy}
-          onNext={() => {
-            if (game.session.completed) game.finish()
-            else void game.next()
-          }}
+          onNext={() => void game.next()}
         />
       )}
       {game.showFinal && (
@@ -307,24 +309,26 @@ export function SingleplayerGamePage() {
           {game.error}
         </div>
       )}
-      <button
-        aria-label="Return"
-        className="sp-return tg-control sp-glass"
-        onClick={leave}
-      >
-        <GameIcon name="return" />
-        <span>Return</span>
-      </button>
-      <GameplayHUD
-        round={
-          active?.number ??
-          game.result?.number ??
-          (game.showFinal ? game.session.roundsTotal : 1)
-        }
-        roundsTotal={game.session.roundsTotal}
-        score={game.session.totalScore}
-        status={status}
-      />
+      <footer className="sp-bottom-bar">
+        <button
+          aria-label="Return"
+          className="sp-return tg-control sp-glass"
+          onClick={leave}
+        >
+          <GameIcon name="return" />
+          <span>Return</span>
+        </button>
+        <GameplayHUD
+          round={
+            active?.number ??
+            game.result?.number ??
+            (game.showFinal ? game.session.results.length : 1)
+          }
+          score={game.session.totalScore}
+          status={status}
+        />
+
+      </footer>
 
       {!game.result && !game.showFinal && (
         <aside
@@ -381,6 +385,7 @@ export function SingleplayerGamePage() {
                   guess={game.guess}
                   onChange={game.setGuess}
                   interactive={exploring && game.panoramaReady && !game.busy}
+                  countryBorders={game.session.difficulty !== 'hard'}
                 />
               )}
               {!active?.candidates && !game.guess && game.panoramaReady && (
@@ -395,24 +400,20 @@ export function SingleplayerGamePage() {
                   ? `${game.guess.lat.toFixed(3)}°, ${game.guess.lon.toFixed(3)}° · pin placed`
                   : 'Where in the world are you?'}
               </span>
-              <button
-                className="sp-primary tg-control tg-control--primary sp-guess-button"
-                aria-label="Guess"
-                disabled={
-                  !game.guess || !game.panoramaReady || game.busy || !exploring
-                }
+              <GuessButton
+                disabled={!game.guess || !game.panoramaReady || game.busy || !exploring}
+                busy={game.busy}
                 onClick={() => void game.submit()}
-              >
-                <GameIcon name="pin" />
-                {game.busy ? 'Submitting…' : 'Guess'}
-                <kbd aria-hidden="true">↵</kbd>
-              </button>
+              />
             </div>
           </div>
         </aside>
       )}
       {dialog === 'tutorial' && (
         <Tutorial
+          difficulty={game.session.id ? game.session.difficulty : difficulty}
+          round={exploring ? active : null}
+          loadIntelligence={game.loadIntelligence}
           onClose={() => {
             setDialog(null)
             markTutorialSeen()
@@ -431,7 +432,10 @@ export function SingleplayerGamePage() {
           <p className="sp-muted">Your next discovery can wait.</p>
           <div className="sp-menu-actions">
             <button className="sp-primary tg-control tg-control--primary" onClick={() => setDialog(null)}>
-              Resume game <span>→</span>
+              Back to game <span>→</span>
+            </button>
+            <button className="sp-secondary tg-control" onClick={() => setDialog('tutorial')}>
+              How to Play / Tutorial
             </button>
             <button
               className="sp-secondary tg-control"
@@ -453,27 +457,25 @@ export function SingleplayerGamePage() {
           </div>
         </GameDialog>
       )}
-      {dialog === 'leave' && (
+      {dialog === 'end' && (
         <ExitGameDialog
           onContinue={closeExitDialog}
-          onSaveExit={() => void handleSaveAndExit()}
-          onLeave={() => void handleLeaveGame()}
+          onEnd={() => void handleEndGame()}
           pending={game.exitPending}
           error={game.exitError}
           round={
             active?.number ??
             game.result?.number ??
-            (game.showFinal ? game.session.roundsTotal : 1)
+            (game.showFinal ? game.session.results.length : 1)
           }
-          roundsTotal={game.session.roundsTotal}
           score={game.session.totalScore}
         />
       )}
       {dialog === 'restart' && (
         <GameDialog title="Start a new expedition?" onClose={() => setDialog(null)}>
           <p className="sp-muted">
-            Your current expedition will be replaced. Start again with five
-            new locations?
+            Your current expedition will be replaced. Start a new endless
+            session?
           </p>
           <div className="sp-dialog-actions">
             <button

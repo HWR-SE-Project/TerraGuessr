@@ -52,12 +52,10 @@ export function GameIcon({
 }
 export function GameplayHUD({
   round,
-  roundsTotal,
   score,
   status,
 }: {
   round: number
-  roundsTotal: number
   score: number
   status: string
 }) {
@@ -65,10 +63,7 @@ export function GameplayHUD({
     <div className="sp-hud sp-glass" aria-label="Game progress">
       <div>
         <span>ROUND</span>
-        <strong>
-          {round}
-          <small> / {roundsTotal}</small>
-        </strong>
+        <strong>{round}</strong>
       </div>
       <i />
       <div>

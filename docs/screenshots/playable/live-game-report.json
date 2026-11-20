@@ -2,79 +2,97 @@
   "provider": "Google Maps JavaScript API / Google Street View",
   "rounds": [
     {
-      "roundId": "cmwpadnab00184s7fspm953bv",
+      "roundId": "cmwpiero10002ro7le5jjr9ug",
       "number": 1,
       "actual": {
-        "lat": 37.56651320443169,
-        "lon": 126.978029624941
+        "lat": 13.75631103963557,
+        "lon": 100.5017744393435
       },
       "guess": {
-        "lat": 59.1735712368309,
-        "lon": -135
+        "lat": 34.68364562769864,
+        "lon": -127.96875
       },
-      "distanceKm": 6912.89267297716,
-      "score": 158
+      "distanceKm": 12589.35172286518,
+      "score": 9
     },
     {
-      "roundId": "cmwpadw3m001f4s7fahkh4nwl",
+      "roundId": "cmwpiey3m0005ro7lad0pi0jk",
       "number": 2,
       "actual": {
-        "lat": 35.65949870590288,
-        "lon": 139.7005130105214
+        "lat": -23.55051216608821,
+        "lon": -46.63323609448932
       },
       "guess": {
-        "lat": 59.1735712368309,
-        "lon": -135
+        "lat": 34.68364562769864,
+        "lon": -127.96875
       },
-      "distanceKm": 6413.133876755604,
-      "score": 202
+      "distanceKm": 10734.18588288759,
+      "score": 23
     },
     {
-      "roundId": "cmwpadye7001i4s7fn7y95fo4",
+      "roundId": "cmwpiezli0008ro7lwlf2dtao",
       "number": 3,
       "actual": {
-        "lat": -36.84853965208237,
-        "lon": 174.7632739509757
+        "lat": 38.72231505681214,
+        "lon": -9.139250243960104
       },
       "guess": {
-        "lat": 59.1735712368309,
-        "lon": -135
+        "lat": 34.68364562769864,
+        "lon": -127.96875
       },
-      "distanceKm": 11635.11121273664,
-      "score": 15
+      "distanceKm": 9710.533557422646,
+      "score": 39
     },
     {
-      "roundId": "cmwpadzya001l4s7faq2s4k88",
+      "roundId": "cmwpif16n000bro7lqd6o173w",
       "number": 4,
       "actual": {
-        "lat": -33.44890088709747,
-        "lon": -70.66920882973146
+        "lat": -1.286352043148993,
+        "lon": 36.81720667681742
       },
       "guess": {
-        "lat": 59.1735712368309,
-        "lon": -135
+        "lat": 34.68364562769864,
+        "lon": -127.96875
       },
-      "distanceKm": 11869.50721634393,
-      "score": 13
+      "distanceKm": 15980.16253590439,
+      "score": 2
     },
     {
-      "roundId": "cmwpae3i2001o4s7fcet04ohm",
+      "roundId": "cmwpif2ji000ero7lmngkybkq",
       "number": 5,
       "actual": {
-        "lat": 6.524446761950688,
-        "lon": 3.37927337869743
+        "lat": 59.91395941353706,
+        "lon": 10.75260827621718
       },
       "guess": {
-        "lat": 59.1735712368309,
-        "lon": -135
+        "lat": 34.68364562769864,
+        "lon": -127.96875
       },
-      "distanceKm": 11835.67995705411,
-      "score": 13
+      "distanceKm": 8837.709990781334,
+      "score": 60
+    },
+    {
+      "roundId": "cmwpif4be000hro7luzkd5clz",
+      "number": 6,
+      "actual": {
+        "lat": 49.28259841975399,
+        "lon": -123.1207142245267
+      },
+      "guess": {
+        "lat": 34.68364562769864,
+        "lon": -127.96875
+      },
+      "distanceKm": 1671.151454176137,
+      "score": 2168
     }
   ],
   "errors": [],
   "cameraMoved": true,
   "streetNavigated": true,
+  "continuedPastFiveRounds": true,
+  "keptPlayingAfterExitPrompt": true,
+  "ended": true,
   "restarted": true,
+  "endedEmptySession": true,
   "returnedHome": true
 }

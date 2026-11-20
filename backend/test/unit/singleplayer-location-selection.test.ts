@@ -2,9 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   selectValidatedTarget,
   isValidStreetWeather,
+  nextExclusions,
 } from '../../src/modules/singleplayer/locationSelection.js';
 import { PanoramaError } from '../../src/modules/singleplayer/providerErrors.js';
-import type { PanoramaTarget } from '../../src/modules/singleplayer/provider.js';
+import {
+  ROAD_TARGETS,
+  type PanoramaTarget,
+} from '../../src/modules/singleplayer/provider.js';
 import type { GeographicIntelligence } from '../../src/modules/intelligence/contract.js';
 
 function target(index: number): PanoramaTarget {
@@ -126,5 +130,46 @@ describe('selectValidatedTarget (R03 gate + R13 automatic fallback)', () => {
     expect(provider).toHaveBeenCalledTimes(2);
     expect(provider.mock.calls[0]![0]).toEqual([10, 11]);
     expect(provider.mock.calls[1]![0]).toEqual([10, 11, 2]);
+  });
+});
+
+describe('nextExclusions (R08 endless-mode pool exhaustion)', () => {
+  it('excludes every used location while unused ones remain', () => {
+    expect(nextExclusions([0, 1, 2])).toEqual([0, 1, 2]);
+    expect(nextExclusions([])).toEqual([]);
+  });
+
+  it('still excludes the full history one short of exhausting the pool', () => {
+    const almostAll = Array.from(
+      { length: ROAD_TARGETS.length - 1 },
+      (_, i) => i,
+    );
+    expect(nextExclusions(almostAll)).toEqual(almostAll);
+  });
+
+  it('once every location has been used, only excludes the most recent one', () => {
+    const all = Array.from({ length: ROAD_TARGETS.length }, (_, i) => i);
+    expect(nextExclusions(all)).toEqual([all.at(-1)]);
+  });
+
+  it('keeps excluding only the latest repeat after the pool stays exhausted', () => {
+    const all = Array.from({ length: ROAD_TARGETS.length }, (_, i) => i);
+    const repeated = [...all, 5, 17];
+    expect(nextExclusions(repeated)).toEqual([17]);
+  });
+
+  it('never returns an exclusion list wide enough to starve the provider', async () => {
+    const all = Array.from({ length: ROAD_TARGETS.length }, (_, i) => i);
+    const provider = vi.fn(async (used: number[]) => {
+      const candidates = ROAD_TARGETS.map((_, i) => i).filter(
+        (i) => !used.includes(i),
+      );
+      if (!candidates.length) throw new PanoramaError('Pool exhausted.');
+      return { panoId: `pano-${candidates[0]}`, targetIndex: candidates[0]!, lat: 0, lon: 0 };
+    });
+    const intelligence = vi.fn(async () => withWeather());
+    await expect(
+      selectValidatedTarget(nextExclusions(all), provider, intelligence),
+    ).resolves.toBeDefined();
   });
 });

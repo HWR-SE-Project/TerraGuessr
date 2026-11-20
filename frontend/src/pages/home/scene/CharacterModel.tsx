@@ -1,53 +1,19 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Environment, Hud, Lightformer, OrthographicCamera, useAnimations, useGLTF } from '@react-three/drei'
-import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { Environment, Hud, Lightformer, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import modelUrl from '../../../assets/home/scene/puppet-kid.glb?url'
 import type { PointerState } from './hooks'
 import { useHeadTracking } from './useHeadTracking'
+import { useAvatarModel } from '../../../features/avatar/useAvatarModel'
+import { useSavedAvatar } from '../../../features/avatar/avatarConfigService'
+import type { HomeLayout } from './useHomeLayout'
 
 export type CharacterStatus = 'loading' | 'ready' | 'error'
 
-/** Measure actual skinned vertices over the idle cycle, including outlines.
- * Only the hierarchy/skeleton is cloned; cached geometry, materials and maps stay shared. */
-function prepareModel(source: THREE.Group, clips: THREE.AnimationClip[]) {
-  const model = clone(source)
-  // SkeletonUtils clones a skeleton for every mesh, even when the GLB shares
-  // one skin. Reuse that cloned skin so 18 meshes need only one bone texture.
-  const sharedSkeletons = new Map<THREE.Skeleton, THREE.Skeleton>()
-  model.traverse((node) => {
-    if (!(node instanceof THREE.SkinnedMesh)) return
-    const original = source.getObjectByName(node.name)
-    if (!(original instanceof THREE.SkinnedMesh)) return
-    const shared = sharedSkeletons.get(original.skeleton)
-    if (shared) node.skeleton = shared
-    else sharedSkeletons.set(original.skeleton, node.skeleton)
-  })
-  const idle = clips.find((clip) => /^idle$/i.test(clip.name))
-  const bounds = new THREE.Box3()
-  const measure = () => {
-    model.updateMatrixWorld(true)
-    model.traverse((node) => {
-      if (node instanceof THREE.SkinnedMesh) node.skeleton.update()
-    })
-    bounds.union(new THREE.Box3().setFromObject(model, true))
-  }
-  if (idle) {
-    const mixer = new THREE.AnimationMixer(model)
-    mixer.clipAction(idle).play()
-    for (let sample = 0; sample <= 24; sample++) {
-      mixer.setTime((sample / 24) * idle.duration)
-      measure()
-    }
-    mixer.stopAllAction()
-    mixer.uncacheRoot(model)
-  } else measure()
-  return { model, idle, bounds, dimensions: bounds.getSize(new THREE.Vector3()) }
-}
 
-function Explorer({ reducedMotion, pointerRef, onStatus, onFeetPixelY }: {
+function Explorer({ reducedMotion, pointerRef, onStatus, onFeetPixelY, layout }: {
   reducedMotion: boolean
+  layout: HomeLayout | null
   pointerRef: React.RefObject<PointerState>
   onStatus: (status: CharacterStatus) => void
   /** Reports the character's sole contact line (bottom of its animated bounding
@@ -56,74 +22,24 @@ function Explorer({ reducedMotion, pointerRef, onStatus, onFeetPixelY }: {
    * main scene can be anchored to where the feet actually are. */
   onFeetPixelY?: (y: number | null) => void
 }) {
-  const { scene, animations } = useGLTF(modelUrl)
-  // eslint-disable-next-line no-console
-  console.log('__DEBUG_CLIPS__', animations.map((clip) => clip.name))
-  // eslint-disable-next-line no-console
-  console.log('__DEBUG_IDLE_TRACKS__', animations.find((c) => /^idle$/i.test(c.name))?.tracks.map((t) => t.name))
-  const { model, idle, bounds, dimensions } = useMemo(() => prepareModel(scene, animations), [scene, animations])
-  // eslint-disable-next-line no-console
-  console.log('__DEBUG_IDLE__', idle?.name, idle?.duration)
-  // eslint-disable-next-line no-console
-  console.log('__DEBUG_BONES__', (() => {
-    const names: string[] = []
-    model.traverse((n) => { if ((n as THREE.Bone).isBone) names.push(n.name) })
-    return names
-  })())
-  const { actions, mixer } = useAnimations(animations, model)
+  const config = useSavedAvatar()
+  const { model, idle, bounds, dimensions, actions, mixer } = useAvatarModel(config)
   const skipResumeDelta = useRef(false)
   useHeadTracking(model, dimensions.y, pointerRef, reducedMotion)
-  const { size, gl, invalidate, scene: hudScene } = useThree()
+  const { size, invalidate, scene: hudScene } = useThree()
   const environmentTexture = useRef<THREE.Texture | null>(null)
-  const [anchor, setAnchor] = useState({ x: 0, y: 0, scale: 0 })
+  const scale = layout ? Math.min(layout.width / dimensions.x, layout.height / dimensions.y) * 0.94 : 0
+  const anchor = {
+    x: layout ? layout.left + layout.width / 2 - size.width / 2 : 0,
+    y: layout ? size.height / 2 - layout.top - layout.height / 2 : 0,
+    scale,
+  }
   const center = useMemo(() => bounds.getCenter(new THREE.Vector3()), [bounds])
 
   useLayoutEffect(() => {
-    const home = document.querySelector('.th-home')
-    const slot = home?.querySelector('.th-character-slot')
-    if (!slot) {
-      onFeetPixelY?.(null)
-      return
-    }
-    const update = () => {
-      const canvas = gl.domElement.getBoundingClientRect()
-      const target = slot.getBoundingClientRect()
-      // Orthographic overlay units are CSS pixels. Fit both axes, retaining
-      // room for the authored idle and the bounded pointer response.
-      const scale = Math.min(target.width / dimensions.x, target.height / dimensions.y) * 0.94
-      const slotCenterPx = target.top + target.height / 2 - canvas.top
-      setAnchor({
-        x: target.left + target.width / 2 - canvas.left - size.width / 2,
-        y: size.height / 2 - slotCenterPx,
-        scale,
-      })
-      // `dimensions`/`bounds` were unioned over the whole idle cycle (see
-      // prepareModel), so this is the animated model's lowest sole point —
-      // stable across frames, not recomputed per animation tick — projected
-      // through the exact same fit transform the mesh itself renders with.
-      onFeetPixelY?.(slotCenterPx + (dimensions.y / 2) * scale)
-      invalidate()
-    }
-    update()
-    const observer = new ResizeObserver(update)
-    observer.observe(slot)
-    observer.observe(home!)
-    return () => observer.disconnect()
-  }, [size.width, size.height, gl, dimensions, invalidate, onFeetPixelY])
-
-  useEffect(() => {
-    const action = idle ? actions[idle.name] : undefined
-    if (!action) return
-    // Start only when the model/clip changes. Preference changes and status
-    // callbacks must never restart the authored body movement.
-    action.reset()
-      .setLoop(THREE.LoopRepeat, Infinity)
-      .setEffectiveWeight(1)
-      .setEffectiveTimeScale(1)
-      .play()
-    mixer.update(0)
-    return () => { action.stop() }
-  }, [actions, idle, mixer])
+    onFeetPixelY?.(layout ? layout.top + layout.height / 2 + dimensions.y * scale / 2 : null)
+    invalidate()
+  }, [layout, scale, dimensions.y, onFeetPixelY, invalidate])
 
   useEffect(() => {
     const action = idle ? actions[idle.name] : undefined
@@ -154,12 +70,6 @@ function Explorer({ reducedMotion, pointerRef, onStatus, onFeetPixelY }: {
 
   useEffect(() => {
     return () => {
-      // The skeleton clone owns its bone texture; useGLTF owns shared assets.
-      const skeletons = new Set<THREE.Skeleton>()
-      model.traverse((node) => {
-        if (node instanceof THREE.SkinnedMesh) skeletons.add(node.skeleton)
-      })
-      skeletons.forEach((skeleton) => skeleton.dispose())
       // Release the cached reflection derived from this HUD's owned texture.
       environmentTexture.current?.dispose()
     }
@@ -168,7 +78,6 @@ function Explorer({ reducedMotion, pointerRef, onStatus, onFeetPixelY }: {
   // Drei owns the sole playback update at priority 0. Preserve the authored
   // 1× timing even on slow visible frames; discard only the resume frame's
   // stale delta so a hidden tab never skips ahead in the idle cycle.
-  const debugFrameCount = useRef(0)
   useFrame(() => {
     if (hudScene.environment && environmentTexture.current !== hudScene.environment) {
       environmentTexture.current = hudScene.environment
@@ -180,20 +89,6 @@ function Explorer({ reducedMotion, pointerRef, onStatus, onFeetPixelY }: {
     // oxlint-disable-next-line react/immutability
     mixer.timeScale = reducedMotion || document.hidden || skipResumeDelta.current ? 0 : 1
     skipResumeDelta.current = false
-    debugFrameCount.current += 1
-    if (debugFrameCount.current % 20 === 0) {
-      const action = idle ? actions[idle.name] : undefined
-      // eslint-disable-next-line no-console
-      console.log('__DEBUG_FRAME__', {
-        frame: debugFrameCount.current,
-        actionTime: action?.time,
-        isRunning: action?.isRunning(),
-        paused: action?.paused,
-        enabled: action?.enabled,
-        weight: action?.getEffectiveWeight(),
-        timeScale: mixer.timeScale,
-      })
-    }
   }, -1)
 
   return (

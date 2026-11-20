@@ -41,6 +41,24 @@ function AmbientFrames({ enabled, reducedMotion, pointerRef }: { enabled: boolea
   return null
 }
 
+/** R3F sizes its cameras from the observed canvas container. Browser zoom also
+ * changes DPR; update the existing renderer without remounting cached models. */
+function ZoomPixelRatio() {
+  const setDpr = useThree(state => state.setDpr)
+  const invalidate = useThree(state => state.invalidate)
+  useEffect(() => {
+    const update = () => { setDpr(Math.min(1.5, Math.max(1, window.devicePixelRatio))); invalidate() }
+    update()
+    window.addEventListener('resize', update)
+    window.visualViewport?.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.visualViewport?.removeEventListener('resize', update)
+    }
+  }, [setDpr, invalidate])
+  return null
+}
+
 export function CosmicBackgroundScene({
   enabled,
   reducedMotion,
@@ -62,6 +80,7 @@ export function CosmicBackgroundScene({
     <Canvas
       className="th-scene3d-canvas"
       dpr={[1, 1.5]}
+      resize={{ debounce: { resize: 0, scroll: 0 } }}
       gl={{
         antialias: true,
         alpha: true,
@@ -77,6 +96,7 @@ export function CosmicBackgroundScene({
       frameloop={enabled ? 'demand' : 'never'}
       onCreated={onReady}
     >
+      <ZoomPixelRatio />
       <AmbientFrames enabled={enabled} reducedMotion={reducedMotion} pointerRef={pointerRef} />
       <group visible={enabled}>
         <SpaceStars reducedMotion={reducedMotion} pointerRef={pointerRef} isHome={isHome} layoutKey={layoutKey} />
@@ -86,7 +106,7 @@ export function CosmicBackgroundScene({
           reducedMotion={reducedMotion}
           pointerRef={pointerRef}
           onCharacterStatus={home.onCharacterStatus}
-          onFeetPixelY={home.onFeetPixelY}
+          onFeetOffset={home.onFeetOffset}
         />}
       </Suspense>
     </Canvas>

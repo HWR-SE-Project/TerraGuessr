@@ -1,13 +1,22 @@
+/* Fixed to exactly one viewport: every section below sizes itself off vh so
+   the whole composition — nav, hero, planet clearance, actions — always
+   resolves to <= 100dvh with no page scroll, instead of growing/shrinking
+   independently and spilling past the fold. */
 .th-home {
   --lime: var(--color-lime);
   position: relative;
   isolation: isolate;
-  min-height: max(900px, 100svh);
-  overflow: clip;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 72%, #16304a66, transparent 58%),
     var(--color-bg);
   color: var(--color-text);
+}
+.th-home > .tg-page-nav {
+  flex: none;
 }
 .th-icon {
   width: 22px;
@@ -26,45 +35,44 @@
 .th-header {
   position: relative;
   z-index: 10;
-  height: var(--nav-height);
+  min-height: var(--nav-height);
+  padding-block: 0.75rem;
   padding: 0 clamp(24px, 4.5vw, 88px);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 24px;
+  gap: 1.5rem;
   color: var(--color-text);
 }
 .th-brand {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 36px;
 }
 .th-navigation {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.375rem;
 }
 .th-nav-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 46px;
-  padding: 12px 18px;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   color: var(--color-muted);
   background: transparent;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 550;
   white-space: nowrap;
 }
 .th-nav-item .th-icon {
-  width: 19px;
-  height: 19px;
+  width: 14px;
+  height: 14px;
 }
 .th-nav-active {
   color: var(--color-lime);
@@ -80,6 +88,7 @@
   gap: 16px;
   align-items: center;
   margin-left: auto;
+  min-width: 0;
 }
 .th-profile-link {
   display: flex;
@@ -89,35 +98,35 @@
 .th-profile-avatar {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 26px;
+  height: 26px;
   border: 1px solid #c0f66b3b;
   background: #c0f66b12;
   border-radius: 50%;
   color: var(--color-lime);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
 }
 .th-profile-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   max-width: 140px;
 }
 .th-profile-name {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .th-profile-caption {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: #b0bfd1;
 }
 .th-profile-link > .th-icon {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   color: var(--color-subtle);
 }
 .th-menu-button {
@@ -126,22 +135,29 @@
 }
 .th-hero {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  height: 610px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.5rem, 2.2vh, 2rem);
 }
 .th-hero-copy {
   position: relative;
   z-index: 2;
+  flex: none;
   text-align: center;
-  padding: 57px 24px 0;
+  padding: clamp(0.25rem, 1.2vh, 1rem) 1.25rem 0;
 }
 .th-hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(60px, 5.6vw, 96px);
+  font-size: clamp(2.25rem, 4.4vw, 4.75rem);
   line-height: 1.08;
-  letter-spacing: -0.065em;
+  letter-spacing: -0.055em;
   font-weight: 650;
-  margin: 18px 0 18px;
+  margin: 0.5rem 0;
 }
 .th-hero h1 > span {
   color: var(--color-lime);
@@ -149,36 +165,38 @@
 }
 .th-description {
   margin: 0 auto;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   color: #b3c1d2;
-  line-height: 1.8;
+  line-height: 1.65;
   font-weight: 400;
 }
 .th-avatar-display {
-  position: absolute;
-  top: 253px;
-  left: 50%;
-  width: 220px;
-  height: 343px;
-  transform: translateX(-50%);
+  --avatar-height: clamp(9rem, 24vh, 22rem);
+  position: relative;
+  flex: none;
+  width: min(17rem, 100%);
+  /* Clearance below the feet so the rotating planet reads as a whole
+     miniature world instead of being sliced by the actions below it. */
+  margin-bottom: clamp(4.5rem, 17vh, 11rem);
   z-index: 2;
 }
 .th-character-slot {
-  width: 204px;
-  height: 306px;
+  width: min(100%, calc(var(--avatar-height) * 0.67));
+  height: var(--avatar-height);
   position: relative;
   margin: 0 auto;
 }
 .th-avatar-display::before {
   content: '';
   position: absolute;
-  width: 150px;
-  height: 20px;
-  left: 35px;
-  bottom: 37px;
+  width: 190px;
+  height: 24px;
+  left: 50%;
+  translate: -50% 0;
+  bottom: 30px;
   border-radius: 50%;
   background: #07111d99;
-  filter: blur(10px);
+  filter: blur(11px);
 }
 .th-character-status {
   position: absolute;
@@ -190,98 +208,34 @@
 }
 .th-edit-avatar {
   position: absolute;
-  bottom: 0;
+  top: calc(var(--feet-y, var(--avatar-height)) - 0.75rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 10px 17px;
-  border: 1px solid #d0e1ee24;
-  border-radius: var(--radius-pill);
-  background: #101c2bd9;
-  backdrop-filter: blur(12px);
-  color: #dce6ee;
-  font-size: 0.8125rem;
-  font-weight: 550;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 13px;
+  font-size: 0.6875rem;
   white-space: nowrap;
 }
-.th-edit-avatar .th-icon { width: 15px; height: 15px; }
-.th-edit-avatar:hover { background: #1e3045; border-color: #c0f66b55; }
-.th-resume {
+.th-edit-avatar .th-icon { width: 12px; height: 12px; }
+.th-actions {
   position: relative;
   z-index: 3;
-  width: min(1080px, calc(100% - 96px));
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 0 auto;
-  padding: 16px 20px;
-  border: 1px solid #c0f66b2e;
-  border-radius: var(--radius-card);
-  background: #101c2ce8;
-  backdrop-filter: blur(14px);
-  box-shadow: 0 12px 32px #0004;
-}
-.th-resume-icon {
+  flex: none;
   display: grid;
-  place-items: center;
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: #c0f66b14;
-  color: var(--color-lime);
-}
-.th-resume-icon .th-icon {
-  width: 20px;
-  height: 20px;
-}
-.th-resume-copy {
-  min-width: 0;
-}
-.th-resume-copy strong {
-  display: block;
-  font-size: 0.9375rem;
-  font-weight: 650;
-}
-.th-resume-copy small {
-  display: block;
-  margin-top: 3px;
-  font-size: 0.8125rem;
-  color: var(--color-muted);
-}
-.th-resume-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  flex-shrink: 0;
-  min-height: 42px;
-  padding: 10px 18px;
-  border-radius: var(--radius-pill);
-  background: var(--color-lime);
-  color: var(--color-on-lime);
-  font-size: 0.8125rem;
-  font-weight: 650;
-  white-space: nowrap;
-}
-.th-resume-action:hover {
-  background: var(--color-lime-hover);
-}
-.th-resume + .th-game-modes {
-  margin-top: 14px;
+  justify-items: center;
+  gap: clamp(0.5rem, 1.2vh, 0.75rem);
+  width: 100%;
+  padding-bottom: clamp(0.75rem, 2.5vh, 1.5rem);
 }
 .th-game-modes {
-  position: relative;
-  z-index: 3;
-  width: min(1080px, calc(100% - 96px));
+  width: min(1000px, calc(100% - 96px));
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-  margin: 25px auto 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
+  gap: 14px;
 }
 .th-scene3d,
 .th-earth {
@@ -346,7 +300,9 @@
 }
 .th-notice {
   width: min(440px, calc(100% - 32px));
-  padding: 32px;
+  padding: 2rem;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
@@ -395,212 +351,25 @@
   font-weight: 650;
   font-size: 14px;
 }
-@media (min-width: 1600px) and (min-height: 980px) {
-  .th-home {
-    min-height: 100svh;
-  }
-  .th-hero {
-    height: 690px;
-  }
-  .th-hero-copy {
-    padding-top: 75px;
-  }
-  .th-avatar-display {
-    top: 305px;
-    width: 250px;
-    height: 365px;
-  }
-  .th-character-slot {
-    width: 220px;
-    height: 330px;
-  }
-  .th-game-modes {
-    margin-top: 32px;
-  }
+@media (max-width: 68.75rem) {
+  .th-header { grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.75rem; padding-inline: clamp(1rem, 3vw, 2rem); }
+  .th-navigation { display: none; grid-column: 1 / -1; grid-row: 2; flex-direction: column; align-items: stretch; padding: 0.75rem; background: #101c2cf7; border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); }
+  .th-navigation-open { display: flex; }
+  .th-nav-item { justify-content: flex-start; }
+  .th-player-tools { grid-column: 2; grid-row: 1; gap: 0.5rem; }
+  .th-menu-button { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 0.625rem; background: #ffffff04; }
+  .th-profile-details, .th-profile-link > .th-icon { display: none; }
+  .th-game-modes { width: calc(100% - 2.5rem); }
 }
-@media (min-width: 1101px) and (max-height: 820px) {
-  .th-home {
-    min-height: 800px;
-  }
-  .th-hero {
-    height: 535px;
-  }
-  .th-hero-copy {
-    padding-top: 35px;
-  }
-  .th-hero h1 {
-    font-size: 68px;
-    margin: 14px 0;
-  }
-  .th-avatar-display {
-    top: 218px;
-    height: 300px;
-  }
-  .th-character-slot {
-    width: 178px;
-    height: 267px;
-  }
-  .th-game-modes {
-    margin-top: 14px;
-  }
-}
-@media (max-width: 1200px) {
-  .th-header {
-    padding-inline: 32px;
-  }
-  .th-navigation {
-    gap: 0;
-  }
-  .th-nav-item {
-    padding-inline: 14px;
-    font-size: 12px;
-  }
-  .th-profile-details {
-    display: none;
-  }
-  .th-profile-link > .th-icon {
-    display: none;
-  }
-}
-@media (max-width: 1100px) {
-  .th-header {
-    height: 80px;
-    padding-inline: 28px;
-  }
-  .th-navigation {
-    position: absolute;
-    top: 72px;
-    left: 24px;
-    right: 24px;
-    transform: none;
-    display: none;
-    width: auto;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
-    padding: 12px;
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-card);
-    background: #101c2cf7;
-    box-shadow: var(--shadow-panel);
-    backdrop-filter: blur(16px);
-  }
-  .th-navigation-open {
-    display: flex;
-  }
-  .th-nav-item {
-    justify-content: flex-start;
-    padding: 14px 16px;
-    font-size: 14px;
-  }
-  .th-menu-button {
-    display: grid;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    padding: 10px;
-    border: 1px solid var(--color-border);
-    background: #ffffff04;
-    border-radius: 12px;
-    margin-left: auto;
-  }
-  .th-player-tools {
-    margin-left: auto;
-  }
-  .th-player-tools + .th-menu-button {
-    margin-left: -12px;
-  }
-  .th-hero h1 {
-    font-size: clamp(42px, 7.5vw, 76px);
-  }
-  .th-resume,
-  .th-game-modes {
-    width: calc(100% - 56px);
-    gap: 12px;
-  }
-}
-@media (max-width: 600px) {
-  .th-home {
-    min-height: max(844px, 100svh);
-  }
-  .th-header {
-    height: 76px;
-    padding-inline: 20px;
-    gap: 12px;
-  }
-  .th-profile-avatar {
-    width: 34px;
-    height: 34px;
-    font-size: 12px;
-  }
-  .th-menu-button {
-    width: 44px;
-    height: 44px;
-  }
-  .th-navigation {
-    left: 16px;
-    right: 16px;
-    top: 68px;
-  }
-  .th-hero {
-    height: 492px;
-  }
-  .th-hero-copy {
-    padding: 36px 20px 0;
-  }
-  .th-hero h1 {
-    max-width: 340px;
-    margin: 19px auto 14px;
-    font-size: clamp(42px, 11vw, 55px);
-    line-height: 1.09;
-    letter-spacing: -0.065em;
-  }
-  .th-hero h1 > span {
-    display: block;
-  }
-  .th-description {
-    max-width: 310px;
-    font-size: 0.875rem;
-    line-height: 1.65;
-  }
-  .th-desktop-break {
-    display: none;
-  }
-  .th-avatar-display {
-    top: 241px;
-    width: 170px;
-    height: 250px;
-  }
-  .th-character-slot {
-    width: 146px;
-    height: 219px;
-  }
-  .th-resume {
-    width: calc(100% - 40px);
-    flex-wrap: wrap;
-    padding: 14px 16px;
-  }
-  .th-resume-action {
-    margin-left: 56px;
-    width: calc(100% - 56px);
-    justify-content: center;
-  }
-  .th-game-modes {
-    width: calc(100% - 40px);
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 25px;
-  }
-  .th-orbit {
-    top: 190px;
-    width: 700px;
-    height: 700px;
-    left: calc(50% - 350px);
-  }
-  .th-orbit-two {
-    width: 900px;
-    height: 900px;
-    top: 90px;
-    left: calc(50% - 450px);
-  }
+@media (max-width: 37.5rem) {
+  .th-header .tg-brand-word { font-size: 1.125rem; }
+  .th-header .tg-brand-mark { width: 1.75rem; height: 2rem; }
+  .th-player-tools-auth { flex-wrap: wrap; justify-content: flex-end; }
+  .th-hero h1 { max-width: 21.25rem; margin: 0.5rem auto; font-size: clamp(2.25rem, 9.5vw, 3.4375rem); }
+  .th-hero h1 > span { display: block; }
+  .th-description { max-width: 21rem; font-size: 0.875rem; }
+  .th-desktop-break { display: none; }
+  /* Stacked cards eat more vertical space here, so the character/planet
+     group needs to run smaller and leave more clearance before the actions. */
+  .th-avatar-display { --avatar-height: clamp(7.5rem, 19vh, 15rem); margin-bottom: clamp(6.5rem, 23vh, 12rem); }
 }

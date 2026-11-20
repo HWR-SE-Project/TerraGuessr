@@ -11,8 +11,7 @@
 .gi-panel {
   position: absolute;
   top: max(84px, calc(env(safe-area-inset-top) + 72px));
-  /* Expanded content reserves the existing Street View navigation rail. */
-  left: max(76px, calc(env(safe-area-inset-left) + 60px));
+  left: max(25px, env(safe-area-inset-left));
   z-index: 4;
   width: 280px;
   border: 1px solid #d0e7f224;
@@ -23,12 +22,7 @@
     inset 0 1px #ffffff09;
   backdrop-filter: blur(24px) saturate(120%);
   overflow: hidden;
-  transition: left 240ms ease;
   animation: gi-arrive 400ms ease both;
-}
-/* The compact instrument anchors to the same edge as the brand and Return. */
-.gi-panel-collapsed {
-  left: max(25px, env(safe-area-inset-left));
 }
 .gi-panel svg,
 .gi-sheet svg,
@@ -566,7 +560,7 @@
     background-position: -200% 0;
   }
 }
-@media (max-width: 700px) {
+@media (max-width: 62.5rem) {
   .gi-panel {
     display: none;
   }
@@ -714,11 +708,30 @@
   line-height: 1.7;
   color: #b0c2d0;
 }
-@media (max-height: 650px) and (min-width: 701px) {
-  .gi-panel {
-    top: 84px;
-  }
-  .gi-desktop-content > div {
-    max-height: calc(100dvh - 280px);
+
+/* Intelligence shares the stage grid instead of competing with corner controls. */
+.sp-stage > .gi-panel {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  justify-self: start;
+  width: min(100%, 18rem);
+}
+.gi-desktop-content > div { max-height: min(35rem, 50dvh); }
+@media (max-width: 62.5rem) {
+  .sp-stage > .gi-panel { display: none; }
+  .sp-stage > .gi-mobile-trigger {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    align-self: start;
   }
 }
+.sp-stage > .gi-panel { display: flex; flex-direction: column; max-height: 100%; }
+.sp-stage > .gi-panel .gi-header { flex-shrink: 0; }
+.sp-stage > .gi-panel .gi-desktop-content { min-height: 0; }
+@media (max-width: 62.5rem) { .sp-stage > .gi-panel { display: none; } }

@@ -22,7 +22,7 @@ import {
   PanoramaError,
 } from './provider.js';
 import type { PanoramaProvider, PanoramaTarget } from './provider.js';
-import { selectValidatedTarget } from './locationSelection.js';
+import { nextExclusions, selectValidatedTarget } from './locationSelection.js';
 import { buildCandidates } from './candidates.js';
 import type { CandidateOption } from './candidates.js';
 import { prefetchNextStreetRound } from './prefetch.js';
@@ -76,10 +76,8 @@ const Result = Type.Object({
 });
 const Session = Type.Object({
   id: Type.String(),
-  roundsTotal: Type.Integer(),
   difficulty: DifficultyLevel,
   totalScore: Type.Integer(),
-  completed: Type.Boolean(),
   activeRound: Type.Union([PublicRound, Type.Null()]),
   results: Type.Array(Result),
 });
@@ -236,10 +234,8 @@ export function registerSingleplayerRoutes(
       const active = game.rounds.find((r) => r.score === null);
       return {
         id: game.id,
-        roundsTotal: game.roundsTotal,
         difficulty: game.difficulty,
         totalScore: results.reduce((sum, r) => sum + r.score, 0),
-        completed: results.length === game.roundsTotal,
         activeRound: active ? publicRound(active) : null,
         results,
       };
@@ -254,10 +250,14 @@ export function registerSingleplayerRoutes(
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      // Explicit abandonment: the player chose to leave rather than let the
-      // session expire naturally. A hard delete cascades StreetRound (see
-      // schema) but never touches StreetResult, so already-scored rounds
-      // remain in the durable archive (R18) untouched.
+      // Finalizes ("Ends") the session: the player explicitly chose to stop
+      // rather than let it expire naturally. A hard delete cascades
+      // StreetRound (see schema) but never touches StreetResult, so
+      // already-scored rounds remain in the durable archive (R18) untouched.
+      // Deleting the row is itself what makes the session un-resumable —
+      // there is no status flag to flip back, and `owned()` 404s forever
+      // after for this id, which is exactly what "ended sessions cannot be
+      // continued through the API" requires.
       const game = await owned(request);
       await db.streetGame.delete({ where: { id: game.id } });
       reply.code(204);
@@ -275,8 +275,7 @@ export function registerSingleplayerRoutes(
       const game = await owned(request);
       const active = game.rounds.find((r) => r.score === null);
       if (active) return publicRound(active); // Idempotent retry, including response loss.
-      if (game.rounds.length >= game.roundsTotal)
-        throw conflict('All rounds are completed.');
+      // Endless mode: no round cap. Preserve difficulty throughout.
       const usedIndices = game.rounds.map((r) => r.targetIndex);
       const nextNumber = game.rounds.length + 1;
       async function persistRound(target: PanoramaTarget) {
@@ -337,9 +336,11 @@ export function registerSingleplayerRoutes(
             });
         }
         // R03/R13: only accept a location whose mandatory weather data is
-        // available, automatically trying another when it is not.
+        // available, automatically trying another when it is not. R08: once
+        // every pool location has been used this session, allow repeats
+        // rather than exhausting the pool and failing forever.
         const target = await selectValidatedTarget(
-          usedIndices,
+          nextExclusions(usedIndices),
           provider,
           intelligence,
         );
@@ -410,9 +411,10 @@ export function registerSingleplayerRoutes(
         throw conflict('A scored round cannot be replaced.');
       const usedIndices = game.rounds.map((r) => r.targetIndex);
       // R03/R13: a retry (whether triggered by missing coverage or missing
-      // weather data) only accepts a location with valid weather too.
+      // weather data) only accepts a location with valid weather too. R08:
+      // same pool-exhaustion handling as starting a fresh round.
       const target = await selectValidatedTarget(
-        usedIndices,
+        nextExclusions(usedIndices),
         provider,
         intelligence,
       );
@@ -527,10 +529,8 @@ export function registerSingleplayerRoutes(
           })
           .catch(() => {});
         // R12: best-effort prefetch of the following round, never awaited.
-        const completedRounds =
-          game.rounds.filter((r) => r.score !== null).length + 1;
-        if (completedRounds < game.roundsTotal)
-          void prefetchNextStreetRound(game.id, db, provider, intelligence);
+        // Endless mode: there is always a next round to prefetch.
+        void prefetchNextStreetRound(game.id, db, provider, intelligence);
       }
       return result(locked, actual);
     },

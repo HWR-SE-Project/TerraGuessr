@@ -79,11 +79,15 @@ export function usePointerParallax(enabled: boolean) {
     window.addEventListener('pointermove', handleMove, { passive: true })
     window.addEventListener('pointerout', handleOut)
     window.addEventListener('blur', reset)
+    window.addEventListener('resize', reset)
+    window.visualViewport?.addEventListener('resize', reset)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerout', handleOut)
       window.removeEventListener('blur', reset)
+      window.removeEventListener('resize', reset)
+      window.visualViewport?.removeEventListener('resize', reset)
       document.removeEventListener('visibilitychange', handleVisibility)
       reset()
     }

@@ -59,6 +59,29 @@ describe('account authentication (integration)', () => {
     return { cookie: String(login.headers['set-cookie']).split(';')[0]!, userId: login.json().user.id as string, token };
   }
 
+  it('saves supported avatar colors per account and restores them after a new sign-in', async () => {
+    const first = await registerVerified(`avatar-a-${Date.now()}@example.test`, 'Explorer A');
+    const second = await registerVerified(`avatar-b-${Date.now()}@example.test`, 'Explorer B');
+    const appearance = { version: 1, hairColor: '#a58bd7', eyeColor: '#378bce', shirtColor: '#e67b58', pantsColor: '#333b67', shoeColor: null };
+    expect((await app.inject({ method: 'GET', url: '/api/auth/avatar' })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'PATCH', url: '/api/auth/avatar', payload: appearance })).statusCode).toBe(401);
+    const saved = await app.inject({ method: 'PATCH', url: '/api/auth/avatar', headers: { cookie: first.cookie }, payload: appearance });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().avatarConfig).toEqual(appearance);
+    expect((await db.userPreference.findUniqueOrThrow({ where: { userId: first.userId } })).avatarConfig).toEqual(appearance);
+    expect((await app.inject({ method: 'GET', url: '/api/auth/avatar', headers: { cookie: second.cookie } })).json().avatarConfig).toBeNull();
+    const email = (await db.user.findUniqueOrThrow({ where: { id: first.userId } })).email;
+    await app.inject({ method: 'POST', url: '/api/auth/logout', headers: { cookie: first.cookie } });
+    const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password: PASSWORD } });
+    const cookie = String(login.headers['set-cookie']).split(';')[0]!;
+    expect((await app.inject({ method: 'GET', url: '/api/auth/avatar', headers: { cookie } })).json().avatarConfig).toEqual(appearance);
+    for (const payload of [{ ...appearance, shirtColor: 'red' }, { ...appearance, version: 9 }, { version: 1 }]) {
+      expect((await app.inject({ method: 'PATCH', url: '/api/auth/avatar', headers: { cookie }, payload })).statusCode).toBe(400);
+    }
+    expect((await app.inject({ method: 'PATCH', url: '/api/auth/avatar', headers: { cookie, origin: 'https://other.example' }, payload: appearance })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'GET', url: '/api/auth/avatar', headers: { cookie } })).json().avatarConfig).toEqual(appearance);
+  });
+
   it('requires email verification before login and keeps only hashes of cookies', async () => {
     const email = `auth-${Date.now()}@example.test`;
     const registration = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { email, displayName: 'Map Reader', password: PASSWORD } });

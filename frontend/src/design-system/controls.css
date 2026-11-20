@@ -114,28 +114,30 @@
 #root .th-profile-avatar { box-shadow: inset 0 1px #e9ffc42b; }
 #root .tg-candidate { border-radius: 24px; }
 
-/* Reusable quiet pills and small scene actions share the same soft optics. */
+/* Reusable quiet pills and small scene actions share the same soft optics.
+   Kept deliberately low-opacity: these float over the cosmic scene rather
+   than reading as solid buttons. */
 #root :is(.tg-nav-pill, .tg-action, .tg-icon-button) {
-  --control-fill: #18283d80;
-  --control-edge: #c1daef29;
-  --control-shading: linear-gradient(155deg, #cae6ff10, #bfdcff03 55%, #030a1614);
-  --control-reflection: radial-gradient(ellipse at 15% 0%, #e7f6ff12, transparent 75%);
-  --control-inner: inset 0 1px #eaf5ff24, inset 0 -1px #02081524;
-  --control-shadow: 0 4px 12px #0106101f;
+  --control-fill: #15243b3d;
+  --control-edge: #c1daef1c;
+  --control-shading: linear-gradient(155deg, #cae6ff0a, #bfdcff02 55%, #030a1610);
+  --control-reflection: radial-gradient(ellipse at 15% 0%, #e7f6ff0e, transparent 75%);
+  --control-inner: inset 0 1px #eaf5ff1a, inset 0 -1px #02081520;
+  --control-shadow: 0 3px 10px #01061016;
   border-radius: var(--radius-pill);
   font-weight: 550;
 }
 #root .tg-nav-pill { --control-ink: #c7d4e3; }
 #root .tg-nav-pill .th-icon { color: #b0c7df; }
 #root .tg-nav-pill[aria-current='page'] {
-  --control-fill: #9bc96429;
+  --control-fill: #9bc96420;
   --control-ink: #d5fba5;
-  --control-edge: #c6f39166;
-  --control-reflection: radial-gradient(ellipse at 15% 0%, #dfffba24, transparent 75%);
-  --control-shadow: 0 4px 16px #01061024, 0 0 18px #c0f66b08;
+  --control-edge: #c6f39140;
+  --control-reflection: radial-gradient(ellipse at 15% 0%, #dfffba1a, transparent 75%);
+  --control-shadow: 0 3px 14px #01061018, 0 0 14px #c0f66b06;
 }
 #root .tg-nav-pill[aria-current='page'] .th-icon { color: #d5fba5; }
-#root .tg-action { min-height: 44px; --control-fill: #1c3049b3; }
+#root .tg-action { min-height: 44px; --control-fill: #16243c38; }
 #root .tg-icon-button { border-radius: var(--radius-control); min-height: 44px; min-width: 44px; }
 @media (hover: hover) and (pointer: fine) {
   #root :is(.tg-nav-pill, .tg-action, .tg-icon-button):hover {

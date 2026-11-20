@@ -126,6 +126,7 @@ export function GeographicIntelligence({
   load,
   round,
   defaultExpanded = true,
+  embedded = false,
 }: {
   load: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
   round: StreetRound
@@ -133,6 +134,8 @@ export function GeographicIntelligence({
    * difficulty lever; the four mandatory fields remain fully available on
    * demand (R05). */
   defaultExpanded?: boolean
+  /** Reuse the same weather UI inside the tutorial's isolated practice layer. */
+  embedded?: boolean
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -250,8 +253,8 @@ export function GeographicIntelligence({
                     <GeoIcon name="wind" />
                     <span>Wind</span>
                     <strong>
-                      {metric(weather?.windSpeedKmh, 1)}
-                      <small> km/h</small>
+                      {metric(weather?.windSpeedKmh == null ? null : weather.windSpeedKmh / 3.6, 1)}
+                      <small> m/s</small>
                     </strong>
                     <em>
                       {weather?.windDirectionDeg != null && (
@@ -460,6 +463,15 @@ export function GeographicIntelligence({
         </>
       )}
     </>
+  )
+  if (embedded) return (
+    <aside className="gi-panel gi-panel-embedded" aria-label="Geographic intelligence practice">
+      <div className="gi-header">
+        <span className="gi-header-icon"><GeoIcon name="scan" /></span>
+        <span><strong>GEOGRAPHIC<br /> INTELLIGENCE</strong><small>READ THE WORLD AROUND YOU</small></span>
+      </div>
+      {body('gi-tutorial')}
+    </aside>
   )
   return (
     <>

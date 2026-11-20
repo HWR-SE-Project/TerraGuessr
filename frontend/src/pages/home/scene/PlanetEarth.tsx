@@ -181,7 +181,7 @@ export function PlanetEarth({
   })
 
   return (
-    <group position={[0, centerY, EARTH_Z]}>
+    <group name="home-planet" position={[0, centerY, EARTH_Z]}>
       <group ref={rotatingGroup} rotation={INITIAL_ROTATION}>
         <group scale={modelScale} position={modelOffset}>
           <primitive object={earthModel} dispose={null} />
@@ -189,8 +189,8 @@ export function PlanetEarth({
       </group>
       {/* Inner haze: sits just outside the ocean shell and blends the glow
           into the day-side facets near the limb instead of leaving a seam. */}
-      <mesh scale={1.012}>
-        <sphereGeometry args={[radius, 96, 72]} />
+      <mesh scale={radius * 1.012}>
+        <sphereGeometry args={[1, 96, 72]} />
         <shaderMaterial
           vertexShader={ATMOSPHERE_VERTEX}
           fragmentShader={ATMOSPHERE_FRAGMENT}
@@ -202,8 +202,8 @@ export function PlanetEarth({
         />
       </mesh>
       {/* Outer glow: soft bloom bleeding into space beyond the silhouette. */}
-      <mesh scale={1.024}>
-        <sphereGeometry args={[radius, 96, 72]} />
+      <mesh scale={radius * 1.024}>
+        <sphereGeometry args={[1, 96, 72]} />
         <shaderMaterial
           vertexShader={ATMOSPHERE_VERTEX}
           fragmentShader={ATMOSPHERE_FRAGMENT}

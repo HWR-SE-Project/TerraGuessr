@@ -151,6 +151,7 @@ model UserPreference {
   soundFxVolume Int      @default(50)
   musicVolume   Int      @default(35)
   fullscreen    Boolean  @default(false)
+  avatarConfig  Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -363,10 +364,23 @@ model LobbyMember {
 }
 
 // Street View is isolated from the existing weather game contracts.
+//
+// Session lifecycle (endless mode): a row is Created at POST .../games, then
+// Active for as long as it exists with no fixed round limit — each round
+// transitions briefly through "round completed" (score set, no activeRound
+// yet) before the next POST .../rounds starts the next one. A row is Ended
+// the moment the player explicitly finalizes it (DELETE .../games/:id,
+// triggered by the "End Game" confirmation) — already-scored rounds survive
+// independently in StreetResult (R18), but the StreetGame row itself is gone,
+// so `owned()` 404s forever after and the session can never be reactivated.
+// Abandoned covers the same DELETE outcome reached a different way: the 24h
+// expiry sweep (`expiresAt`-driven) removing a row nobody explicitly ended —
+// e.g. a refresh, tab close, or crash mid-game. Both are a hard delete; there
+// is deliberately no soft "ended" flag to resurrect, and the frontend never
+// persists credentials across a reload, so neither path is ever resumable.
 model StreetGame {
   id              String        @id @default(cuid())
   playerTokenHash String
-  roundsTotal     Int           @default(5)
   difficulty      Difficulty    @default(medium) // R05
   expiresAt       DateTime
   createdAt       DateTime      @default(now())

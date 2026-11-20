@@ -31,6 +31,8 @@ export function StreetViewViewer({
   useEffect(() => {
     let cancelled = false
     let viewer: google.maps.StreetViewPanorama | null = null
+    let resizeObserver: ResizeObserver | null = null
+    let resizeFrame = 0
     let timer: ReturnType<typeof setTimeout>
     let linksTimer: ReturnType<typeof setTimeout>
     onReady(false)
@@ -80,14 +82,20 @@ export function StreetViewViewer({
           linksControl: true,
           clickToGo: true,
           panControl: false,
-          zoomControl: true,
-          zoomControlOptions: { position: maps.ControlPosition.LEFT_CENTER },
+          zoomControl: false,
           motionTracking: false,
           motionTrackingControl: false,
           scrollwheel: settings.current.scrollZoom,
         })
         setError(null)
         panorama.current = viewer
+        resizeObserver = new ResizeObserver(() => {
+          cancelAnimationFrame(resizeFrame)
+          resizeFrame = requestAnimationFrame(() => {
+            if (!cancelled && viewer) maps.event.trigger(viewer, 'resize')
+          })
+        })
+        resizeObserver.observe(element.current!)
         const statusChanged = () => {
           if (cancelled || !viewer) return
           clearTimeout(timer)
@@ -128,6 +136,8 @@ export function StreetViewViewer({
       clearTimeout(timer)
       clearTimeout(linksTimer)
       unsubscribe()
+      resizeObserver?.disconnect()
+      cancelAnimationFrame(resizeFrame)
       if (viewer) {
         google.maps.event.clearInstanceListeners(viewer)
         viewer.setVisible(false)
@@ -142,7 +152,6 @@ export function StreetViewViewer({
     <>
       <div
         className="sp-panorama"
-        ref={element}
         aria-label="Interactive Street View panorama"
         tabIndex={0}
         onFocus={(event) => {
@@ -151,7 +160,11 @@ export function StreetViewViewer({
         data-panorama={currentPano}
         data-ready={ready}
         data-heading={heading}
-      />
+      >
+        {/* The SDK rewrites its host's positioning. Keep the viewport shell
+            separate so overlays and responsive layout cannot collapse it. */}
+        <div className="sp-panorama-canvas" ref={element} />
+      </div>
       {showCompass && (
         <button
           className="sp-compass tg-control sp-glass"

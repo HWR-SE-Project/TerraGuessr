@@ -54,10 +54,8 @@ export interface StreetResult {
 }
 export interface StreetSession {
   id: string
-  roundsTotal: number
   difficulty: Difficulty
   totalScore: number
-  completed: boolean
   activeRound: StreetRound | null
   results: StreetResult[]
 }
@@ -86,7 +84,10 @@ export const singleplayerApi = {
       method: 'POST',
       playerToken: credentials.playerToken,
     }),
-  abandon: (credentials: StreetCredentials) =>
+  // Finalizes ("ends") the session server-side: a hard delete that makes it
+  // permanently un-resumable while leaving already-scored rounds archived
+  // (StreetResult, R18).
+  end: (credentials: StreetCredentials) =>
     apiFetch<void>(path(credentials.id), {
       method: 'DELETE',
       playerToken: credentials.playerToken,

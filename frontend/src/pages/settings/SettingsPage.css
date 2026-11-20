@@ -13,8 +13,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(960px, 100%);
-  max-height: calc(100dvh - 64px);
-  min-height: 560px;
+  min-height: min(35rem, 80dvh);
   padding: 0 40px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-panel);
@@ -364,7 +363,7 @@
     padding: 16px;
   }
   .settings-panel {
-    max-height: calc(100dvh - 32px);
+    max-height: none;
     min-height: 0;
     width: 100%;
     padding: 0 24px;
@@ -400,3 +399,11 @@
     padding: 36px 24px;
   }
 }
+
+.settings-panel { max-height: none; }
+.settings-content { overflow: visible; }
+.settings-header { flex-wrap: wrap; padding-right: 2rem; }
+.settings-tabs { flex-wrap: wrap; max-width: 100%; }
+.settings-row > div { min-width: 0; }
+.settings-note, .settings-inline-message { overflow-wrap: anywhere; }
+.settings-row { overflow-wrap: anywhere; }

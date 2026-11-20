@@ -4,15 +4,15 @@ import { StaticFallbackScene } from './StaticFallbackScene'
 import { useCosmicEnvironment } from '../../../components/cosmic/CosmicContext'
 
 /** Bind Home's unchanged character/planet composition to the persistent canvas. */
-export function Home3DScene({ onCharacterStatus, onFeetPixelY }: {
+export function Home3DScene({ onCharacterStatus, onFeetOffset }: {
   onCharacterStatus: (status: CharacterStatus) => void
-  onFeetPixelY?: (y: number | null) => void
+  onFeetOffset?: (y: number | null) => void
 }) {
   const { available, ready, bindHome } = useCosmicEnvironment()
   useLayoutEffect(() => {
-    bindHome({ onCharacterStatus, onFeetPixelY })
+    bindHome({ onCharacterStatus, onFeetOffset })
     return () => bindHome(null)
-  }, [bindHome, onCharacterStatus, onFeetPixelY])
+  }, [bindHome, onCharacterStatus, onFeetOffset])
   useEffect(() => {
     if (!available) onCharacterStatus('error')
   }, [available, onCharacterStatus])

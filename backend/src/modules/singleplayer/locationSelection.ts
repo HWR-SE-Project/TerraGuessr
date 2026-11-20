@@ -1,5 +1,6 @@
 import type { GeographicIntelligence } from '../intelligence/contract.js';
 import { PanoramaError } from './providerErrors.js';
+import { ROAD_TARGETS } from './provider.js';
 import type { PanoramaProvider, PanoramaTarget } from './provider.js';
 
 type Weather = GeographicIntelligence['weather'];
@@ -28,6 +29,22 @@ export type IntelligenceLookup = (
   lat: number,
   lon: number,
 ) => Promise<GeographicIntelligence>;
+
+/**
+ * An endless session eventually plays through the entire finite
+ * `ROAD_TARGETS` pool. R08: while an unused location remains, it must never
+ * repeat one already played this session (full history stays excluded). Once
+ * every location has been used at least once, repeats become unavoidable —
+ * at that point only the single most-recently played target is excluded, so
+ * the next round merely avoids an *immediate* repeat instead of refusing to
+ * start (which would otherwise fail forever past round `ROAD_TARGETS.length`).
+ */
+export function nextExclusions(usedIndices: readonly number[]): number[] {
+  const playedAtLeastOnce = new Set(usedIndices).size;
+  if (playedAtLeastOnce < ROAD_TARGETS.length) return [...usedIndices];
+  const mostRecent = usedIndices.at(-1);
+  return mostRecent === undefined ? [] : [mostRecent];
+}
 
 /** Bounds the outer weather-validation loop; the provider's own candidate
  * exhaustion (ROAD_TARGETS.length) bounds it further. Never infinite. */

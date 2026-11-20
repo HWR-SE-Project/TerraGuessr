@@ -1,44 +1,40 @@
 import { GameDialog } from './GameDialog'
 
 export interface ExitDialogError {
-  action: 'save' | 'leave'
+  action: 'end'
   message: string
 }
 
 /**
- * Exit confirmation for an in-progress expedition. Every round/guess is
- * already persisted server-side as it happens — "Save & Exit" confirms the
- * session is still reachable before the player walks away believing that;
- * "Leave Game" explicitly abandons it instead of just hoping they come back.
+ * Exit confirmation for an in-progress expedition (R06: no Save & Exit / no
+ * resume). Ending is permanent — the active session is finalized server-side
+ * and can never be continued again — so this always asks first rather than
+ * abandoning silently.
  */
 export function ExitGameDialog({
   onContinue,
-  onSaveExit,
-  onLeave,
+  onEnd,
   pending,
   error,
   round,
-  roundsTotal,
   score,
 }: {
   onContinue: () => void
-  onSaveExit: () => void
-  onLeave: () => void
-  pending: 'save' | 'leave' | null
+  onEnd: () => void
+  pending: 'end' | null
   error: ExitDialogError | null
   round: number
-  roundsTotal: number
   score: number
 }) {
   const busy = pending !== null
   return (
-    <GameDialog title="Leave this game?" onClose={onContinue}>
+    <GameDialog title="End your adventure?" onClose={onContinue}>
       <p className="sp-muted">
-        You have a game in progress. Would you like to save your progress
-        and continue later, or leave this game?
+        Your current game will end. You won&apos;t be able to continue this
+        session afterward.
       </p>
       <p className="sp-exit-recap">
-        Round {round} of {roundsTotal} · {score.toLocaleString('en-US')} pts
+        Round {round} · {score.toLocaleString('en-US')} pts
       </p>
       {error && (
         <p className="sp-dialog-error" role="alert">
@@ -53,29 +49,17 @@ export function ExitGameDialog({
           disabled={busy}
           autoFocus
         >
-          Continue Playing
-        </button>
-        <button
-          type="button"
-          className="sp-secondary tg-control"
-          onClick={onSaveExit}
-          disabled={busy}
-        >
-          {pending === 'save' ? 'Saving…' : 'Save & Exit'}
+          Keep Playing
         </button>
         <button
           type="button"
           className="sp-secondary tg-control tg-control--danger"
-          onClick={onLeave}
+          onClick={onEnd}
           disabled={busy}
         >
-          {pending === 'leave' ? 'Leaving…' : 'Leave Game'}
+          {pending === 'end' ? 'Ending…' : 'End Game'}
         </button>
       </div>
-      <p className="sp-dialog-hint">
-        Saved automatically and resumable from this browser for up to 24
-        hours. Closing this tab ends your ability to resume it.
-      </p>
     </GameDialog>
   )
 }

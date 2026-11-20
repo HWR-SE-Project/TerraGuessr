@@ -82,7 +82,7 @@ test.describe('Street View singleplayer without credentials', () => {
     await expect(
       page.getByRole('button', { name: 'Restart game' }),
     ).toBeDisabled()
-    await page.getByRole('button', { name: 'Resume game' }).click()
+    await page.getByRole('button', { name: /Back to game/ }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
   })
   test('touch map expands within the viewport and all corner controls remain reachable', async ({
@@ -98,7 +98,7 @@ test.describe('Street View singleplayer without credentials', () => {
     expect(bounds!.x).toBeGreaterThanOrEqual(0)
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390)
     await page.getByRole('button', { name: 'Game menu' }).click()
-    await page.getByRole('button', { name: 'Resume game' }).click()
+    await page.getByRole('button', { name: /Back to game/ }).click()
     await page.getByRole('button', { name: 'Shrink map', exact: true }).click()
     await page.mouse.move(1, 1)
     for (const width of [320, 390, 701, 768, 1024, 1280, 1792]) {

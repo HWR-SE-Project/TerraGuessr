@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { LatLon } from '../../api/types'
 import type { StreetResult } from '../../api/singleplayer'
 import { browserMapsKey, loadGoogleMaps, onMapsAuthFailure } from './googleMaps'
@@ -8,11 +9,16 @@ export function GuessMap({
   onChange,
   results = [],
   interactive = true,
+  countryBorders = true,
+  fallback,
 }: {
   guess?: LatLon | null
   onChange?: (point: LatLon) => void
   results?: StreetResult[]
   interactive?: boolean
+  countryBorders?: boolean
+  /** Optional, explicitly labeled tutorial practice when the provider is unavailable. */
+  fallback?: ReactNode
 }) {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<google.maps.Map | null>(null)
@@ -28,11 +34,13 @@ export function GuessMap({
   }, [onChange])
   const initialResults = useRef(results)
   const [error, setError] = useState<string | null>(null)
+  const [tilesReady, setTilesReady] = useState(false)
   const [retry, setRetry] = useState(0)
   useEffect(() => {
     if (!browserMapsKey()) return
     let cancelled = false
     let observer: ResizeObserver | null = null
+    let resizeFrame = 0
     let tilesTimer: ReturnType<typeof setTimeout>
     const unsubscribe = onMapsAuthFailure(() =>
       setError('Map access denied. Check Maps API configuration.'),
@@ -54,8 +62,13 @@ export function GuessMap({
           zoomControl: true,
           zoomControlOptions: { position: maps.ControlPosition.LEFT_TOP },
           backgroundColor: '#c5d3d7',
+          styles: countryBorders ? [] : [
+            { featureType: 'administrative.country', stylers: [{ visibility: 'off' }] },
+            { featureType: 'administrative.province', stylers: [{ visibility: 'off' }] },
+          ],
         })
         setError(null)
+        setTilesReady(false)
         map.current = instance
         tilesTimer = setTimeout(() => {
           if (!cancelled)
@@ -65,7 +78,10 @@ export function GuessMap({
         }, 20000)
         instance.addListener('tilesloaded', () => {
           clearTimeout(tilesTimer)
-          if (!cancelled) setError(null)
+          if (!cancelled) {
+            setError(null)
+            setTilesReady(true)
+          }
         })
         instance.addListener('click', (event: google.maps.MapMouseEvent) => {
           if (canSelect.current && event.latLng)
@@ -125,7 +141,12 @@ export function GuessMap({
           })
         }
         observer = new ResizeObserver(() => {
+          cancelAnimationFrame(resizeFrame)
+          resizeFrame = requestAnimationFrame(() => {
+          if (cancelled || !container.current?.clientWidth || !container.current.clientHeight) return
+          const center = instance.getCenter()
           maps.event.trigger(instance, 'resize')
+          if (center) instance.setCenter(center)
           if (initialResults.current.length) {
             const b = new maps.LatLngBounds()
             initialResults.current.forEach((r) => {
@@ -134,6 +155,7 @@ export function GuessMap({
             })
             instance.fitBounds(b, 56)
           }
+          })
         })
         observer.observe(container.current)
       })
@@ -145,13 +167,14 @@ export function GuessMap({
       clearTimeout(tilesTimer)
       unsubscribe()
       observer?.disconnect()
+      cancelAnimationFrame(resizeFrame)
       overlays.forEach((overlay) => overlay.setMap(null))
       marker.current?.setMap(null)
       marker.current = null
       if (map.current) google.maps.event.clearInstanceListeners(map.current)
       map.current = null
     }
-  }, [retry])
+  }, [retry, countryBorders])
   // Synchronize the pin after map initialization, including saved guesses.
   // Changing editability preserves the map, its zoom, and its center.
   useEffect(() => {
@@ -200,11 +223,12 @@ export function GuessMap({
     return () => {
       cancelled = true
     }
-  }, [guess, interactive, retry])
+  }, [guess, interactive, retry, countryBorders])
   return (
     <div className="sp-map-surface">
       <div
         className="sp-google-map"
+        data-tiles-ready={tilesReady}
         ref={container}
         aria-label={
           interactive
@@ -212,14 +236,14 @@ export function GuessMap({
             : 'Round result map'
         }
       />
-      {!browserMapsKey() && (
+      {fallback && (!browserMapsKey() || error) ? fallback : !browserMapsKey() && (
         <div className="sp-map-unavailable">
           <span aria-hidden="true">◎</span>
           <strong>World map</strong>
           <small>Google Maps browser key is missing</small>
         </div>
       )}
-      {error && (
+      {error && !fallback && (
         <div className="sp-map-failure" role="alert">
           <p>{error}</p>
           <button className="tg-control tg-control--light" onClick={() => setRetry((r) => r + 1)}>Retry map</button>

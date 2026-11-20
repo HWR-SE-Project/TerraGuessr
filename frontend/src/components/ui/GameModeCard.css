@@ -1,132 +1,104 @@
-/* Layout belongs to the card; materials and tactile states come from tg-control. */
+/* Layout belongs to the card; materials and tactile states come from tg-control.
+   Light, airy glass: low-opacity fills so the cosmic background stays
+   visible through the controls instead of reading as solid panels. */
 #root .tg-control.tg-mode-card {
-  --control-fill: #142640b8;
-  --control-edge: #bddbff38;
-  --control-shading: linear-gradient(145deg, #95c7ff14, #20365208 55%, #060d191c);
-  --control-reflection: radial-gradient(ellipse at 0% 0%, #b4d8ff18, transparent 72%);
-  --control-inner: inset 0 1px #e5f2ff30, inset 0 -1px #02091742;
-  --control-shadow: 0 12px 28px #01061030;
+  --control-fill: #13223a42;
+  --control-edge: #bcdcf724;
+  --control-shading: linear-gradient(145deg, #95c7ff0c, #20365204 55%, #060d1910);
+  --control-reflection: radial-gradient(ellipse at 0% 0%, #b4d8ff10, transparent 72%);
+  --control-inner: inset 0 1px #e5f2ff1c, inset 0 -1px #02091730;
+  --control-shadow: 0 6px 18px #0106101c;
   position: relative;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 10px;
   min-width: 0;
-  min-height: 124px;
-  padding: 24px;
-  border-radius: var(--radius-panel);
+  min-height: 60px;
+  padding: 11px 14px;
+  border-radius: var(--radius-card);
 }
 #root .tg-control.tg-mode-card--primary {
-  --control-fill: #b8e977e6;
-  --control-edge: #e3ffb8a6;
-  --control-shading: linear-gradient(155deg, #f3ffdb38, #d0fa9b10 50%, #52883721);
-  --control-reflection: radial-gradient(ellipse at 0% 0%, #f5ffe86b, transparent 75%);
-  --control-inner: inset 0 1px #f3ffe3a3, inset 0 -1px #42632d38;
-  --control-shadow: 0 12px 32px #00000024, 0 0 32px #b6ed690a;
+  --control-fill: #b8e97730;
+  --control-ink: #eafcd3;
+  --control-edge: #d8ffa155;
+  --control-shading: linear-gradient(155deg, #f3ffdb24, #d0fa9b0a 50%, #52883712);
+  --control-reflection: radial-gradient(ellipse at 0% 0%, #f5ffe842, transparent 75%);
+  --control-inner: inset 0 1px #f3ffe368, inset 0 -1px #42632d20;
+  --control-shadow: 0 6px 20px #00000014, 0 0 20px #b6ed6912;
 }
 .tg-mode-card__icon {
   display: grid;
   place-items: center;
-  flex: 0 0 52px;
-  height: 52px;
-  border-radius: 18px;
-  border: 1px solid #b9dbff30;
-  background: linear-gradient(145deg, #a3d0ff1a, #70a8ed08);
-  box-shadow: inset 0 1px #eef7ff26, 0 4px 10px #01061014;
-  color: #c8e3ff;
+  flex: 0 0 30px;
+  height: 30px;
+  color: #bcd6f0;
 }
 .tg-mode-card--primary .tg-mode-card__icon {
-  color: #294421;
-  background: linear-gradient(145deg, #f6ffe65c, #efffdd1a);
-  border-color: #42642b26;
-  box-shadow: inset 0 1px #f6ffe6a3, 0 4px 10px #35541b0d;
+  color: #d9f3a8;
 }
 .tg-mode-card__icon .th-icon {
-  width: 26px;
-  height: 26px;
+  width: 18px;
+  height: 18px;
   transition: rotate var(--duration-panel) var(--ease-out), scale var(--duration-panel) var(--ease-out);
 }
 .tg-mode-card__copy { min-width: 0; }
 .tg-mode-card strong {
   display: block;
-  font-size: 1.25rem;
+  font-size: 0.9375rem;
   line-height: 1.3;
-  font-weight: 650;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 .tg-mode-card small {
   display: block;
-  margin-top: 6px;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  line-height: 1.4;
   font-weight: 450;
-  color: #bdcde0;
+  color: #aebed2;
 }
-.tg-mode-card--primary small { color: #344f28; }
+.tg-mode-card--primary small { color: #cfe3a8; }
 .tg-mode-card__arrow {
   display: grid;
   place-items: center;
   margin-left: auto;
-  flex: 0 0 28px;
-  height: 28px;
-  border: 1px solid #c8e1ff1a;
-  border-radius: 50%;
-  background: #bedcff08;
-  color: #c0d7ef;
-  transition: translate var(--duration-panel) var(--ease-out), background var(--duration-panel) var(--ease-out);
+  flex: 0 0 18px;
+  height: 18px;
+  color: #9fb4c9;
+  transition: translate var(--duration-panel) var(--ease-out), color var(--duration-panel) var(--ease-out);
 }
-.tg-mode-card__arrow .th-icon { width: 15px; height: 15px; }
+.tg-mode-card__arrow .th-icon { width: 14px; height: 14px; }
 .tg-mode-card--primary .tg-mode-card__arrow {
-  color: #344f28;
-  border-color: #36512226;
-  background: #f7ffe328;
+  color: #cfe3a8;
 }
 @media (hover: hover) and (pointer: fine) {
   #root .tg-control.tg-mode-card:hover {
-    --control-edge: #c8e5ff80;
-    --control-shadow: 0 18px 36px #01061045, 0 0 24px #90c8ff08;
-    translate: 0 -4px;
-    scale: 1.012;
+    --control-fill: #16263f52;
+    --control-edge: #c8e5ff40;
+    --control-shadow: 0 10px 24px #01061024;
+    translate: 0 -2px;
   }
   #root .tg-control.tg-mode-card--primary:hover {
-    --control-edge: #efffd6d9;
-    --control-shadow: 0 18px 36px #01061038, 0 0 28px #c0f66b14;
+    --control-fill: #b8e9773e;
+    --control-edge: #e3ffb866;
+    --control-shadow: 0 10px 24px #00000018, 0 0 22px #b6ed691a;
   }
-  .tg-mode-card:hover .tg-mode-card__icon .th-icon { rotate: -5deg; scale: 1.06; }
-  .tg-mode-card:hover .tg-mode-card__arrow { translate: 2px 0; background: #efffff16; }
+  .tg-mode-card:hover .tg-mode-card__icon .th-icon { scale: 1.06; }
+  .tg-mode-card:hover .tg-mode-card__arrow { translate: 2px 0; color: #e7f0fa; }
+  .tg-mode-card--primary:hover .tg-mode-card__arrow { color: #eafcd3; }
 }
-#root .tg-control.tg-mode-card:active { translate: 0 1px; scale: 0.985; }
+#root .tg-control.tg-mode-card:active { translate: 0 1px; scale: 0.99; }
 @media (min-width: 601px) and (max-width: 1100px) {
-  #root .tg-control.tg-mode-card { gap: 12px; padding: 20px 16px; }
-  .tg-mode-card__icon { flex-basis: 44px; height: 44px; border-radius: 16px; }
-  .tg-mode-card strong { font-size: 1.0625rem; }
+  #root .tg-control.tg-mode-card { gap: 8px; padding: 10px 12px; }
+  .tg-mode-card__icon { flex-basis: 28px; height: 28px; }
+  .tg-mode-card strong { font-size: 0.8125rem; }
   .tg-mode-card__arrow { display: none; }
 }
-@media (max-width: 600px) {
-  #root .tg-control.tg-mode-card {
-    min-height: 140px;
-    padding: 16px;
-    gap: 11px;
-    flex-direction: column;
-    align-items: flex-start;
-    border-radius: 22px;
-  }
-  .tg-mode-card__icon { flex-basis: 38px; width: 38px; height: 38px; border-radius: 13px; }
-  .tg-mode-card__icon .th-icon { width: 22px; height: 22px; }
-  .tg-mode-card strong { font-size: 1rem; }
-  .tg-mode-card small { margin-top: 4px; font-size: 0.75rem; }
+@media (max-width: 37.5rem) {
+  #root .tg-control.tg-mode-card { min-height: 3.25rem; padding: 0.5625rem 0.75rem; gap: 0.5rem; }
+  .tg-mode-card__icon { flex-basis: 1.625rem; height: 1.625rem; }
+  .tg-mode-card__icon .th-icon { width: 16px; height: 16px; }
   .tg-mode-card__arrow { display: none; }
-  #root .tg-control.tg-mode-card--primary {
-    grid-column: 1 / -1;
-    min-height: 88px;
-    padding: 18px 20px;
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-  }
-  .tg-mode-card--primary .tg-mode-card__icon { flex-basis: 48px; width: 48px; height: 48px; border-radius: 16px; }
-  .tg-mode-card--primary strong { font-size: 1.1875rem; }
-  .tg-mode-card--primary small { font-size: 0.8125rem; }
-  .tg-mode-card--primary .tg-mode-card__arrow { display: grid; }
 }
 @media (prefers-reduced-motion: reduce) {
   #root .tg-control.tg-mode-card:is(:hover, :active),
@@ -135,5 +107,5 @@
 }
 @media (prefers-reduced-transparency: reduce) {
   #root .tg-control.tg-mode-card { --control-fill: #182b43; }
-  #root .tg-control.tg-mode-card--primary { --control-fill: #b8e977; }
+  #root .tg-control.tg-mode-card--primary { --control-fill: #b8e977; --control-ink: #182b16; }
 }

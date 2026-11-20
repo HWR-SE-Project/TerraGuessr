@@ -182,7 +182,7 @@ describe('map and panorama controls (explicit SDK doubles, no imagery)', () => {
       pano: 'test-only-panorama',
       linksControl: true,
       clickToGo: true,
-      zoomControl: true,
+      zoomControl: false,
       addressControl: false,
       showRoadLabels: false,
     })
@@ -233,4 +233,13 @@ it('preserves the map instance and selected pin while a guess locks/unlocks', as
   )
   expect(maps).toHaveLength(1)
   expect(pins).toHaveLength(1)
+})
+
+it.each([true, false])('renders real map country borders = %s (Medium / Hard)', async countryBorders => {
+  render(<GuessMap countryBorders={countryBorders} />)
+  await waitFor(() => expect(maps).toHaveLength(1))
+  expect(maps[0]!.options.styles).toEqual(countryBorders ? [] : [
+    { featureType: 'administrative.country', stylers: [{ visibility: 'off' }] },
+    { featureType: 'administrative.province', stylers: [{ visibility: 'off' }] },
+  ])
 })

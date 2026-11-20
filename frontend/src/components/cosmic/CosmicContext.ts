@@ -4,7 +4,7 @@ import type { CharacterStatus } from '../../pages/home/scene/CharacterModel'
 
 export interface HomeSceneBinding {
   onCharacterStatus: (status: CharacterStatus) => void
-  onFeetPixelY?: (y: number | null) => void
+  onFeetOffset?: (y: number | null) => void
 }
 
 export const CosmicContext = createContext<{

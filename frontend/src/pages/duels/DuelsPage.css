@@ -2,7 +2,7 @@
   --lime: var(--color-lime);
   position: relative;
   isolation: isolate;
-  min-height: max(900px, 100svh);
+  min-height: 100svh;
   overflow: clip;
   background: var(--color-bg);
   color: var(--color-text);
@@ -276,3 +276,11 @@
     width: min(405px, calc(100vw - 16px));
   }
 }
+
+.td-arena { isolation: isolate; }
+.td-characters, .td-blades, .td-player-glow { pointer-events: none; }
+.td-characters { max-width: 100%; }
+.td-play { min-width: min(16.25rem, 100%); }
+.td-title h1 { font-size: clamp(2.5rem, 8vw, 5.75rem); }
+.td-title > p { font-size: 0.875rem; }
+.td-player-label { font-size: 0.75rem; }

@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 
 // Real Google SDK, imagery, tiles, backend and database. No route interception,
 // credentials in artifacts, seeded responses, or replacement panorama images.
-test('live Google: Home to five rounds, final results, new game, and Home', async ({
+test('live Google: Home through six endless rounds, End Game summary, new game, and Home', async ({
   page,
 }) => {
   test.skip(
@@ -27,13 +27,18 @@ test('live Google: Home to five rounds, final results, new game, and Home', asyn
     errors: string[]
     cameraMoved?: boolean
     streetNavigated?: boolean
+    continuedPastFiveRounds?: boolean
+    keptPlayingAfterExitPrompt?: boolean
+    ended?: boolean
     restarted?: boolean
+    endedEmptySession?: boolean
     returnedHome?: boolean
   } = {
     provider: 'Google Maps JavaScript API / Google Street View',
     rounds: [],
     errors,
   }
+  const ROUNDS = 6 // Past the old five-round cap — proves endless continuation (R01).
   const waitForPanorama = async () => {
     const viewer = page.locator('.sp-panorama')
     // A disconnected panorama is replaced explicitly in its current round.
@@ -87,9 +92,17 @@ test('live Google: Home to five rounds, final results, new game, and Home', asyn
     } catch {
       // Already seen in this profile this run; nothing to dismiss.
     }
-    for (let number = 1; number <= 5; number++) {
+    for (let number = 1; number <= ROUNDS; number++) {
       const viewer = await waitForPanorama()
       await expect(page.locator('.sp-welcome')).toHaveCount(0)
+      await expect(page.locator('.sp-hud')).toContainText(`${number}`)
+      if (number === 6) {
+        // Past the old five-round cap: the game kept going without a forced
+        // final-results transition (R01/endless mode).
+        await page.waitForTimeout(500)
+        await page.screenshot({ path: `${out}/round-six.png` })
+        report.continuedPastFiveRounds = true
+      }
       if (number === 1) {
         await page.waitForTimeout(1500) // Allow actual imagery tiles to paint before capture.
         await page.screenshot({ path: `${out}/active-desktop.png` })
@@ -103,8 +116,8 @@ test('live Google: Home to five rounds, final results, new game, and Home', asyn
           .not.toBe(heading)
         report.cameraMoved = true
         const pano = await viewer.getAttribute('data-panorama')
-        await viewer.focus()
-        await page.keyboard.press('ArrowUp')
+        // Follow a real connected street; forward can have no link at this POV.
+        await viewer.getByRole('button', { name: /^Go / }).first().click()
         await expect
           .poll(() => viewer.getAttribute('data-panorama'), { timeout: 15000 })
           .not.toBe(pano)
@@ -163,16 +176,33 @@ test('live Google: Home to five rounds, final results, new game, and Home', asyn
         await page.waitForTimeout(1500)
         await page.screenshot({ path: `${out}/round-results.png` })
       }
-      await page
-        .getByRole('button', {
-          name: number === 5 ? 'View final results' : 'Next round',
-        })
-        .click()
+      // Always "Next round" — endless mode never offers a final-results
+      // branch tied to a fixed round count. Stop at the last round's
+      // results instead of advancing into a 7th round.
+      if (number < ROUNDS)
+        await page.getByRole('button', { name: 'Next round' }).click()
     }
+    // Exiting mid-game always confirms first, and "Keep Playing" truly keeps
+    // the session active rather than ending it.
+    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    const exitDialog = page.getByRole('dialog', { name: 'End your adventure?' })
+    await expect(exitDialog).toBeVisible()
+    await page.waitForTimeout(300)
+    await page.screenshot({ path: `${out}/end-game-confirm.png` })
+    await exitDialog.getByRole('button', { name: 'Keep Playing' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page.locator('.sp-hud')).toContainText(`${ROUNDS}`)
+    report.keptPlayingAfterExitPrompt = true
+    // Now actually end the game — this finalizes the session and shows its summary.
+    await page.getByRole('button', { name: 'Return', exact: true }).click()
+    await page
+      .getByRole('dialog', { name: 'End your adventure?' })
+      .getByRole('button', { name: 'End Game' })
+      .click()
     await expect(
       page.getByRole('region', { name: 'Final results' }),
     ).toBeVisible()
-    await expect(page.locator('.sp-round-list details')).toHaveCount(5)
+    await expect(page.locator('.sp-round-list details')).toHaveCount(ROUNDS)
     await expect(page.getByLabel('Total distance')).toBeVisible()
     await expect(page.locator('.sp-final .sp-earned strong')).toHaveText(
       report.rounds
@@ -181,14 +211,21 @@ test('live Google: Home to five rounds, final results, new game, and Home', asyn
     )
     await page.waitForTimeout(1500)
     await page.screenshot({ path: `${out}/final-results.png` })
+    report.ended = true
     await page.getByRole('button', { name: 'Play again' }).click()
+    await page.getByRole('dialog', { name: 'How to play / Tutorial' }).getByRole('button', { name: 'Skip' }).click()
     await waitForPanorama()
     report.restarted = true
+    // Ending again immediately, before completing any rounds, must show the
+    // empty-session state rather than fabricated results.
     await page.getByRole('button', { name: 'Return', exact: true }).click()
     await page
-      .getByRole('dialog', { name: 'Leave this game?' })
-      .getByRole('button', { name: 'Save & Exit' })
+      .getByRole('dialog', { name: 'End your adventure?' })
+      .getByRole('button', { name: 'End Game' })
       .click()
+    await expect(page.getByText('No rounds played yet.')).toBeVisible()
+    report.endedEmptySession = true
+    await page.getByRole('button', { name: 'Return home' }).click()
     await expect(page).toHaveURL(/\/$/)
     report.returnedHome = true
     expect(errors).toEqual([])
@@ -200,7 +237,7 @@ test('live Google: Home to five rounds, final results, new game, and Home', asyn
   }
 })
 
-test('live Google mobile: touch map, preserve pin through collapse and refresh, and submit', async ({
+test('live Google mobile: touch map, preserve pin through collapse, refuse to resume after refresh, and submit', async ({
   browser,
   baseURL,
 }) => {
@@ -269,12 +306,33 @@ test('live Google mobile: touch map, preserve pin through collapse and refresh, 
       page.getByRole('button', { name: 'Guess', exact: true }),
     ).toBeEnabled()
     const chosen = await page.locator('.sp-map-footer > span').innerText()
+    expect(chosen).not.toBe('Where in the world are you?')
+    // R13: the browser's own generic beforeunload prompt still guards an
+    // in-progress session (no custom text), but accepting it must not
+    // silently promise the game comes back afterward.
     page.once('dialog', (dialog) => void dialog.accept())
     await page.reload()
+    await expect(page.locator('.sp-welcome')).toBeVisible()
+    await expect(page.locator('.sp-panorama')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Back to game' })).toHaveCount(0)
+    // A fresh game starts cleanly after the refresh — no resumed round, pin, or score.
+    await page.getByRole('button', { name: 'Start exploring' }).click()
+    const skipAfterReload = page.getByRole('button', { name: 'Skip' })
+    try {
+      await skipAfterReload.waitFor({ state: 'visible', timeout: 8_000 })
+      await skipAfterReload.click()
+    } catch {
+      // Already seen in this profile this run; nothing to dismiss.
+    }
     await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
       timeout: 40_000,
     })
-    await expect(page.locator('.sp-map-footer > span')).toHaveText(chosen)
+    await page.getByRole('button', { name: 'Expand map', exact: true }).tap()
+    const freshMap = page.locator('.sp-guess-panel .sp-google-map')
+    await freshMap.tap({ position: { x: 150, y: 160 } })
+    await expect(
+      page.getByRole('button', { name: 'Guess', exact: true }),
+    ).toBeEnabled()
     await page.getByRole('button', { name: 'Guess', exact: true }).tap()
     await expect(
       page.getByRole('region', { name: 'Round results' }),
