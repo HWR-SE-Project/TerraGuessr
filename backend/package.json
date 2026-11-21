@@ -14,11 +14,7 @@
     "test": "vitest run --exclude '**/integration/**'",
     "lint": "eslint .",
     "test:integration": "vitest run test/integration --no-file-parallelism",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:init": "prisma migrate deploy && npm run db:seed"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "db:init": "prisma migrate deploy"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.0",

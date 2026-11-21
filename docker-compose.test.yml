@@ -49,7 +49,6 @@ services:
       CORS_ORIGIN: http://localhost:8080
       # nginx proxies /api, so trust exactly that one hop for client IPs.
       TRUST_PROXY: "1"
-      ADMIN_API_TOKEN: test-admin-token
       OPEN_METEO_BASE_URL: http://fake-weather:4000
       LOG_LEVEL: warn
     ports:

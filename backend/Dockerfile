@@ -39,8 +39,6 @@ RUN apk add --no-cache openssl
 
 # node_modules is copied in full so the prisma CLI is available for the
 # migration step below (intentional: image size is traded for correctness).
-# src is also needed at runtime: prisma/seed.ts imports from ../src/... and is
-# executed via tsx (not the compiled dist/), so it must resolve here too (P0-1).
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/src ./src
@@ -53,7 +51,6 @@ USER node
 
 EXPOSE 3000
 
-# Apply pending migrations, seed the location pool (idempotent — skips once
-# the pool is already populated, see prisma/seed.ts), then start the HTTP
-# server. DATABASE_URL is supplied by docker compose (from .env).
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node dist/server.js"]
+# Apply pending migrations, then start the HTTP server. DATABASE_URL is
+# supplied by docker compose (from .env).
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]

@@ -21,12 +21,16 @@ the sandbox — they require a live database.
 ### Reference
 
 - Source of truth: `docs/architecture/data-model.md` → "Finalized Prisma schema (Phase 1 authoritative)".
-- Schema defines: enums `Region`, `GameMode`, `Difficulty`, `GameStatus`,
-  `RoundStatus`, `LocationSrc`, `WeatherSrc`; models `Location`,
-  `WeatherSnapshot`, `Game`, `Round`, `Guess`, `Result`, `Challenge`,
-  `ChallengeEntry`.
+- Schema defines: enums `Difficulty`, `GameMode`, `LobbyStatus`; models `User`,
+  `AuthSession`, `PasswordResetToken`, `EmailVerificationToken`,
+  `EmailChangeRequest`, `UserPreference`, `Lobby`, `LobbyMember`, `LobbyRound`,
+  `LobbyRoundAttempt`, `LobbyRoundResult`, `LobbyRoundMemberState`,
+  `StreetGame`, `StreetRound`, `StreetRoundAttempt`, `GameResult`.
 
 Account migration `20261115150000_user_auth` is additive. Existing games keep their
 anonymous player-token hashes and receive a nullable `ownerUserId`; account deletion
 sets that relation to null and cascades only identity, sessions, reset tokens, and
-preferences. Existing games/results remain under R18 retention.
+preferences. R18 retention lives in `GameResult`: signed-in players' completed solo and
+multiplayer rounds are archived, `userId` is nullable only so account deletion can
+anonymise a row, and `20261121160000_game_result_retention` adds the archive and the
+daily purge wiring.

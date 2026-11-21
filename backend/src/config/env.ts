@@ -6,7 +6,6 @@ export interface Env {
   port: number;
   /** false disables CORS entirely (same-origin only) — the safe default (Phase C). */
   corsOrigin: string | false;
-  adminApiToken: string;
   openMeteoBaseUrl: string;
   openMeteoApiKey?: string;
   logLevel: string;
@@ -66,7 +65,6 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     // cross-origin requests entirely rather than allowing any origin.
     // docker-compose.*.yml always sets this explicitly for real deployments.
     corsOrigin: env.CORS_ORIGIN?.trim() || false,
-    adminApiToken: env.ADMIN_API_TOKEN ?? '',
     openMeteoBaseUrl:
       env.OPEN_METEO_BASE_URL?.trim() || DEFAULT_OPEN_METEO_BASE_URL,
     openMeteoApiKey: env.OPEN_METEO_API_KEY?.trim() || undefined,

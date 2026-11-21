@@ -1,7 +1,7 @@
 // Deterministic stand-in for Open-Meteo (ADR-0012): e2e must never depend on
-// live egress or real weather. Serves the exact /v1/forecast shape
-// OpenMeteoClient (src/modules/weather/client.ts) parses, with fixed values,
-// for any latitude/longitude. Zero dependencies — plain Node http.
+// live egress or real weather. Serves the exact /v1/forecast shape the
+// intelligence provider (src/modules/intelligence/service.ts) parses, with
+// fixed values, for any latitude/longitude. Zero dependencies — plain Node http.
 import { createServer } from 'node:http';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
