@@ -166,7 +166,7 @@ export function SettingsPage() {
       <>
         <AppHeader />
         <main className="settings-screen">
-          <p style={{ color: 'rgba(255,255,255,0.6)' }}>Loading…</p>
+          <p className="settings-note">Loading…</p>
         </main>
       </>
     )
@@ -227,13 +227,9 @@ export function SettingsPage() {
 
               <div className="settings-row">
                 <h2 className="settings-row__label">Email</h2>
-                <div style={{ display: 'grid', gap: 12 }}>
+                <div className="settings-email">
                   <div className="settings-inline-group">
-                    <span
-                      style={{ color: 'rgba(255,255,255,0.75)', fontSize: 16 }}
-                    >
-                      {user.email}
-                    </span>
+                    <span className="settings-email-address">{user.email}</span>
                     <Button variant="secondary"
                       type="button"
                       className="settings-save-btn"
@@ -250,10 +246,7 @@ export function SettingsPage() {
                     <span className="settings-inline-message">{emailMessage}</span>
                   )}
                   {emailFormOpen && (
-                    <form
-                      onSubmit={submitEmailChange}
-                      style={{ display: 'grid', gap: 10, maxWidth: 420 }}
-                    >
+                    <form className="settings-email-form" onSubmit={submitEmailChange}>
                       <Input
                         type="email"
                         required
@@ -276,15 +269,14 @@ export function SettingsPage() {
                           }
                         />
                       )}
-                      <p className="settings-note" style={{ margin: 0 }}>
+                      <p className="settings-note">
                         We will email both your current address and the new one.
                         The change applies only after both confirm.
                       </p>
                       <Button
                         type="submit"
-                        className="settings-save-btn"
+                        className="settings-save-btn settings-email-submit"
                         disabled={emailBusy || !newEmail.trim()}
-                        style={{ justifySelf: 'start' }}
                       >
                         {emailBusy ? 'Sending…' : 'Send confirmation'}
                       </Button>
@@ -312,7 +304,7 @@ export function SettingsPage() {
               <div className="settings-row">
                 <h2 className="settings-row__label">Delete account</h2>
                 <div>
-                  <p className="settings-note" style={{ marginBottom: 12 }}>
+                  <p className="settings-note settings-note--spaced">
                     Permanently deletes your account and preferences. Past games
                     and results are kept, anonymized.
                   </p>
@@ -416,11 +408,10 @@ export function SettingsPage() {
           <Input
             type="password"
             aria-label="Current password"
-            className="settings-text-input"
             placeholder="Current password (if set)"
+            className="settings-text-input settings-delete-password"
             value={deletePassword}
             onChange={(event) => setDeletePassword(event.target.value)}
-            style={{ width: '100%', marginBottom: 8 }}
           />
           {deleteError && (
             <p className="settings-inline-message settings-inline-message--error">

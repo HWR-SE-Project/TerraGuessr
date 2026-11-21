@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { PLAYER_TOKEN_STORAGE_KEY, apiFetch, getPlayerToken, setPlayerToken } from './client'
+import { PLAYER_TOKEN_STORAGE_KEY, apiFetch, getPlayerToken } from './client'
+
+const setPlayerToken = (token: string) => localStorage.setItem(PLAYER_TOKEN_STORAGE_KEY, token)
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -86,7 +88,7 @@ describe('player token storage', () => {
     setPlayerToken('abc')
     expect(getPlayerToken()).toBe('abc')
     expect(localStorage.getItem(PLAYER_TOKEN_STORAGE_KEY)).toBe('abc')
-    setPlayerToken(null)
+    localStorage.removeItem(PLAYER_TOKEN_STORAGE_KEY)
     expect(getPlayerToken()).toBeNull()
   })
 })

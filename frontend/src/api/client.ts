@@ -42,15 +42,6 @@ export function getPlayerToken(): string | null {
   return localStorage.getItem(PLAYER_TOKEN_STORAGE_KEY)
 }
 
-export function setPlayerToken(token: string | null): void {
-  if (typeof localStorage === 'undefined') return
-  if (!token) {
-    localStorage.removeItem(PLAYER_TOKEN_STORAGE_KEY)
-    return
-  }
-  localStorage.setItem(PLAYER_TOKEN_STORAGE_KEY, token)
-}
-
 function buildUrl(path: string): string {
   const base = getApiBaseUrl().replace(/\/+$/, '')
   if (/^https?:\/\//i.test(path)) return path
