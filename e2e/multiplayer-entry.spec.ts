@@ -199,7 +199,7 @@ test('live guests create, return, join in independent browsers and update member
 for (const width of [1711, 390]) {
   test(`shared navigation remains functional at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 864 })
-    for (const [label, path] of [['TerraGuessr home', '/'], ['Settings', '/settings'], ['Sign in', '/auth'], ['Help', '/game/singleplayer?tutorial=1']]) {
+    for (const [label, path] of [['TerraGuessr home', '/'], ['Settings', '/settings'], ['Sign in', '/auth'], ['How to play', '/how-to-play']]) {
       await page.goto('/multiplayer')
       if (width < 1200 && label !== 'TerraGuessr home' && label !== 'Sign in') await page.getByRole('button', { name: 'Open navigation' }).click()
       await page.getByRole('link', { name: label, exact: true }).filter({ visible: true }).click()

@@ -1,6 +1,8 @@
 import { Icon } from '../ui/Icon'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { spring, dropdownVariants, overlayVariants } from '../../lib/motion'
 
 const options = [
   { mode: 'create', title: 'Create a Lobby', description: 'Start a new game with friends.', icon: 'users' },
@@ -19,7 +21,26 @@ export function MultiplayerMenu({ mobileMenuOpen, onNavigate }: {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const itemRefs = useRef<Array<HTMLAnchorElement | null>>([])
   const initialFocus = useRef(0)
+  const focusOnOpen = useRef(false)
+  const hoverCloseTimeout = useRef<number | undefined>(undefined)
   const active = location.pathname.startsWith('/multiplayer') || location.pathname.startsWith('/lobby')
+
+  function canHover() {
+    return typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  }
+
+  function handlePointerEnter() {
+    if (!canHover()) return
+    window.clearTimeout(hoverCloseTimeout.current)
+    focusOnOpen.current = false
+    setOpen(true)
+  }
+
+  function handlePointerLeave() {
+    if (!canHover()) return
+    window.clearTimeout(hoverCloseTimeout.current)
+    hoverCloseTimeout.current = window.setTimeout(() => setOpen(false), 150)
+  }
 
   // Also reset on browser Back and when the containing mobile navigation closes.
   useEffect(() => {
@@ -29,7 +50,7 @@ export function MultiplayerMenu({ mobileMenuOpen, onNavigate }: {
 
   useEffect(() => {
     if (!open) return
-    itemRefs.current[initialFocus.current]?.focus()
+    if (focusOnOpen.current) itemRefs.current[initialFocus.current]?.focus()
     const outside = (event: PointerEvent) => {
       if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false)
     }
@@ -37,8 +58,11 @@ export function MultiplayerMenu({ mobileMenuOpen, onNavigate }: {
     return () => window.removeEventListener('pointerdown', outside)
   }, [open])
 
+  useEffect(() => () => window.clearTimeout(hoverCloseTimeout.current), [])
+
   function show(index = 0) {
     initialFocus.current = index
+    focusOnOpen.current = true
     setOpen(true)
     if (open) itemRefs.current[index]?.focus()
   }
@@ -79,6 +103,7 @@ export function MultiplayerMenu({ mobileMenuOpen, onNavigate }: {
   }
 
   return <div ref={rootRef} className="th-multiplayer" onKeyDown={handleKeyDown}
+    onMouseEnter={handlePointerEnter} onMouseLeave={handlePointerLeave}
     onBlur={event => {
       if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false)
     }}>
@@ -92,22 +117,30 @@ export function MultiplayerMenu({ mobileMenuOpen, onNavigate }: {
           show(event.key === 'ArrowUp' ? options.length - 1 : 0)
         }
       }}>
+      {active && <motion.span className="th-nav-pill" layoutId="th-nav-pill" transition={spring.gentle} />}
       Multiplayer <Icon name="chevron" className="th-multiplayer-chevron" />
     </button>
-    <div id={`${id}-menu`} className={`th-multiplayer-menu tg-glass${open ? ' th-multiplayer-menu-open' : ''}`}
-      role="menu" aria-labelledby={`${id}-trigger`} aria-hidden={!open} inert={!open}>
-      {options.map((option, index) => <Link key={option.mode} to={`/multiplayer/${option.mode}`}
-        ref={element => { itemRefs.current[index] = element }} role="menuitem" tabIndex={-1}
-        className="th-multiplayer-option" aria-labelledby={`${id}-${option.mode}-title`}
-        aria-describedby={`${id}-${option.mode}-description`}
-        onClick={() => { setOpen(false); onNavigate() }}>
-        <span className="th-multiplayer-icon"><Icon name={option.icon} /></span>
-        <span className="th-multiplayer-copy">
-          <span id={`${id}-${option.mode}-title`} className="th-multiplayer-title">{option.title}</span>
-          <span id={`${id}-${option.mode}-description`} className="th-multiplayer-description">{option.description}</span>
-        </span>
-        <Icon name="arrow" className="th-multiplayer-arrow" />
-      </Link>)}
-    </div>
+    <AnimatePresence>
+      {open && <motion.div key="backdrop" className="th-multiplayer-backdrop" aria-hidden="true"
+        variants={overlayVariants} initial="initial" animate="animate" exit="exit" />}
+    </AnimatePresence>
+    <AnimatePresence>
+      {open && <motion.div key="menu" id={`${id}-menu`} className="th-multiplayer-menu tg-glass"
+        role="menu" aria-labelledby={`${id}-trigger`}
+        variants={dropdownVariants} initial="initial" animate="animate" exit="exit">
+        {options.map((option, index) => <Link key={option.mode} to={`/multiplayer/${option.mode}`}
+          ref={element => { itemRefs.current[index] = element }} role="menuitem" tabIndex={-1}
+          className="th-multiplayer-option" aria-labelledby={`${id}-${option.mode}-title`}
+          aria-describedby={`${id}-${option.mode}-description`}
+          onClick={() => { setOpen(false); onNavigate() }}>
+          <span className="th-multiplayer-icon"><Icon name={option.icon} /></span>
+          <span className="th-multiplayer-copy">
+            <span id={`${id}-${option.mode}-title`} className="th-multiplayer-title">{option.title}</span>
+            <span id={`${id}-${option.mode}-description`} className="th-multiplayer-description">{option.description}</span>
+          </span>
+          <Icon name="arrow" className="th-multiplayer-arrow" />
+        </Link>)}
+      </motion.div>}
+    </AnimatePresence>
   </div>
 }

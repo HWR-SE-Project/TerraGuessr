@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { MotionConfig } from 'framer-motion'
 import './styles/global.css'
 import App from './App.tsx'
 import './styles/controls.css'
@@ -10,8 +11,10 @@ const router = createBrowserRouter([{ path: '*', element: <App /> }])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <SessionProvider>
-      <RouterProvider router={router} />
-    </SessionProvider>
+    <MotionConfig reducedMotion="user">
+      <SessionProvider>
+        <RouterProvider router={router} />
+      </SessionProvider>
+    </MotionConfig>
   </StrictMode>,
 )

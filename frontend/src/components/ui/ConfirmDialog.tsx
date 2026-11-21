@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
+import { motion } from 'framer-motion'
 import { Button } from './Button'
 import { Modal } from './Modal'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 import './ConfirmDialog.css'
 
 export interface ConfirmDialogProps {
@@ -28,21 +30,25 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal title={title} onClose={onCancel} closeDisabled={busy} className="tg-confirm-dialog" role="alertdialog">
-      {description && <p>{description}</p>}
-      {children}
-      <div className="tg-confirm-actions">
-        <Button variant="secondary" className="tg-confirm-cancel" onClick={onCancel} disabled={busy}>
-          {cancelLabel}
-        </Button>
-        <Button
-          variant={destructive ? 'danger' : 'primary'}
-          className="tg-confirm-confirm"
-          onClick={onConfirm}
-          disabled={busy}
-        >
-          {busy ? 'Please wait…' : confirmLabel}
-        </Button>
-      </div>
+      <motion.div variants={staggerContainer} initial="initial" animate="animate">
+        {description && (
+          <motion.p variants={staggerItem}>{description}</motion.p>
+        )}
+        {children && <motion.div variants={staggerItem}>{children}</motion.div>}
+        <motion.div variants={staggerItem} className="tg-confirm-actions">
+          <Button variant="secondary" className="tg-confirm-cancel" onClick={onCancel} disabled={busy}>
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={destructive ? 'danger' : 'primary'}
+            className="tg-confirm-confirm"
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? 'Please wait…' : confirmLabel}
+          </Button>
+        </motion.div>
+      </motion.div>
     </Modal>
   )
 }

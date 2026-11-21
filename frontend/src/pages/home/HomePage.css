@@ -7,7 +7,7 @@
   flex-direction: column;
   overflow: visible;
   background:
-    radial-gradient(ellipse at 50% 72%, #16304a66, transparent 58%),
+    radial-gradient(ellipse at 50% 72%, #2b214966, transparent 58%),
     var(--color-bg);
   color: var(--color-text);
 }
@@ -33,22 +33,22 @@
 }
 .th-hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(2.25rem, 4.4vw, 4.75rem);
-  line-height: 1.08;
-  letter-spacing: -0.055em;
-  font-weight: 650;
+  font-size: clamp(2.4rem, 4.4vw, 4.75rem);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  font-weight: 600;
   margin: 0.5rem 0;
 }
 .th-hero h1 > span {
   color: var(--color-lime);
-  font-weight: 550;
+  font-weight: 600;
 }
 .th-description {
   margin: 0 auto;
-  font-size: 0.9375rem;
-  color: #b3c1d2;
+  font-size: 0.975rem;
+  color: var(--color-muted);
   line-height: 1.65;
-  font-weight: 400;
+  font-weight: 500;
 }
 .th-avatar-display {
   position: relative;
@@ -72,7 +72,7 @@
   translate: -50% 0;
   bottom: 30px;
   border-radius: 50%;
-  background: #07111d99;
+  background: #05030f99;
   filter: blur(11px);
 }
 .th-character-status {
@@ -96,6 +96,9 @@
   padding: 7px 13px;
   font-size: 0.6875rem;
   white-space: nowrap;
+  /* Match the nav bar's flat surface instead of .tg-action's dark bottom
+     bezel, which reads as a different, bluer color at this button's height. */
+  box-shadow: inset 0 1px 0 var(--control-hi), 0 12px 32px rgba(6, 4, 18, 0.4);
 }
 .th-edit-avatar .tg-icon { width: 12px; height: 12px; }
 .th-earth {
@@ -121,8 +124,8 @@
   inset: 0;
   background: linear-gradient(
     0deg,
-    #080f1bbd 0%,
-    #080f1b20 38%,
+    #14112abd 0%,
+    #14112a20 38%,
     transparent 65%
   );
   pointer-events: none;
@@ -164,6 +167,53 @@
   translate: -50% 0;
   z-index: 30;
   max-width: calc(100vw - 32px);
+}
+
+/* Return-to-lobby banner (rendered on Home when a lobby is still open). */
+.th-resume {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(42rem, calc(100% - 2rem));
+  margin: 0 auto 1.25rem;
+  padding: 10px 10px 10px 14px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--color-surface-raised), var(--color-surface));
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-card);
+}
+.th-resume-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-violet-20);
+  border: 1px solid var(--color-violet-40);
+  color: var(--color-violet);
+}
+.th-resume-icon .tg-icon { width: 17px; height: 17px; }
+.th-resume-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.th-resume-copy strong { font-size: 0.875rem; font-weight: 700; }
+.th-resume-copy small { color: var(--color-muted); font-size: 0.78rem; }
+.th-resume-action {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-pill);
+}
+.th-resume-action .tg-icon { width: 15px; height: 15px; }
+@media (max-width: 37.5rem) {
+  .th-resume { flex-wrap: wrap; border-radius: var(--radius-card); padding: 12px; }
+  .th-resume-copy { flex-basis: 100%; order: -1; }
+  .th-resume-action { flex: 1; }
 }
 @media (max-width: 37.5rem) {
   .th-hero h1 { max-width: 21.25rem; margin: 0.5rem auto; font-size: clamp(2.25rem, 9.5vw, 3.4375rem); }

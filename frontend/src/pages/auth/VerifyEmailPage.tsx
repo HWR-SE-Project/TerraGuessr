@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { Button } from '../../components/ui/Button'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
+import { collapseVariants, staggerContainer, staggerItem } from '../../lib/motion'
 import './AuthPage.css'
 import '../../components/auth/EmailAuthForm.css'
 
@@ -39,35 +41,48 @@ export function VerifyEmailPage() {
     <AppHeader />
     <main className="tg-auth-root">
       <div className="tg-reset-card">
-        <div className="tg-email-form">
-          {status === 'verifying' ? (
-            <>
-              <h2 className="tg-email-form-title">Verifying your email</h2>
-              <p className="tg-email-hint" style={{ textAlign: 'center' }}>
-                One moment…
-              </p>
-            </>
-          ) : status === 'success' ? (
-            <>
-              <h2 className="tg-email-form-title">Email verified</h2>
-              <p className="tg-email-hint" style={{ textAlign: 'center' }}>
-                Your account is active. Sign in to start exploring.
-              </p>
-            </>
-          ) : (
-            <>
-              <h2 className="tg-email-form-title">Verification failed</h2>
-              <p className="tg-email-hint" style={{ textAlign: 'center' }}>
-                {message}
-              </p>
-            </>
-          )}
-          {status !== 'verifying' && (
-            <Button className="tg-email-submit" onClick={() => navigate('/auth')}>
-              {status === 'success' ? 'Go to sign in' : 'Back to sign in'}
-            </Button>
-          )}
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={status}
+            className="tg-email-form"
+            variants={collapseVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <motion.div variants={staggerContainer} initial="initial" animate="animate">
+              {status === 'verifying' ? (
+                <>
+                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Verifying your email</motion.h2>
+                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
+                    One moment…
+                  </motion.p>
+                </>
+              ) : status === 'success' ? (
+                <>
+                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Email verified</motion.h2>
+                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
+                    Your account is active. Sign in to start exploring.
+                  </motion.p>
+                </>
+              ) : (
+                <>
+                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Verification failed</motion.h2>
+                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
+                    {message}
+                  </motion.p>
+                </>
+              )}
+              {status !== 'verifying' && (
+                <motion.div variants={staggerItem}>
+                  <Button className="tg-email-submit" onClick={() => navigate('/auth')}>
+                    {status === 'success' ? 'Go to sign in' : 'Back to sign in'}
+                  </Button>
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </main>
     </>

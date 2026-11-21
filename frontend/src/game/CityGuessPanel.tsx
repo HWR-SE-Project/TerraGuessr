@@ -1,7 +1,9 @@
 import { Icon } from '../components/ui/Icon'
 import { useId, type ReactNode } from 'react'
+import { motion } from 'framer-motion'
 import type { CandidateDTO, LatLon } from '../api/types'
 import { CandidateList } from './CandidateList'
+import { collapseVariants } from '../lib/motion'
 import './CityGuessPanel.css'
 
 interface CityGuessPanelProps {
@@ -41,7 +43,14 @@ export function CityGuessPanel({
           </button>
         ) : <h2 className="tg-city-title">{heading}</h2>}
       </header>
-      <div id={contentId} hidden={collapsed}>
+      <motion.div
+        id={contentId}
+        inert={collapsed}
+        initial={false}
+        animate={collapsed ? 'initial' : 'animate'}
+        variants={collapseVariants}
+        style={{ overflow: 'hidden' }}
+      >
         <CandidateList candidates={candidates} selectedId={selectedId} onChange={onChange} />
         <footer className="tg-city-footer">
           <span className="tg-city-status" role="status">
@@ -49,7 +58,7 @@ export function CityGuessPanel({
           </span>
           <div className="tg-city-actions">{children}</div>
         </footer>
-      </div>
+      </motion.div>
     </aside>
   )
 }

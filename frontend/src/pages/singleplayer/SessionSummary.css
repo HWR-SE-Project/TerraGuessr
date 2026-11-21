@@ -19,10 +19,10 @@
 .sp-page .sp-session-empty { width: min(100%, 32rem); }
 .sp-summary-symbol { display: inline-flex; width: 2.25rem; height: 2.25rem; color: var(--color-lime); margin-bottom: 0.75rem; }
 .sp-summary-symbol svg { width: 100%; height: 100%; }
-.sp-summary-intro h1 { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; letter-spacing: -0.04em; margin: 0 0 0.75rem; }
+.sp-summary-intro h1 { font-family: var(--font-display); font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; letter-spacing: -0.015em; font-weight: 600; margin: 0 0 0.75rem; }
 .sp-summary-intro p { color: var(--color-muted); font-size: 1rem; line-height: 1.65; max-width: 30rem; margin: 0 auto; text-wrap: pretty; }
 .sp-summary-score { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
-.sp-summary-score strong { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; font-weight: 650; color: var(--color-lime); letter-spacing: -0.045em; }
+.sp-summary-score strong { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; font-weight: 600; color: var(--color-lime); letter-spacing: -0.015em; }
 .sp-summary-score > span { color: var(--color-muted); font-size: 0.875rem; }
 .sp-session-summary .sp-summary-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1.25rem; padding: 0; border: 0; text-align: left; }
 .sp-session-summary .sp-summary-stats > div { grid-column: span 2; min-width: 0; }

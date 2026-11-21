@@ -1,9 +1,11 @@
 import { Button } from '../components/ui/Button'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import type { LatLon } from '../api/types'
 import type { StreetResult } from '../api/singleplayer'
 import { browserMapsKey, loadGoogleMaps, onMapsAuthFailure } from './googleMaps'
+import { duration, ease, spring } from '../lib/motion'
 
 export interface GuessMapMarker {
   position: LatLon
@@ -324,19 +326,34 @@ export function GuessMap({
             : 'Round result map'
         }
       />
-      {fallback && (!browserMapsKey() || error) ? fallback : !browserMapsKey() && (
-        <div className="sp-map-unavailable">
-          <span aria-hidden="true">◎</span>
-          <strong>World map</strong>
-          <small>Google Maps browser key is missing</small>
-        </div>
-      )}
-      {error && !fallback && (
-        <div className="sp-map-failure" role="alert">
-          <p>{error}</p>
-          <Button variant="light" onClick={() => setRetry((r) => r + 1)}>Retry map</Button>
-        </div>
-      )}
+      <AnimatePresence>
+        {fallback && (!browserMapsKey() || error) ? fallback : !browserMapsKey() && (
+          <motion.div
+            key="unavailable"
+            className="sp-map-unavailable"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1, transition: spring.gentle }}
+            exit={{ opacity: 0, scale: 0.98, transition: { duration: duration.fast, ease: ease.out } }}
+          >
+            <span aria-hidden="true">◎</span>
+            <strong>World map</strong>
+            <small>Google Maps browser key is missing</small>
+          </motion.div>
+        )}
+        {error && !fallback && (
+          <motion.div
+            key="failure"
+            className="sp-map-failure"
+            role="alert"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1, transition: spring.gentle }}
+            exit={{ opacity: 0, scale: 0.98, transition: { duration: duration.fast, ease: ease.out } }}
+          >
+            <p>{error}</p>
+            <Button variant="light" onClick={() => setRetry((r) => r + 1)}>Retry map</Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

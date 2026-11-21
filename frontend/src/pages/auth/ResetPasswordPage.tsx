@@ -1,10 +1,12 @@
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
+import { collapseVariants, noticeVariants, staggerContainer, staggerItem } from '../../lib/motion'
 import './AuthPage.css'
 import '../../components/auth/EmailAuthForm.css'
 
@@ -39,66 +41,109 @@ export function ResetPasswordPage() {
     <>
     <AppHeader />
     <main className="tg-auth-root">
-      <div className="tg-reset-card">
-        {!token ? (
-          <div className="tg-email-form">
-            <h2 className="tg-email-form-title">Invalid link</h2>
-            <p className="tg-email-hint" style={{ textAlign: 'center' }}>
-              This password reset link is missing its token. Request a new one
-              from the sign-in screen.
-            </p>
-            <Button
-              type="button"
-              className="tg-email-submit"
-              onClick={() => navigate('/auth')}
+      <motion.div
+        className="tg-reset-card"
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          {!token ? (
+            <motion.div
+              key="invalid"
+              className="tg-email-form"
+              variants={collapseVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
             >
-              Back to sign in
-            </Button>
-          </div>
-        ) : done ? (
-          <div className="tg-email-form">
-            <h2 className="tg-email-form-title">Password updated</h2>
-            <p className="tg-email-hint" style={{ textAlign: 'center' }}>
-              You can now log in with your new password.
-            </p>
-            <Button
-              type="button"
-              className="tg-email-submit"
-              onClick={() => navigate('/auth')}
+              <motion.h2 className="tg-email-form-title" variants={staggerItem}>Invalid link</motion.h2>
+              <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
+                This password reset link is missing its token. Request a new one
+                from the sign-in screen.
+              </motion.p>
+              <motion.div variants={staggerItem}>
+                <Button
+                  type="button"
+                  className="tg-email-submit"
+                  onClick={() => navigate('/auth')}
+                >
+                  Back to sign in
+                </Button>
+              </motion.div>
+            </motion.div>
+          ) : done ? (
+            <motion.div
+              key="done"
+              className="tg-email-form"
+              variants={collapseVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
             >
-              Go to sign in
-            </Button>
-          </div>
-        ) : (
-          <form className="tg-email-form" onSubmit={submit}>
-            <h2 className="tg-email-form-title">Choose a new password</h2>
-            <label className="tg-email-field">
-              <span>New password</span>
-              <Input
-                type="password"
-                autoComplete="new-password"
-                minLength={12}
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-              <small className="tg-email-hint">At least 12 characters.</small>
-            </label>
-            {error && (
-              <p className="tg-email-error" role="alert">
-                {error}
-              </p>
-            )}
-            <Button
-              type="submit"
-              className="tg-email-submit"
-              disabled={submitting}
+              <motion.h2 className="tg-email-form-title" variants={staggerItem}>Password updated</motion.h2>
+              <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
+                You can now log in with your new password.
+              </motion.p>
+              <motion.div variants={staggerItem}>
+                <Button
+                  type="button"
+                  className="tg-email-submit"
+                  onClick={() => navigate('/auth')}
+                >
+                  Go to sign in
+                </Button>
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.form
+              key="form"
+              className="tg-email-form"
+              onSubmit={submit}
+              variants={collapseVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
             >
-              {submitting ? 'Updating…' : 'Update password'}
-            </Button>
-          </form>
-        )}
-      </div>
+              <h2 className="tg-email-form-title">Choose a new password</h2>
+              <label className="tg-email-field">
+                <span>New password</span>
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={12}
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+                <small className="tg-email-hint">At least 12 characters.</small>
+              </label>
+              <AnimatePresence>
+                {error && (
+                  <motion.p
+                    key="reset-error"
+                    className="tg-email-error"
+                    role="alert"
+                    variants={noticeVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                  >
+                    {error}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+              <Button
+                type="submit"
+                className="tg-email-submit"
+                disabled={submitting}
+              >
+                {submitting ? 'Updating…' : 'Update password'}
+              </Button>
+            </motion.form>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </main>
     </>
   )

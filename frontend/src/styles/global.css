@@ -14,7 +14,9 @@ body {
 }
 body {
   font-family: var(--font-body);
-  background: var(--color-bg);
+  background:
+    radial-gradient(120% 90% at 50% -10%, #2b2149 0%, transparent 55%),
+    var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
@@ -49,8 +51,8 @@ a {
   outline-offset: 4px;
 }
 ::selection {
-  background: #c0f66b38;
-  color: #fff;
+  background: color-mix(in srgb, var(--color-lime) 40%, transparent);
+  color: var(--color-text);
 }
 input {
   accent-color: var(--color-lime);

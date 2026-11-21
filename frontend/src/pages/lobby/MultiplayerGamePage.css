@@ -132,7 +132,7 @@
 
 .mp-leaderboard-compact {
   margin: 18px 0 22px;
-  background: #0d1825;
+  background: var(--color-bg-deep);
 }
 
 .mp-participant-guesses {

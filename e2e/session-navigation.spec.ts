@@ -26,7 +26,6 @@ async function gameFixture(page: Page, completed = false) {
 }
 async function start(page: Page) {
   await page.getByRole('button', { name: /Start exploring/i }).click()
-  await page.getByRole('dialog', { name: 'How to play / Tutorial' }).getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
   await expect(page.locator('.sp-page')).toHaveAttribute('data-view', 'playing')
 }
 async function summary(page: Page) {
@@ -48,7 +47,6 @@ test('empty summary is compact, contains only the two actions, and Play Again cr
   expect((await page.locator('.sp-session-summary').boundingBox())!.height).toBeLessThan(350)
   expect(api.ended()).toBe(1)
   await page.getByRole('button', { name: 'Play Again' }).click()
-  await page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
   await expect(page.locator('.sp-page')).toHaveAttribute('data-view', 'playing')
   expect(api.creates()).toBe(2)
   await summary(page)
@@ -111,7 +109,7 @@ for (const destination of ['logo', 'multiplayer', 'browser-back'] as const) {
   })
 }
 
-test('one responsive header exposes working help, settings and destinations without overlapping the logo', async ({ page }) => {
+test('one responsive header exposes working settings and destinations without overlapping the logo', async ({ page }) => {
   await gameFixture(page)
   await page.setViewportSize({ width: 390, height: 844 })
   for (const url of ['/', '/multiplayer', '/auth', '/reset-password', '/verify-email', '/confirm-email-change', '/game/singleplayer']) {
@@ -125,9 +123,6 @@ test('one responsive header exposes working help, settings and destinations with
     await expect(page.getByRole('button', { name: 'Open navigation' })).toBeFocused()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   }
-  await page.getByRole('button', { name: 'Open navigation' }).click()
-  await page.getByRole('button', { name: 'How to play', exact: true }).click()
-  await page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
   await page.getByRole('button', { name: 'Open navigation' }).click()
   await page.getByRole('button', { name: 'Game settings' }).click()
   await expect(page.getByRole('dialog', { name: 'Game settings' })).toBeVisible()
@@ -167,7 +162,6 @@ test('Restart ends the old session before creating a fresh one', async ({ page }
   await page.getByRole('button', { name: 'Game menu' }).click()
   await page.getByRole('button', { name: 'Restart game', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Restart game', exact: true }).click()
-  await page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
   await expect(page.locator('.sp-page')).toHaveAttribute('data-view', 'playing')
   expect(api.ended()).toBe(1)
   expect(api.creates()).toBe(2)

@@ -7,9 +7,9 @@
   gap: 10px;
   min-height: var(--control-height);
   padding: 12px 24px;
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 600;
+  font-size: 13.5px;
+  line-height: 1.4;
+  font-weight: 700;
 }
 
 /* Sizes are layout only; the visual material is owned by the variant/appearance. */
@@ -23,17 +23,19 @@
   border-radius: var(--radius-control);
   background: var(--color-lime);
   color: var(--color-on-lime);
-  transition: background-color var(--duration-fast);
+  box-shadow: 0 2px 0 #7fae3f, 0 8px 20px rgba(192, 246, 107, 0.18);
+  transition: background-color var(--duration-fast), box-shadow var(--duration-fast), translate var(--duration-fast);
 }
-.tg-button--flat.tg-button--secondary { background: var(--color-quiet); border-color: var(--color-border-strong); color: var(--color-text); }
-.tg-button--flat.tg-button--danger { background: var(--color-danger-fill); border-color: var(--color-danger-border); color: var(--color-red); }
-.tg-button--flat:disabled { background: var(--color-quiet); color: var(--color-muted); cursor: not-allowed; }
+.tg-button--flat:active:enabled { translate: 0 1px; box-shadow: 0 1px 0 #7fae3f; }
+.tg-button--flat.tg-button--secondary { background: var(--color-surface-raised); border-color: var(--color-border-strong); color: var(--color-text); box-shadow: 0 2px 0 var(--color-bg-deep); }
+.tg-button--flat.tg-button--danger { background: var(--color-danger-fill); border-color: var(--color-danger-border); color: var(--color-red); box-shadow: none; }
+.tg-button--flat:disabled { background: var(--color-quiet); color: var(--color-muted); cursor: not-allowed; box-shadow: none; }
 .tg-icon-button { display: inline-grid; place-items: center; padding: 0; min-width: 44px; min-height: 44px; flex-shrink: 0; border-radius: 50%; }
 .tg-icon { width: 20px; height: 20px; flex-shrink: 0; }
 .tg-button svg { width: 18px; height: 18px; flex-shrink: 0; }
 .tg-icon-button svg { width: 20px; height: 20px; }
 @media (hover: hover) and (pointer: fine) {
-  .tg-button--flat:hover:enabled { background: var(--color-lime-hover); }
+  .tg-button--flat:hover:enabled { background: var(--color-lime-hover); box-shadow: 0 2px 0 #7fae3f, 0 10px 24px rgba(192, 246, 107, 0.24); }
   .tg-button--flat.tg-button--secondary:hover:enabled { background: var(--color-surface-hover); }
   .tg-button--flat.tg-button--danger:hover:enabled { background: var(--color-danger-hover); }
 }

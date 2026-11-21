@@ -69,7 +69,8 @@
   border: none;
   box-shadow: 0 1px 6px #0007;
 }
-.sp-setting + .tg-button {
+.sp-setting + .tg-button,
+.tg-settings-submit {
   margin-top: 22px;
 }
 }

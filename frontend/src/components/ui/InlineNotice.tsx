@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { motion } from 'framer-motion'
+import { noticeVariants } from '../../lib/motion'
 import './InlineNotice.css'
 
 export function InlineNotice({
@@ -11,11 +13,15 @@ export function InlineNotice({
   className?: string
 }) {
   return (
-    <div
+    <motion.div
       className={`tg-notice tg-notice--${tone} ${className}`}
       role={tone === 'error' ? 'alert' : 'status'}
+      variants={noticeVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
     >
       {children}
-    </div>
+    </motion.div>
   )
 }

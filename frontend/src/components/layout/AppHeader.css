@@ -1,4 +1,10 @@
 @layer components {
+/* ----------------------------------------------------------------------------
+ * Shared TerraGuessr navigation — a warm, solid game bar on discovery pages, a
+ * transparent HUD over Street View while playing, and a solid disclosure card
+ * on compact layouts. Friendly, rounded, and legible against the cosmic sky.
+ * ------------------------------------------------------------------------- */
+
 .th-header {
   position: relative;
   z-index: 10;
@@ -6,206 +12,381 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
+  gap: 1rem;
   color: var(--color-text);
 }
 
-/* Primary destinations read as plain text with a thin animated underline —
-   no pill chrome competing with the brand or the utility icons. */
+/* Page context: a centered, solid warm bar with soft depth. */
+.tg-page-nav[data-navigation-context='page'] .th-header {
+  margin: 0.875rem auto 0;
+  width: min(76rem, calc(100% - 2rem));
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, var(--color-surface-hover), var(--color-surface-raised));
+  border: 1px solid var(--color-border-strong);
+  box-shadow: inset 0 1px 0 #ffffff12, 0 12px 32px rgba(6, 4, 18, 0.4);
+}
+
+/* Game context: transparent, full-bleed over the panorama's top shade. */
+[data-navigation-context='game'] .th-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.5rem clamp(1rem, 2.5vw, 2.5rem);
+}
+
+/* ----------------------------------------------------------------------------
+ * Brand
+ * ------------------------------------------------------------------------- */
+.th-brand {
+  min-height: 40px;
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  width: fit-content;
+  border-radius: var(--radius-control);
+  justify-self: start;
+}
+.th-brand:focus-visible { outline: 3px solid var(--color-lime); outline-offset: 3px; border-radius: 12px; }
+
+.tg-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.tg-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--color-on-lime);
+  background: linear-gradient(180deg, #d4ff8f, var(--color-lime));
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 #7fae3f, 0 4px 12px rgba(192, 246, 107, 0.28);
+  flex-shrink: 0;
+  transition: transform 200ms var(--ease-out);
+}
+.tg-brand-mark svg { width: 100%; height: 100%; }
+.th-brand:hover .tg-brand-mark { transform: translateY(-1px); }
+.tg-brand-word {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  line-height: 1.1;
+}
+.tg-brand-word > span:first-child {
+  font-weight: 500;
+}
+.tg-brand-period {
+  color: var(--color-lime);
+}
+
+/* ----------------------------------------------------------------------------
+ * Primary navigation — a rounded segmented control so Singleplayer and
+ * Multiplayer read as the two key destinations.
+ * ------------------------------------------------------------------------- */
 .th-navigation {
   display: flex;
   align-items: center;
-  gap: 1.75rem;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 .th-nav-link {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
-  padding: 0 0.125rem;
+  gap: 0.4rem;
+  min-height: 2.375rem;
+  padding: 0 0.95rem;
+  border-radius: var(--radius-pill);
   color: var(--color-muted);
   font-size: 0.875rem;
-  font-weight: 560;
+  font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
+  transition: color 180ms var(--ease-out), background-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
 }
-.th-nav-link::after {
-  content: '';
-  position: absolute;
-  left: 0.125rem;
-  right: 0.125rem;
-  bottom: 0.625rem;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--color-lime);
-  transform: scaleX(0);
-  opacity: 0;
-  transition: transform 220ms var(--ease-out), opacity 220ms var(--ease-out);
-}
-.th-nav-link:hover { color: var(--color-text); }
-.th-nav-link:hover::after { opacity: 0.4; transform: scaleX(1); }
-.th-nav-link[aria-current='page'] { color: var(--color-lime); }
-.th-nav-link[aria-current='page']::after { opacity: 1; transform: scaleX(1); }
-.th-nav-link:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 4px; border-radius: 4px; }
+.th-nav-link:hover { color: var(--color-text); background-color: rgba(255, 255, 255, 0.06); }
+.th-nav-link:active { background-color: rgba(255, 255, 255, 0.1); }
+.th-nav-link[aria-current='page'] { color: var(--color-on-lime); }
+.th-nav-link:focus-visible { outline: 3px solid var(--color-lime); outline-offset: 2px; }
 
+/* Shared-layout active pill — glides between nav links via framer-motion layoutId. */
+.th-nav-pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #d4ff8f, var(--color-lime));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 #7fae3f, 0 4px 12px rgba(192, 246, 107, 0.25);
+}
+
+/* ----------------------------------------------------------------------------
+ * Multiplayer disclosure
+ * ------------------------------------------------------------------------- */
 .th-multiplayer { position: relative; min-width: 0; }
-.th-multiplayer-trigger { gap: 0.45rem; border: 0; background: transparent; }
-.th-multiplayer-chevron.tg-icon { width: 11px; height: 11px; transform: rotate(90deg); transition: transform 180ms var(--ease-out); }
-.th-multiplayer-trigger[aria-expanded='true'] { color: var(--color-text); }
+.th-multiplayer-trigger { border: 0; background: transparent; cursor: pointer; }
+.th-multiplayer-trigger[aria-expanded='true'] { color: var(--color-text); background-color: rgba(255, 255, 255, 0.06); }
+.th-multiplayer-chevron.tg-icon {
+  width: 11px;
+  height: 11px;
+  color: var(--color-subtle);
+  transform: rotate(90deg);
+  transition: transform 200ms var(--ease-out), color 180ms var(--ease-out);
+}
+.th-multiplayer-trigger:hover .th-multiplayer-chevron,
+.th-multiplayer-trigger[aria-expanded='true'] .th-multiplayer-chevron,
+.th-nav-link[aria-current='page'] .th-multiplayer-chevron { color: inherit; }
 .th-multiplayer-trigger[aria-expanded='true'] .th-multiplayer-chevron { transform: rotate(-90deg); }
+
+/* Mount/unmount + opacity/transform are driven by framer-motion (AnimatePresence +
+ * overlayVariants/dropdownVariants) — CSS only supplies static geometry here so the
+ * two animation systems don't fight over the same properties. */
+.th-multiplayer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 20, 0.45);
+}
 .th-multiplayer-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 20px);
   left: 50%;
-  width: 344px;
-  padding: 6px;
-  border-radius: var(--radius-card);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translate(-50%, -6px) scale(0.98);
+  margin-left: -176px;
+  width: 352px;
+  padding: 8px;
+  border-radius: 18px;
+  --surface-shadow: 0 24px 56px rgba(6, 4, 18, 0.5), 0 8px 20px rgba(6, 4, 18, 0.3);
   transform-origin: top center;
-  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), visibility 0s 180ms;
 }
-.th-multiplayer-menu-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, 0) scale(1); transition-delay: 0s; }
 .th-multiplayer-option {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 74px;
-  padding: 12px;
-  border-radius: var(--radius-control);
+  gap: 13px;
+  min-height: 64px;
+  padding: 11px 12px;
+  border-radius: 13px;
   color: var(--color-text);
-  transition: background 150ms ease;
+  transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out);
 }
-.th-multiplayer-option:hover, .th-multiplayer-option:focus { outline: none; background: #e1edff0d; }
+.th-multiplayer-option:hover, .th-multiplayer-option:focus {
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.07);
+  transform: translateX(2px);
+}
 .th-multiplayer-option:focus-visible { box-shadow: inset 0 0 0 1px var(--color-lime-70); }
-.th-multiplayer-icon { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--color-lime-10); color: var(--color-lime); }
+.th-multiplayer-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--color-lime-10);
+  border: 1px solid var(--color-lime-20);
+  color: var(--color-lime);
+  transition: background-color 180ms var(--ease-out), color 180ms var(--ease-out);
+}
 .th-multiplayer-icon .tg-icon { width: 18px; height: 18px; }
-.th-multiplayer-copy { display: grid; gap: 5px; min-width: 0; }
-.th-multiplayer-title { font-size: 0.875rem; font-weight: 560; letter-spacing: -0.01em; }
-.th-multiplayer-description { color: var(--color-muted); font-size: 0.75rem; line-height: 1.45; }
-.th-multiplayer-arrow.tg-icon { width: 14px; height: 14px; margin-left: auto; color: var(--color-muted); }
+.th-multiplayer-option:hover .th-multiplayer-icon,
+.th-multiplayer-option:focus .th-multiplayer-icon { background: var(--color-lime-20); }
+.th-multiplayer-copy { display: grid; gap: 3px; min-width: 0; }
+.th-multiplayer-title { font-size: 0.9rem; font-weight: 700; letter-spacing: -0.01em; }
+.th-multiplayer-description { color: var(--color-muted); font-size: 0.78rem; line-height: 1.45; }
+.th-multiplayer-arrow.tg-icon {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  color: var(--color-subtle);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), color 180ms var(--ease-out);
+}
+.th-multiplayer-option:hover .th-multiplayer-arrow,
+.th-multiplayer-option:focus .th-multiplayer-arrow {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--color-lime);
+}
 
-/* Compact, borderless control shared by Help, Settings, the mobile toggle
-   and the in-game menu button — deliberately quieter than primary nav. */
+/* ----------------------------------------------------------------------------
+ * Icon actions (Help, Settings, navigation toggle, in-game menu).
+ * ------------------------------------------------------------------------- */
 .th-icon-btn {
   display: grid;
   place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
-  border: none;
   border-radius: 50%;
-  background: transparent;
-  color: var(--color-muted);
 }
 .th-header .th-icon-btn svg { width: 18px; height: 18px; }
 .th-icon-btn-label { display: none; }
-@media (hover: hover) and (pointer: fine) {
-  .th-icon-btn:hover { color: var(--color-text); background: #ffffff0a; }
-}
-.th-icon-btn:active { background: #ffffff14; }
-.th-icon-btn:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
-.th-brand {
-  min-height: 36px;
-  align-items: center;
-  display: inline-flex;
-  flex-shrink: 0; width: fit-content; border-radius: var(--radius-control); }
-.th-brand:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 5px; }
 
+.th-nav-action {
+  --control-hairline: var(--color-border-strong);
+  --control-hi: rgba(255, 255, 255, 0.08);
+  --control-edge: var(--color-bg-deep);
+  border: 1px solid var(--control-hairline);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  box-shadow: inset 0 1px 0 #ffffff12;
+}
+.th-nav-action:focus-visible { outline: 3px solid var(--color-lime); outline-offset: 2px; }
+
+/* ----------------------------------------------------------------------------
+ * Player tools and profile / sign-in
+ * ------------------------------------------------------------------------- */
 .th-player-tools {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
   min-width: 0;
+  justify-self: end;
 }
-.th-desktop-utilities { display: flex; gap: 0.5rem; }
+.th-desktop-utilities { display: flex; align-items: center; gap: 0.5rem; }
 .th-mobile-utilities { display: none; }
 
 .th-profile-link {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 4px 10px 4px 4px;
+  padding: 4px 13px 4px 5px;
   border-radius: var(--radius-pill);
   color: var(--color-text);
-  min-height: 2.75rem;
+  min-height: 2.5rem;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 1px 0 #ffffff12;
+  transition: background-color 180ms var(--ease-out), border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
 }
 @media (hover: hover) and (pointer: fine) {
-  .th-profile-link:hover { background: #ffffff0a; }
+  .th-profile-link:hover { background-color: var(--color-surface-hover); border-color: var(--color-border-strong); }
 }
-.th-profile-link:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
+.th-profile-link:focus-visible { outline: 3px solid var(--color-lime); outline-offset: 2px; }
 .th-profile-avatar {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--color-lime-20);
-  background: var(--color-lime-10);
   border-radius: 50%;
-  color: var(--color-lime);
-  font-size: 11px;
-  font-weight: 600;
-  box-shadow: inset 0 1px #e9ffc42b;
+  background: linear-gradient(180deg, var(--color-lime), var(--color-lime-hover));
+  color: var(--color-on-lime);
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 .th-profile-details {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  max-width: 140px;
+  gap: 2px;
+  max-width: 150px;
 }
 .th-profile-name {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.th-profile-link > .tg-icon {
-  width: 10px;
-  height: 10px;
-  color: var(--color-subtle);
+/* Signed-out visitors get a single lime call-to-action. */
+.th-profile-link--signin {
+  color: var(--color-on-lime);
+  border-color: #cffa89;
+  background: linear-gradient(180deg, #d4ff8f, var(--color-lime));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 #7fae3f, 0 8px 20px rgba(192, 246, 107, 0.24);
 }
+.th-profile-link--signin .th-profile-name { color: var(--color-on-lime); }
+.th-profile-link--signin .th-profile-avatar {
+  color: var(--color-lime);
+  background: var(--color-on-lime);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+@media (hover: hover) and (pointer: fine) {
+  .th-profile-link--signin:hover { background: linear-gradient(180deg, #e0ffa6, var(--color-lime-hover)); }
+}
+
 .th-menu-toggle { display: none; }
 
 .tg-page-nav { position: relative; z-index: 20; width: 100%; }
-.tg-page-nav .th-header { min-height: var(--nav-height); padding: 0.75rem clamp(1rem, 3vw, 3rem); gap: 1rem; }
-[data-navigation-context='game'] .th-header { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* ----------------------------------------------------------------------------
+ * Compact layouts (≤ 75rem): the bar becomes a full-width solid strip and the
+ * navigation collapses into a solid card.
+ * ------------------------------------------------------------------------- */
 @media (max-width: 75rem) {
   .tg-page-nav .th-header { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .tg-page-nav[data-navigation-context='page'] .th-header {
+    margin: 0;
+    width: 100%;
+    padding: 0.5rem clamp(0.75rem, 3vw, 1.25rem);
+    border-radius: 0;
+    border-color: transparent;
+    border-bottom-color: var(--color-border);
+    background: var(--color-bg-deep);
+    box-shadow: 0 1px 0 var(--color-border);
+  }
+  [data-navigation-context='game'] .th-header { padding-inline: clamp(0.75rem, 3vw, 1.25rem); }
+
+  /* Mounted only while open (AnimatePresence); height/opacity animate via collapseVariants. */
   .th-navigation {
-    display: none;
+    display: block;
     grid-column: 1 / -1;
     grid-row: 2;
+    padding: 0.625rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 18px;
+    box-shadow: inset 0 1px 0 #ffffff0d, 0 24px 56px rgba(6, 4, 18, 0.5);
+    overflow: hidden;
+  }
+  .th-navigation-stagger {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0.25rem;
-    padding: 0.75rem;
-    background: #101c2cf7;
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-card);
   }
-  .th-navigation-open { display: flex; }
-  .th-nav-link { min-height: 2.75rem; padding: 0 0.875rem; border-radius: var(--radius-control); }
-  .th-nav-link::after { display: none; }
-  .th-nav-link[aria-current='page'] { background: var(--color-lime-10); }
+  .th-nav-link {
+    min-height: 2.75rem;
+    padding: 0 0.875rem;
+    border-radius: 12px;
+    font-size: 0.9375rem;
+    justify-content: flex-start;
+  }
+  .th-nav-link[aria-current='page'] { background: var(--color-lime-10); color: var(--color-lime); box-shadow: inset 0 0 0 1px var(--color-lime-20); }
+  .th-nav-pill { display: none; }
   .th-multiplayer-trigger { width: 100%; justify-content: space-between; }
+  .th-multiplayer-backdrop { display: none; }
   .th-multiplayer-menu {
     position: static;
     width: 100%;
-    max-height: 0;
-    padding: 0 6px;
+    margin: 0;
+    padding: 6px;
     border-width: 0;
-    overflow: hidden;
-    transform: translateY(-4px);
-    transform-origin: top;
-    transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), max-height 180ms var(--ease-out), padding 180ms var(--ease-out), visibility 0s 180ms;
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px rgba(225, 237, 255, 0.14);
   }
-  .th-multiplayer-menu-open { max-height: 240px; padding-block: 6px; transform: translateY(0); transition-delay: 0s; box-shadow: inset 0 0 0 1px #e1edff26; }
   .th-multiplayer-option { gap: 10px; padding: 10px; }
+  .th-multiplayer-option:hover, .th-multiplayer-option:focus { transform: none; }
+  .th-multiplayer-arrow { opacity: 1; transform: none; }
+
   .th-player-tools { grid-column: 2; grid-row: 1; }
   .th-profile-details, .th-profile-link > .tg-icon { display: none; }
+  .th-profile-link,
+  .th-profile-link--signin {
+    padding: 5px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+  .th-profile-link--signin { background: transparent; }
   .th-menu-toggle { grid-column: 3; grid-row: 1; display: grid; }
   .th-desktop-utilities { display: none; }
   .th-mobile-utilities {
@@ -218,58 +399,43 @@
     height: auto;
     min-height: 2.75rem;
     justify-content: flex-start;
-    gap: 10px;
+    gap: 11px;
     padding: 0 0.875rem;
-    border-radius: 10px;
+    border-radius: 12px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--color-muted);
   }
-  .th-mobile-utilities .th-icon-btn-label { display: inline; font-size: 0.875rem; font-weight: 550; }
+  .th-mobile-utilities .th-icon-btn-label { display: inline; font-size: 0.9375rem; font-weight: 600; }
+  .th-mobile-utilities .th-icon-btn:hover { color: var(--color-text); background-color: rgba(255, 255, 255, 0.06); }
 }
-/* AppHeader owns header placement, including within the game grid. */
-.sp-page > .tg-page-nav { grid-column: 1 / -1; grid-row: 1; width: calc(100% + 2 * var(--sp-gap)); margin-inline: calc(-1 * var(--sp-gap)); }
+
 @media (max-width: 37.5rem) {
   .tg-page-nav .th-header { gap: 0.5rem; }
 }
-.tg-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  white-space: nowrap;
-}
-.tg-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 32px;
-  color: var(--color-lime);
-  flex-shrink: 0;
-}
-.tg-brand-mark svg {
-  width: 100%;
-  height: 100%;
-}
-.tg-brand-word {
-  font-size: 19px;
-  font-weight: 750;
-  letter-spacing: -1px;
-  color: var(--color-text);
-  line-height: 1.2;
-}
-.tg-brand-word > span:first-child {
-  font-weight: 450;
-}
-.tg-brand-period {
-  color: var(--color-lime);
-}
+
 @media (max-width: 600px) {
-  .tg-brand-mark {
-    width: 25px;
-    height: 27px;
-  }
-  .tg-brand-word {
-    font-size: 17px;
-  }
-  .tg-brand {
-    gap: 7px;
-  }
+  .tg-brand-mark { width: 28px; height: 28px; }
+  .tg-brand-word { font-size: 17px; }
+  .tg-brand { gap: 7px; }
+}
+
+/* AppHeader owns header placement, including within the game grid. */
+.sp-page > .tg-page-nav {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  width: calc(100% + 2 * var(--sp-gap));
+  margin-inline: calc(-1 * var(--sp-gap));
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tg-page-nav[data-navigation-context='page'] .th-header { background: var(--color-surface); }
+  .th-navigation { background: var(--color-surface); }
+}
+@media (forced-colors: active) {
+  .tg-page-nav[data-navigation-context='page'] .th-header,
+  .th-nav-action,
+  .th-profile-link { border: 1px solid ButtonText; box-shadow: none; }
 }
 }

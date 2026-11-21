@@ -15,7 +15,6 @@ async function startEasy(page: Page) {
   await page.getByRole('radio', { name: /Easy/ }).click()
   const response = page.waitForResponse(r => r.url().endsWith('/rounds') && r.request().method() === 'POST')
   await page.getByRole('button', { name: /Start exploring/i }).click()
-  await page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
   const round = await (await response).json() as StreetRound
   await expect(page.locator('.sp-panorama')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 })
   await expect(page.getByTestId('candidate-option')).toHaveCount(6)

@@ -1,20 +1,5 @@
 import { requestGameExit } from './support/navigation'
-import { expect, test, type Page } from '@playwright/test'
-
-// R14: a fresh browser profile sees the tutorial once. It opens
-// asynchronously (after the config check resolves), so an immediate
-// isVisible() check right after goto races it and can miss a dialog that
-// opens a moment later — then it sits on screen as a modal and blocks every
-// subsequent click. Wait for it instead.
-async function dismissTutorialIfShown(page: Page) {
-  const skipTutorial = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
-  try {
-    await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-    await skipTutorial.click()
-  } catch {
-    // Already seen in this profile this run; nothing to dismiss.
-  }
-}
+import { expect, test } from '@playwright/test'
 
 test.describe('Street View singleplayer without credentials', () => {
   test.beforeEach(async ({ page }) => {
@@ -26,7 +11,6 @@ test.describe('Street View singleplayer without credentials', () => {
     await page.goto('/game/singleplayer')
     const main = page.getByRole('main', { name: 'TerraGuessr singleplayer game' })
     await expect(main).toBeVisible()
-    await dismissTutorialIfShown(page)
     await expect(main).toHaveAttribute('data-view', 'setup')
     await expect(
       page.getByText('Street View is currently unavailable', { exact: true }),
@@ -62,7 +46,6 @@ test.describe('Street View singleplayer without credentials', () => {
   }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/game/singleplayer')
-    await dismissTutorialIfShown(page)
     for (const [width, height] of [
       [320, 844],
       [390, 844],

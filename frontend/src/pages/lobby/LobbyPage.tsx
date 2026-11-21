@@ -5,13 +5,29 @@ import { Input } from '../../components/ui/Input'
 import { Icon } from '../../components/ui/Icon'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import * as lobbiesApi from '../../api/lobbies'
 import { ApiError } from '../../api/client'
 import { mapApiError } from '../../api/errorMessages'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { useSession } from '../../state/SessionContext'
 import type { Difficulty, LobbyDTO } from '../../api/types'
+import {
+  duration,
+  ease,
+  noticeVariants,
+  spring,
+  staggerContainer,
+  staggerItem,
+} from '../../lib/motion'
 import './LobbyPage.css'
+
+/** Player rows join with the shared stagger entrance and leave with a quick slide-out. */
+const memberRowVariants = {
+  initial: staggerItem.initial,
+  animate: staggerItem.animate,
+  exit: { opacity: 0, x: -16, transition: { duration: duration.fast, ease: ease.out } },
+}
 
 const ROUND_OPTIONS = Array.from({ length: 8 }, (_, index) => index + 3)
 const POLL_INTERVAL_MS = 3000
@@ -258,20 +274,28 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
     }
   }
 
-  const feedback =
-    error || notice ? (
-      <p
-        className={`tl-feedback${error ? ' tl-feedback-error' : ''}`}
-        role={error ? 'alert' : 'status'}
-      >
-        {error ?? notice}
-      </p>
-    ) : null
+  const feedback = (
+    <AnimatePresence>
+      {(error || notice) && (
+        <motion.p
+          key={error ? 'error' : 'notice'}
+          className={`tl-feedback${error ? ' tl-feedback-error' : ''}`}
+          role={error ? 'alert' : 'status'}
+          variants={noticeVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
+          {error ?? notice}
+        </motion.p>
+      )}
+    </AnimatePresence>
+  )
 
   return (
     <div className="tl-page">
       <AppHeader />
-      <main className={`tl-main${session && routeCode ? '' : ' tl-entry'}`}>
+      <main className={`tl-main${session && routeCode ? '' : ` tl-entry${entryMode === 'create' ? ' tl-entry--create' : ''}`}`}>
         {session && routeCode && feedback}
         {session && routeCode ? (
           lobby?.code === session.code ? (
@@ -293,31 +317,42 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
             </p>
           )
         ) : (
-          <>
-            <header className="tl-hero">
-              <span className="tl-eyebrow">Multiplayer</span>
+          <motion.div variants={staggerContainer} initial="initial" animate="animate">
+            <motion.header className="tl-hero" variants={staggerItem}>
+              {entryMode === 'create' && <span className="tl-hero-icon" aria-hidden="true"><Icon name="users" /></span>}
               <h1>{entryMode === 'create' ? 'Create a lobby' : 'Join a lobby'}</h1>
               <p>
                 {entryMode === 'create'
-                  ? 'Start a new game with friends.'
+                  ? 'Your friends. A whole world. Set up your next adventure.'
                   : 'Enter an existing lobby using a code.'}
               </p>
-            </header>
+            </motion.header>
 
-            {resumable && (
-              <section className="tl-resume" aria-label="Return to lobby">
-                <span>
-                  <strong>Your lobby {resumable.code} is still open</strong>
-                  <small>Jump back into the waiting room.</small>
-                </span>
-                <Button appearance="flat" variant="secondary" type="button" onClick={handleResume}>
-                  Return to lobby
-                </Button>
-              </section>
-            )}
+            <AnimatePresence>
+              {resumable && (
+                <motion.section
+                  key="resume"
+                  className="tl-resume"
+                  aria-label="Return to lobby"
+                  variants={noticeVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  <span>
+                    <strong>Your lobby {resumable.code} is still open</strong>
+                    <small>Jump back into the waiting room.</small>
+                  </span>
+                  <Button appearance="flat" variant="secondary" type="button" onClick={handleResume}>
+                    Return to lobby
+                  </Button>
+                </motion.section>
+              )}
+            </AnimatePresence>
 
-            <form
-              className="tl-entry-form tg-glass tg-glass--panel"
+            <motion.form
+              variants={staggerItem}
+              className={`tl-entry-form${entryMode === 'create' ? ' tl-create-form' : ' tg-glass tg-glass--panel'}`}
               aria-label={entryMode === 'create' ? 'Create a lobby' : 'Join a lobby'}
               aria-busy={busy}
               noValidate
@@ -327,6 +362,8 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
                 void (entryMode === 'create' ? handleCreate() : handleJoin())
               }}
             >
+              <div className="tl-entry-config">
+              {entryMode === 'create' && <div className="tl-section-heading"><h2>Make it your game</h2><p>Choose how you want to explore.</p></div>}
               {entryMode === 'create' ? (
                 <DifficultyPicker variant="lobby" value={difficulty} onChange={setDifficulty} disabled={busy} />
               ) : (
@@ -358,6 +395,7 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
                 </label>
               )}
 
+              {entryMode === 'create' && <div className="tl-section-heading tl-section-heading--details"><h2>The finishing touches</h2><p>A name for you. A length for your adventure.</p></div>}
               <div className={`tl-entry-fields${entryMode === 'create' ? ' tl-entry-fields-create' : ''}`}>
                 <label className="tl-name">
                   <span>Display name <span className="tl-optional">optional</span></span>
@@ -385,14 +423,15 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
               </div>
 
               {feedback}
+              </div>
               <div className="tl-entry-footer">
-                <span>{entryMode === 'join' && 'Your next adventure is one code away.'}</span>
+                <span>{entryMode === 'create' ? 'Your invite code is ready on the next screen.' : ''}</span>
                 <Button appearance="flat" type="submit" disabled={busy}>
                   {entryMode === 'create' ? (busy ? 'Creating…' : 'Create lobby') : (busy ? 'Joining…' : 'Join lobby')}
                   {!busy && <Icon name="arrow" />}
                 </Button>
               </div>
-            </form>
+            </motion.form>
 
             {!routeCode && (
               <p className="tl-switch-mode">
@@ -409,7 +448,7 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
                 )}
               </p>
             )}
-          </>
+          </motion.div>
         )}
       </main>
     </div>
@@ -443,23 +482,48 @@ function LobbyRoom({
         : 'Finished'
 
   return (
-    <div className="tl-room">
-      <div className="tl-room-header">
+    <motion.div
+      className="tl-room"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.div className="tl-room-header" variants={staggerItem}>
         <div>
           <span className="tl-eyebrow">Lobby code</span>
           <div className="tl-code-row">
             <span className="tl-code">{lobby.code}</span>
             <Button appearance="flat" variant="secondary" size="sm" type="button" onClick={onCopy}>
-              {copied ? 'Copied' : 'Copy'}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={copied ? 'copied' : 'copy'}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: duration.fast, ease: ease.out }}
+                  style={{ display: 'inline-block' }}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </motion.span>
+              </AnimatePresence>
             </Button>
           </div>
         </div>
-        <span className={`tl-status tl-status-${lobby.status}`}>
-          {statusLabel}
-        </span>
-      </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={lobby.status}
+            className={`tl-status tl-status-${lobby.status}`}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={spring.snappy}
+          >
+            {statusLabel}
+          </motion.span>
+        </AnimatePresence>
+      </motion.div>
 
-      <dl className="tl-facts">
+      <motion.dl className="tl-facts" variants={staggerItem}>
         <div>
           <dt>Difficulty</dt>
           <dd className="tl-capitalize">{lobby.difficulty}</dd>
@@ -480,33 +544,40 @@ function LobbyRoom({
           <dt>Rounds</dt>
           <dd>{lobby.roundsTotal}</dd>
         </div>
-      </dl>
+      </motion.dl>
 
-      <section className="tl-members" aria-labelledby="tl-members-title">
+      <motion.section className="tl-members" aria-labelledby="tl-members-title" variants={staggerItem}>
         <div className="tl-members-head">
           <h2 id="tl-members-title">Players</h2>
           <span>{lobby.members.length}</span>
         </div>
         <ul>
-          {lobby.members.map((member, index) => (
-            <li
-              key={`${member.joinedAt}-${index}`}
-              className="tl-member"
-            >
-              <span className="tl-avatar" aria-hidden="true">
-                {memberName(member.displayName).slice(0, 1).toUpperCase()}
-              </span>
-              <span className="tl-member-name">
-                {memberName(member.displayName)}
-              </span>
-              {member.isHost && <span className="tl-host-badge">Host</span>}
-            </li>
-          ))}
+          <AnimatePresence initial={false}>
+            {lobby.members.map((member) => (
+              <motion.li
+                key={`${member.joinedAt}-${member.displayName ?? ''}`}
+                className="tl-member"
+                layout
+                variants={memberRowVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <span className="tl-avatar" aria-hidden="true">
+                  {memberName(member.displayName).slice(0, 1).toUpperCase()}
+                </span>
+                <span className="tl-member-name">
+                  {memberName(member.displayName)}
+                </span>
+                {member.isHost && <span className="tl-host-badge">Host</span>}
+              </motion.li>
+            ))}
+          </AnimatePresence>
         </ul>
-      </section>
+      </motion.section>
 
       {lobby.status === 'waiting' && lobby.youAreHost && (
-        <>
+        <motion.div variants={staggerItem}>
           <Button appearance="flat" block
             type="button"
             className="tl-room-start"
@@ -520,37 +591,41 @@ function LobbyRoom({
               Invite at least one more player before starting the match.
             </p>
           )}
-        </>
+        </motion.div>
       )}
       {lobby.status === 'playing' && (
-        <Button appearance="flat" block
-          type="button"
-          className="tl-room-start"
-          onClick={onReturnToMatch}
-        >
-          Return to match
-        </Button>
+        <motion.div variants={staggerItem}>
+          <Button appearance="flat" block
+            type="button"
+            className="tl-room-start"
+            onClick={onReturnToMatch}
+          >
+            Return to match
+          </Button>
+        </motion.div>
       )}
 
-      <p className="tl-room-note">
+      <motion.p className="tl-room-note" variants={staggerItem}>
         {lobby.status === 'waiting'
           ? 'Share the code with friends. This page refreshes automatically every few seconds.'
           : lobby.status === 'playing'
             ? 'The match is underway. Return to the match to keep guessing.'
             : 'This match has finished.'}
-      </p>
+      </motion.p>
 
-      <Button appearance="flat" variant="danger" block
-        type="button"
-        onClick={onLeave}
-        disabled={busy}
-      >
-        {busy
-          ? 'Leaving…'
-          : lobby.youAreHost && lobby.status === 'waiting'
-            ? 'Disband lobby'
-            : 'Leave lobby'}
-      </Button>
-    </div>
+      <motion.div variants={staggerItem}>
+        <Button appearance="flat" variant="danger" block
+          type="button"
+          onClick={onLeave}
+          disabled={busy}
+        >
+          {busy
+            ? 'Leaving…'
+            : lobby.youAreHost && lobby.status === 'waiting'
+              ? 'Disband lobby'
+              : 'Leave lobby'}
+        </Button>
+      </motion.div>
+    </motion.div>
   )
 }

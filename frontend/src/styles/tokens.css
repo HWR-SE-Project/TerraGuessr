@@ -1,58 +1,105 @@
+/* -----------------------------------------------------------------------------
+ * TerraGuessr design tokens — the single :root source of truth.
+ *
+ * Identity: a warm, cosmic geography adventure. Deep indigo-violet space
+ * (not cold navy), the lime brand, and a balanced set of warm + cool accents.
+ * Depth comes from soft shadows and solid, warm surfaces — not glassmorphism.
+ * -------------------------------------------------------------------------- */
 :root {
   color-scheme: dark;
-  --color-bg: #080f1b;
-  --color-surface: #101c2c;
-  --color-surface-raised: #162437;
-  --color-surface-hover: #1e3045;
-  --color-border: #a2bed620;
-  --color-border-strong: #a2bed63b;
-  --color-text: #f4f7fb;
-  --color-muted: #a4b3c5;
-  --color-subtle: #768ba3;
+
+  /* Warm space background and surfaces. Indigo-violet rather than navy. */
+  --color-bg: #14112a;
+  --color-bg-deep: #0e0b20;
+  --color-surface: #221c41;
+  --color-surface-raised: #2b2452;
+  --color-surface-hover: #352d64;
+
+  --color-border: #ffffff14;
+  --color-border-strong: #ffffff28;
+
+  /* Warm off-white text scale. */
+  --color-text: #fbf7ee;
+  --color-muted: #bdb5d8;
+  --color-subtle: #948bac;
+
+  /* Brand lime — preserved. Dark ink for on-lime text. */
   --color-lime: #c0f66b;
-  --color-lime-hover: #d1ff8e;
-  --color-on-lime: #172512;
-  --color-focus-ring: #d4ff9b;
-  /* Alpha sub-scale for the single accent hue. Replaces hand-picked
-     #c0f66bNN-style literals scattered per component. */
+  --color-lime-hover: #d2ff8a;
+  --color-on-lime: #1b2a10;
+  --color-focus-ring: #d9ffa0;
+
+  /* Balanced accents: sunrise amber, sky cyan, friendly violet, gold. */
+  --color-amber: #ffb45e;
+  --color-amber-hover: #ffc88a;
+  --color-on-amber: #2a1805;
+  --color-cyan: #79d7f0;
+  --color-red: #ff9da3;
+  --color-violet: #b59bff;
+  --color-gold: #f0cf7a;
+
+  /* Alpha sub-scales (single hue). Prefer these over hand-picked hex+alpha. */
   --color-lime-10: color-mix(in srgb, var(--color-lime) 10%, transparent);
   --color-lime-20: color-mix(in srgb, var(--color-lime) 20%, transparent);
   --color-lime-40: color-mix(in srgb, var(--color-lime) 40%, transparent);
   --color-lime-70: color-mix(in srgb, var(--color-lime) 70%, transparent);
-  --color-cyan: #83d5ed;
-  --color-red: #ff9b9e;
-  --color-quiet: #ffffff0c;
-  --color-danger-fill: #ff9b9e0c;
-  --color-danger-border: #ff9b9e40;
-  --color-danger-hover: #ff9b9e1a;
-  --selection-fill: #b8d5ff04;
-  --selection-border: #c5dbef17;
-  --selection-active-fill: #c0f66b09;
+  --color-amber-10: color-mix(in srgb, var(--color-amber) 12%, transparent);
+  --color-amber-20: color-mix(in srgb, var(--color-amber) 22%, transparent);
+  --color-amber-40: color-mix(in srgb, var(--color-amber) 42%, transparent);
+  --color-violet-10: color-mix(in srgb, var(--color-violet) 12%, transparent);
+  --color-violet-20: color-mix(in srgb, var(--color-violet) 22%, transparent);
+  --color-violet-40: color-mix(in srgb, var(--color-violet) 42%, transparent);
+
+  --color-quiet: #ffffff0e;
+  --color-danger-fill: #ff9da312;
+  --color-danger-border: #ff9da34d;
+  --color-danger-hover: #ff9da31f;
+
+  /* Selection material for difficulty/candidate cards. */
+  --selection-fill: #ffffff05;
+  --selection-border: #ffffff1f;
+  --selection-active-fill: #c0f66b12;
   --selection-active-border: #c0f66b8c;
-  --radius-sm: 8px;
-  --radius-control: 16px;
-  --radius-card: 20px;
-  --radius-panel: 28px;
+
+  /* Friendly, slightly rounder radius scale. */
+  --radius-sm: 10px;
+  --radius-control: 14px;
+  --radius-card: 18px;
+  --radius-panel: 26px;
   --radius-pill: 999px;
+
   --control-height: 48px;
   --nav-height: 68px;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
-  --shadow-panel: 0 24px 80px #0005, inset 0 1px #ffffff05;
+
+  /* Expressive rounded display + a warm, readable body face. */
+  --font-display: 'Fredoka', 'Nunito', system-ui, -apple-system, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
+
+  /* Soft, warm, "game" depth. */
+  --shadow-panel: 0 24px 60px rgba(6, 4, 18, 0.55), 0 3px 10px rgba(6, 4, 18, 0.3);
+  --shadow-card: 0 10px 28px rgba(6, 4, 18, 0.35), 0 2px 6px rgba(6, 4, 18, 0.24);
+  --shadow-float: 0 18px 46px rgba(6, 4, 18, 0.5), 0 2px 8px rgba(6, 4, 18, 0.28);
+
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 160ms;
-  /* Shared glass material. Lighter fill + taller blur keeps frosted panels
-     legible over maps and panoramas despite the lower opacity. */
-  --glass-blur: 34px;
-  /* Lighter touch for surfaces that float over Street View/the guess map —
-     keeps imagery legible underneath instead of frosting it as hard as chrome. */
-  --glass-blur-panel: 20px;
-  --glass-fill: #16243c58;
-  --glass-border: #d7ebff38;
-  --glass-border-hover: #e3f2ff70;
-  --glass-shading: linear-gradient(155deg, #d5eaff1f, #c3e0ff08 48%, #030a1614);
-  --glass-reflection: radial-gradient(ellipse at 15% 0%, #ecf8ff1f, transparent 72%);
-  --glass-shadow: 0 10px 26px #01061024, 0 2px 6px #01061014;
-  --glass-shadow-hover: 0 14px 34px #01061032, 0 3px 7px #0106101c;
-  --glass-inner: inset 0 1px 0 #f6fbff30, inset 0 -1px 0 #02081530;
+  --duration-base: 260ms;
+  --duration-slow: 420ms;
+  --duration-page: 500ms;
+  --stagger-step: 70ms;
+
+  /* Shared surface material (solid warm cards — kept as tokens so the
+     leftover --glass-* references stay valid; see controls.css for the
+     .tg-glass/.tg-control implementations). */
+  --glass-blur: 0px;
+  --glass-blur-panel: 0px;
+  --glass-fill: var(--color-surface);
+  --glass-border: var(--color-border-strong);
+  --glass-border-hover: #ffffff40;
+  --glass-shading: linear-gradient(180deg, var(--color-surface-raised), var(--color-surface));
+  --glass-reflection: linear-gradient(#ffffff09, #ffffff00 40%);
+  --glass-shadow: var(--shadow-float);
+  --glass-shadow-hover: 0 22px 54px rgba(6, 4, 18, 0.6), 0 3px 9px rgba(6, 4, 18, 0.32);
+  --glass-inner: inset 0 1px 0 #ffffff12, inset 0 -1px 0 #00000026;
 }

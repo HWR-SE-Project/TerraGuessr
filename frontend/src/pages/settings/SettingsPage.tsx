@@ -1,14 +1,17 @@
 import { Switch } from '../../components/ui/Switch'
 import { Button } from '../../components/ui/Button'
+import { IconButton } from '../../components/ui/IconButton'
 import { Input } from '../../components/ui/Input'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSession } from '../../state/SessionContext'
 import { requestEmailChange } from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AppHeader } from '../../components/layout/AppHeader'
+import { staggerContainer, staggerItem, collapseVariants } from '../../lib/motion'
 import './SettingsPage.css'
 
 function LanguageIcon() {
@@ -31,8 +34,8 @@ function Slider({
   onChange: (value: number) => void
 }) {
   return (
-    <div className="settings-row">
-      <h2 className="settings-row__label">{label}</h2>
+    <div className="settings-item">
+      <h2 className="settings-item__label">{label}</h2>
       <div className="settings-slider-wrap">
         <input
           aria-label={label}
@@ -44,12 +47,7 @@ function Slider({
           style={{ '--slider-progress': `${value}%` } as CSSProperties}
           onChange={(event) => onChange(Number(event.target.value))}
         />
-        <output
-          className="settings-slider__value"
-          style={{ left: `clamp(24px, ${value}%, calc(100% - 24px))` }}
-        >
-          {value}
-        </output>
+        <span className="settings-slider__value">{value}</span>
       </div>
     </div>
   )
@@ -134,12 +132,30 @@ export function SettingsPage() {
     changes: Parameters<typeof updatePreferences>[0],
   ) {
     setPrefsError(null)
+    if ('fullscreen' in changes) {
+      try {
+        if (changes.fullscreen) await document.documentElement.requestFullscreen()
+        else if (document.fullscreenElement) await document.exitFullscreen()
+      } catch {
+        setPrefsError('Your browser blocked fullscreen. Try again from a direct click.')
+        return
+      }
+    }
     try {
       await updatePreferences(changes)
     } catch (cause) {
       setPrefsError(mapApiError(cause))
     }
   }
+
+  // Keep the toggle in sync when fullscreen is left via Escape or browser UI.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && preferences?.fullscreen) void updatePreferences({ fullscreen: false })
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [preferences?.fullscreen, updatePreferences])
 
   async function confirmDelete() {
     setDeleteBusy(true)
@@ -175,251 +191,216 @@ export function SettingsPage() {
   return (
     <>
       <AppHeader />
-      <main className="settings-screen">
-        <section className="settings-panel" aria-label="Settings">
-        <header className="settings-header">
-          <h1>Settings</h1>
-        </header>
+      <main className="settings-screen" onClick={(event) => {
+        if (event.target === event.currentTarget && !deleteOpen) navigate('/')
+      }}>
+        <section className="settings-window tg-glass tg-glass--panel" aria-label="Settings">
+          <header className="settings-window__header">
+            <h1>Settings</h1>
+            <IconButton className="settings-window__close" aria-label="Close settings" onClick={() => navigate('/')}>
+              ×
+            </IconButton>
+          </header>
 
-        <div className="settings-content">
-          <h2 className="settings-section-title">Account</h2>
-          {
-            !user ? (
-              <div className="settings-row settings-guest">
-                <p>Sign in to manage your account.</p>
-                <Button
-                  type="button"
-                  className="settings-save-btn"
-                  onClick={() => navigate('/auth')}
-                >
-                  Sign in
-                </Button>
-              </div>
-            ) : (
-            <>
-              <form className="settings-row" onSubmit={saveProfile}>
-                <h2 className="settings-row__label">Display name</h2>
-                <div className="settings-inline-group">
-                  <Input
-                    aria-label="Display name"
-                    className="settings-text-input"
-                    value={displayName}
-                    minLength={2}
-                    maxLength={40}
-                    onChange={(event) => setDisplayName(event.target.value)}
-                  />
-                  <Button
-                    type="submit"
-                    className="settings-save-btn"
-                    disabled={
-                      profileSaving || displayName.trim() === user.displayName
-                    }
-                  >
-                    {profileSaving ? 'Saving…' : 'Save'}
-                  </Button>
-                  {profileMessage && (
-                    <span className="settings-inline-message">
-                      {profileMessage}
-                    </span>
-                  )}
-                </div>
-              </form>
-
-              <div className="settings-row">
-                <h2 className="settings-row__label">Email</h2>
-                <div className="settings-email">
-                  <div className="settings-inline-group">
-                    <span className="settings-email-address">{user.email}</span>
-                    <Button variant="secondary"
-                      type="button"
-                      className="settings-save-btn"
-                      onClick={() => {
-                        setEmailFormOpen((open) => !open)
-                        setEmailError(null)
-                        setEmailMessage(null)
-                      }}
-                    >
-                      {emailFormOpen ? 'Cancel' : 'Change email'}
+          <motion.div
+            className="settings-window__body"
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
+            <motion.section variants={staggerItem} className="settings-group settings-group--account">
+              <h2 className="settings-group__title">Account</h2>
+              {!user ? (
+                <div className="settings-group__box">
+                  <div className="settings-item settings-item--guest">
+                    <p>Sign in to manage your account.</p>
+                    <Button type="button" size="sm" onClick={() => navigate('/auth')}>
+                      Sign in
                     </Button>
                   </div>
-                  {emailMessage && (
-                    <span className="settings-inline-message">{emailMessage}</span>
-                  )}
-                  {emailFormOpen && (
-                    <form className="settings-email-form" onSubmit={submitEmailChange}>
+                </div>
+              ) : (
+                <div className="settings-group__box">
+                  <form className="settings-item" onSubmit={saveProfile}>
+                    <h2 className="settings-item__label">Name</h2>
+                    <div className="settings-inline-group">
                       <Input
-                        type="email"
-                        required
-                        aria-label="New email address"
+                        aria-label="Display name"
                         className="settings-text-input"
-                        placeholder="New email address"
-                        value={newEmail}
-                        onChange={(event) => setNewEmail(event.target.value)}
+                        value={displayName}
+                        minLength={2}
+                        maxLength={40}
+                        onChange={(event) => setDisplayName(event.target.value)}
                       />
-                      {user.hasPassword && (
-                        <Input
-                          type="password"
-                          required
-                          aria-label="Current password"
-                          className="settings-text-input"
-                          placeholder="Current password"
-                          value={emailPassword}
-                          onChange={(event) =>
-                            setEmailPassword(event.target.value)
-                          }
-                        />
-                      )}
-                      <p className="settings-note">
-                        We will email both your current address and the new one.
-                        The change applies only after both confirm.
-                      </p>
                       <Button
                         type="submit"
-                        className="settings-save-btn settings-email-submit"
-                        disabled={emailBusy || !newEmail.trim()}
+                        size="sm"
+                        disabled={profileSaving || displayName.trim() === user.displayName}
                       >
-                        {emailBusy ? 'Sending…' : 'Send confirmation'}
+                        {profileSaving ? 'Saving…' : 'Save'}
                       </Button>
-                      {emailError && (
-                        <p className="settings-inline-message settings-inline-message--error">
-                          {emailError}
-                        </p>
-                      )}
-                    </form>
-                  )}
+                    </div>
+                    {profileMessage && <span className="settings-inline-message">{profileMessage}</span>}
+                  </form>
+
+                  <div className="settings-item settings-item--stack">
+                    <h2 className="settings-item__label">Email</h2>
+                    <div className="settings-email">
+                      <div className="settings-inline-group">
+                        <span className="settings-email-address">{user.email}</span>
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            setEmailFormOpen((open) => !open)
+                            setEmailError(null)
+                            setEmailMessage(null)
+                          }}
+                        >
+                          {emailFormOpen ? 'Cancel' : 'Change'}
+                        </Button>
+                      </div>
+                      {emailMessage && <span className="settings-inline-message">{emailMessage}</span>}
+                      <AnimatePresence initial={false}>
+                        {emailFormOpen && (
+                          <motion.form
+                            className="settings-email-form"
+                            onSubmit={submitEmailChange}
+                            variants={collapseVariants}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <Input
+                              type="email"
+                              required
+                              aria-label="New email address"
+                              className="settings-text-input"
+                              placeholder="New email address"
+                              value={newEmail}
+                              onChange={(event) => setNewEmail(event.target.value)}
+                            />
+                            {user.hasPassword && (
+                              <Input
+                                type="password"
+                                required
+                                aria-label="Current password"
+                                className="settings-text-input"
+                                placeholder="Current password"
+                                value={emailPassword}
+                                onChange={(event) => setEmailPassword(event.target.value)}
+                              />
+                            )}
+                            <p className="settings-note">
+                              We'll email both addresses — the change applies once both confirm.
+                            </p>
+                            <Button type="submit" size="sm" disabled={emailBusy || !newEmail.trim()}>
+                              {emailBusy ? 'Sending…' : 'Send confirmation'}
+                            </Button>
+                            {emailError && (
+                              <p className="settings-inline-message settings-inline-message--error">{emailError}</p>
+                            )}
+                          </motion.form>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  <div className="settings-item settings-item--actions">
+                    <h2 className="settings-item__label">Account</h2>
+                    <div className="settings-account-actions">
+                      <Button variant="secondary" appearance="flat" type="button" size="sm" onClick={handleLogout}>
+                        Log out
+                      </Button>
+                      <Button variant="danger" appearance="flat" type="button" size="sm" onClick={() => setDeleteOpen(true)}>
+                        Delete my account
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="settings-row">
-                <h2 className="settings-row__label">Session</h2>
-                <Button variant="secondary"
-                  type="button"
-                  className="settings-save-btn settings-save-btn--muted"
-                  onClick={handleLogout}
-                >
-                  Log out
-                </Button>
-              </div>
-
-              <div className="settings-row">
-                <h2 className="settings-row__label">Delete account</h2>
-                <div>
-                  <p className="settings-note settings-note--spaced">
-                    Permanently deletes your account and preferences. Past games
-                    and results are kept, anonymized.
-                  </p>
-                  <Button variant="danger"
-                    type="button"
-                    className="settings-save-btn"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    Delete my account
-                  </Button>
-                </div>
-              </div>
-            </>
-            )
-          }
-
-          <h2 className="settings-section-title">Preferences</h2>
-          <>
-              <Slider
-                label="Effect volume"
-                value={preferences?.soundFxVolume ?? 50}
-                onChange={(value) => patchPreferences({ soundFxVolume: value })}
-              />
-              <Slider
-                label="Music volume"
-                value={preferences?.musicVolume ?? 35}
-                onChange={(value) => patchPreferences({ musicVolume: value })}
-              />
-
-              <div className="settings-row">
-                <h2 className="settings-row__label">Language</h2>
-                <div className="settings-language-select tg-field">
-                  <span className="settings-language-select__icon">
-                    <LanguageIcon />
-                  </span>
-                  <select
-                    aria-label="Language"
-                    value={preferences?.language ?? 'en'}
-                    onChange={(event) =>
-                      patchPreferences({
-                        language: event.target.value as 'en' | 'de',
-                      })
-                    }
-                  >
-                    <option value="en">English</option>
-                    <option value="de">Deutsch</option>
-                  </select>
-                  <span
-                    className="settings-language-select__chevron"
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-
-              <div className="settings-row">
-                <h2 className="settings-row__label">Fullscreen</h2>
-                <label className="settings-toggle">
-                  <Switch
-                    aria-label="Fullscreen"
-                    checked={preferences?.fullscreen ?? false}
-                    onChange={(event) =>
-                      patchPreferences({ fullscreen: event.target.checked })
-                    }
-                  />
-                </label>
-              </div>
-
-              {prefsError && (
-                <p className="settings-inline-message settings-inline-message--error">
-                  {prefsError}
-                </p>
               )}
-            </>
-        </div>
+            </motion.section>
 
-        <footer className="settings-footer">
-          <Button variant="secondary"
-            className="settings-footer__close"
-            type="button"
-            onClick={() => navigate('/')}
+            <motion.section variants={staggerItem} className="settings-group">
+              <h2 className="settings-group__title">Preferences</h2>
+              <div className="settings-group__box">
+                <Slider
+                  label="Effects"
+                  value={preferences?.soundFxVolume ?? 50}
+                  onChange={(value) => patchPreferences({ soundFxVolume: value })}
+                />
+                <Slider
+                  label="Music"
+                  value={preferences?.musicVolume ?? 35}
+                  onChange={(value) => patchPreferences({ musicVolume: value })}
+                />
+
+                <div className="settings-item">
+                  <h2 className="settings-item__label">Language</h2>
+                  <div className="settings-language-select tg-field">
+                    <span className="settings-language-select__icon">
+                      <LanguageIcon />
+                    </span>
+                    <select
+                      aria-label="Language"
+                      value={preferences?.language ?? 'en'}
+                      onChange={(event) =>
+                        patchPreferences({
+                          language: event.target.value as 'en' | 'de',
+                        })
+                      }
+                    >
+                      <option value="en">English</option>
+                      <option value="de">Deutsch</option>
+                    </select>
+                    <span className="settings-language-select__chevron" aria-hidden="true" />
+                  </div>
+                </div>
+
+                <div className="settings-item">
+                  <h2 className="settings-item__label">Fullscreen</h2>
+                  <label className="settings-toggle">
+                    <Switch
+                      aria-label="Fullscreen"
+                      checked={preferences?.fullscreen ?? false}
+                      onChange={(event) => patchPreferences({ fullscreen: event.target.checked })}
+                    />
+                  </label>
+                </div>
+
+                {prefsError && <p className="settings-inline-message settings-inline-message--error">{prefsError}</p>}
+              </div>
+            </motion.section>
+          </motion.div>
+        </section>
+
+        {deleteOpen && (
+          <ConfirmDialog
+            title="Delete your account?"
+            description="This can't be undone. Past games and results are kept, anonymized. If your account has a password, confirm it below."
+            confirmLabel="Delete account"
+            destructive
+            busy={deleteBusy}
+            onConfirm={confirmDelete}
+            onCancel={() => {
+              setDeleteOpen(false)
+              setDeleteError(null)
+              setDeletePassword('')
+            }}
           >
-            Close
-          </Button>
-        </footer>
-      </section>
-
-      {deleteOpen && (
-        <ConfirmDialog
-          title="Delete your account?"
-          description="This can't be undone. If your account has a password, confirm it below."
-          confirmLabel="Delete account"
-          destructive
-          busy={deleteBusy}
-          onConfirm={confirmDelete}
-          onCancel={() => {
-            setDeleteOpen(false)
-            setDeleteError(null)
-            setDeletePassword('')
-          }}
-        >
-          <Input
-            type="password"
-            aria-label="Current password"
-            placeholder="Current password (if set)"
-            className="settings-text-input settings-delete-password"
-            value={deletePassword}
-            onChange={(event) => setDeletePassword(event.target.value)}
-          />
-          {deleteError && (
-            <p className="settings-inline-message settings-inline-message--error">
-              {deleteError}
-            </p>
-          )}
-        </ConfirmDialog>
-      )}
+            <Input
+              type="password"
+              aria-label="Current password"
+              placeholder="Current password (if set)"
+              className="settings-text-input settings-delete-password"
+              value={deletePassword}
+              onChange={(event) => setDeletePassword(event.target.value)}
+            />
+            {deleteError && <p className="settings-inline-message settings-inline-message--error">{deleteError}</p>}
+          </ConfirmDialog>
+        )}
       </main>
     </>
   )

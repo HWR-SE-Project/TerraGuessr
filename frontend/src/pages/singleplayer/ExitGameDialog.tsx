@@ -1,5 +1,7 @@
+import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 
 export interface ExitDialogError {
   action: 'end'
@@ -32,35 +34,37 @@ export function ExitGameDialog({
   const busy = pending !== null
   return (
     <Modal title="End your adventure?" onClose={onContinue} closeDisabled={busy}>
-      <p>
-        Your current game will end. You won&apos;t be able to continue this
-        session afterward.
-      </p>
-      <p className="sp-exit-recap">
-        Round {round} · {score.toLocaleString('en-US')} pts
-      </p>
-      {error && (
-        <p className="tg-dialog-error" role="alert">
-          {error.message}
-        </p>
-      )}
-      <div className="tg-dialog-menu">
-        <Button
-          type="button"
-          onClick={onContinue}
-          disabled={busy}
-          autoFocus
-        >
-          Keep Playing
-        </Button>
-        <Button variant="danger"
-          type="button"
-          onClick={onEnd}
-          disabled={busy || waiting}
-        >
-          {pending === 'end' ? 'Ending…' : 'End Game'}
-        </Button>
-      </div>
+      <motion.div variants={staggerContainer} initial="initial" animate="animate">
+        <motion.p variants={staggerItem}>
+          Your current game will end. You won&apos;t be able to continue this
+          session afterward.
+        </motion.p>
+        <motion.p className="sp-exit-recap" variants={staggerItem}>
+          Round {round} · {score.toLocaleString('en-US')} pts
+        </motion.p>
+        {error && (
+          <motion.p className="tg-dialog-error" role="alert" variants={staggerItem}>
+            {error.message}
+          </motion.p>
+        )}
+        <motion.div className="tg-dialog-menu" variants={staggerItem}>
+          <Button
+            type="button"
+            onClick={onContinue}
+            disabled={busy}
+            autoFocus
+          >
+            Keep Playing
+          </Button>
+          <Button variant="danger"
+            type="button"
+            onClick={onEnd}
+            disabled={busy || waiting}
+          >
+            {pending === 'end' ? 'Ending…' : 'End Game'}
+          </Button>
+        </motion.div>
+      </motion.div>
     </Modal>
   )
 }

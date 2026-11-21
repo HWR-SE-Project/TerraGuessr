@@ -6,6 +6,8 @@ import { useNavigationGuard } from '../../components/layout/useNavigationGuard'
 import { AppHeader } from '../../components/layout/AppHeader'
 import type { CSSProperties } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import type { Variants } from 'framer-motion'
 import { GuessButton } from '../../game/GuessButton'
 import { useGameSession } from './useGameSession'
 import { StreetViewViewer } from '../../game/StreetViewViewer'
@@ -27,6 +29,15 @@ import './GuessingMapPanel.css'
 import './SingleplayerSetup.css'
 import './SessionSummary.css'
 import { clockLabel } from '../../lib/format'
+import { duration, ease } from '../../lib/motion'
+
+// Subtler than the route-level `pageVariants` — these are in-page phase
+// swaps (setup → gameplay → round result → summary), not full navigations.
+const sectionVariants: Variants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: duration.base, ease: ease.out } },
+  exit: { opacity: 0, y: -8, transition: { duration: duration.fast, ease: ease.out } },
+}
 
 export function SingleplayerGamePage() {
   const navigate = useNavigate()
@@ -151,8 +162,16 @@ export function SingleplayerGamePage() {
         onHelp={() => setDialog('tutorial')} onSettings={() => setDialog('settings')}
         onMenu={() => setDialog('menu')} />
 
+      <AnimatePresence mode="wait">
       {(view === 'setup' || view === 'loading') && (
-        <div className="sp-setup-shell">
+        <motion.div
+          key="setup"
+          className="sp-setup-shell"
+          variants={sectionVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
           <section className="sp-welcome tg-glass" aria-label="Start expedition">
             <div className="sp-setup-intro">
               <h1>
@@ -211,9 +230,18 @@ export function SingleplayerGamePage() {
               )}
             </div>
           </section>
-        </div>
+        </motion.div>
       )}
-      {exploring && <section className="sp-stage" aria-label="Exploration controls">
+      {exploring && (
+        <motion.section
+          key="stage"
+          className="sp-stage"
+          aria-label="Exploration controls"
+          variants={sectionVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
         {active && (
           <StreetViewViewer
             round={active}
@@ -244,9 +272,11 @@ export function SingleplayerGamePage() {
             unlockError={game.unlockError}
           />
         )}
-      </section>}
+        </motion.section>
+      )}
       {view === 'round-results' && game.result && (
         <RoundResults
+          key="round-results"
           result={game.result}
           busy={game.busy}
           onNext={() => void game.next()}
@@ -254,12 +284,14 @@ export function SingleplayerGamePage() {
       )}
       {view === 'session-summary' && (
         <FinalResults
+          key="session-summary"
           session={game.session}
           busy={game.busy}
           onPlayAgain={restartExpedition}
           onHome={() => navigate('/')}
         />
       )}
+      </AnimatePresence>
       {game.error && (
         <div className="sp-error tg-glass" role="alert">
           {game.error}

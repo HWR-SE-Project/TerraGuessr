@@ -31,8 +31,7 @@ async function audit(page: Page) {
     if (document.documentElement.scrollWidth > innerWidth + 1) issues.push('document horizontal overflow')
     const dialog = document.querySelector('dialog[open], [role="alertdialog"]')
     const scope = dialog ?? document
-    const visibleRect = (el: HTMLElement) => {
-      const rect = el.getBoundingClientRect()
+    const clip = (rect: DOMRect | { left: number; right: number; top: number; bottom: number }, el: HTMLElement) => {
       let left=rect.left, right=rect.right, top=rect.top, bottom=rect.bottom
       for(let parent=el.parentElement; parent; parent=parent.parentElement) {
         const css=getComputedStyle(parent), bounds=parent.getBoundingClientRect()
@@ -41,6 +40,15 @@ async function audit(page: Page) {
       }
       return {left,right,top,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)}
     }
+    const visibleRect = (el: HTMLElement) => clip(el.getBoundingClientRect(), el)
+    // getBoundingClientRect() unions every line of a wrapped inline element (e.g. a
+    // link spanning two lines), which falsely "overlaps" a neighbor sitting on just
+    // one of those lines. getClientRects() gives the real per-line fragments instead.
+    const visibleFragments = (el: HTMLElement) => {
+      const rects = [...el.getClientRects()]
+      const source = rects.length ? rects : [el.getBoundingClientRect()]
+      return source.map(rect => clip(rect, el)).filter(r => r.width > 0 && r.height > 0)
+    }
     const controls = [...scope.querySelectorAll<HTMLElement>('button, a, input, select')].filter(el => {
       const r = visibleRect(el)
       const topbar = dialog?.querySelector('.tt-topbar')
@@ -48,16 +56,16 @@ async function audit(page: Page) {
       return !underStickyHeader && r.width && r.height && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[hidden], [inert], .sp-google-map, .sp-panorama, .leaflet-container') && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth
     })
     for (let i=0; i<controls.length; i++) {
-      const a=controls[i]!, ar=visibleRect(a)
+      const a=controls[i]!, ar=visibleRect(a), af=visibleFragments(a)
       if (ar.left < -1 || ar.right > innerWidth + 1) issues.push(`control outside horizontal viewport: ${a.ariaLabel || a.textContent}`)
       // Ignore scrollable content above/below the visible area; it must remain reachable.
       for (let j=i+1; j<controls.length; j++) {
         const b=controls[j]!
         if (a.contains(b) || b.contains(a)) continue
-        const br=visibleRect(b)
-        if (Math.min(ar.right, br.right)-Math.max(ar.left,br.left)>2 && Math.min(ar.bottom,br.bottom)-Math.max(ar.top,br.top)>2) {
-          issues.push(`overlap: ${a.ariaLabel || a.textContent?.trim()} / ${b.ariaLabel || b.textContent?.trim()}`)
-        }
+        const bf=visibleFragments(b)
+        const overlaps = af.some(fa => bf.some(fb =>
+          Math.min(fa.right, fb.right)-Math.max(fa.left, fb.left)>2 && Math.min(fa.bottom, fb.bottom)-Math.max(fa.top, fb.top)>2))
+        if (overlaps) issues.push(`overlap: ${a.ariaLabel || a.textContent?.trim()} / ${b.ariaLabel || b.textContent?.trim()}`)
       }
     }
     return issues
@@ -126,16 +134,14 @@ async function routes(page: Page, screenshot?: string) {
   for (const label of ['Easy','Medium','Hard']) await page.getByRole('radio',{name:new RegExp(label)}).click()
   await reachable(page, '.sp-welcome .tg-button--primary')
   if (screenshot) await capture(page, `${output}/setup-${screenshot}.png`)
-  await page.goto('/game/singleplayer?tutorial=1')
-  const dialog=page.getByRole('dialog',{name:'How to play / Tutorial'})
-  for (const [i, heading] of ['Read the weather', 'Pick your location', 'Lock in your guess', 'Measuring distance', 'Score by distance'].entries()) {
-    await expect(dialog.getByRole('heading', { name: heading, exact: true })).toBeVisible()
-    await reachable(page, '.tt-navigation button:last-child')
-    expect(await dialog.evaluate(el=>el.scrollWidth <= el.clientWidth+1)).toBe(true)
-    if (i < 4) await dialog.getByRole('button', { name: 'Next', exact: false }).click()
+  await page.goto('/how-to-play')
+  await expect(page.getByRole('heading', { name: 'How to play.' })).toBeVisible()
+  for (const heading of ['Look around', 'Follow the clues', 'Choose your location', 'Make your guess']) {
+    await page.getByRole('heading', { name: heading, exact: true }).scrollIntoViewIfNeeded()
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeInViewport()
   }
+  await reachable(page, '.htp-play')
   if (screenshot) await capture(page, `${output}/tutorial-${screenshot}.png`)
-  await page.keyboard.press('Escape')
   await page.goto('/settings')
   await audit(page)
 }
@@ -157,7 +163,6 @@ async function zoomGameSurfaces(page: Page, suffix?: string) {
     route.request().method() === 'DELETE' ? route.fulfill({ status:204 }) : route.fulfill({ json: session }))
   await page.goto('/game/singleplayer')
   await page.getByRole('button', {name:/Start exploring/i}).click()
-  await page.getByRole('dialog', {name:'How to play / Tutorial'}).getByRole('button', {name:/^(Skip|Exit tutorial)$/}).click()
   for (const phase of ['active', 'final']) {
     if (phase === 'active') {
       await expect(page.locator('.sp-panorama')).toBeVisible()
@@ -245,7 +250,6 @@ for (const phase of ['active','final']) {
     await page.route('**/intelligence',r=>r.fulfill({status:503,json:{error:{code:'UNAVAILABLE',message:'Offline fixture'}}}))
     await page.goto('/game/singleplayer')
     await page.getByRole('button',{name:/Start exploring/i}).click()
-    await page.getByRole('dialog',{name:'How to play / Tutorial'}).getByRole('button',{name:/^(Skip|Exit tutorial)$/}).click()
     if (phase === 'final') {
       await requestGameExit(page)
       await page.getByRole('dialog',{name:'End your adventure?'}).getByRole('button',{name:'End Game'}).click()
@@ -302,6 +306,7 @@ test('responsive account settings, preferences and confirmation dialog', async (
 })
 
 test('compact navigation expands in flow and keeps primary routes reachable', async ({page}) => {
+  await page.emulateMedia({reducedMotion:'reduce'})
   await page.goto('/')
   for (const width of [375,390,768,1000]) {
     await page.setViewportSize({width,height:812})

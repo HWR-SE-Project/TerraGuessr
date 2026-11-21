@@ -14,7 +14,6 @@ async function start(page: Page) {
   await page.goto('/game/singleplayer')
   await page.getByRole('radio', { name: /Medium/ }).click()
   await page.getByRole('button', { name: /Start exploring/i }).click()
-  await page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
   await expect(page.locator('.sp-panorama')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 })
   await expect(page.locator('.sp-world-panel .sp-google-map')).toHaveAttribute('data-tiles-ready', 'true', { timeout: 20_000 })
   await page.waitForTimeout(1000) // SDK readiness precedes imagery painting.

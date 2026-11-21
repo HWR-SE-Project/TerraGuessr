@@ -96,16 +96,6 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     await expect(page.getByRole('radio', { name: /Medium/ })).toBeVisible()
     await page.screenshot({ path: `${out}/setup.png` })
     await page.getByRole('button', { name: 'Start exploring' }).click()
-    // R14: the tutorial opens from the Start-exploring click itself (a new
-    // game starting), not from mount — so wait for it only after that click,
-    // then dismiss it before the round it's loading in the background is on screen.
-    const skipTutorial = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
-    try {
-      await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-      await skipTutorial.click()
-    } catch {
-      // Already seen in this profile this run; nothing to dismiss.
-    }
     for (let number = 1; number <= ROUNDS; number++) {
       const viewer = await waitForPanorama()
       await expect(page.locator('.sp-welcome')).toHaveCount(0)
@@ -244,7 +234,6 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     await page.setViewportSize({ width: 1792, height: 861 })
     report.ended = true
     await page.getByRole('button', { name: 'Play again' }).click()
-    await page.getByRole('dialog', { name: 'How to play / Tutorial' }).getByRole('button', { name: /^(Skip|Exit tutorial)$/ }).click()
     await waitForPanorama()
     report.restarted = true
     // Ending again immediately, before completing any rounds, must show the
@@ -290,16 +279,6 @@ test('live Google mobile: touch map, preserve pin through collapse, refuse to re
   try {
     await page.goto('/game/singleplayer')
     await page.getByRole('button', { name: 'Start exploring' }).click()
-    // See the R14 comment in the desktop test above: the tutorial opens from
-    // this click, so wait for the dialog rather than racing an immediate
-    // isVisible() check against it.
-    const skipTutorial = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
-    try {
-      await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-      await skipTutorial.click()
-    } catch {
-      // Already seen in this profile this run; nothing to dismiss.
-    }
     await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
       timeout: 40_000,
     })
@@ -351,13 +330,6 @@ test('live Google mobile: touch map, preserve pin through collapse, refuse to re
     await expect(page.getByRole('button', { name: 'Back to game' })).toHaveCount(0)
     // A fresh game starts cleanly after the refresh — no resumed round, pin, or score.
     await page.getByRole('button', { name: 'Start exploring' }).click()
-    const skipAfterReload = page.getByRole('button', { name: /^(Skip|Exit tutorial)$/ })
-    try {
-      await skipAfterReload.waitFor({ state: 'visible', timeout: 8_000 })
-      await skipAfterReload.click()
-    } catch {
-      // Already seen in this profile this run; nothing to dismiss.
-    }
     await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
       timeout: 40_000,
     })

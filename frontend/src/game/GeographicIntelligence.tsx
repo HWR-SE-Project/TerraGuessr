@@ -1,5 +1,6 @@
 import { Button } from '../components/ui/Button'
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import type {
   GeographicIntelligence as Intelligence,
   StreetRound,
@@ -7,7 +8,18 @@ import type {
 import type { AdditionalDataAccessDTO } from '../api/types'
 import { GeoIcon } from './GeoIcon'
 import type { GeoIconName } from './GeoIcon'
+import { duration, ease, staggerContainer, staggerItem } from '../lib/motion'
 import './GeographicIntelligence.css'
+
+/** Expand/collapse for the always-mounted (inert-when-closed) content region. */
+const giContentVariants = {
+  initial: { opacity: 0, height: 0 },
+  animate: {
+    opacity: 1,
+    height: 'auto',
+    transition: { duration: duration.base, ease: ease.emphasized },
+  },
+}
 
 const metric = (value: number | null | undefined, digits = 0) =>
   value == null
@@ -134,8 +146,19 @@ export function GeographicIntelligence({
         </span>
         <GeoIcon name="chevron" />
       </button>
-      <div className="gi-desktop-content" id="gi-content" inert={!isExpanded}>
-        <div>
+      <motion.div
+        className="gi-desktop-content"
+        id="gi-content"
+        inert={!isExpanded}
+        initial={false}
+        animate={isExpanded ? 'animate' : 'initial'}
+        variants={giContentVariants}
+      >
+        <motion.div
+          variants={staggerContainer}
+          initial="initial"
+          animate={isExpanded ? 'animate' : 'initial'}
+        >
           {loading ? (
             <p className="gi-loading" role="status">
               <span className="sp-spinner" /> Connecting to the weather station…
@@ -187,7 +210,7 @@ export function GeographicIntelligence({
                   round.
                 </p>
               )}
-              <section className="gi-weather" aria-label="Weather conditions">
+              <motion.section className="gi-weather" aria-label="Weather conditions" variants={staggerItem}>
                 <div className="gi-section-label">
                   <h3>Weather</h3>
                 </div>
@@ -261,9 +284,9 @@ export function GeographicIntelligence({
                 {!weather && (
                   <p className="gi-hint">Weather is temporarily unavailable.</p>
                 )}
-              </section>
+              </motion.section>
               {unlocked && (
-                <section className="gi-environment" aria-label="Environment">
+                <motion.section className="gi-environment" aria-label="Environment" variants={staggerItem}>
                   <div className="gi-section-label">
                     <h3>Environment</h3>
                     <span>GROUND PROFILE</span>
@@ -290,7 +313,7 @@ export function GeographicIntelligence({
                     {environment?.reliefM != null &&
                       ` · ${metric(environment.reliefM)} m sampled relief across ~2 km`}
                   </p>
-                </section>
+                </motion.section>
               )}
             </>
           )}
@@ -315,8 +338,8 @@ export function GeographicIntelligence({
               </a>
             </div>
           </footer>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </aside>
   )
 }

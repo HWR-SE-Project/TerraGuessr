@@ -1,4 +1,6 @@
+import { motion } from 'framer-motion'
 import type { CandidateDTO, LatLon } from '../api/types'
+import { pressable, spring, staggerContainer, staggerItem } from '../lib/motion'
 import './CandidateList.css'
 
 export interface CandidateListProps {
@@ -38,7 +40,13 @@ export function CandidateList({ candidates, onChange, selectedId = null }: Candi
   }
 
   return (
-    <ul className="tg-candidate-list" aria-label="Choose a location">
+    <motion.ul
+      className="tg-candidate-list"
+      aria-label="Choose a location"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
       {candidates.map((candidate) => {
         const selected = candidate.id === selectedId
         const label = candidate.name?.trim() || candidateSector(candidate)
@@ -46,22 +54,30 @@ export function CandidateList({ candidates, onChange, selectedId = null }: Candi
         seenLabels.set(label, occurrence + 1)
         const uniqueLabel = occurrence ? `${label} · ${occurrence + 1}` : label
         return (
-          <li key={candidate.id}>
-            <button
+          <motion.li key={candidate.id} variants={staggerItem}>
+            <motion.button
               type="button"
               data-testid="candidate-option"
               aria-pressed={selected}
               onClick={() => onChange({ lat: candidate.lat, lon: candidate.lon })}
               className="tg-candidate-row"
+              {...pressable}
             >
+              {selected && (
+                <motion.span
+                  className="tg-candidate-highlight"
+                  layoutId="candidate-highlight"
+                  transition={spring.snappy}
+                />
+              )}
               <span className="tg-candidate-name">{uniqueLabel}</span>
               <svg className="tg-candidate-mark" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="m3.5 8 3 3 6-6" />
               </svg>
-            </button>
-          </li>
+            </motion.button>
+          </motion.li>
         )
       })}
-    </ul>
+    </motion.ul>
   )
 }

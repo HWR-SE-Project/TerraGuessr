@@ -3,7 +3,7 @@
   position: relative;
   isolation: isolate;
   min-height: 100svh;
-  background: radial-gradient(ellipse at 50% 72%, #16304a66, transparent 58%), var(--color-bg);
+  background: radial-gradient(ellipse at 50% 72%, #2b214966, transparent 58%), var(--color-bg);
 }
 .cosmic-background {
   position: fixed;
@@ -22,7 +22,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(0deg, #080f1bbd 0%, #080f1b20 38%, transparent 65%);
+  background: linear-gradient(0deg, #14112abd 0%, #14112a20 38%, transparent 65%);
 }
 .cosmic-app[data-cosmic-home='true'] > .cosmic-background {
   position: absolute;

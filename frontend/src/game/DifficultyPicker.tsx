@@ -1,8 +1,10 @@
 import './DifficultyPicker.css'
 import { useRef } from 'react'
 import type { KeyboardEvent } from 'react'
+import { motion } from 'framer-motion'
 import { DIFFICULTY_LEVELS } from './difficulty'
 import type { Difficulty } from '../api/types'
+import { pressable, spring } from '../lib/motion'
 
 function CheckmarkIcon() {
   return (
@@ -80,7 +82,7 @@ export function DifficultyPicker({
         {DIFFICULTY_LEVELS.map((level, index) => {
           const selected = value === level.id
           return (
-            <button
+            <motion.button
               key={level.id}
               ref={(element) => {
                 optionRefs.current[index] = element
@@ -91,18 +93,25 @@ export function DifficultyPicker({
               tabIndex={selected ? 0 : -1}
               className="tg-difficulty-option tg-selection"
               onClick={() => onChange(level.id)}
+              {...(disabled ? {} : pressable)}
             >
               {selected && (
-                <span className="tg-difficulty-check" aria-hidden="true">
+                <motion.span
+                  className="tg-difficulty-check"
+                  aria-hidden="true"
+                  layoutId="difficulty-check"
+                  transition={spring.snappy}
+                >
                   <CheckmarkIcon />
-                </span>
+                </motion.span>
               )}
+              {lobby && <span className="tg-difficulty-meter" data-level={level.id} aria-hidden="true"><i /><i /><i /></span>}
               <span className="tg-difficulty-label">{level.label}</span>
               {lobby ? <>
-                <span className="tg-difficulty-detail">{level.detail}</span>
+                <span className="tg-difficulty-detail">{level.detail.split(' · ').map((detail) => <span key={detail}>{detail}</span>)}</span>
                 <span className="tg-difficulty-selection">{level.selection}</span>
               </> : <span className="tg-difficulty-description">{level.description}</span>}
-            </button>
+            </motion.button>
           )
         })}
       </div>

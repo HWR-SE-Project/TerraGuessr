@@ -15,13 +15,6 @@ test('live Google easy difficulty: list-mode guessing and expanded clues (R05/R0
   test.setTimeout(90_000)
   await page.setViewportSize({ width: 1792, height: 861 })
   await page.goto('/game/singleplayer')
-  const exitTutorial = page.getByRole('button', { name: 'Exit tutorial' })
-  try {
-    await exitTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-    await exitTutorial.click()
-  } catch {
-    // Already seen in this profile this run; nothing to dismiss.
-  }
   await page.getByRole('radio', { name: /Easy/ }).click()
   await page.getByRole('button', { name: 'Start exploring' }).click()
   await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
@@ -65,13 +58,6 @@ test('live Google hard difficulty: free map placement with weather visible by de
   test.setTimeout(90_000)
   await page.setViewportSize({ width: 1792, height: 861 })
   await page.goto('/game/singleplayer')
-  const exitTutorial = page.getByRole('button', { name: 'Exit tutorial' })
-  try {
-    await exitTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-    await exitTutorial.click()
-  } catch {
-    // Already seen in this profile this run; nothing to dismiss.
-  }
   await page.getByRole('radio', { name: /Hard/ }).click()
   await page.getByRole('button', { name: 'Start exploring' }).click()
   await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({

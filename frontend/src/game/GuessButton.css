@@ -6,6 +6,14 @@
   width: 100%;
   font-size: 0.875rem;
   padding-inline: 1rem;
+  transition: scale var(--duration-fast, 160ms) var(--ease-out, ease);
+}
+.sp-guess-button:active:enabled {
+  scale: 0.97;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-guess-button { transition: none; }
+  .sp-guess-button:active:enabled { scale: 1; }
 }
 .sp-guess-button svg {
   width: 18px;

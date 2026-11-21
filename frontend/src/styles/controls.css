@@ -1,108 +1,179 @@
 /* Materials and interactive states. Layout belongs to the owning component. */
 @layer material {
+/* ---------------------------------------------------------------------------
+ * Buttons — solid, friendly, "pressable" controls with a soft 3D bottom edge
+ * (Duolingo/Brawl-style) instead of glassmorphism.
+ * ------------------------------------------------------------------------- */
 .tg-control {
-  --control-fill: var(--glass-fill);
+  --control-fill: var(--color-surface-raised);
+  --control-fill-hi: var(--color-surface-hover);
   --control-ink: var(--color-text);
-  --control-edge: var(--glass-border);
-  --control-light: #ffffff00;
-  --control-shading: var(--glass-shading);
-  --control-reflection: var(--glass-reflection);
-  --control-inner: var(--glass-inner);
-  --control-shadow: var(--glass-shadow);
-  border: 1px solid var(--control-edge);
+  --control-edge: var(--color-bg-deep);
+  --control-hairline: var(--color-border-strong);
+  --control-hi: rgba(255, 255, 255, 0.1);
+  --control-ambient: 0 10px 24px rgba(6, 4, 18, 0.4);
+  border: 1px solid var(--control-hairline);
   border-radius: var(--radius-control);
-  background: linear-gradient(var(--control-light), var(--control-light)), var(--control-reflection), var(--control-shading), var(--control-fill);
+  background: linear-gradient(180deg, var(--control-fill-hi), var(--control-fill));
   color: var(--control-ink);
-  box-shadow: var(--control-inner), var(--control-shadow);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(135%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(135%);
-  text-shadow: none;
-  font-weight: 600;
-  transition: background 220ms var(--ease-out), border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out), color 180ms var(--ease-out), translate 220ms var(--ease-out), scale 180ms var(--ease-out);
+  box-shadow: inset 0 1px 0 var(--control-hi), 0 3px 0 var(--control-edge), var(--control-ambient);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition:
+    background 180ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    box-shadow 180ms var(--ease-out),
+    color 160ms var(--ease-out),
+    translate 180ms var(--ease-out),
+    filter 180ms var(--ease-out);
 }
 .tg-control--primary {
-  --control-fill: #b6e8799e;
-  --control-ink: #182b16;
-  --control-edge: #ecffcc78;
-  --control-shading: linear-gradient(165deg, #f6ffe060, #c0f66b16 48%, #3f6b2734);
-  --control-reflection: radial-gradient(ellipse at 15% 0%, #faffea5c, transparent 68%);
-  --control-inner: inset 0 1px 0 #f8ffeaa0, inset 0 -1px 0 #1f3a0c3a;
+  --control-fill: #b9ee64;
+  --control-fill-hi: #d4ff8f;
+  --control-ink: var(--color-on-lime);
+  --control-edge: #7fae3f;
+  --control-hairline: #cffa89;
+  --control-hi: rgba(255, 255, 255, 0.55);
+  --control-ambient: 0 12px 28px rgba(192, 246, 107, 0.22);
 }
 .tg-control--tinted {
-  --control-fill: #8db85326;
-  --control-ink: #d5fba5;
-  --control-edge: #c0f66b57;
-  --control-reflection: radial-gradient(ellipse at 15% 0%, #d4ff9c1f, transparent 70%);
-  --control-inner: inset 0 1px 0 #e7ffc435, inset 0 -1px 0 #02081540;
+  --control-fill: var(--color-lime-20);
+  --control-fill-hi: var(--color-lime-40);
+  --control-ink: var(--color-lime-hover);
+  --control-edge: var(--color-lime-70);
+  --control-hairline: var(--color-lime-40);
+  --control-hi: rgba(255, 255, 255, 0.08);
 }
-.tg-control--danger { --control-fill: #7e3d4938; --control-ink: #ffc0c2; --control-edge: #ff9b9e50; }
+.tg-control--danger {
+  --control-fill: #7e3541;
+  --control-fill-hi: #9a4654;
+  --control-ink: #ffd9dc;
+  --control-edge: #4a1c24;
+  --control-hairline: #ff9da350;
+  --control-hi: rgba(255, 255, 255, 0.14);
+}
 .tg-control--ghost {
-  --control-fill: #ffffff00; --control-edge: #ffffff1c;
-  --control-shading: linear-gradient(#ffffff00, #ffffff00);
-  --control-reflection: linear-gradient(#ffffff00, #ffffff00);
-  --control-inner: none; --control-shadow: none;
+  --control-fill: transparent;
+  --control-fill-hi: transparent;
+  --control-ink: var(--color-muted);
+  --control-edge: transparent;
+  --control-hairline: var(--color-border);
+  --control-hi: transparent;
+  --control-ambient: none;
+  box-shadow: inset 0 1px 0 var(--control-hi);
 }
 .tg-control--light {
-  --control-fill: #e5edf5ed; --control-ink: #192b3c; --control-edge: #f4f9ffb3;
-  --control-shading: linear-gradient(160deg, #ffffff6b, #ffffff05 48%, #94b3d326);
-  --control-inner: inset 0 1px 0 #ffffffc4, inset 0 -1px 0 #7896b52e;
+  --control-fill: #f2efe6;
+  --control-fill-hi: #ffffff;
+  --control-ink: #1f1936;
+  --control-edge: #b8b2c6;
+  --control-hairline: #ffffff;
+  --control-hi: rgba(255, 255, 255, 0.7);
+  --control-ambient: 0 12px 26px rgba(6, 4, 18, 0.3);
 }
 .tg-control:active:where(:not(:disabled):not([aria-disabled='true'])) {
-  --control-light: #030b161a; --control-shadow: 0 2px 5px #01061026;
-  --control-inner: inset 0 2px 5px #02081526, inset 0 1px #ffffff14;
-  translate: 0 1px; scale: 0.98;
+  translate: 0 2px;
+  box-shadow: inset 0 1px 0 var(--control-hi), 0 1px 0 var(--control-edge), 0 4px 10px rgba(6, 4, 18, 0.3);
 }
 .tg-control:focus-visible {
-  outline: 2px solid var(--color-focus-ring); outline-offset: 3px;
-  --control-edge: color-mix(in srgb, var(--color-focus-ring) 60%, transparent);
-  --control-shadow: 0 0 0 5px #0a1729cc, var(--glass-shadow-hover);
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
 }
 .tg-control:is(:disabled, [aria-disabled='true']) {
-  --control-fill: #263548cc; --control-ink: var(--color-muted); --control-edge: #bfcee01f;
-  --control-reflection: linear-gradient(#ffffff00, #ffffff00);
-  --control-shading: linear-gradient(160deg, #d8eaff08, #080f1b10);
-  --control-inner: inset 0 1px #ffffff0d; --control-shadow: 0 2px 6px #0106101a;
-  opacity: 0.65; cursor: not-allowed; translate: none; scale: none;
+  --control-fill: #2a2a3a;
+  --control-fill-hi: #323244;
+  --control-ink: var(--color-muted);
+  --control-edge: #16161f;
+  --control-hairline: #ffffff14;
+  --control-hi: rgba(255, 255, 255, 0.04);
+  --control-ambient: none;
+  box-shadow: inset 0 1px 0 var(--control-hi);
+  opacity: 0.6;
+  cursor: not-allowed;
+  translate: none;
 }
-/* Quiet circular actions use the same material whether they are links or buttons. */
+
+/* Quiet circular / pill actions share one material whether links or buttons. */
 .tg-action, .tg-icon-button {
-  --control-fill: #15243b3d; --control-edge: #c1daef1c;
-  --control-shading: linear-gradient(155deg, #cae6ff0a, #bfdcff02 55%, #030a1610);
-  --control-reflection: radial-gradient(ellipse at 15% 0%, #e7f6ff0e, transparent 75%);
-  --control-inner: inset 0 1px #eaf5ff1a, inset 0 -1px #02081520;
-  --control-shadow: 0 3px 10px #01061016;
-  border-radius: var(--radius-pill); font-weight: 550;
+  --control-fill: var(--color-surface-raised);
+  --control-fill-hi: var(--color-surface-hover);
+  --control-ink: var(--color-text);
+  --control-edge: var(--color-bg-deep);
+  --control-hairline: var(--color-border-strong);
+  --control-hi: rgba(255, 255, 255, 0.08);
+  --control-ambient: 0 6px 16px rgba(6, 4, 18, 0.32);
+  border: 1px solid var(--control-hairline);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--control-fill-hi), var(--control-fill));
+  color: var(--control-ink);
+  box-shadow: inset 0 1px 0 var(--control-hi), 0 2px 0 var(--control-edge), var(--control-ambient);
+  font-weight: 600;
 }
-.tg-action { min-height: 44px; --control-fill: #16243c38; }
+.tg-action, .tg-icon-button, .th-nav-action {
+  transition:
+    background 180ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    box-shadow 180ms var(--ease-out),
+    color 160ms var(--ease-out),
+    translate 180ms var(--ease-out);
+}
+.tg-action { min-height: 44px; }
 .tg-icon-button { border-radius: 50%; min-height: 44px; min-width: 44px; }
-.tg-glass {
-  background: var(--glass-reflection), var(--glass-shading), var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-inner), var(--surface-shadow, 0 16px 48px #0106104d);
-  -webkit-backdrop-filter: blur(var(--surface-blur, var(--glass-blur))) saturate(var(--surface-saturation, 135%));
-  backdrop-filter: blur(var(--surface-blur, var(--glass-blur))) saturate(var(--surface-saturation, 135%));
+
+/* Header utilities keep the same geometry and material as links or buttons. */
+.th-desktop-utilities .th-icon-btn {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  translate: none;
+  box-shadow: inset 0 1px 0 #ffffff12;
 }
-.tg-glass--panel { --surface-blur: var(--glass-blur-panel); }
+
+/* ---------------------------------------------------------------------------
+ * Cards / panels — solid warm surfaces. Depth via soft shadow, not blur.
+ * ------------------------------------------------------------------------- */
+.tg-glass {
+  background: linear-gradient(180deg, var(--color-surface-raised), var(--color-surface));
+  border: 1px solid var(--color-border-strong);
+  box-shadow: inset 0 1px 0 #ffffff0d, var(--surface-shadow, var(--shadow-panel));
+}
+.tg-glass--panel {
+  background: linear-gradient(180deg, var(--color-surface-raised), var(--color-surface));
+}
+
 @media (hover: hover) and (pointer: fine) {
   .tg-control:hover:where(:not(:disabled):not([aria-disabled='true'])) {
-    --control-light: #ffffff0b; --control-edge: var(--glass-border-hover); --control-shadow: var(--glass-shadow-hover); translate: 0 -1px;
+    filter: brightness(1.06);
+    translate: 0 -1px;
+    box-shadow: inset 0 1px 0 var(--control-hi), 0 4px 0 var(--control-edge), 0 14px 30px rgba(6, 4, 18, 0.46);
   }
-  :is(.tg-action, .tg-icon-button):hover:enabled {
-    --control-edge: #cce7ff66; --control-ink: var(--color-text); --control-shadow: 0 6px 16px #01061032;
+  .tg-control--ghost:hover:where(:not(:disabled)) {
+    --control-ink: var(--color-text);
+    --control-fill: #ffffff0a;
+    --control-fill-hi: #ffffff12;
+  }
+  :is(.tg-action, .tg-icon-button):hover:enabled,
+  .th-nav-action:hover:where(:not(:disabled):not([aria-disabled='true'])),
+  .th-desktop-utilities .th-icon-btn:is(:hover, :active, :focus, [aria-pressed='true']):where(:not(:disabled):not([aria-disabled='true'])) {
+    filter: brightness(1.08);
+    translate: 0 -1px;
+    --control-hairline: #ffffff38;
+    box-shadow: inset 0 1px 0 var(--control-hi), 0 3px 0 var(--control-edge), 0 12px 24px rgba(6, 4, 18, 0.4);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tg-control { transition: none; }
-  .tg-control:is(:hover, :active) { translate: none; scale: none; }
+  .tg-control, .tg-action, .tg-icon-button, .th-nav-action { transition: none; }
+  :is(.tg-control, .th-nav-action):is(:hover, :active),
+  .th-desktop-utilities .th-icon-btn:is(:hover, :active, :focus, [aria-pressed='true']) { translate: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .tg-control { --glass-fill: #192b40; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .tg-control--primary { --control-fill: #b6e879; }
-  .tg-control--light { --control-fill: #e5edf5; }
-  .tg-glass { background: var(--color-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .tg-control--ghost { --control-fill: var(--color-surface); --control-fill-hi: var(--color-surface); }
+  .tg-glass { background: var(--color-surface); }
 }
 @media (forced-colors: active) {
-  .tg-control { border: 1px solid ButtonText; box-shadow: none; }
+  .tg-control, .tg-action, .tg-icon-button { border: 1px solid ButtonText; box-shadow: none; }
   .tg-control:focus-visible { outline: 2px solid Highlight; }
   .tg-glass { border-color: CanvasText; }
 }

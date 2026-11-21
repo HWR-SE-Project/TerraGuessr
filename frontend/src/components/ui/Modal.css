@@ -6,17 +6,18 @@
 }
 .tg-dialog {
   color-scheme: dark;
-  color: #edf3f6;
+  color: var(--color-text);
   border-radius: var(--radius-panel);
   padding: clamp(1rem, 3vw, 1.875rem);
   width: min(30rem, calc(100% - 2rem));
   max-height: calc(100dvh - 2rem);
   overflow: auto;
-  animation: tg-dialog-in 220ms var(--ease-out);
+  animation: tg-dialog-in var(--duration-slow) var(--ease-spring);
 }
 .tg-dialog::backdrop {
-  background: #07111aa6;
-  backdrop-filter: blur(12px);
+  background: rgba(8, 6, 22, 0.68);
+  backdrop-filter: blur(6px);
+  animation: tg-dialog-backdrop-in var(--duration-base) var(--ease-out);
 }
 .tg-dialog header {
   display: flex;
@@ -25,10 +26,11 @@
   gap: 0.5rem;
 }
 .tg-dialog h2 {
-  font-size: 24px;
-  font-weight: 550;
-  letter-spacing: -0.9px;
-  margin: 9px 0 0;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 4px 0 0;
 }
 .tg-dialog p {
   color: var(--color-muted);
@@ -67,9 +69,11 @@
   margin: 14px 0 0;
   padding: 10px 14px;
   border-radius: var(--radius-control);
-  background: #5b3538ed;
+  background: color-mix(in srgb, var(--color-red) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-red) 40%, transparent);
   color: var(--color-red);
   font-size: 12px;
+  font-weight: 600;
   line-height: 1.6;
 }
 .tg-dialog-actions {
@@ -89,11 +93,15 @@
 @keyframes tg-dialog-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(14px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
+}
+@keyframes tg-dialog-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 }

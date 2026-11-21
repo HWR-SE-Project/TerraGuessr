@@ -58,7 +58,7 @@ test('keyboard supports arrows, wrapping, Home/End, typeahead, Enter/Space, Tab 
   await expect(create(page)).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(trigger(page)).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByRole('link', { name: 'Help', exact: true }).filter({ visible: true })).toBeFocused()
+  await expect(page.getByRole('link', { name: 'How to play', exact: true }).filter({ visible: true })).toBeFocused()
   await trigger(page).focus()
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')

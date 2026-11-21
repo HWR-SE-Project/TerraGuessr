@@ -19,7 +19,6 @@ test('live Google survives genuine browser zoom with the same panorama and guess
     page.on('pageerror',e=>errors.push(e.message.replace(/AIza[\w-]+/g,'[REDACTED]')))
     await page.goto('/game/singleplayer')
     await page.getByRole('button',{name:'Start exploring'}).click()
-    await page.getByRole('dialog',{name:'How to play / Tutorial'}).getByRole('button',{name:/^(Skip|Exit tutorial)$/}).click()
     const panorama=page.locator('.sp-panorama')
     await expect(panorama).toHaveAttribute('data-ready','true',{timeout:45_000})
     await page.getByRole('button',{name:'Game settings'}).click()

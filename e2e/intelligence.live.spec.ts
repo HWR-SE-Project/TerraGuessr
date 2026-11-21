@@ -22,16 +22,6 @@ test('live geographic intelligence: protected data, desktop states, movement and
   })
   await page.setViewportSize({ width: 1792, height: 861 })
   await page.goto('/game/singleplayer')
-  // R14: the tutorial dialog opens asynchronously (after the config check
-  // resolves), so an immediate isVisible() check can race it — then it sits
-  // on screen as a modal and blocks every subsequent click. Wait for it.
-  const exitTutorial = page.getByRole('button', { name: 'Exit tutorial' })
-  try {
-    await exitTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-    await exitTutorial.click()
-  } catch {
-    // Already seen in this profile this run; nothing to dismiss.
-  }
   const received = page.waitForResponse((r) =>
     r.url().endsWith('/intelligence'),
   )

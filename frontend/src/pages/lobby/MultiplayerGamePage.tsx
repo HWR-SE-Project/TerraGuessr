@@ -2,6 +2,7 @@ import { GameMenu } from '../../game/GameMenu'
 import { Icon } from '../../components/ui/Icon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import * as lobbiesApi from '../../api/lobbies'
 import { ApiError } from '../../api/client'
@@ -30,8 +31,23 @@ import { GeographicIntelligence } from '../../game/GeographicIntelligence'
 import { clockLabel, coordinates, distanceLabel, secondsUntil } from '../../lib/format'
 import { RoundResultDetails } from '../../game/RoundResultDetails'
 import { asStreetResults, asStreetRound } from './matchAdapters'
+import {
+  celebrateVariants,
+  duration,
+  ease,
+  spring,
+  staggerContainer,
+  staggerItem,
+} from '../../lib/motion'
 import '../../game/Game.css'
 import './MultiplayerGamePage.css'
+
+/** Round-phase crossfade+slide used for the main game-state switch. */
+const phaseVariants = {
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0, transition: { duration: duration.base, ease: ease.emphasized } },
+  exit: { opacity: 0, y: -10, transition: { duration: duration.fast, ease: ease.out } },
+}
 
 const POLL_INTERVAL_MS = 2000
 const PARTICIPANT_COLORS = [
@@ -100,24 +116,33 @@ function Leaderboard({
         <span>Leaderboard</span>
         <small>{entries.length} players</small>
       </header>
-      <ol>
-        {entries.map((entry) => (
-          <li key={`${entry.rank}-${entry.displayName ?? 'guest'}`}>
-            <span className="mp-rank">{entry.rank}</span>
-            <span className="mp-player">
-              <strong>{entry.displayName || 'Guest explorer'}</strong>
-              <small>
-                {entry.roundsCompleted} / {roundsTotal} rounds
-                {entry.isHost ? ' · Host' : ''}
-                {entry.isYou ? ' · You' : ''}
-              </small>
-            </span>
-            <strong className="mp-points">
-              {entry.totalScore.toLocaleString()}
-            </strong>
-          </li>
-        ))}
-      </ol>
+      <motion.ol variants={staggerContainer} initial="initial" animate="animate">
+        <AnimatePresence initial={false}>
+          {entries.map((entry) => (
+            <motion.li
+              key={`${entry.displayName ?? 'guest'}-${entry.isYou ? 'you' : 'other'}`}
+              layout
+              variants={staggerItem}
+              initial="initial"
+              animate="animate"
+              exit={{ opacity: 0, transition: { duration: duration.fast } }}
+            >
+              <span className="mp-rank">{entry.rank}</span>
+              <span className="mp-player">
+                <strong>{entry.displayName || 'Guest explorer'}</strong>
+                <small>
+                  {entry.roundsCompleted} / {roundsTotal} rounds
+                  {entry.isHost ? ' · Host' : ''}
+                  {entry.isYou ? ' · You' : ''}
+                </small>
+              </span>
+              <strong className="mp-points">
+                {entry.totalScore.toLocaleString()}
+              </strong>
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </motion.ol>
     </section>
   )
 }
@@ -135,9 +160,9 @@ function ParticipantGuesses({
       <span className="sp-eyebrow">
         {roundNumber ? `ROUND ${roundNumber} GUESSES` : 'PARTICIPANT GUESSES'}
       </span>
-      <ul>
+      <motion.ul variants={staggerContainer} initial="initial" animate="animate">
         {guesses.map((entry, index) => (
-          <li key={`${participantName(entry)}-${index}`}>
+          <motion.li key={`${participantName(entry)}-${index}`} variants={staggerItem}>
             <span
               className="mp-guess-dot"
               style={{ background: participantColor(entry, index) }}
@@ -155,9 +180,9 @@ function ParticipantGuesses({
             <span className="mp-guess-score">
               {entry.guess ? `${entry.score.toLocaleString()} pts` : '—'}
             </span>
-          </li>
+          </motion.li>
         ))}
-      </ul>
+      </motion.ul>
     </section>
   )
 }
@@ -177,8 +202,15 @@ function RoundResultCard({
   const streetResults = asStreetResults([result])
   const participantPins = participantMarkers(result.guesses, result.roundNumber)
   return (
-    <section className="sp-results" aria-label="Round results">
-      <div className="sp-result-map">
+    <motion.section
+      className="sp-results"
+      aria-label="Round results"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+      exit={{ opacity: 0, transition: { duration: duration.fast, ease: ease.out } }}
+    >
+      <motion.div className="sp-result-map" variants={staggerItem}>
         {/* R11: always render the map; the adapted result carries `actual`
             even when this player submitted no guess. */}
         <GuessMap
@@ -187,30 +219,36 @@ function RoundResultCard({
           markers={participantPins}
           interactive={false}
         />
-      </div>
+      </motion.div>
       <div className="sp-result-body">
-        <span className="sp-eyebrow">
+        <motion.span className="sp-eyebrow" variants={staggerItem}>
           ROUND {result.roundNumber} OF {roundsTotal} COMPLETE
-        </span>
-        <RoundResultDetails result={result} />
-        <ParticipantGuesses
-          guesses={result.guesses}
-          roundNumber={result.roundNumber}
-        />
-        <Leaderboard
-          entries={entries}
-          roundsTotal={roundsTotal}
-          compact
-        />
+        </motion.span>
+        <motion.div variants={celebrateVariants}>
+          <RoundResultDetails result={result} />
+        </motion.div>
+        <motion.div variants={staggerItem}>
+          <ParticipantGuesses
+            guesses={result.guesses}
+            roundNumber={result.roundNumber}
+          />
+        </motion.div>
+        <motion.div variants={staggerItem}>
+          <Leaderboard
+            entries={entries}
+            roundsTotal={roundsTotal}
+            compact
+          />
+        </motion.div>
       </div>
-      <footer className="sp-result-actions mp-result-actions">
+      <motion.footer className="sp-result-actions mp-result-actions" variants={staggerItem}>
         <p className="mp-waiting" role="status">
           {waiting
             ? `Waiting for ${pendingPlayers.join(', ')} to finish this round…`
             : 'Everyone is ready. Starting the next round…'}
         </p>
-      </footer>
-    </section>
+      </motion.footer>
+    </motion.section>
   )
 }
 
@@ -237,11 +275,15 @@ function FinalMatchResults({
   const remainingSeconds = secondsUntil(prompt?.deadline, now)
   const pending = prompt?.pendingPlayers ?? []
   return (
-    <section
+    <motion.section
       className="sp-results sp-final mp-final-panel"
       aria-label="Final results"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+      exit={{ opacity: 0, transition: { duration: duration.fast, ease: ease.out } }}
     >
-      <div className="sp-result-map">
+      <motion.div className="sp-result-map" variants={staggerItem}>
         {streetResults.length > 0 || markers.length > 0 ? (
           <GuessMap
             key="final"
@@ -252,20 +294,22 @@ function FinalMatchResults({
         ) : (
           <div className="mp-no-guess">No guesses were submitted.</div>
         )}
-      </div>
+      </motion.div>
       <div className="sp-result-body">
-        <span className="sp-eyebrow">MULTIPLAYER · MATCH COMPLETE</span>
-        <h1>{mine?.rank === 1 ? 'You win the expedition.' : 'A world of discoveries.'}</h1>
-        <div className="sp-earned">
+        <motion.span className="sp-eyebrow" variants={staggerItem}>MULTIPLAYER · MATCH COMPLETE</motion.span>
+        <motion.h1 variants={celebrateVariants}>{mine?.rank === 1 ? 'You win the expedition.' : 'A world of discoveries.'}</motion.h1>
+        <motion.div className="sp-earned" variants={staggerItem}>
           <strong>{total.toLocaleString()}</strong>
           <span> / {(match.roundsTotal * 5000).toLocaleString()} points</span>
-        </div>
-        <Leaderboard
-          entries={match.leaderboard}
-          roundsTotal={match.roundsTotal}
-          compact
-        />
-        <div className="sp-round-list">
+        </motion.div>
+        <motion.div variants={staggerItem}>
+          <Leaderboard
+            entries={match.leaderboard}
+            roundsTotal={match.roundsTotal}
+            compact
+          />
+        </motion.div>
+        <motion.div className="sp-round-list" variants={staggerItem}>
           {match.results.map((result) => (
             <details key={result.roundNumber}>
               <summary>
@@ -280,30 +324,41 @@ function FinalMatchResults({
               </div>
             </details>
           ))}
-        </div>
+        </motion.div>
       </div>
-      <footer className="sp-result-actions">
-        {prompt && (
-          <div className="mp-continue-prompt" role="status" aria-live="polite">
-            <strong>
-              {prompt.youRequested
-                ? 'Ready to continue'
-                : 'Keep playing or head home'}
-            </strong>
-            <p>
-              {prompt.youRequested
-                ? pending.length > 0
-                  ? `Waiting for ${pending.join(', ')} to decide…`
-                  : 'Starting a new game…'
-                : remainingSeconds !== null
-                  ? `Choose within ${clockLabel(remainingSeconds)} or you will be removed from the lobby.`
-                  : 'Choose to continue or leave the lobby.'}
-            </p>
-            {prompt.readyPlayers.length > 0 && (
-              <small>{prompt.readyPlayers.join(', ')} ready to continue.</small>
-            )}
-          </div>
-        )}
+      <motion.footer className="sp-result-actions" variants={staggerItem}>
+        <AnimatePresence>
+          {prompt && (
+            <motion.div
+              key="continue-prompt"
+              className="mp-continue-prompt"
+              role="status"
+              aria-live="polite"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={spring.gentle}
+            >
+              <strong>
+                {prompt.youRequested
+                  ? 'Ready to continue'
+                  : 'Keep playing or head home'}
+              </strong>
+              <p>
+                {prompt.youRequested
+                  ? pending.length > 0
+                    ? `Waiting for ${pending.join(', ')} to decide…`
+                    : 'Starting a new game…'
+                  : remainingSeconds !== null
+                    ? `Choose within ${clockLabel(remainingSeconds)} or you will be removed from the lobby.`
+                    : 'Choose to continue or leave the lobby.'}
+              </p>
+              {prompt.readyPlayers.length > 0 && (
+                <small>{prompt.readyPlayers.join(', ')} ready to continue.</small>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <Button
           type="button"
           onClick={onContinue}
@@ -325,8 +380,8 @@ function FinalMatchResults({
         >
           Return to main page
         </Button>
-      </footer>
-    </section>
+      </motion.footer>
+    </motion.section>
   )
 }
 
@@ -626,7 +681,7 @@ export function MultiplayerGamePage() {
         game={match?.status === 'playing'}
         summary={match?.status === 'finished'}
         onHelp={() => setHelpOpen(true)}
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={() => setSettingsOpen(value => !value)}
         onMenu={() => setMenuOpen(true)}
       >
         <IconButton className="th-icon-btn" aria-label="Show leaderboard" title="Show leaderboard" onClick={() => setShowBoard(value => !value)}><Icon name="info" /></IconButton>
@@ -663,26 +718,30 @@ export function MultiplayerGamePage() {
         </div>
       </Modal>}
 
-      {match?.status === 'finished' ? (
-        <FinalMatchResults
-          match={match}
-          now={now}
-          busy={continuing}
-          onContinue={() => void continueMatch()}
-          onHome={() => void exitToMenu()}
-        />
-      ) : finalized && result ? (
-        <RoundResultCard
-          result={result}
-          roundsTotal={match?.roundsTotal ?? 5}
-          entries={match?.leaderboard ?? []}
-          pendingPlayers={
-            match?.currentRound === result.roundNumber
-              ? (match.pendingPlayers ?? [])
-              : []
-          }
-        />
-      ) : null}
+      <AnimatePresence mode="wait">
+        {match?.status === 'finished' ? (
+          <FinalMatchResults
+            key="final"
+            match={match}
+            now={now}
+            busy={continuing}
+            onContinue={() => void continueMatch()}
+            onHome={() => void exitToMenu()}
+          />
+        ) : finalized && result ? (
+          <RoundResultCard
+            key={`round-${result.roundNumber}`}
+            result={result}
+            roundsTotal={match?.roundsTotal ?? 5}
+            entries={match?.leaderboard ?? []}
+            pendingPlayers={
+              match?.currentRound === result.roundNumber
+                ? (match.pendingPlayers ?? [])
+                : []
+            }
+          />
+        ) : null}
+      </AnimatePresence>
 
       {exploring && streetRound && match && (
         <GeographicIntelligence
@@ -698,26 +757,33 @@ export function MultiplayerGamePage() {
 
       {!result && !finalized && match?.status === 'playing' && (
         round?.candidates ? (
-          <CityGuessPanel
-            className="mp-guess-panel"
-            candidates={round.candidates}
-            selectedId={selectedCandidateId}
-            onChange={choose}
-            metadata={match.you.attemptsTotal > 0
-              ? `${match.you.attemptsUsed}/${match.you.attemptsTotal} attempts used` : undefined}
-          >
-            <GuessButton compact disabled={!guess || !guessReady || busy} busy={busy}
-              onClick={() => void submit(false)} />
-            {match.you.attemptsUsed > 0 && (
-              <GuessButton compact variant="secondary" label="Final submit"
-                disabled={!guess || busy} onClick={() => void submit(true)} />
-            )}
-          </CityGuessPanel>
+          <motion.div key={round?.id ?? 'candidates'} variants={phaseVariants} initial="initial" animate="animate" exit="exit">
+            <CityGuessPanel
+              className="mp-guess-panel"
+              candidates={round.candidates}
+              selectedId={selectedCandidateId}
+              onChange={choose}
+              metadata={match.you.attemptsTotal > 0
+                ? `${match.you.attemptsUsed}/${match.you.attemptsTotal} attempts used` : undefined}
+            >
+              <GuessButton compact disabled={!guess || !guessReady || busy} busy={busy}
+                onClick={() => void submit(false)} />
+              {match.you.attemptsUsed > 0 && (
+                <GuessButton compact variant="secondary" label="Final submit"
+                  disabled={!guess || busy} onClick={() => void submit(true)} />
+              )}
+            </CityGuessPanel>
+          </motion.div>
         ) : (
-        <aside
+        <motion.aside
+          key={round?.id ?? 'map'}
           className="sp-guess-panel tg-glass mp-guess-panel"
           style={{ '--map-opacity': settings.mapOpacity / 100 } as CSSProperties}
           aria-label="Guessing map"
+          variants={phaseVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
         >
           <header className="sp-map-header">
             <span className="sp-map-mode">
@@ -755,12 +821,17 @@ export function MultiplayerGamePage() {
                 disabled={!guess || busy} onClick={() => void submit(true)} />}
             </div>
           </div>
-        </aside>
+        </motion.aside>
         )
       )}
 
       {match && !result && !finalized && match.status === 'playing' && (
-        <div className={`mp-hud-stack${showBoard ? ' mp-hud-stack-open' : ''}`}>
+        <motion.div
+          className={`mp-hud-stack${showBoard ? ' mp-hud-stack-open' : ''}`}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: duration.base, ease: ease.out }}
+        >
           <div className="mp-timer tg-glass tg-glass--panel" role="timer" aria-label="Time remaining">
             <span>Time left</span>
             <strong className={remainingSeconds !== null && remainingSeconds <= 30 ? 'mp-timer-low' : ''}>
@@ -772,11 +843,16 @@ export function MultiplayerGamePage() {
             roundsTotal={match.roundsTotal}
             compact
           />
-        </div>
+        </motion.div>
       )}
 
       {match?.status !== 'finished' && (
-        <footer className="sp-bottom-bar">
+        <motion.footer
+          className="sp-bottom-bar"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: duration.base, ease: ease.out }}
+        >
           <GameplayHUD
             round={match?.currentRound ?? match?.roundsTotal ?? 1}
             roundsTotal={match?.roundsTotal ?? 5}
@@ -789,14 +865,24 @@ export function MultiplayerGamePage() {
                   : ''
             }
           />
-        </footer>
+        </motion.footer>
       )}
 
-      {error && (
-        <div className="sp-error tg-glass" role="alert">
-          {error}
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            key="match-error"
+            className="sp-error tg-glass"
+            role="alert"
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={spring.gentle}
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }
