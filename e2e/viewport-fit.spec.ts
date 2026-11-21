@@ -181,7 +181,7 @@ test('live gameplay, round results and summary fit the reference sizes', async (
       await page.evaluate(() => scrollTo(0, 0))
       const desktop = width >= 1024
       report.push({ name: phase, ...await metrics(page, desktop) })
-      await reachable(page, phase === 'active' ? '.th-icon-btn, .sp-guess-button, .sp-compass, .gi-header, .gi-mobile-trigger' : '.tg-page-actions button', desktop)
+      await reachable(page, phase === 'active' ? '.th-icon-btn, .sp-guess-button, .sp-compass, .gi-header' : '.tg-page-actions button', desktop)
       if (phase === 'active') {
         await page.getByRole('button', { name: 'Expand map', exact: true }).click()
         await page.mouse.move(0, 0)

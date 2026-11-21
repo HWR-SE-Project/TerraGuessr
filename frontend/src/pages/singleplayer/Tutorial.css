@@ -73,9 +73,9 @@ body.tt-active .tg-page-nav { opacity: 0; pointer-events: none; transition: opac
 .sp-page[data-tutorial-step] .sp-guess-panel { pointer-events: none; }
 .sp-page[data-tutorial-step='0'] .sp-guess-panel,
 .sp-page[data-tutorial-step='0'] .sp-bottom-bar,
-.sp-page:is([data-tutorial-step='1'], [data-tutorial-step='2']) :is(.gi-panel, .gi-mobile-trigger),
+.sp-page:is([data-tutorial-step='1'], [data-tutorial-step='2']) .gi-panel,
 .sp-page:is([data-tutorial-step='1'], [data-tutorial-step='2']) .sp-bottom-bar,
-.sp-page[data-tutorial-step='4'] :is(.gi-panel, .gi-mobile-trigger),
+.sp-page[data-tutorial-step='4'] .gi-panel,
 .sp-page[data-tutorial-step='4'] .sp-guess-panel {
   opacity: 0.2;
   filter: saturate(0.5);
@@ -85,14 +85,13 @@ body.tt-active .tg-page-nav { opacity: 0; pointer-events: none; transition: opac
 /* Reveal the real weather panel in full on touch screens; its normal expanded
    preference is preserved. Only the current teaching surface is brought forward. */
 .sp-page[data-tutorial-step='0'] .sp-stage > .gi-panel { display: flex; align-self: start; max-height: none; opacity: 1; filter: none; }
-.sp-page[data-tutorial-step='0'] .gi-panel :is(.gi-environment, .gi-climate, .gi-footer) { display: none; }
+.sp-page[data-tutorial-step='0'] .gi-panel :is(.gi-environment, .gi-footer) { display: none; }
 .sp-page[data-tutorial-step='0'] .gi-desktop-content > div { max-height: none; }
 @media (max-width: 1000px), (max-height: 720px) {
   .sp-page[data-tutorial-step='0'] .sp-stage > .gi-panel {
     position: fixed; inset: max(72px, env(safe-area-inset-top)) auto auto 16px;
     width: min(288px, calc(100vw - 32px)); max-height: calc(100dvh - 280px); overflow-y: auto;
   }
-  .sp-page[data-tutorial-step='0'] .gi-mobile-trigger { visibility: hidden; }
   .sp-page:is([data-tutorial-step='1'], [data-tutorial-step='2']) .sp-guess-panel {
     position: fixed; inset: max(72px, env(safe-area-inset-top)) 16px auto auto; opacity: 1; filter: none;
     width: min(340px, calc(100vw - 32px)); max-height: calc(100dvh - 270px); overflow-y: auto;
@@ -114,7 +113,7 @@ body.tt-active .tg-page-nav { opacity: 0; pointer-events: none; transition: opac
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-header small,
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-section-label,
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-weather-symbol,
-  .sp-page[data-tutorial-step='0'] .gi-panel .gi-metrics :is(svg, em, .gi-humidity) { display: none; }
+  .sp-page[data-tutorial-step='0'] .gi-panel .gi-metrics :is(svg, em) { display: none; }
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-header { padding: 8px 12px; }
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-header strong { font-size: 9px; }
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-temperature { margin-top: 0; }
@@ -126,8 +125,6 @@ body.tt-active .tg-page-nav { opacity: 0; pointer-events: none; transition: opac
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-precipitation { margin-top: 8px; padding-top: 8px; }
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-unavailable { padding: 12px 16px; }
   .sp-page[data-tutorial-step='0'] .gi-panel .gi-unavailable > svg { display: none; }
-  .sp-page[data-tutorial-step='0'] .gi-panel .gi-skeleton { gap: 8px; padding-block: 10px; }
-  .sp-page[data-tutorial-step='0'] .gi-panel .gi-skeleton i { height: 35px; }
   .tt-coach { padding-top: 10px; }
   .tt-copy h2 { font-size: 18px; }
 }

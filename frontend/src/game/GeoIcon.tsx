@@ -13,10 +13,7 @@ export type GeoIconName =
   | 'drop'
   | 'pressure'
   | 'mountain'
-  | 'leaf'
   | 'chevron'
-  | 'info'
-  | 'climate'
 
 const paths: Record<GeoIconName, ReactNode> = {
   scan: (
@@ -68,23 +65,7 @@ const paths: Record<GeoIconName, ReactNode> = {
       <path d="m2 20 8-15 5 9 3-5 5 11ZM7 11l3 2 3-2" />
     </>
   ),
-  leaf: (
-    <>
-      <path d="M20 3C6 2 2 9 6 16s15 1 14-13ZM4 21 16 9M9 16v-5m0 5h5" />
-    </>
-  ),
   chevron: <path d="m8 10 4 4 4-4" />,
-  info: (
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 11v6m0-10v.2" />
-    </>
-  ),
-  climate: (
-    <>
-      <path d="M14 14.5V5a3 3 0 0 0-6 0v9.5a5 5 0 1 0 6 0ZM11 8v10m7-12h3m-3 4h2" />
-    </>
-  ),
 }
 
 export function GeoIcon({ name, style }: { name: GeoIconName; style?: CSSProperties }) {

@@ -1,12 +1,10 @@
 import { Button } from '../components/ui/Button'
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
 import type {
   GeographicIntelligence as Intelligence,
   StreetRound,
 } from '../api/singleplayer'
 import type { AdditionalDataAccessDTO } from '../api/types'
-import { Modal } from '../components/ui/Modal'
 import { GeoIcon } from './GeoIcon'
 import type { GeoIconName } from './GeoIcon'
 import './GeographicIntelligence.css'
@@ -39,11 +37,11 @@ export function GeographicIntelligence({
 }: {
   load: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
   round: StreetRound
-  /** Optional user preference for the initial expanded state. The four
-   * mandatory weather fields are always rendered (R06/R15); collapsing only
-   * hides them on request. */
+  /** Optional user preference for the initial expanded state. The mandatory
+   * weather fields (R06) are always rendered; collapsing only hides them on
+   * request. */
   defaultExpanded?: boolean
-  /** Temporarily reveal the real panel without changing the player’s preference. */
+  /** Temporarily reveal the real panel without changing the player's preference. */
   tutorialFocused?: boolean
   /** R05 additional-data gate. Defaults to free access for direct usage. */
   access?: AdditionalDataAccessDTO
@@ -61,9 +59,6 @@ export function GeographicIntelligence({
 
   const [expanded, setExpanded] = useState(defaultExpanded)
   const isExpanded = tutorialFocused || expanded
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [notesOpen, setNotesOpen] = useState(false)
-  const [climateOpen, setClimateOpen] = useState(false)
   const [request, setRequest] = useState<
     | { phase: 'loading' }
     | { phase: 'ready'; data: Intelligence }
@@ -73,8 +68,6 @@ export function GeographicIntelligence({
   const data = request.phase === 'ready' ? request.data : null
   const loading = request.phase === 'loading'
   const failed = request.phase === 'error'
-  const trigger = useRef<HTMLButtonElement>(null)
-  const desktopToggle = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const controller = new AbortController()
     load(round.id, controller.signal)
@@ -86,14 +79,6 @@ export function GeographicIntelligence({
       })
     return () => controller.abort()
   }, [load, round.id, round.panoId, retry])
-  useEffect(() => {
-    const query = window.matchMedia('(max-width: 700px)')
-    const close = () => {
-      if (!query.matches) setMobileOpen(false)
-    }
-    query.addEventListener('change', close)
-    return () => query.removeEventListener('change', close)
-  }, [])
   const weather = data?.weather
   const environment = data?.environment
   const modelTime = weather?.modelTime ? new Date(weather.modelTime) : null
@@ -113,28 +98,49 @@ export function GeographicIntelligence({
   }
   const unavailable =
     failed || (!loading && !weather && environment?.elevationM == null)
-  const body = (prefix: string) => (
-    <>
-      {loading ? (
-        <div
-          className="gi-skeleton"
-          role="status"
-          aria-label="Loading geographic intelligence"
-        >
-          <span />
-          <b />
-          <span />
-          <div>
-            <i />
-            <i />
-            <i />
-          </div>
-          <span />
-          <span />
-        </div>
-      ) : (
-        <>
-          {unavailable && (
+
+  return (
+    <aside
+      className={`gi-panel tg-glass tg-glass--panel${isExpanded ? '' : ' gi-panel-collapsed'}`}
+      aria-label="Geographic intelligence"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && expanded) {
+          event.stopPropagation()
+          setExpanded(false)
+        }
+      }}
+    >
+      <button
+        className="gi-header"
+        aria-expanded={isExpanded}
+        aria-controls="gi-content"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="gi-header-icon">
+          <GeoIcon name="scan" />
+        </span>
+        <span>
+          <strong>
+            GEOGRAPHIC
+            <br /> INTELLIGENCE
+          </strong>
+          <small>
+            {loading
+              ? 'Connecting…'
+              : weather
+                ? `${metric(weather.temperatureC, 1)}°C${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
+                : 'Environmental clues'}
+          </small>
+        </span>
+        <GeoIcon name="chevron" />
+      </button>
+      <div className="gi-desktop-content" id="gi-content" inert={!isExpanded}>
+        <div>
+          {loading ? (
+            <p className="gi-loading" role="status">
+              <span className="sp-spinner" /> Connecting to the weather station…
+            </p>
+          ) : unavailable ? (
             <div className="gi-unavailable" role="status">
               <GeoIcon name="scan" />
               <strong>Signal unavailable</strong>
@@ -146,8 +152,7 @@ export function GeographicIntelligence({
                 Retry connection <span aria-hidden="true">↻</span>
               </Button>
             </div>
-          )}
-          {!unavailable && (
+          ) : (
             <>
               {!unlocked && (
                 <div className="gi-unlock" role="status">
@@ -213,17 +218,6 @@ export function GeographicIntelligence({
                       <small> m/s</small>
                     </strong>
                     <em>
-                      {unlocked && weather?.windDirectionDeg != null && (
-                        <span
-                          className="gi-wind-arrow"
-                          style={{
-                            transform: `rotate(${weather.windDirectionDeg + 180}deg)`,
-                          }}
-                          aria-hidden="true"
-                        >
-                          ↑
-                        </span>
-                      )}
                       {unlocked
                         ? direction(weather?.windDirectionDeg) || 'Unavailable'
                         : 'Locked'}
@@ -236,21 +230,6 @@ export function GeographicIntelligence({
                       {metric(weather?.humidityPct)}
                       <small>%</small>
                     </strong>
-                    <span
-                      className="gi-humidity"
-                      role="meter"
-                      aria-label="Relative humidity"
-                      aria-valuenow={weather?.humidityPct ?? undefined}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuetext={
-                        weather?.humidityPct == null
-                          ? 'Unavailable'
-                          : `${weather.humidityPct}%`
-                      }
-                    >
-                      <i style={{ width: `${weather?.humidityPct ?? 0}%` }} />
-                    </span>
                   </div>
                   {unlocked && (
                     <div title="Atmospheric pressure at the surface, not adjusted to sea level.">
@@ -305,60 +284,16 @@ export function GeographicIntelligence({
                       sea level
                     </span>
                   </div>
-                  <dl className="gi-environment-list">
-                    <div>
-                      <dt>
-                        <GeoIcon name="mountain" />
-                        Terrain
-                      </dt>
-                      <dd>
-                        {environment?.terrain ?? 'Unavailable'}
-                        {environment?.terrain && (
-                          <span className="gi-estimated">EST.</span>
-                        )}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>
-                        <GeoIcon name="leaf" />
-                        Biome
-                      </dt>
-                      <dd className="gi-missing">Not available</dd>
-                    </div>
-                  </dl>
-                  {environment?.reliefM != null && (
-                    <p className="gi-hint">
-                      {metric(environment.reliefM)} m sampled relief across ~2 km.
-                    </p>
-                  )}
+                  <p className="gi-hint">
+                    Terrain: {environment?.terrain ?? 'unavailable'}
+                    {environment?.terrain && ' (estimated)'}
+                    {environment?.reliefM != null &&
+                      ` · ${metric(environment.reliefM)} m sampled relief across ~2 km`}
+                  </p>
                 </section>
               )}
             </>
           )}
-          <section
-            className={`gi-climate${climateOpen ? ' gi-climate-open' : ''}`}
-            aria-label="Long-term climate"
-          >
-            <button
-              aria-expanded={climateOpen}
-              aria-controls={`${prefix}-climate-details`}
-              onClick={() => setClimateOpen(!climateOpen)}
-            >
-              <GeoIcon name="climate" />
-              <span>
-                Climate normals <small>LONG-TERM AVERAGES</small>
-              </span>
-              <GeoIcon name="chevron" />
-            </button>
-            <div id={`${prefix}-climate-details`} hidden={!climateOpen}>
-              <p>
-                Climate classification, typical temperatures and annual rainfall
-                are unavailable. No verified climate or biome dataset is
-                connected.
-              </p>
-              <p>Current weather does not determine climate or vegetation.</p>
-            </div>
-          </section>
           <footer className="gi-footer">
             <div>
               <span className="gi-signal-dot" />
@@ -367,20 +302,8 @@ export function GeographicIntelligence({
                 : 'Weather data unavailable'}
             </div>
             <div className="gi-attribution">
-              <a
-                href="https://open-meteo.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">
                 Open-Meteo
-              </a>
-              <span> / </span>
-              <a
-                href="https://open-meteo.com/en/docs/elevation-api"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Copernicus DEM
               </a>
               <span> · </span>
               <a
@@ -390,134 +313,10 @@ export function GeographicIntelligence({
               >
                 CC BY 4.0
               </a>
-              <button
-                className="gi-info"
-                aria-label="About environmental data"
-                aria-expanded={notesOpen}
-                aria-controls={`${prefix}-data-notes`}
-                onClick={() => setNotesOpen(!notesOpen)}
-                title="Weather is model-based. Elevation uses a 90 m digital surface model; buildings and vegetation can affect it. Terrain is an estimate from nine elevation samples, not a landform classification."
-              >
-                <GeoIcon name="info" />
-              </button>
-            </div>
-            <div
-              id={`${prefix}-data-notes`}
-              className="gi-data-notes"
-              hidden={!notesOpen}
-            >
-              <p>
-                Weather is a model estimate, not a station observation.
-                Elevation uses the 90 m Copernicus digital surface model and may
-                include buildings or vegetation. Terrain describes relief
-                sampled at nine points across ~2 km: low (&lt;50 m), rolling
-                (50–199 m), or high (≥200 m). It is not a landform
-                classification.
-              </p>
-              <p>
-                Weather is cached for 15 minutes; elevation for 30 days. Biome,
-                vegetation and climate averages require a separate verified
-                dataset.
-              </p>
             </div>
           </footer>
-        </>
-      )}
-    </>
-  )
-  return (
-    <>
-      <aside
-        className={`gi-panel tg-glass tg-glass--panel${isExpanded ? '' : ' gi-panel-collapsed'}`}
-        aria-label="Geographic intelligence"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.stopPropagation()
-            setExpanded(false)
-            desktopToggle.current?.focus()
-          }
-        }}
-      >
-        <button
-          ref={desktopToggle}
-          className="gi-header"
-          aria-expanded={isExpanded}
-          aria-controls="gi-desktop-content"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <span className="gi-header-icon">
-            <GeoIcon name="scan" />
-          </span>
-          <span>
-            <strong>
-              GEOGRAPHIC
-              <br /> INTELLIGENCE
-            </strong>
-            <small>
-              {loading
-                ? 'Connecting…'
-                : weather
-                  ? `${metric(weather.temperatureC, 1)}°C${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
-                  : 'Environmental clues'}
-            </small>
-          </span>
-          <GeoIcon name="chevron" />
-        </button>
-        <div
-          className="gi-desktop-content"
-          id="gi-desktop-content"
-          inert={!isExpanded}
-        >
-          <div>{body('gi-desktop')}</div>
         </div>
-      </aside>
-      <button
-        ref={trigger}
-        className="gi-mobile-trigger tg-control"
-        aria-label="Open geographic intelligence"
-        aria-haspopup="dialog"
-        aria-expanded={mobileOpen}
-        onClick={() => setMobileOpen(true)}
-      >
-        <GeoIcon name="scan" />
-        <span className="gi-mobile-trigger-label">
-          {weather ? (
-            <>
-              {[
-                ['Temperature', `${metric(weather.temperatureC, 1)} °C`],
-                [
-                  'Wind speed',
-                  `${metric(weather.windSpeedKmh == null ? null : weather.windSpeedKmh / 3.6, 1)} m/s`,
-                ],
-                ['Humidity', `${metric(weather.humidityPct)} %`],
-                ['Precipitation', `${metric(weather.precipitationMm, 2)} mm`],
-              ].map(([label, value]) => (
-                <span className="gi-mobile-metric" key={label}>
-                  <b>{label}</b>
-                  <span>{value}</span>
-                </span>
-              ))}
-            </>
-          ) : (
-            <span>Geo intel</span>
-          )}
-        </span>
-        <span className="gi-signal-dot" />
-      </button>
-      {mobileOpen &&
-        createPortal(
-          <Modal
-            title="Geographic intelligence"
-            onClose={() => {
-              setMobileOpen(false)
-              trigger.current?.focus()
-            }}
-            className="gi-sheet"
-          >
-            {body('gi-mobile')}
-          </Modal>,
-          document.body,
-        )}
-    </>
+      </div>
+    </aside>
   )
 }

@@ -162,11 +162,11 @@ async function zoomGameSurfaces(page: Page, suffix?: string) {
     if (phase === 'active') {
       await expect(page.locator('.sp-panorama')).toBeVisible()
       await reachable(page, '.sp-guess-button')
-      const mobile = page.getByRole('button', {name:'Open geographic intelligence'})
-      if (await mobile.isVisible()) {
-        await mobile.click()
+      const toggle = page.locator('.gi-header')
+      if (await toggle.isVisible()) {
+        await toggle.click()
         await audit(page)
-        await page.keyboard.press('Escape')
+        await toggle.click()
       }
     } else {
       await requestGameExit(page)
@@ -262,9 +262,9 @@ for (const phase of ['active','final']) {
         await reachable(page,'.sp-guess-button')
         await page.getByRole('button',{name:'Shrink map',exact:true}).click()
         if(width<=1000) {
-          await page.getByRole('button',{name:'Open geographic intelligence'}).click()
+          await page.locator('.gi-header').click()
           await audit(page)
-          await page.keyboard.press('Escape')
+          await page.locator('.gi-header').click()
         }
       } else {
         await expect(page.getByRole('region',{name:'Final results'})).toBeVisible()

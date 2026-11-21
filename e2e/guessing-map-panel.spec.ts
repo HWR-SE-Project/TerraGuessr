@@ -26,7 +26,7 @@ async function inspect(page: Page) {
     const panel = rect('.sp-world-panel'), map = rect('.sp-world-panel .sp-map-wrap')
     const hint = rect('.sp-map-status'), panorama = rect('.sp-panorama')
     const intersects = (a: DOMRect, b: DOMRect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
-    const conflicts = ['.tg-page-nav', '.sp-compass', '.sp-hud', '.gi-panel', '.gi-mobile-trigger']
+    const conflicts = ['.tg-page-nav', '.sp-compass', '.sp-hud', '.gi-panel']
       .filter(selector => {
         const el = document.querySelector(selector)
         const r = el?.getBoundingClientRect()

@@ -33,7 +33,7 @@ async function summary(page: Page) {
   await requestGameExit(page)
   await page.getByRole('button', { name: 'End Game', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Final results' })).toBeVisible()
-  await expect(page.locator('.sp-hud, .sp-guess-panel, .gi-panel, .gi-mobile-trigger, .sp-panorama, .sp-compass')).toHaveCount(0)
+  await expect(page.locator('.sp-hud, .sp-guess-panel, .gi-panel, .sp-panorama, .sp-compass')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Guess', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Return Home', exact: true })).toHaveCount(1)
   await expect(page.getByRole('button', { name: 'Game menu' })).toHaveCount(0)
