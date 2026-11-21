@@ -8,34 +8,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Region {
-  AFRICA
-  EUROPE
-  ASIA
-  NORTH_AMERICA
-  SOUTH_AMERICA
-  OCEANIA
-}
-
 enum Difficulty {
   easy
   medium
   hard
 }
 
+enum GameMode {
+  solo
+  multiplayer
+}
+
 enum LobbyStatus {
   waiting
   playing
   finished
-}
-
-enum LocationSrc {
-  grid
-  city
-}
-
-enum WeatherSrc {
-  open_meteo
 }
 
 model User {
@@ -55,6 +42,9 @@ model User {
   emailVerifications  EmailVerificationToken[]
   emailChangeRequests EmailChangeRequest[]
   preferences         UserPreference?
+  streetGames         StreetGame[]
+  lobbyMembers        LobbyMember[]
+  gameResults         GameResult[]
 }
 
 model AuthSession {
@@ -133,46 +123,15 @@ model UserPreference {
   updatedAt     DateTime @updatedAt
 }
 
-model Location {
-  id              String            @id @default(cuid())
-  lat             Float
-  lon             Float
-  name            String?
-  region          Region
-  isLand          Boolean           @default(true)
-  source          LocationSrc       @default(grid)
-  createdAt       DateTime          @default(now())
-  snapshots       WeatherSnapshot[]
-
-  @@index([region])
-}
-
-model WeatherSnapshot {
-  id                      String           @id @default(cuid())
-  locationId              String
-  location                Location         @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  fetchedAt               DateTime         @default(now())
-  temperatureC            Float // R03 mandatory
-  precipitationMm         Float // R03 mandatory
-  humidityPct             Float // R03 mandatory
-  windSpeedKmh            Float // R03 mandatory
-  airPressureHpa          Float?
-  windDirectionDeg        Float?
-  uvIndex                 Float?
-  sunshineDurationSeconds Float?
-  localTime               String?
-  extra                   Json? // decision B.2: optional, never required
-  source                  WeatherSrc       @default(open_meteo)
-
-  @@index([locationId, fetchedAt]) // drives <=1h staleness lookup (B.11)
-}
-
 // Pre-game multiplayer waiting room (R16). A lobby only stores membership and
 // the host's difficulty choice; it deliberately owns no round/location logic.
 model Lobby {
   id            String        @id @default(cuid())
   code          String        @unique @db.VarChar(6)
   difficulty    Difficulty
+  // Rotated at the start of each match/rematch so archived rounds can be
+  // grouped into the exact game they belonged to.
+  matchId       String        @default(cuid())
   hostTokenHash String // sha256(rawToken), ADR-0011
   roundsTotal   Int           @default(5)
   status        LobbyStatus   @default(waiting)
@@ -192,6 +151,9 @@ model LobbyMember {
   id                  String              @id @default(cuid())
   lobbyId             String
   lobby               Lobby               @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  // Captured once when the member creates/joins the lobby; guests stay null.
+  userId              String?
+  user                User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   playerTokenHash     String // sha256(rawToken), ADR-0011
   displayName         String?
   selectionLat        Float?
@@ -205,6 +167,7 @@ model LobbyMember {
 
   @@unique([lobbyId, playerTokenHash])
   @@index([lobbyId])
+  @@index([userId])
 }
 
 model LobbyRound {
@@ -291,7 +254,7 @@ model LobbyRoundMemberState {
 // yet) before the next POST .../rounds starts the next one. A row is Ended
 // the moment the player explicitly finalizes it (DELETE .../games/:id,
 // triggered by the "End Game" confirmation) — already-scored rounds survive
-// independently in StreetResult (R18), but the StreetGame row itself is gone,
+// independently in GameResult for signed-in players (R18), but the StreetGame row itself is gone,
 // so `owned()` 404s forever after and the session can never be reactivated.
 // Abandoned covers the same DELETE outcome reached a different way: the 24h
 // expiry sweep (`expiresAt`-driven) removing a row nobody explicitly ended —
@@ -301,6 +264,9 @@ model LobbyRoundMemberState {
 model StreetGame {
   id              String        @id @default(cuid())
   playerTokenHash String
+  // Captured once at creation; guests stay null (R18 archives only accounts).
+  ownerUserId     String?
+  owner           User?         @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
   difficulty      Difficulty    @default(medium) // R05
   expiresAt       DateTime
   createdAt       DateTime      @default(now())
@@ -315,6 +281,7 @@ model StreetGame {
   nextTargetLon   Float?
 
   @@index([expiresAt])
+  @@index([ownerUserId])
 }
 
 model StreetRound {
@@ -365,26 +332,34 @@ model StreetRoundAttempt {
   @@index([roundId])
 }
 
-// Durable archive of a completed Street View round (R18). Written once, at
-// guess-lock time, from values already resolved for scoring — never a second
-// provider/weather call. Deliberately has NO relation/cascade to StreetGame or
-// StreetRound: the 24h session-expiry cleanup (routes.ts) only prunes
-// resumable session state, and must never touch this archival record. Purged
-// by its own 6-month retention job (scheduler/purge.ts), independent of
-// session expiry.
-model StreetResult {
-  id          String     @id @default(cuid())
-  gameId      String
-  roundId     String     @unique
-  roundNumber Int
+// Durable archive of a completed round for a signed-in player (R18). Guest
+// rounds are intentionally not archived because the requirement ties retention
+// to the player's account. `id` is a deterministic dedupe key:
+//   solo:<StreetRound.id> | lobby:<LobbyRoundResult.id>
+// Deliberately has NO relation/cascade to StreetGame, StreetRound, Lobby, or
+// LobbyMember: session/lobby cleanup must never delete retained history. The
+// nullable `userId` exists so account deletion can anonymise a row (SetNull)
+// while the 6-month retention job (scheduler/purge.ts) still removes it.
+// `sessionId` + `roundNumber` allow archived rounds to be regrouped per game.
+model GameResult {
+  id          String     @id
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  mode        GameMode
   difficulty  Difficulty
+  sessionId   String // StreetGame.id or Lobby.id, no FK by design
+  matchId     String // groups rounds of one game; rotates on lobby rematch
+  roundNumber Int
   actualLat   Float
   actualLon   Float
-  guessLat    Float
-  guessLon    Float
-  distanceKm  Float // R09
+  guessLat    Float? // last submitted attempt; null when the round ended without one
+  guessLon    Float?
+  distanceKm  Float? // R09
   score       Int // R10
   createdAt   DateTime   @default(now()) // drives 6-month purge (R18)
 
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([sessionId])
+  @@index([matchId])
 }

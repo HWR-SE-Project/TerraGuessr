@@ -6,8 +6,11 @@
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 
-import { purgeExpiredStreetResults } from './purge.js';
-import type { StreetPurgeClient } from './purge.js';
+import {
+  purgeExpiredGameResults,
+  purgeExpiredGameSessions,
+} from './purge.js';
+import type { GamePurgeClient, SessionPurgeClient } from './purge.js';
 import { purgeExpiredAuthArtifacts } from './authCleanup.js';
 import type { AuthCleanupClient } from './authCleanup.js';
 
@@ -16,7 +19,9 @@ export const PURGE_CRON_EXPRESSION = '0 3 * * *';
 export const PURGE_CRON_TIMEZONE = 'UTC';
 
 /** Everything the daily maintenance job needs. */
-export type SchedulerClient = AuthCleanupClient & StreetPurgeClient;
+export type SchedulerClient = AuthCleanupClient &
+  GamePurgeClient &
+  SessionPurgeClient;
 
 /** Pino-shaped logger (Fastify's `app.log`); keeps this module console-free. */
 export interface SchedulerLogger {
@@ -37,7 +42,7 @@ export function startScheduler(
   return cron.schedule(
     PURGE_CRON_EXPRESSION,
     () => {
-      void purgeExpiredStreetResults(db)
+      void purgeExpiredGameResults(db)
         .then((summary) => {
           if (summary.deletedResults > 0) {
             log.info(
@@ -45,12 +50,22 @@ export function startScheduler(
                 deletedResults: summary.deletedResults,
                 cutoff: summary.cutoff.toISOString(),
               },
-              'street singleplayer retention purge completed',
+              'game result retention purge completed',
             );
           }
         })
         .catch((err: unknown) => {
-          log.error({ err }, 'street singleplayer retention purge failed');
+          log.error({ err }, 'game result retention purge failed');
+        });
+
+      void purgeExpiredGameSessions(db)
+        .then((summary) => {
+          if (summary.deletedStreetGames + summary.deletedLobbies > 0) {
+            log.info(summary, 'expired game session purge completed');
+          }
+        })
+        .catch((err: unknown) => {
+          log.error({ err }, 'expired game session purge failed');
         });
 
       void purgeExpiredAuthArtifacts(db)

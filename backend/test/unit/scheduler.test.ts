@@ -28,7 +28,7 @@ describe('startScheduler (R18, node-cron v4 wiring)', () => {
   it('logs a failure through the injected logger if the purge throws, never a crash', async () => {
     const log = { info: vi.fn(), error: vi.fn() };
     const db = {
-      streetResult: { findMany: vi.fn().mockRejectedValue(new Error('db down')) },
+      gameResult: { findMany: vi.fn().mockRejectedValue(new Error('db down')) },
     } as unknown as SchedulerClient;
 
     task = startScheduler(db, log);
@@ -42,7 +42,7 @@ describe('startScheduler (R18, node-cron v4 wiring)', () => {
 
     expect(log.error).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
-      'street singleplayer retention purge failed',
+      'game result retention purge failed',
     );
   });
 });

@@ -1,5 +1,7 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import type { FastifyReply } from 'fastify';
+
+import { timingSafeEquals } from '../../lib/crypto.js';
 
 export const SESSION_COOKIE_NAME = 'tg_session';
 export const OAUTH_COOKIE_NAME = 'tg_google_flow';
@@ -52,9 +54,7 @@ export function verifyGoogleFlowCookie(value: string | undefined, secret: string
   if (!value) return null;
   const [payload, signature, extra] = value.split('.');
   if (!payload || !signature || extra !== undefined) return null;
-  const expected = Buffer.from(sign(payload, secret));
-  const received = Buffer.from(signature);
-  if (expected.length !== received.length || !timingSafeEqual(expected, received)) return null;
+  if (!timingSafeEquals(sign(payload, secret), signature)) return null;
   try {
     const state = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<GoogleFlowState>;
     if (

@@ -33,6 +33,7 @@ import {
   buildVerificationEmail,
 } from './emailTemplates.js';
 import { assertSameSiteMutation, readSessionToken, requireSessionUser } from './session.js';
+import { normalizeDisplayName, DISPLAY_NAME_MAX_LENGTH } from '../../domain/identity.js';
 import {
   clearGoogleFlowCookie,
   clearSessionCookie,
@@ -406,7 +407,7 @@ export function registerAuthRoutes(
         user = await db.user.create({ data: {
           email: normalizeEmail(claims.email),
           googleSub: claims.sub,
-          displayName: (claims.name?.trim() || claims.email.split('@')[0] || 'Terra player').slice(0, 40),
+          displayName: (normalizeDisplayName(claims.name) ?? claims.email.split('@')[0] ?? 'Terra player').slice(0, DISPLAY_NAME_MAX_LENGTH),
           emailVerifiedAt: new Date(),
         } });
       } catch {

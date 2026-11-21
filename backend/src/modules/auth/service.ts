@@ -1,5 +1,10 @@
-import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scrypt as scryptCallback } from 'node:crypto';
 import type { PrismaClient, User } from '@prisma/client';
+
+import { AppError } from '../../plugins/errors.js';
+import { isUniqueConstraintError } from '../../db/prismaErrors.js';
+import { randomToken, sha256Hex, timingSafeEquals } from '../../lib/crypto.js';
+import { isValidDisplayName, normalizeDisplayName } from '../../domain/identity.js';
 
 const SCRYPT_N = 1 << 17;
 const SCRYPT_R = 8;
@@ -22,15 +27,14 @@ export const LOGIN_LOCK_MS = 15 * 60 * 1000;
 /** Only refresh `lastUsedAt` occasionally; session reads should not write on every request. */
 const SESSION_LAST_USED_WRITE_INTERVAL_MS = 60 * 1000;
 
-export class AuthError extends Error {
+export class AuthError extends AppError {
   public constructor(
-    public readonly statusCode: number,
+    statusCode: number,
     message: string,
     /** Stable machine-readable code surfaced in the API error envelope. */
-    public readonly appCode?: string,
+    appCode?: string,
   ) {
-    super(message);
-    this.name = 'AuthError';
+    super(statusCode, message, appCode);
   }
 }
 
@@ -83,20 +87,18 @@ export async function verifyPassword(password: string, storedHash: string | null
   const expected = parts[3] ? Buffer.from(parts[3], 'base64url') : Buffer.alloc(SCRYPT_KEY_BYTES);
   const validFormat = parts[0] === 'scrypt' && n === SCRYPT_N && salt.length === 16 && expected.length === SCRYPT_KEY_BYTES;
   const actual = await scrypt(password, salt, SCRYPT_KEY_BYTES, validFormat ? n : SCRYPT_N);
-  return Boolean(validFormat && timingSafeEqual(actual, expected));
+  return Boolean(validFormat && timingSafeEquals(actual, expected));
 }
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function hashSecret(raw: string): string {
-  return createHash('sha256').update(raw).digest('hex');
-}
+/** SHA-256 hex digest (ADR-0011: store/compare hashes only). */
+export const hashSecret = sha256Hex;
 
-export function createOpaqueToken(): string {
-  return randomBytes(32).toString('base64url');
-}
+/** A 256-bit opaque token (base64url). */
+export const createOpaqueToken = randomToken;
 
 export type PublicUser = Pick<User, 'id' | 'email' | 'displayName' | 'emailVerifiedAt' | 'createdAt'> & {
   hasPassword: boolean;
@@ -136,8 +138,9 @@ export async function registerWithEmail(
   input: { email: string; password: string; displayName: string },
 ): Promise<User> {
   const email = normalizeEmail(input.email);
-  const displayName = input.displayName.trim();
-  if (displayName.length < 2 || displayName.length > 40) throw new AuthError(400, 'Display name must be 2–40 characters');
+  const displayName = normalizeDisplayName(input.displayName);
+  if (displayName === null || !isValidDisplayName(displayName))
+    throw new AuthError(400, 'Display name must be 2–40 characters');
   // Check before the expensive hash; the unique constraint below still handles races.
   const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) throw new AuthError(409, 'An account with this email already exists');
@@ -145,7 +148,7 @@ export async function registerWithEmail(
   try {
     return await db.user.create({ data: { email, passwordHash, displayName } });
   } catch (cause) {
-    if (typeof cause === 'object' && cause !== null && 'code' in cause && cause.code === 'P2002') {
+    if (isUniqueConstraintError(cause)) {
       throw new AuthError(409, 'An account with this email already exists');
     }
     throw cause;
@@ -181,10 +184,6 @@ export async function consumeEmailVerification(db: PrismaClient, token: string):
     }
     return tx.user.update({ where: { id: row.userId }, data: { emailVerifiedAt: new Date() } });
   });
-}
-
-function isUniqueConstraintError(cause: unknown): boolean {
-  return typeof cause === 'object' && cause !== null && 'code' in cause && cause.code === 'P2002';
 }
 
 export interface EmailChangeRequestTokens {
