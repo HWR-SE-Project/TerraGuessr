@@ -22,6 +22,11 @@ export function clockLabel(seconds: number | null): string {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`
 }
 
+/** Whole seconds between `now` and an ISO deadline, floored at 0, or null without one. */
+export function secondsUntil(deadline: string | null | undefined, now: number): number | null {
+  return deadline == null ? null : Math.max(0, Math.ceil((Date.parse(deadline) - now) / 1000))
+}
+
 /** Latitude/longitude in compact degrees notation. */
 export function coordinates(point: LatLon | null): string {
   if (!point) return 'No guess submitted'

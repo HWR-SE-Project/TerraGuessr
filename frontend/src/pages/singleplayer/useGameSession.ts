@@ -9,6 +9,7 @@ import type {
 import type { Difficulty, LatLon } from '../../api/types'
 import { browserMapsKey } from '../../game/googleMaps'
 import { DEFAULT_DIFFICULTY } from '../../game/difficulty'
+import { secondsUntil } from '../../lib/format'
 
 const emptySession = (): StreetSession => ({
   id: '',
@@ -158,12 +159,7 @@ export function useGameSession(autoStart = false) {
     const interval = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(interval)
   }, [session.activeRound, result, showFinal])
-  const remainingSeconds = session.activeRound?.endsAt
-    ? Math.max(
-        0,
-        Math.ceil((Date.parse(session.activeRound.endsAt) - now) / 1000),
-      )
-    : null
+  const remainingSeconds = secondsUntil(session.activeRound?.endsAt, now)
   // The server settles expired rounds when the session is read. Ask once the
   // visible timer reaches zero so the timeout result replaces the round.
   useEffect(() => {

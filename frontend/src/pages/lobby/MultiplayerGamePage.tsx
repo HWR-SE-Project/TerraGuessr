@@ -27,7 +27,7 @@ import { GuessMap } from '../../game/GuessMap'
 import type { GuessMapMarker } from '../../game/GuessMap'
 import { GameplayHUD } from '../../game/GameplayHUD'
 import { GeographicIntelligence } from '../../game/GeographicIntelligence'
-import { clockLabel, coordinates, distanceLabel } from '../../lib/format'
+import { clockLabel, coordinates, distanceLabel, secondsUntil } from '../../lib/format'
 import { RoundResultDetails } from '../../game/RoundResultDetails'
 import { asStreetResults, asStreetRound } from './matchAdapters'
 import '../../game/Game.css'
@@ -234,9 +234,7 @@ function FinalMatchResults({
     participantMarkers(result.guesses, result.roundNumber),
   )
   const prompt = match.continuePrompt
-  const remainingSeconds = prompt
-    ? Math.max(0, Math.ceil((Date.parse(prompt.deadline) - now) / 1000))
-    : null
+  const remainingSeconds = secondsUntil(prompt?.deadline, now)
   const pending = prompt?.pendingPlayers ?? []
   return (
     <section
@@ -521,10 +519,7 @@ export function MultiplayerGamePage() {
   const exploring = Boolean(streetRound && !finalized && match?.status === 'playing')
   // R07: a failed panorama must not block placing and submitting a guess.
   const guessReady = panoramaReady || panoramaUnavailable
-  const remainingSeconds =
-    match?.endsAt !== null && match?.endsAt !== undefined
-      ? Math.ceil((Date.parse(match.endsAt) - now) / 1000)
-      : null
+  const remainingSeconds = secondsUntil(match?.endsAt, now)
   const selectedCandidateId =
     round?.candidates?.find(
       (candidate) =>
