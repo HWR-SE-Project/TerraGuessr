@@ -3,11 +3,41 @@ import { isValidStreetWeather } from '../intelligence/validate.js';
 import { PanoramaError } from './providerErrors.js';
 import { ROAD_TARGETS } from './provider.js';
 import type { PanoramaProvider, PanoramaTarget } from './provider.js';
+import { haversineKm } from '../../domain/distance.js';
+import {
+  MAX_WEATHER_LOCATION_ATTEMPTS,
+  MIN_TARGET_SEPARATION_FROM_RECENT_KM,
+} from '../../config/constants.js';
 
 export type IntelligenceLookup = (
   lat: number,
   lon: number,
 ) => Promise<GeographicIntelligence>;
+
+/**
+ * R01: besides history, exclude any target within
+ * `MIN_TARGET_SEPARATION_FROM_RECENT_KM` of the most recently played one, so
+ * consecutive rounds don't land in neighbouring locations. Falls back to no
+ * exclusion if that would remove the entire pool (never blocks selection).
+ */
+function proximityExclusions(
+  mostRecent: number | undefined,
+  alreadyExcluded: readonly number[],
+): number[] {
+  if (mostRecent === undefined) return [];
+  const [recentLat, recentLon] = ROAD_TARGETS[mostRecent]!;
+  const close = ROAD_TARGETS.map((_, i) => i).filter(
+    (i) =>
+      !alreadyExcluded.includes(i) &&
+      i !== mostRecent &&
+      haversineKm(
+        { lat: recentLat, lon: recentLon },
+        { lat: ROAD_TARGETS[i]![0], lon: ROAD_TARGETS[i]![1] },
+      ) < MIN_TARGET_SEPARATION_FROM_RECENT_KM,
+  );
+  if (close.length >= ROAD_TARGETS.length - alreadyExcluded.length) return [];
+  return close;
+}
 
 /**
  * An endless session eventually plays through the entire finite
@@ -20,14 +50,19 @@ export type IntelligenceLookup = (
  */
 export function nextExclusions(usedIndices: readonly number[]): number[] {
   const playedAtLeastOnce = new Set(usedIndices).size;
-  if (playedAtLeastOnce < ROAD_TARGETS.length) return [...usedIndices];
   const mostRecent = usedIndices.at(-1);
-  return mostRecent === undefined ? [] : [mostRecent];
+  const history =
+    playedAtLeastOnce < ROAD_TARGETS.length
+      ? [...usedIndices]
+      : mostRecent === undefined
+        ? []
+        : [mostRecent];
+  return [...new Set([...history, ...proximityExclusions(mostRecent, history)])];
 }
 
 /** Bounds the outer weather-validation loop; the provider's own candidate
  * exhaustion (ROAD_TARGETS.length) bounds it further. Never infinite. */
-const MAX_WEATHER_ATTEMPTS = 6;
+const MAX_WEATHER_ATTEMPTS = MAX_WEATHER_LOCATION_ATTEMPTS;
 
 /**
  * Selects a panorama target whose coordinates also have the mandatory

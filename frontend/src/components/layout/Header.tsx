@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Logo, LogoMark } from '../ui/Logo'
 import { Button, IconButton } from '../ui/Button'
@@ -30,11 +30,28 @@ function AvatarBubble({ name, size = 36 }: { name: string; size?: number }) {
 export function Header() {
   const session = useSession()
   const navigate = useNavigate()
+  const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const user = session.user
+  const onSettings = location.pathname === '/settings'
+  const toggleSettings = () => (onSettings ? navigate(-1) : navigate('/settings'))
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
-    <header className="sticky top-0 z-40">
+    <header
+      className={`sticky top-0 z-40 isolate transition-[background-color,backdrop-filter,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        scrolled
+          ? 'bg-space-950/75 backdrop-blur-md shadow-[0_1px_0_0_rgba(255,255,255,0.06),0_8px_24px_-4px_rgba(5,3,16,0.45)]'
+          : 'bg-transparent backdrop-blur-0 shadow-none'
+      }`}
+    >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Logo />
 
@@ -58,8 +75,8 @@ export function Header() {
         <div className="flex items-center gap-1.5 sm:gap-2">
           <IconButton
             name="settings"
-            label="Settings"
-            onClick={() => navigate('/settings')}
+            label={onSettings ? 'Close settings' : 'Settings'}
+            onClick={toggleSettings}
             className="hidden sm:inline-flex"
           />
           {user ? (
@@ -78,7 +95,7 @@ export function Header() {
               )}
               items={[
                 { key: 'avatar', label: 'Customize avatar', icon: <Icon name="person" size={18} />, onSelect: () => navigate('/avatar') },
-                { key: 'settings', label: 'Settings', icon: <Icon name="settings" size={18} />, onSelect: () => navigate('/settings') },
+                { key: 'settings', label: onSettings ? 'Close settings' : 'Settings', icon: <Icon name="settings" size={18} />, onSelect: toggleSettings },
                 { key: 'logout', label: 'Sign out', icon: <Icon name="exit" size={18} />, danger: true, onSelect: () => void signOut() },
               ]}
             />
@@ -142,8 +159,15 @@ export function Header() {
                         <span className="block text-sm text-subtle">{user.email}</span>
                       </span>
                     </Link>
-                    <Button variant="secondary" icon="settings" to="/settings" onClick={() => setMobileOpen(false)}>
-                      Settings
+                    <Button
+                      variant="secondary"
+                      icon="settings"
+                      onClick={() => {
+                        setMobileOpen(false)
+                        toggleSettings()
+                      }}
+                    >
+                      {onSettings ? 'Close settings' : 'Settings'}
                     </Button>
                     <Button variant="ghost" icon="exit" onClick={() => { setMobileOpen(false); void signOut() }}>
                       Sign out

@@ -29,7 +29,7 @@ export const DIFFICULTY_LEVELS: DifficultyInfo[] = [
     timeLimitSeconds: 7 * 60,
     attemptsPerRound: 3,
     selectionMode: 'list',
-    countryBorders: false,
+    countryBorders: true,
     extraData: { mode: 'free' },
   },
   {

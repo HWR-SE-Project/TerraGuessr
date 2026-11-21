@@ -1,61 +1,88 @@
 import { expect, test } from '@playwright/test'
 
-test('Help opens a standalone guide without initializing a game', async ({ page }) => {
+test('How to play opens from the main nav without starting a game', async ({ page }) => {
   const gameRequests: string[] = []
-  page.on('request', request => {
+  page.on('request', (request) => {
     if (request.url().includes('/api/singleplayer/')) gameRequests.push(request.url())
   })
-  await page.goto('/auth')
-  await page.getByRole('link', { name: 'How to play' }).filter({ visible: true }).click()
+  await page.goto('/')
+  await page.getByRole('link', { name: 'How to play' }).first().click()
   await expect(page).toHaveURL('/how-to-play')
-  await expect(page).toHaveTitle('How to play · TerraGuessr')
-  await expect(page.getByRole('heading', { name: 'How to play.' })).toBeVisible()
-  for (const name of ['Look around', 'Follow the clues', 'Choose your location', 'Make your guess']) {
-    await expect(page.getByRole('heading', { name })).toBeVisible()
-  }
+  await expect(page.getByRole('heading', { name: 'Become a master explorer' })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(gameRequests).toEqual([])
-  await page.reload()
-  await expect(page.getByRole('heading', { name: 'How to play.' })).toBeVisible()
 })
 
-test('legacy tutorial URLs redirect to the guide and the play link opens setup', async ({ page }) => {
-  await page.route('**/api/singleplayer/config', route => route.fulfill({ json: { available: true, provider: 'google', serverKeyConfigured: true } }))
-  await page.goto('/game/singleplayer?tutorial=1')
-  await expect(page).toHaveURL('/how-to-play')
-  await page.getByRole('link', { name: 'Let’s explore' }).click()
-  await expect(page).toHaveURL('/game/singleplayer')
-  await expect(page.getByRole('button', { name: /Start exploring/i })).toBeVisible()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.goBack()
-  await expect(page).toHaveURL('/how-to-play')
-})
-
-test('the score example uses the game scoring curve and works from the keyboard', async ({ page }) => {
+test('the tutorial is reachable, steps through all five beats, and is skippable/restartable (R14)', async ({ page }) => {
   await page.goto('/how-to-play')
+  const start = page.getByRole('button', { name: 'Start interactive tutorial' })
+  await start.click()
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(page.getByText('Step 1 / 5')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Read the weather' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Previous' })).toBeDisabled()
+
+  const expectedTitles = [
+    'Pick a location',
+    'Submit your guess',
+    'Measuring distance',
+    'Score by distance',
+  ]
+  for (const title of expectedTitles) {
+    await page.getByRole('button', { name: 'Next' }).click()
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
+  }
+
+  // Last step shows the interactive scoring demo, driven by the same curve
+  // as a real round (R10): 0 km -> 5000, 2000 km -> 4522, 20000 km -> 0.
   const slider = page.getByRole('slider', { name: 'Example distance in kilometers' })
-  for (const [distance, score] of [['0', '5,000'], ['2000', '4,522'], ['20000', '0']]) {
+  for (const [distance, score] of [
+    ['0', '5,000'],
+    ['2000', '4,522'],
+    ['20000', '0'],
+  ]) {
     await slider.fill(distance!)
     await expect(page.getByLabel('Example score')).toContainText(`${score} / 5,000 pts`)
   }
-  await slider.focus()
-  await page.keyboard.press('Home')
-  await expect(page.getByLabel('Example score')).toContainText('5,000 / 5,000 pts')
+
+  await page.getByRole('button', { name: 'Finish' }).click()
+  await expect(dialog).toBeHidden()
+
+  // Restart: reopening always starts from step 1, not wherever it was left.
+  await start.click()
+  await expect(page.getByText('Step 1 / 5')).toBeVisible()
+
+  // Skip: exits the tutorial from any step without finishing it.
+  await page.getByRole('button', { name: 'Next' }).click()
+  await page.getByRole('button', { name: 'Skip tutorial' }).click()
+  await expect(dialog).toBeHidden()
 })
 
-for (const [width, height] of [[1440, 900], [768, 1024], [390, 844], [320, 568]]) {
-  test(`guide remains readable at ${width} × ${height}`, async ({ page }) => {
+test('the distance example shows the real London-Paris great-circle distance', async ({ page }) => {
+  await page.goto('/how-to-play')
+  await page.getByRole('button', { name: 'Start interactive tutorial' }).click()
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByRole('heading', { name: 'Measuring distance' })).toBeVisible()
+  await expect(page.getByText('London')).toBeVisible()
+  await expect(page.getByText('Paris')).toBeVisible()
+  await expect(page.getByText(/34[0-9] km/)).toBeVisible()
+})
+
+for (const [width, height] of [
+  [1440, 900],
+  [768, 1024],
+  [390, 844],
+  [320, 568],
+]) {
+  test(`how-to-play remains readable at ${width} × ${height}`, async ({ page }) => {
     await page.setViewportSize({ width: width!, height: height! })
     await page.goto('/how-to-play')
-    await expect(page.getByRole('heading', { name: 'How to play.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Become a master explorer' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    const play = page.getByRole('link', { name: 'Let’s explore' })
-    await play.scrollIntoViewIfNeeded()
-    await expect(play).toBeInViewport()
-    const menu = page.getByRole('button', { name: 'Open navigation' })
-    if (await menu.isVisible()) {
-      await menu.click()
-      await expect(page.getByRole('link', { name: 'How to play' }).filter({ visible: true })).toHaveAttribute('href', '/how-to-play')
-    }
+    await page.getByRole('button', { name: 'Start interactive tutorial' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   })
 }

@@ -20,7 +20,7 @@ export function MultiplayerPage() {
   const [mode, setMode] = useState<Mode>(initialMode)
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-3xl flex-col justify-center overflow-hidden px-4 py-4 sm:px-6">
+    <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-3xl flex-col justify-center px-4 py-10 sm:px-6">
       <motion.div variants={staggerContainer} initial="initial" animate="animate">
         <motion.div variants={staggerItem} className="text-center">
           <p className="eyebrow !text-muted">Multiplayer</p>

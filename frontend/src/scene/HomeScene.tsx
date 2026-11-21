@@ -4,7 +4,7 @@ import { Stars } from '@react-three/drei'
 import { PlanetEarth } from './Planet'
 import { Character } from './Character'
 import { usePointerParallax, usePrefersReducedMotion, useWebGLSupport } from './hooks'
-import { EARTH_Z, OCEAN_FILL, PLANET_CONTACT_OVERLAP_PX, CAMERA_FOV, CAMERA_Z, screenYToWorldY, sphereCenterY } from './composition'
+import { EARTH_Z, PLANET_CONTACT_OVERLAP_PX, PLANET_BOTTOM_MARGIN_RATIO, CAMERA_FOV, CAMERA_Z, screenYToWorldY, sphereCenterY } from './composition'
 import earthFallback from '../assets/images/earth-horizon.webp'
 
 export interface HomeLayout {
@@ -64,17 +64,22 @@ function SceneContents() {
   const [feetPixelY, setFeetPixelY] = useState<number | null>(null)
 
   const isNarrow = size.width <= 600
-  const radiusPx = Math.min(
-    size.width * (isNarrow ? 0.38 : 0.42),
-    (layout?.height ?? 280) * (isNarrow ? 0.48 : 0.6),
-  )
+  const rawApexPixelY =
+    (feetPixelY ?? (layout ? layout.top + layout.height * 0.97 : size.height * 0.7)) -
+    PLANET_CONTACT_OVERLAP_PX
+  // Nudge the fit zone down a bit below the character's feet (purely a
+  // vertical-placement tweak), then fit the planet's full sphere — apex to
+  // nadir — inside the space below that, so it reads as a whole floating
+  // planet rather than a horizon cropped by the canvas edge.
+  const apexPixelY = rawApexPixelY + size.height * 0.32
+  const bottomMarginPx = size.height * PLANET_BOTTOM_MARGIN_RATIO
+  const verticalRadiusPx = Math.max((size.height - bottomMarginPx - apexPixelY) / 2, 40)
+  const horizontalRadiusPx = size.width * (isNarrow ? 0.7 : 0.78)
+  const radiusPx = Math.min(verticalRadiusPx, horizontalRadiusPx)
   const earthRadius = Math.abs(
     screenYToWorldY(0, size.height, EARTH_Z) - screenYToWorldY(radiusPx, size.height, EARTH_Z),
   )
-  const apexPixelY =
-    (feetPixelY ?? (layout ? layout.top + layout.height * 0.97 : size.height * 0.7)) -
-    PLANET_CONTACT_OVERLAP_PX
-  const earthCenterY = sphereCenterY(apexPixelY, size.height, earthRadius * OCEAN_FILL)
+  const earthCenterY = sphereCenterY(apexPixelY, size.height, earthRadius)
 
   return (
     <>

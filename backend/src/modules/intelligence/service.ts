@@ -1,5 +1,8 @@
 import type { GeographicIntelligence } from './contract.js';
-import { WEATHER_MAX_DISPLAY_AGE_MS } from '../../config/constants.js';
+import {
+  WEATHER_MAX_DISPLAY_AGE_MS,
+  WEATHER_FETCH_TIMEOUT_MS,
+} from '../../config/constants.js';
 
 type Weather = GeographicIntelligence['weather'];
 type Environment = GeographicIntelligence['environment'];
@@ -96,7 +99,9 @@ export function createIntelligenceProvider(
       ...params,
       ...(options.apiKey ? { apikey: options.apiKey } : {}),
     }).toString();
-    const response = await fetcher(url, { signal: AbortSignal.timeout(6000) });
+    const response = await fetcher(url, {
+      signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) throw new Error('Environmental provider unavailable');
     const data: unknown = await response.json();
     if (!data || typeof data !== 'object' || Array.isArray(data))

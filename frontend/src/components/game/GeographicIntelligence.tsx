@@ -160,14 +160,10 @@ export function GeographicIntelligence({
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <Metric icon="wind" label="Wind" value={unlocked ? `${metric(weather?.windSpeedKmh == null ? null : weather.windSpeedKmh / 3.6, 1)} m/s ${direction(weather?.windDirectionDeg)}` : 'Locked'} />
-                    <Metric icon="drop" label="Humidity" value={unlocked ? formatPercent(weather?.humidityPct) : 'Locked'} />
-                    {unlocked && (
-                      <>
-                        <Metric icon="pressure" label="Pressure" value={`${metric(weather?.pressureHpa)} hPa`} />
-                        <Metric icon="rain" label="Rain" value={weather?.precipitationMm ? `${metric(weather.precipitationMm, 1)} mm` : 'None'} />
-                      </>
-                    )}
+                    <Metric icon="wind" label="Wind" value={`${metric(weather?.windSpeedKmh == null ? null : weather.windSpeedKmh / 3.6, 1)} m/s ${direction(weather?.windDirectionDeg)}`} />
+                    <Metric icon="drop" label="Humidity" value={formatPercent(weather?.humidityPct)} />
+                    <Metric icon="rain" label="Rain" value={weather?.precipitationMm ? `${metric(weather.precipitationMm, 1)} mm` : 'None'} />
+                    {unlocked && <Metric icon="pressure" label="Pressure" value={`${metric(weather?.pressureHpa)} hPa`} />}
                   </div>
 
                   {unlocked && environment?.elevationM != null && (

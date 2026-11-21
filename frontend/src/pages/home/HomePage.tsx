@@ -1,14 +1,16 @@
 import { lazy, Suspense } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Dropdown } from '../../components/ui/Dropdown'
 import { Icon } from '../../components/ui/Icon'
 import { useSession } from '../../state/session'
 import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
+import { AvatarCustomizeMenu } from './AvatarCustomizeMenu'
 import earthFallback from '../../assets/images/earth-horizon.webp'
+import './HomePage.css'
 
-// Lazy-load the heavy R3F scene so `three` stays out of the initial chunk.
+// Keep the 3D scene out of the initial bundle.
 const HomeScene = lazy(() =>
   import('../../scene/HomeScene').then((m) => ({ default: m.HomeScene })),
 )
@@ -18,81 +20,84 @@ export function HomePage() {
   const session = useSession()
 
   return (
-    <div className="relative">
-      <section className="relative min-h-[calc(100dvh-4rem)]">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-4 pb-12 pt-6 sm:px-6 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-2 lg:gap-4">
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="max-w-xl">
-            <motion.p variants={staggerItem} className="eyebrow">
-              A geography guessing game
-            </motion.p>
-            <motion.h1
-              variants={staggerItem}
-              className="mt-3 text-balance font-display text-4xl font-semibold leading-[1.05] text-cream sm:text-5xl lg:text-6xl"
-            >
-              Find your place
-              <br />
-              in the world<span className="text-lime-400">.</span>
-            </motion.h1>
-            <motion.p variants={staggerItem} className="mt-5 max-w-md text-lg leading-relaxed text-muted">
-              You're dropped somewhere on Earth. Read the streets, the skies and the
-              weather — then guess where you are.
-            </motion.p>
+    <section className="home-hero" aria-labelledby="home-heading">
+      <motion.div
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+        className="home-hero-layout"
+      >
+        <div className="home-intro">
+          <motion.h1 variants={staggerItem} id="home-heading" className="home-heading">
+            <span className="home-heading-lead">Small world.</span>{' '}
+            <span>Big adventure.</span>
+          </motion.h1>
+          <motion.p variants={staggerItem} className="home-description">
+            Find yourself somewhere unexpected. Read the streets, follow the clues,
+            and guess your spot on Earth.
+          </motion.p>
+        </div>
 
-            <motion.div variants={staggerItem} className="mt-8 flex flex-wrap items-center gap-3">
-              <Button size="lg" icon="play" onClick={() => navigate('/singleplayer')}>
-                Play singleplayer
-              </Button>
-              <Dropdown
-                align="start"
-                trigger={({ toggle, ref }) => (
-                  <button
-                    ref={ref}
-                    onClick={toggle}
-                    className="btn-base btn-press h-14 px-7 text-lg rounded-2xl bg-space-600 text-cream hover:bg-space-500 border border-white/10 shadow-card"
-                  >
-                    <Icon name="users" size={22} />
-                    Multiplayer
-                    <Icon name="chevronDown" size={18} />
-                  </button>
-                )}
-                items={[
-                  { key: 'create', label: 'Create a lobby', icon: <Icon name="plus" size={18} />, onSelect: () => navigate('/multiplayer?mode=create') },
-                  { key: 'join', label: 'Join with a code', icon: <Icon name="search" size={18} />, onSelect: () => navigate('/multiplayer?mode=join') },
-                ]}
-              />
-            </motion.div>
-
-            {session.status === 'guest' && (
-              <motion.p variants={staggerItem} className="mt-5 text-sm text-subtle">
-                New here?{' '}
-                <button onClick={() => navigate('/auth')} className="font-bold text-lime-300 hover:underline">
-                  Create a free account
-                </button>{' '}
-                to save your explorer and history.
-              </motion.p>
-            )}
-          </motion.div>
-
-          {/* 3D visual: planet + explorer, with a measured character slot. */}
-          <motion.div
-            variants={fadeUp}
-            initial="initial"
-            animate="animate"
-            className="relative h-[380px] w-full sm:h-[440px] lg:h-[540px]"
-          >
-            <Suspense
-              fallback={
-                <div className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
-                  <img src={earthFallback} alt="" className="h-full w-full object-cover opacity-70" />
-                </div>
-              }
-            >
+        <motion.div variants={fadeUp} className="home-world">
+          <div className="home-world-halo" aria-hidden="true" />
+          <div className="home-orbit home-orbit-outer" aria-hidden="true" />
+          <div className="home-orbit home-orbit-inner" aria-hidden="true" />
+          <div className="home-world-spark home-world-spark-one" aria-hidden="true">
+            <Icon name="sparkle" size={25} />
+          </div>
+          <div className="home-world-spark home-world-spark-two" aria-hidden="true">
+            <Icon name="plus" size={16} />
+          </div>
+          <div className="home-world-scene" role="img" aria-label="Your explorer standing on a miniature, rotating Earth">
+            <Suspense fallback={
+              <div className="home-scene-fallback" aria-hidden="true">
+                <img src={earthFallback} alt="" fetchPriority="high" />
+              </div>
+            }>
               <HomeScene />
             </Suspense>
-            <div className="home-character-slot pointer-events-none absolute left-1/2 top-[4%] h-[84%] w-[64%] -translate-x-1/2 sm:w-[58%]" />
-          </motion.div>
-        </div>
-      </section>
-    </div>
+            <div className="home-character-slot" />
+          </div>
+          <div className="home-explorer-control">
+            <AvatarCustomizeMenu />
+          </div>
+        </motion.div>
+
+        <motion.div variants={staggerItem} className="home-play-area">
+          <div className="home-play-actions">
+            <Button size="lg" icon="play" className="home-primary-cta" onClick={() => navigate('/singleplayer')}>
+              Play singleplayer
+            </Button>
+            <Dropdown
+              align="end"
+              trigger={({ toggle, ref, open }) => (
+                <button
+                  ref={ref}
+                  type="button"
+                  onClick={toggle}
+                  aria-expanded={open}
+                  className="btn-base home-multiplayer-cta"
+                >
+                  <Icon name="users" size={21} />
+                  Multiplayer
+                  <Icon name="chevronDown" size={16} className={open ? 'rotate-180' : ''} />
+                </button>
+              )}
+              items={[
+                { key: 'create', label: 'Create a lobby', icon: <Icon name="plus" size={18} />, onSelect: () => navigate('/multiplayer?mode=create') },
+                { key: 'join', label: 'Join with a code', icon: <Icon name="search" size={18} />, onSelect: () => navigate('/multiplayer?mode=join') },
+              ]}
+            />
+          </div>
+          {session.status === 'guest' && (
+            <p className="home-account-note">
+              Make every discovery count.{' '}
+              <Link to="/auth">Create a free account</Link>
+            </p>
+          )}
+        </motion.div>
+      </motion.div>
+
+    </section>
   )
 }

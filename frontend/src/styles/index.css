@@ -68,10 +68,20 @@
   --animate-float-slow: float 9s ease-in-out infinite;
   --animate-drift: drift 26s linear infinite;
   --animate-spin-slow: spin 60s linear infinite;
+  --animate-nebula-drift: nebula-drift 40s ease-in-out infinite;
+  --animate-galaxy-spin: galaxy-spin 220s linear infinite;
+  --animate-haze: haze-breathe 50s ease-in-out infinite;
+  --animate-blink: blink 2.3s ease-in-out infinite;
+  --animate-event-pulse: event-pulse 46s ease-in-out infinite;
+  --animate-meteor: meteor-travel linear infinite;
+  --animate-satellite: satellite-pass linear infinite;
+  --animate-dust: dust-drift ease-in-out infinite;
+  --animate-orbit: orbit-drift 150s ease-in-out infinite;
+  --animate-breathe: cosmic-breathe 90s ease-in-out infinite;
 
   @keyframes twinkle {
-    0%, 100% { opacity: 0.25; transform: scale(0.9); }
-    50% { opacity: 1; transform: scale(1.1); }
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
   }
   @keyframes float {
     0%, 100% { transform: translateY(0); }
@@ -80,6 +90,52 @@
   @keyframes drift {
     from { transform: translateX(0); }
     to { transform: translateX(-50%); }
+  }
+  @keyframes nebula-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(2%, -2.5%) scale(1.03); }
+  }
+  @keyframes galaxy-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes haze-breathe {
+    0%, 100% { opacity: 0.14; transform: translateX(0); }
+    50% { opacity: 0.24; transform: translateX(1.2%); }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 1; }
+  }
+  @keyframes event-pulse {
+    0%, 90%, 100% { opacity: 0; transform: scale(0.6); }
+    95% { opacity: 0.55; transform: scale(1.25); }
+  }
+  @keyframes meteor-travel {
+    0%, 80% { opacity: 0; transform: rotate(var(--meteor-angle)) translateX(0); }
+    82% { opacity: 1; }
+    90% { opacity: 1; transform: rotate(var(--meteor-angle)) translateX(var(--meteor-dist)); }
+    92%, 100% { opacity: 0; transform: rotate(var(--meteor-angle)) translateX(var(--meteor-dist)); }
+  }
+  @keyframes satellite-pass {
+    0% { transform: translate(-6vw, 4vh); opacity: 0; }
+    6% { opacity: 0.85; }
+    94% { opacity: 0.85; }
+    100% { transform: translate(106vw, var(--sat-dy)); opacity: 0; }
+  }
+  @keyframes dust-drift {
+    0%, 100% { transform: translate(0, 0); opacity: 0; }
+    15% { opacity: 0.8; }
+    85% { opacity: 0.5; }
+    50% { transform: translate(var(--dust-dx), var(--dust-dy)); }
+  }
+  @keyframes orbit-drift {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-3%, 2%); }
+  }
+  @keyframes cosmic-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.015); }
   }
 }
 
@@ -229,6 +285,114 @@
     text-transform: uppercase;
     color: var(--color-lime-400);
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cosmic background primitives (see scene/CosmicBackground.tsx)              */
+/* -------------------------------------------------------------------------- */
+
+@layer components {
+  /* Cursor-reactive depth shift for star layers. CosmicBackground.tsx writes
+     --mx/--my (px) on the root as the pointer moves and sets --depth per
+     layer; the transition eases each layer toward its new offset so the
+     field drifts smoothly rather than snapping to the pointer. */
+  .cosmic-parallax {
+    transform: translate3d(calc(var(--mx, 0px) * var(--depth, 1)), calc(var(--my, 0px) * var(--depth, 1)), 0);
+    transition: transform 0.9s var(--ease-out);
+    will-change: transform;
+  }
+
+  /* Softly recedes the starfield near the centre of the viewport — where the
+     hero's 3D character/planet (or any page's focal content) sits — so stars
+     read with more depth and give that focal point breathing room, instead
+     of an even, flat scatter edge-to-edge. */
+  .cosmic-starfield {
+    mask-image: radial-gradient(ellipse 58% 52% at 50% 48%, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.82) 55%, rgba(0, 0, 0, 1) 82%);
+    -webkit-mask-image: radial-gradient(ellipse 58% 52% at 50% 48%, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.82) 55%, rgba(0, 0, 0, 1) 82%);
+  }
+
+  /* A distant, slowly-spinning smudge of colour — reads as a far-off galaxy. */
+  .cosmic-galaxy {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(36px);
+    mix-blend-mode: screen;
+    animation: var(--animate-galaxy-spin);
+  }
+
+  /* A faint, mostly-still haze — reads as a distant dust lane catching
+     starlight, not a decorative sweep. Barely breathes in opacity. */
+  .cosmic-haze {
+    position: absolute;
+    mix-blend-mode: screen;
+    filter: blur(30px);
+    /* See .cosmic-satellite — this is the reduced-motion resting state. */
+    opacity: 0.14;
+    animation: var(--animate-haze);
+  }
+
+  /* A distant planet/moon-like orb, barely drifting along a shallow arc —
+     reads as a faraway object in slow orbital motion rather than a static prop. */
+  .cosmic-orbit {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(5px);
+    animation: var(--animate-orbit);
+  }
+
+  /* A shooting star: a short streak that is invisible for most of its cycle,
+     then flicks across the sky once and fades. Direction/length/timing are
+     supplied per-instance via custom properties set from CosmicBackground. */
+  .cosmic-meteor {
+    position: absolute;
+    width: 130px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+    box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.55);
+    transform-origin: left center;
+    opacity: 0;
+    animation: var(--animate-meteor);
+  }
+
+  /* A tiny blinking light drifting slowly across the whole sky. */
+  .cosmic-satellite {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #eaf6ff;
+    box-shadow:
+      0 0 4px 1px rgba(234, 246, 255, 0.9),
+      0 0 10px 3px rgba(130, 200, 255, 0.25);
+    /* Base opacity matches the animation's resting state: under
+       prefers-reduced-motion the global rule collapses this to a single
+       near-instant frame, after which the element falls back to this
+       non-animated value — it must already look "off", not fully opaque. */
+    opacity: 0;
+    animation: var(--animate-satellite), var(--animate-blink);
+  }
+
+  /* Faint drifting motes catching distant starlight — ambient cosmic dust. */
+  .cosmic-dust {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(0.5px);
+    opacity: 0.35;
+    animation: var(--animate-dust), var(--animate-twinkle);
+  }
+
+  /* A rare, very soft flare — a distant star flickering or a quiet nova. */
+  .cosmic-event {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(10px);
+    /* See .cosmic-satellite — this is the reduced-motion resting state. */
+    opacity: 0;
+    transform: scale(0.6);
+    animation: var(--animate-event-pulse);
+  }
+
 }
 
 /* -------------------------------------------------------------------------- */

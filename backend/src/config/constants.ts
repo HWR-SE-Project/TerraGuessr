@@ -4,6 +4,20 @@
  */
 export const WEATHER_MAX_DISPLAY_AGE_MS = 120 * 60 * 1000;
 
+/**
+ * R13: a location is invalid if its weather cannot be retrieved within 3
+ * seconds, or if the retry budget (3 locations per round) is exhausted.
+ */
+export const WEATHER_FETCH_TIMEOUT_MS = 3000;
+export const MAX_WEATHER_LOCATION_ATTEMPTS = 3;
+
+/**
+ * R01: a newly selected target must not land within this radius of the
+ * immediately preceding one, so consecutive rounds don't feel geographically
+ * repetitive even when the fixed target pool has nearby entries.
+ */
+export const MIN_TARGET_SEPARATION_FROM_RECENT_KM = 400;
+
 /** R18 retention window: results older than 6 months (180 days) are purged. */
 export const PURGE_RETENTION_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 

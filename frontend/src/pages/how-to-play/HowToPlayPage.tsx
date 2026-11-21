@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import type { IconName } from '../../components/ui/Icon'
 import { staggerContainer, staggerItem } from '../../lib/motion'
+import { Tutorial } from '../../components/tutorial/Tutorial'
 
 const STEPS: { icon: IconName; title: string; text: string }[] = [
   {
@@ -35,6 +37,8 @@ const DIFFICULTIES = [
 ]
 
 export function HowToPlayPage() {
+  const [tutorialOpen, setTutorialOpen] = useState(false)
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <motion.div variants={staggerContainer} initial="initial" animate="animate" className="flex flex-col gap-8">
@@ -44,6 +48,9 @@ export function HowToPlayPage() {
           <p className="mx-auto mt-2 max-w-md text-muted">
             A minute to learn, a lifetime to master. Here's everything you need.
           </p>
+          <Button size="md" variant="tinted" icon="scan" className="mx-auto mt-4" onClick={() => setTutorialOpen(true)}>
+            Start interactive tutorial
+          </Button>
         </motion.div>
 
         <motion.div variants={staggerItem} className="grid gap-4 sm:grid-cols-2">
@@ -110,6 +117,8 @@ export function HowToPlayPage() {
           </Link>
         </motion.div>
       </motion.div>
+
+      <Tutorial open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
     </div>
   )
 }

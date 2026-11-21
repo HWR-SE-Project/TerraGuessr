@@ -9,16 +9,16 @@
 //     lobby: httpLobby,
 //   }
 
-import { authMock } from './mock/auth'
-import { singleplayerMock } from './mock/singleplayer'
-import { lobbyMock } from './mock/lobbies'
-import { geoMock } from './mock/geo'
+import { authHttp } from './http/auth'
+import { singleplayerHttp } from './http/singleplayer'
+import { lobbyHttp } from './http/lobbies'
+import { geoHttp } from './http/geo'
 
 export const api = {
-  auth: authMock,
-  singleplayer: singleplayerMock,
-  lobby: lobbyMock,
-  geo: geoMock,
+  auth: authHttp,
+  singleplayer: singleplayerHttp,
+  lobby: lobbyHttp,
+  geo: geoHttp,
 }
 
 export type Api = typeof api

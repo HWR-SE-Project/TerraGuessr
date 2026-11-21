@@ -25,10 +25,23 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
   },
+  // R17: the app must work in the two latest majors of Chrome, Firefox,
+  // Safari and Edge. Playwright ships three engines — Chromium, Firefox and
+  // WebKit (Safari's engine) — which is also the only way to cover Safari
+  // without a macOS-only runner. Edge is Chromium-based, so the `chromium`
+  // project doubles as its proxy rather than needing a fourth project.
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
     },
   ],
   // Optional local convenience: set PLAYWRIGHT_WEBSERVER to a command (e.g.

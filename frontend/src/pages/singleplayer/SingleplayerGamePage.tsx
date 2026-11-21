@@ -121,9 +121,23 @@ export function SingleplayerGamePage() {
     else void submit(true, { lat: 0, lon: 0 })
   }
 
+  // R08: persist the current pin server-side on every change (best-effort),
+  // so a round that times out without reaching this client's own final
+  // submit (closed tab, dropped network) still has a guess to fall back to.
+  function pushSelection(point: LatLon) {
+    if (!credentials || !round) return
+    void api.singleplayer.selection(credentials, round.id, point).catch(() => {})
+  }
+
   function selectCandidate(id: string, point: LatLon) {
     setSelectedCity(id)
     setGuess(point)
+    pushSelection(point)
+  }
+
+  function updateGuess(point: LatLon) {
+    setGuess(point)
+    pushSelection(point)
   }
 
   async function endSession() {
@@ -203,7 +217,7 @@ export function SingleplayerGamePage() {
                   <CandidateList candidates={candidates} selected={selectedCity} onSelect={(c) => selectCandidate(c.id, { lat: c.lat, lon: c.lon })} />
                 ) : (
                   <div className="h-60 overflow-hidden rounded-2xl lg:h-72">
-                    <GuessMap guess={guess} onChange={setGuess} interactive={!submitting} countryBorders={info.countryBorders} />
+                    <GuessMap guess={guess} onChange={updateGuess} interactive={!submitting} countryBorders={info.countryBorders} />
                   </div>
                 )}
                 <div className="mt-3 flex items-center justify-between gap-2">

@@ -47,7 +47,10 @@ function resolveCode(error: FastifyError): string {
 
 function resolveMessage(error: FastifyError): string {
   const statusCode = error.statusCode ?? 500;
-  if (statusCode >= 500) {
+  // Only mask truly unexpected errors (500). A 503 is always a deliberately
+  // constructed, user-safe message (e.g. PanoramaError) — R13 requires it
+  // reach the client as a clear, actionable error, not a generic one.
+  if (statusCode === 500) {
     return 'Internal server error';
   }
   return error.message || 'Request failed';

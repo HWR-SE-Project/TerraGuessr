@@ -4,8 +4,8 @@
 export const CAMERA_FOV = 30
 export const CAMERA_Z = 10
 export const EARTH_Z = -3.4
-export const OCEAN_FILL = 0.8
-export const PLANET_CONTACT_OVERLAP_PX = 24
+export const PLANET_CONTACT_OVERLAP_PX = 170
+export const PLANET_BOTTOM_MARGIN_RATIO = 0
 
 const FOV_RAD = (CAMERA_FOV * Math.PI) / 180
 

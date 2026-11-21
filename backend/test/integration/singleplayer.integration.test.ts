@@ -523,7 +523,11 @@ describe('replacing unavailable Street View locations (database integration)', (
     expect(retried.json()).toMatchObject({
       id: round.id,
       number: 1,
-      panoId: 'retry-test-pano-1',
+      // Index 3: R01 proximity exclusion also rules out targets 1 and 4
+      // (within 400km of target 0's coordinates), so the retry's exclusion
+      // list is length 3, not 1, by the time this double's `used.length`
+      // picks the replacement index.
+      panoId: 'retry-test-pano-3',
       attemptsUsed: 0,
       attemptsTotal: 2,
     });
@@ -572,7 +576,7 @@ describe('replacing unavailable Street View locations (database integration)', (
       where: { id: round.id },
     });
     expect(persisted.score).toBeNull();
-    expect(persisted.panoId).toBe('retry-test-pano-1');
+    expect(persisted.panoId).toBe('retry-test-pano-3');
     pauseLookup = false;
   });
 });
@@ -846,11 +850,17 @@ describe('next-round prefetch (R12)', () => {
       payload: { lat: 50, lon: 10, final: true },
     });
     const callsBefore = provider.mock.calls.length;
+    const startedAt = performance.now();
     const next = (
       await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
     ).json();
+    const elapsedMs = performance.now() - startedAt;
     expect(next.panoId).toBe('prefetched-pano');
     expect(provider.mock.calls.length).toBe(callsBefore); // fast path: no new provider call
+    // R12: warm path only touches the database, so it comfortably clears the
+    // 2-second next-round budget (the slow retry path is R13's concern, not
+    // this one's).
+    expect(elapsedMs).toBeLessThan(2000);
     const game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
     expect(game.nextPanoId).toBeNull();
   });

@@ -135,7 +135,7 @@ jobs:
         run: npm ci
       - name: Install Playwright browsers
         if: steps.check.outputs.exists == 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: Start stack (Docker Compose)
         if: steps.check.outputs.exists == 'true'
         run: docker compose -f docker-compose.test.yml up -d --build

@@ -122,6 +122,23 @@ const PATHS: Record<string, ReactNode> = {
   heart: <path d="M12 20s-7.5-4.4-7.5-10A4.2 4.2 0 0 1 12 6.4 4.2 4.2 0 0 1 19.5 10c0 5.6-7.5 10-7.5 10Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />,
   book: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5ZM4 5.5v16M11 3h6.5A2.5 2.5 0 0 1 20 5.5v16a2.5 2.5 0 0 0-2.5-2.5H11Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />,
   flag: <path d="M5 21V4a1 1 0 0 1 1-1h6l.7 3H19a1 1 0 0 1 .8 1.5L17.6 12l2.2 4.5A1 1 0 0 1 19 18h-7.3L11 15H7v6Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />,
+  face: (
+    <>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="9" cy="10.5" r="1.15" fill="currentColor" />
+      <circle cx="15" cy="10.5" r="1.15" fill="currentColor" />
+      <path d="M8.5 14.5c1 1.3 2.2 2 3.5 2s2.5-.7 3.5-2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  ),
+  shirt: (
+    <path
+      d="M9 4.5 5 7l1.6 3.3L9 9.1V20h6V9.1l2.4 1.2L19 7l-4-2.5c-.8 1.3-1.9 2-3 2s-2.2-.7-3-2Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinejoin="round"
+    />
+  ),
 }
 
 export type IconName = keyof typeof PATHS

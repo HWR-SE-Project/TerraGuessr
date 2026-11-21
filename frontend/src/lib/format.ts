@@ -1,6 +1,6 @@
 // Small, dependency-free helpers shared across the app.
 
-const EARTH_RADIUS_KM = 6371
+const EARTH_RADIUS_KM = 6371.0088
 
 /** Great-circle distance in kilometres between two lat/lon points. */
 export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
@@ -17,7 +17,7 @@ export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; l
 // Mirrors backend/src/domain/scoring.ts (R10): 5000 points under 100 km,
 // 0 beyond 20000 km, linear decay between, computed on the one-decimal
 // rounded distance and floored.
-const MAX_SCORE = 5000
+export const MAX_SCORE = 5000
 const FULL_SCORE_KM = 100
 const ZERO_SCORE_KM = 20000
 
