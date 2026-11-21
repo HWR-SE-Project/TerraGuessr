@@ -93,9 +93,11 @@ synchronous mode could be added later as an additive endpoint set, not a rewrite
 
 ## 7. Privacy & retention (decision B.6)
 
-No mandatory user registration. Anonymous play is the default path. Where a result needs to be
-retrievable by a player (history), it's addressed by a client-held opaque token, not an account.
-Full policy and data classification: `../security/security-considerations.md`.
+Guest play remains supported and is addressed by a client-held opaque token, not an account.
+R18's durable six-month archive applies to signed-in players: completed rounds are stored in
+`GameResult` with the account id, score, actual/last-guess coordinates, and a timestamp. Guest
+rounds are not archived. Full policy and data classification:
+`../security/security-considerations.md`.
 
 ## 8. Admin endpoints (decision B.14)
 
@@ -141,9 +143,11 @@ Invariants (enforced server-side, tested):
 
 ### 7a. Scheduler (R18)
 
-In-process `node-cron`. **Retention purge** runs daily at `03:00 UTC`: deletes `Result` rows with
-`createdAt < now − 6 months` (and their `Round`/`Guess` history), never touching `Location` pool
-rows (see data-model note). This is the only cron job. Prefetch (§6a) is event-driven, not cron.
+In-process `node-cron`. **Retention purge** runs daily at `03:00 UTC`: deletes `GameResult` rows
+with `createdAt < now − 6 months` in batches of 500, never touching the `Location` pool or active
+sessions (the archive has no FK/cascade to them). The same job removes expired singleplayer
+sessions and lobbies, cascading their result-bearing rounds/results so stale live rows do not
+accumulate. This is the only cron job. Prefetch (§6a) is event-driven, not cron.
 
 ### 10. Configuration surface (R19)
 

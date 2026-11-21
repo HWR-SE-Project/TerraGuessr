@@ -12,13 +12,18 @@ already excluded by the repo's `.gitignore`), platform environment variables in 
 secret is ever committed, logged, or returned in an API response.
 
 ### 1.2 Privacy & data minimization (R18, decision B.6)
-- No mandatory user registration. Anonymous play is the default and only path in this release.
-- Where a result needs to be retrievable, a client-held opaque `playerToken` is used instead of
-  an account — it identifies a browser session, not a person.
-- Stored per result: score, actual location coordinates, guessed coordinates, timestamp. This is
-  the minimum needed to compute/display results and support the leaderboard (R16).
-- **Retention: 6 months from creation (R18).** A scheduled job purges `Result` rows older than 6
-  months. This is enforced in code (the purge cron), not left as a manual/undocumented process.
+- Guest play remains supported. Anonymous sessions use a client-held opaque `playerToken`; only
+  its SHA-256 hash is stored, and guest rounds are not added to the durable result archive.
+- R18 retention applies to signed-in players: the archive associates each completed round with
+  the account (`GameResult.userId`) and stores only score, actual coordinates, the last submitted
+  guess (nullable), distance, difficulty, mode, session/round ids, and a timestamp.
+- No email address, display name, raw token, IP address, or imagery is copied into the archive.
+- **Retention: 6 months from finalization (R18).** The daily purge cron deletes `GameResult` rows
+  older than `PURGE_RETENTION_MS` in batches. Deleting an account sets `userId` to null
+  (`onDelete: SetNull`) but does not bypass the retention window; the anonymised row is still
+  purged on schedule. Retention is enforced in code, not left as a manual process.
+- **History access:** `GET /api/me/results` requires a session and filters strictly by the
+  authenticated `userId`; the caller cannot request another player's rows.
 - **Jurisdiction note:** the project is developed at HWR Berlin; EU/GDPR principles are applied
   as a matter of good practice (data minimization, defined retention, no unnecessary accounts)
   even though formal legal applicability was not independently confirmed in Phase 0. If the

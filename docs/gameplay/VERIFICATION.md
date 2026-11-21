@@ -9,7 +9,7 @@ for the full requirement-by-requirement matrix.
 
 **Unit + integration (mocked doubles, deterministic):** backend 288/288 passing (37 files,
 including five new files: `singleplayer-location-selection.test.ts`, `singleplayer-candidates.test.ts`,
-`singleplayer-land.test.ts`, `street-purge.test.ts`, plus five new scenarios added to the existing
+`singleplayer-land.test.ts`, `game-purge.test.ts`, plus five new scenarios added to the existing
 `singleplayer.integration.test.ts`). Frontend 72/72 passing (13 files, including three new:
 `DifficultyPicker.test.tsx`, `Tutorial.test.tsx`, `CandidateList.test.tsx`). Both packages:
 `tsc` clean, lint clean (oxlint/eslint, same pre-existing warning baseline as before this work),
