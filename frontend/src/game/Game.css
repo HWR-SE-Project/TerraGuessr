@@ -355,11 +355,6 @@
 .sp-final .sp-result-body {
   padding-top: 20px;
 }
-@media (max-width: 1150px) and (min-width: 701px) {
-  .sp-map-wrap {
-    height: 185px;
-  }
-}
 @media (max-width: 700px) {
   .sp-map-wrap {
     height: 145px;
@@ -389,23 +384,15 @@
     align-items: center;
   }
 }
-@media (max-height: 460px) {
-  .sp-eyebrow {
-    display: none;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .sp-page *, .sp-page *::before {
     transition: none;
     animation-duration: 2s;
   }
 }
-@media (max-height: 650px) and (min-width: 701px) {
-  .sp-map-wrap {
-    height: clamp(80px, 25dvh, 150px);
-  }
-  .sp-guess-expanded .sp-map-wrap {
-    height: min(46dvh, calc(100dvh - 230px));
+@media (max-height: 700px) {
+  .sp-eyebrow {
+    display: none;
   }
 }
 .sp-guess-panel {
@@ -535,36 +522,6 @@
     font-size: 28px;
   }
 }
-@media (max-width: 700px) {
-  .sp-map-header {
-    padding-left: 5px;
-  }
-  .sp-guess-panel {
-    border-radius: 15px;
-  }
-  .sp-results {
-    border-radius: 22px;
-  }
-  .sp-result-map, .sp-final .sp-result-map {
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .sp-result-body h1, .sp-final .sp-result-body h1 {
-    font-size: 27px;
-  }
-  .sp-earned > strong, .sp-final .sp-earned > strong {
-    font-size: 48px;
-  }
-  .sp-result-coords {
-    gap: 16px;
-  }
-  .sp-result-coords strong {
-    font-size: 10px;
-  }
-  .sp-result-actions {
-    flex-wrap: wrap;
-  }
-}
 @media (max-height: 700px) and (min-width: 701px) {
   .sp-result-body, .sp-final .sp-result-body {
     padding: 24px;
@@ -588,18 +545,40 @@
   margin: 0;
 }
 @media (max-width: 700px) {
+  .sp-map-header {
+    padding-left: 5px;
+  }
+  .sp-guess-panel {
+    border-radius: 15px;
+  }
   .sp-results {
+    border-radius: 22px;
     display: flex;
     flex-direction: column;
   }
   .sp-result-map, .sp-final .sp-result-map {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
     flex: 0 0 155px;
   }
   .sp-result-body, .sp-final .sp-result-body {
     flex: 1 1 auto;
     padding: 24px 20px;
   }
+  .sp-result-body h1, .sp-final .sp-result-body h1 {
+    font-size: 27px;
+  }
+  .sp-earned > strong, .sp-final .sp-earned > strong {
+    font-size: 48px;
+  }
+  .sp-result-coords {
+    gap: 16px;
+  }
+  .sp-result-coords strong {
+    font-size: 10px;
+  }
   .sp-result-actions {
+    flex-wrap: wrap;
     flex: 0 0 auto;
     padding: 14px 18px 18px;
     gap: 8px;
