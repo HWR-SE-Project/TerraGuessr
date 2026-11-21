@@ -29,7 +29,7 @@
     "width": 683,
     "height": 340,
     "scrollWidth": 683,
-    "scrollHeight": 354
+    "scrollHeight": 342
   },
   {
     "completed": true,
@@ -45,7 +45,7 @@
     "width": 1093,
     "height": 545,
     "scrollWidth": 1093,
-    "scrollHeight": 647
+    "scrollHeight": 631
   },
   {
     "completed": true,
@@ -53,7 +53,7 @@
     "width": 911,
     "height": 454,
     "scrollWidth": 911,
-    "scrollHeight": 623
+    "scrollHeight": 609
   },
   {
     "completed": true,
@@ -61,6 +61,6 @@
     "width": 683,
     "height": 340,
     "scrollWidth": 683,
-    "scrollHeight": 601
+    "scrollHeight": 589
   }
 ]

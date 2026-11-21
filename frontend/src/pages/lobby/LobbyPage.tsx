@@ -153,6 +153,12 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
     }
   }, [session, navigate])
 
+  function applyJoinCode(raw: string) {
+    setJoinCode(raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
+    setCodeInvalid(false)
+    setError(null)
+  }
+
   function normalizedName(): string | undefined {
     const trimmed = effectiveName.trim()
     return trimmed.length > 0 ? trimmed : undefined
@@ -166,11 +172,21 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
     navigate(`/lobby/${result.lobby.code}`, { replace: true })
   }
 
-  async function handleCreate() {
-    setBusy(true)
+  async function withFeedback(setBusyFlag: (busy: boolean) => void, action: () => Promise<void>) {
+    setBusyFlag(true)
     setError(null)
     setNotice(null)
     try {
+      await action()
+    } catch (cause) {
+      setError(mapApiError(cause))
+    } finally {
+      setBusyFlag(false)
+    }
+  }
+
+  async function handleCreate() {
+    await withFeedback(setBusy, async () => {
       enterLobby(
         await lobbiesApi.createLobby({
           difficulty,
@@ -178,11 +194,7 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
           displayName: normalizedName(),
         }),
       )
-    } catch (cause) {
-      setError(mapApiError(cause))
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   async function handleJoin() {
@@ -192,16 +204,9 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
       codeInputRef.current?.focus()
       return
     }
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
+    await withFeedback(setBusy, async () => {
       enterLobby(await lobbiesApi.joinLobby(code, normalizedName()))
-    } catch (cause) {
-      setError(mapApiError(cause))
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   async function handleLeave() {
@@ -229,22 +234,12 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
 
   async function handleStart() {
     if (!session || (lobby?.members.length ?? 0) < 2) return
-    setStarting(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const next = await lobbiesApi.startLobbyMatch(
-        session.code,
-        session.token,
-      )
+    await withFeedback(setStarting, async () => {
+      const next = await lobbiesApi.startLobbyMatch(session.code, session.token)
       setLobby(next.lobby)
       statusRef.current = next.lobby.status
       navigate(`/lobby/${session.code}/game`)
-    } catch (cause) {
-      setError(mapApiError(cause))
-    } finally {
-      setStarting(false)
-    }
+    })
   }
 
   function handleResume() {
@@ -351,16 +346,10 @@ export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
                     aria-invalid={codeInvalid || undefined}
                     aria-describedby="tl-code-hint"
                     disabled={busy}
-                    onChange={(event) => {
-                      setJoinCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
-                      setCodeInvalid(false)
-                      setError(null)
-                    }}
+                    onChange={(event) => applyJoinCode(event.target.value)}
                     onPaste={(event) => {
                       event.preventDefault()
-                      setJoinCode(event.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
-                      setCodeInvalid(false)
-                      setError(null)
+                      applyJoinCode(event.clipboardData.getData('text'))
                     }}
                   />
                   <span id="tl-code-hint" className={codeInvalid ? 'tl-field-error' : 'tl-field-hint'} role={codeInvalid ? 'alert' : undefined}>

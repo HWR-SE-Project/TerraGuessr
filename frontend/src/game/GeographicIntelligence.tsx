@@ -64,27 +64,25 @@ export function GeographicIntelligence({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const [climateOpen, setClimateOpen] = useState(false)
-  const [data, setData] = useState<Intelligence | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
+  const [request, setRequest] = useState<
+    | { phase: 'loading' }
+    | { phase: 'ready'; data: Intelligence }
+    | { phase: 'error' }
+  >({ phase: 'loading' })
   const [retry, setRetry] = useState(0)
+  const data = request.phase === 'ready' ? request.data : null
+  const loading = request.phase === 'loading'
+  const failed = request.phase === 'error'
   const trigger = useRef<HTMLButtonElement>(null)
   const desktopToggle = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const controller = new AbortController()
     load(round.id, controller.signal)
       .then((value) => {
-        if (!controller.signal.aborted) {
-          setData(value)
-          setFailed(false)
-          setLoading(false)
-        }
+        if (!controller.signal.aborted) setRequest({ phase: 'ready', data: value })
       })
       .catch(() => {
-        if (!controller.signal.aborted) {
-          setFailed(true)
-          setLoading(false)
-        }
+        if (!controller.signal.aborted) setRequest({ phase: 'error' })
       })
     return () => controller.abort()
   }, [load, round.id, round.panoId, retry])
@@ -110,9 +108,7 @@ export function GeographicIntelligence({
         }) + ' UTC'
       : null
   function retryRequest() {
-    setLoading(true)
-    setFailed(false)
-    setData(null)
+    setRequest({ phase: 'loading' })
     setRetry((value) => value + 1)
   }
   const unavailable =
@@ -487,30 +483,20 @@ export function GeographicIntelligence({
         <span className="gi-mobile-trigger-label">
           {weather ? (
             <>
-              <span className="gi-mobile-metric">
-                <b>Temperature</b>
-                <span>{metric(weather.temperatureC, 1)} °C</span>
-              </span>
-              <span className="gi-mobile-metric">
-                <b>Wind speed</b>
-                <span>
-                  {metric(
-                    weather.windSpeedKmh == null
-                      ? null
-                      : weather.windSpeedKmh / 3.6,
-                    1,
-                  )}{' '}
-                  m/s
+              {[
+                ['Temperature', `${metric(weather.temperatureC, 1)} °C`],
+                [
+                  'Wind speed',
+                  `${metric(weather.windSpeedKmh == null ? null : weather.windSpeedKmh / 3.6, 1)} m/s`,
+                ],
+                ['Humidity', `${metric(weather.humidityPct)} %`],
+                ['Precipitation', `${metric(weather.precipitationMm, 2)} mm`],
+              ].map(([label, value]) => (
+                <span className="gi-mobile-metric" key={label}>
+                  <b>{label}</b>
+                  <span>{value}</span>
                 </span>
-              </span>
-              <span className="gi-mobile-metric">
-                <b>Humidity</b>
-                <span>{metric(weather.humidityPct)} %</span>
-              </span>
-              <span className="gi-mobile-metric">
-                <b>Precipitation</b>
-                <span>{metric(weather.precipitationMm, 2)} mm</span>
-              </span>
+              ))}
             </>
           ) : (
             <span>Geo intel</span>

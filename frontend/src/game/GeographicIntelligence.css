@@ -85,6 +85,9 @@
   min-height: 0;
   overflow: hidden;
   overflow-y: auto;
+  scrollbar-color: #51616d transparent;
+  scrollbar-width: thin;
+  max-height: min(35rem, 50dvh);
 }
 .gi-panel-collapsed .gi-desktop-content {
   grid-template-rows: 0fr;
@@ -563,8 +566,17 @@
   }
 }
 @media (max-width: 62.5rem) {
-  .gi-panel {
+  .gi-panel,
+  .sp-stage > .gi-panel {
     display: none;
+  }
+  .sp-stage > .gi-mobile-trigger {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    align-self: start;
   }
   .sp-page .gi-mobile-trigger {
     position: absolute;
@@ -731,19 +743,6 @@
 }
 
 /* Intelligence shares the stage grid instead of competing with corner controls. */
-.gi-desktop-content > div {
-  scrollbar-color: #51616d transparent;
-  scrollbar-width: thin; max-height: min(35rem, 50dvh); }
-@media (max-width: 62.5rem) {
-  .sp-stage > .gi-mobile-trigger {
-    position: relative;
-    inset: auto;
-    grid-column: 1;
-    grid-row: 1;
-    justify-self: start;
-    align-self: start;
-  }
-}
 .sp-stage > .gi-panel {
   width: min(100%, 18rem);
   justify-self: start;
@@ -754,7 +753,6 @@
   position: relative; display: flex; flex-direction: column; max-height: 100%; }
 .sp-stage > .gi-panel .gi-header { flex-shrink: 0; }
 .sp-stage > .gi-panel .gi-desktop-content { min-height: 0; }
-@media (max-width: 62.5rem) { .sp-stage > .gi-panel { display: none; } }
 
 .gi-unlock {
   display: grid;

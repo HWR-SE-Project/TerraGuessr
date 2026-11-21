@@ -43,6 +43,20 @@ export function useGameSession(autoStart = false) {
   const checked = useRef(0)
   const autoStarted = useRef(false)
   const timeoutSettled = useRef<string | null>(null)
+  const resetSession = useCallback(() => {
+    credentials.current = null
+    setSession(emptySession())
+    setResult(null)
+    setGuess(null)
+    setPanoramaReady(false)
+    setShowFinal(false)
+  }, [])
+  const resetRoundLocalState = useCallback(() => {
+    setGuess(null)
+    setPanoramaReady(false)
+    setUnlockError(null)
+    timeoutSettled.current = null
+  }, [])
   const refreshConfig = useCallback(async () => {
     const generation = ++checked.current
     setChecking(true)
@@ -85,12 +99,7 @@ export function useGameSession(autoStart = false) {
         await action()
       } catch (cause) {
         if (cause instanceof ApiError && cause.status === 404) {
-          credentials.current = null
-          setSession(emptySession())
-          setResult(null)
-          setGuess(null)
-          setPanoramaReady(false)
-          setShowFinal(false)
+          resetSession()
           setError(
             'Your expedition has expired or is no longer available. Start a new game.',
           )
@@ -105,19 +114,14 @@ export function useGameSession(autoStart = false) {
         setOperation(null)
       }
     },
-    [],
+    [resetSession],
   )
   const next = useCallback(
     async (options: { restart?: boolean; difficulty?: Difficulty } = {}) => {
       const { restart = false, difficulty } = options
       await run('location', async () => {
         if (restart) {
-          credentials.current = null
-          setSession(emptySession())
-          setResult(null)
-          setShowFinal(false)
-          setGuess(null)
-          setPanoramaReady(false)
+          resetSession()
           setUnlockError(null)
         }
         if (!credentials.current) {
@@ -129,14 +133,11 @@ export function useGameSession(autoStart = false) {
         const fresh = await singleplayerApi.session(auth)
         setSession({ ...fresh, activeRound: round })
         setResult(null)
-        setGuess(null)
-        setPanoramaReady(false)
         setShowFinal(false)
-        setUnlockError(null)
-        timeoutSettled.current = null
+        resetRoundLocalState()
       })
     },
-    [run],
+    [resetRoundLocalState, resetSession, run],
   )
   useEffect(() => {
     if (
@@ -207,10 +208,7 @@ export function useGameSession(autoStart = false) {
     await run('location', async () => {
       const replacement = await singleplayerApi.retry(auth, round.id)
       setSession((current) => ({ ...current, activeRound: replacement }))
-      setGuess(null)
-      setPanoramaReady(false)
-      setUnlockError(null)
-      timeoutSettled.current = null
+      resetRoundLocalState()
     })
   }
   async function submit(final = false) {

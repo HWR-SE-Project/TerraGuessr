@@ -185,7 +185,7 @@ export function StreetViewViewer({
         </button>
       )}
       {error && (
-        <div className="sp-view-error sp-glass tg-glass" role="alert">
+        <div className="sp-view-error tg-glass" role="alert">
           <strong>Street View unavailable</strong>
           <p>{error}</p>
           <Button

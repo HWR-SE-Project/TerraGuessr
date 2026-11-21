@@ -31,7 +31,7 @@ function Slider({
   onChange: (value: number) => void
 }) {
   return (
-    <div className="settings-row settings-row--slider">
+    <div className="settings-row">
       <h2 className="settings-row__label">{label}</h2>
       <div className="settings-slider-wrap">
         <input
@@ -199,14 +199,7 @@ export function SettingsPage() {
             <>
               <form className="settings-row" onSubmit={saveProfile}>
                 <h2 className="settings-row__label">Display name</h2>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 12,
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                  }}
-                >
+                <div className="settings-inline-group">
                   <Input
                     aria-label="Display name"
                     className="settings-text-input"
@@ -235,14 +228,7 @@ export function SettingsPage() {
               <div className="settings-row">
                 <h2 className="settings-row__label">Email</h2>
                 <div style={{ display: 'grid', gap: 12 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 12,
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                    }}
-                  >
+                  <div className="settings-inline-group">
                     <span
                       style={{ color: 'rgba(255,255,255,0.75)', fontSize: 16 }}
                     >
@@ -250,7 +236,7 @@ export function SettingsPage() {
                     </span>
                     <Button variant="secondary"
                       type="button"
-                      className="settings-save-btn settings-save-btn--muted"
+                      className="settings-save-btn"
                       onClick={() => {
                         setEmailFormOpen((open) => !open)
                         setEmailError(null)
@@ -332,7 +318,7 @@ export function SettingsPage() {
                   </p>
                   <Button variant="danger"
                     type="button"
-                    className="settings-save-btn settings-save-btn--danger"
+                    className="settings-save-btn"
                     onClick={() => setDeleteOpen(true)}
                   >
                     Delete my account
@@ -356,7 +342,7 @@ export function SettingsPage() {
                 onChange={(value) => patchPreferences({ musicVolume: value })}
               />
 
-              <div className="settings-row settings-row--language">
+              <div className="settings-row">
                 <h2 className="settings-row__label">Language</h2>
                 <div className="settings-language-select tg-field">
                   <span className="settings-language-select__icon">
@@ -381,7 +367,7 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <div className="settings-row settings-row--toggle">
+              <div className="settings-row">
                 <h2 className="settings-row__label">Fullscreen</h2>
                 <label className="settings-toggle">
                   <Switch

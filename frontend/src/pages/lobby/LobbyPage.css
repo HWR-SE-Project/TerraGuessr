@@ -190,6 +190,9 @@
   gap: 8px;
   margin: 14px 0 0;
   padding: 0;
+  list-style: none;
+  max-height: 26dvh;
+  overflow-y: auto;
 }
 
 .tl-member {
@@ -257,8 +260,6 @@
 .tl-resume .tg-button { flex-shrink: 0; }
 .tl-room-start { margin: 20px 0 12px; }
 .tl-room-hint { margin: -2px 0 12px; color: var(--color-muted); font-size: 12px; text-align: center; }
-.tl-members ul {
-  list-style: none; max-height: 26dvh; overflow-y: auto; }
 
 @media (max-width: 560px) {
   .tl-main { width: min(440px, calc(100% - 32px)); }

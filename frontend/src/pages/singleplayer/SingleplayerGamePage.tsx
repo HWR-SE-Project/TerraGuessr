@@ -153,7 +153,7 @@ export function SingleplayerGamePage() {
 
       {(view === 'setup' || view === 'loading') && (
         <div className="sp-setup-shell">
-          <section className="sp-welcome sp-glass tg-glass" aria-label="Start expedition">
+          <section className="sp-welcome tg-glass" aria-label="Start expedition">
             <div className="sp-setup-intro">
               <h1>
                 <span>The world is out there.</span>
@@ -226,7 +226,7 @@ export function SingleplayerGamePage() {
           />
         )}
         {exploring && !game.panoramaReady && !game.panoramaUnavailable && (
-          <div className="sp-loading sp-glass tg-glass" role="status">
+          <div className="sp-loading tg-glass" role="status">
             <span className="sp-spinner" />
             Loading your location…
           </div>
@@ -261,7 +261,7 @@ export function SingleplayerGamePage() {
         />
       )}
       {game.error && (
-        <div className="sp-error sp-glass tg-glass" role="alert">
+        <div className="sp-error tg-glass" role="alert">
           {game.error}
         </div>
       )}

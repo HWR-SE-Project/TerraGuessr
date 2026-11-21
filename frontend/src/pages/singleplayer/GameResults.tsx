@@ -63,7 +63,7 @@ export function FinalResults({
   const bestRound = session.results.reduce<StreetResult | null>((best, result) =>
     !best || result.score > best.score ? result : best, null)
   return (
-    <section className={`sp-session-summary sp-glass tg-glass${rounds === 0 ? ' sp-session-empty' : ''}`} aria-label="Final results">
+    <section className={`sp-session-summary tg-glass${rounds === 0 ? ' sp-session-empty' : ''}`} aria-label="Final results">
       <div className="sp-summary-intro">
         <span className="sp-summary-symbol" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="16" cy="16" r="12" /><path d="m20 12-2 6-6 2 2-6 6-2Z" /><path d="M16 1v3M16 28v3M1 16h3M28 16h3" /></svg></span>
         <h1>{rounds ? 'A world of discoveries.' : 'Adventure ended'}</h1>

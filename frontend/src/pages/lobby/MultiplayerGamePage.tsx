@@ -720,7 +720,7 @@ export function MultiplayerGamePage() {
           </CityGuessPanel>
         ) : (
         <aside
-          className="sp-guess-panel sp-glass tg-glass mp-guess-panel"
+          className="sp-guess-panel tg-glass mp-guess-panel"
           style={{ '--map-opacity': settings.mapOpacity / 100 } as CSSProperties}
           aria-label="Guessing map"
         >
@@ -798,7 +798,7 @@ export function MultiplayerGamePage() {
       )}
 
       {error && (
-        <div className="sp-error sp-glass tg-glass" role="alert">
+        <div className="sp-error tg-glass" role="alert">
           {error}
         </div>
       )}
