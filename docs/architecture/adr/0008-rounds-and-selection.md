@@ -3,6 +3,12 @@
 **Status:** Accepted (Principal Architect, Phase 1 finalization, 2026-11-14). Resolves ordinary
 engineering decisions left open by the Phase 0.5 docs; traces to R01, R02, R05, R07.
 
+> **Superseded (2026-11-21):** the removed `/play` weather game this ADR originally described
+> has been replaced by the Street View singleplayer game. The shipped implementation uses 30
+> curated `ROAD_TARGETS`, endless solo rounds, and the rules in `backend/src/domain/gameRules.ts`.
+> In particular, R07 is Easy ⇒ list, Medium/Hard ⇒ map with country borders; there is no
+> client-chosen list/map mode. The location-pool and round-count bullets below are historical.
+
 ## Context
 The Phase 0.5 docs never fix (a) how many rounds a game has — the idea document only says "Es
 gibt mehrere Runden"; (b) the concrete selection algorithm behind R01's "random location" under
@@ -24,11 +30,11 @@ chosen. Implementing agents cannot proceed without these as fixed numbers.
   - **Diversity rule** (satisfies the idea doc's "runs differ strongly"): for Medium/Hard, if the
     picked actual is within `MIN_SEPARATION_KM = 500` of any previous actual in the same game,
     resample; bounded to `MAX_SELECTION_TRIES = 10`, then accept the last pick.
-- **List-mode candidates:** `actual` plus distinct random distractors from the same scope
-  (Easy: same region; Medium: whole pool), shuffled. `EASY_CANDIDATES = 5`, `MEDIUM_CANDIDATES = 8`
-  (within the 4–6 / 6–10 ranges of `architecture.md` §4). Hard has no candidates.
-- **Selection mode (R07):** Easy ⇒ always `list`. Hard ⇒ always `map`. Medium ⇒ the client chooses
-  via the `selectionMode` field on round creation (`'map' | 'list'`); default `'list'` if omitted.
+- **List-mode candidates:** Easy only — the actual target plus 5 distinct random distractors
+  drawn from `ROAD_TARGETS`, shuffled (6 options total). Medium and Hard receive no candidates.
+- **Selection mode (R07):** Easy ⇒ always `list`. Medium and Hard ⇒ always `map` with country
+  borders, enforced by `gameRulesFor()` in `backend/src/domain/gameRules.ts`. There is no
+  client-chosen list/map mode.
 
 ## Consequences
 `ROUNDS_PER_GAME`, the region set, and the candidate counts are single-source constants; changing

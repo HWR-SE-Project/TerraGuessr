@@ -1,13 +1,13 @@
 # Geographic Intelligence
 
-Implemented on the Street View singleplayer screen, without replacing its HUD, guess map, or navigation. The 280 px desktop panel sits below the brand with a separate gutter for Google's existing zoom controls. The collapsed state aligns with the logo and Return button; both desktop states sit 18 px below the brand. It has a compact collapsed state, subtle entrance/collapse transitions, a humidity meter, wind direction indicator, and restrained geographic icons. On phones, a 44 px floating control opens a scrollable native modal bottom sheet. Escape, keyboard focus containment/restoration, and reduced motion are supported.
+Implemented on the Street View singleplayer screen, without replacing its HUD, guess map, or navigation. The 280 px desktop panel sits below the brand with a separate gutter for Google's existing zoom controls. The collapsed state aligns with the logo and Return button; both desktop states sit 18 px below the brand. It has a compact collapsed state, subtle entrance/collapse transitions, a humidity meter, wind direction indicator, and restrained geographic icons. On phones, a compact floating control opens a scrollable native modal bottom sheet. Escape, keyboard focus containment/restoration, and reduced motion are supported.
 
 ## Available metrics
 
 | Attribute | Source / interpretation |
 | --- | --- |
 | Temperature (°C), conditions | Open-Meteo `current` weather model, WMO condition codes mapped to a fixed vocabulary |
-| Wind (km/h), direction | Model at 10 m; compass label indicates where wind comes from; arrow indicates flow |
+| Wind speed (m/s), direction | Model at 10 m, converted from the provider's km/h; compass label indicates where wind comes from; arrow indicates flow |
 | Relative humidity (%) | Model at 2 m; a compact meter accompanies the number |
 | Surface pressure (hPa) | Pressure at the modeled surface, not sea-level pressure |
 | Precipitation (mm) | Model accumulation; the provider's interval is shown (usually 15 minutes) |

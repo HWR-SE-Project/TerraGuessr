@@ -9,7 +9,7 @@ Tiers per ADR-0012: **U** = unit (runs anywhere, incl. no-egress sandbox), **I**
 | Req | Test | Assertion / vectors |
 |---|---|---|
 | R09 | `distance.test.ts` | haversine, `R=6371.0088`. Vectors: `(0,0)→(0,0)=0`; Berlin `(52.52,13.405)`→Paris `(48.8566,2.3522)` ≈ `877 km` (±1). Symmetric. |
-| R10 | `scoring.test.ts` | `0→5000`; `2000→1839`; `10000→34`; `18421→0`; `20015→0`. Monotonically non-increasing over `0..20100`. Never <0, never >5000. Deterministic (same input→same output). |
+| R10 | `scoring.test.ts` | `0→5000`; `100→5000`; `2000→4522`; `10000→2512`; `20000→0`; `20015→0`. R9-rounded boundary (`100.04→5000`, `100.05→<5000`). Monotonically non-increasing over `0..20100`. Never <0, never >5000. Deterministic (same input→same output). |
 | R08 | `scoring/distance` | pure: no `Date`/RNG inside; identical repeated calls. |
 | R01/R02/R05/R07 | `selection.test.ts` | with a seeded RNG + fixed pool: Easy picks from one region and returns `EASY_CANDIDATES`; Medium returns `MEDIUM_CANDIDATES`; Hard returns none; **actual is always in candidates** (list modes); **no `locationId` repeats** given a used-set; Medium/Hard respect `MIN_SEPARATION_KM` within `MAX_SELECTION_TRIES`. |
 | R04 | `roundDto.test.ts` | the round-DTO builder output has **no** `actualLat`/`actualLon`/`actual` key at any nesting depth (deep scan). |

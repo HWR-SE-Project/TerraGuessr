@@ -24,7 +24,7 @@ commercial plan; TerraGuessr does not activate a paid endpoint or key automatica
 ## Consequences
 
 - Missing optional measurements never make a location ineligible and are never replaced with invented data.
-- Round and Daily Challenge responses carry the same available snapshot values.
+- Round responses carry the same available snapshot values.
 - The data-source register records provider, units, cache age, attribution/license, restrictions,
   and outage behavior.
 - Additional intelligence panels remain out of scope until their providers receive a separate

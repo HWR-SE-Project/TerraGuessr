@@ -58,4 +58,4 @@ Do not spin. A 2-line question to `main` is cheaper than an agent exploring for 
 
 ## 6. Out of scope (do not build — decision B.10)
 Flights, earthquakes, ranked PvP, real-time/WebSocket multiplayer, user accounts, timers, hints-
-for-point-deduction, daily challenge. These are **not** in R01–R20. Building them wastes budget.
+for-point-deduction. These are **not** in R01–R20. Building them wastes budget.

@@ -2,7 +2,7 @@
 
 Local page: **http://localhost:8080/game/singleplayer**
 
-Current gameplay reliability checkpoint: `26d08d6` (original implementation checkpoint: `fe35d43`). Nothing was pushed. The approved Home layout is unchanged: only its Solo card and Singleplayer link destinations changed. Auth, Duels, daily challenges, and the original weather game at `/play` remain separate.
+Current gameplay reliability checkpoint: `26d08d6` (original implementation checkpoint: `fe35d43`). Nothing was pushed. The approved Home layout is unchanged: only its Solo card and Singleplayer link destinations changed. Authentication remains a separate account flow.
 
 Real Google Street View and map gameplay are now configured and verified end to end. See [current setup and diagnosis](GOOGLE_MAPS_SETUP.md) and [verification](VERIFICATION.md).
 
@@ -17,9 +17,9 @@ Real Google Street View and map gameplay are now configured and verified end to 
 - **List-mode guessing (R07)**, easy difficulty only: the round response includes `candidates`, the actual target plus five distractors drawn from the unused location pool, labeled with real city names and shuffled so the answer's position never leaks which one is correct. Selecting an option submits through the exact same `/guess` endpoint as a map click.
 - **Mandatory weather validation gate (R03) with automatic fallback (R13)**: a candidate location is only accepted once Open-Meteo returns all four mandatory fields (temperature, precipitation, humidity, wind speed) for it. A location that fails is excluded and another is tried automatically (bounded attempts, never an infinite loop); if every attempt fails, the round surfaces a recoverable `WEATHER_UNAVAILABLE` 503 with a Retry affordance — the UI never starts a round with missing mandatory data.
 - **Next-round prefetch (R12)**: after a guess locks, the backend best-effort selects and weather-validates the following round's location in the background and caches it on the game row. The next `rounds` call consumes that cache atomically (and clears it, so two concurrent requests can't double-consume it) instead of making a fresh provider/weather round trip — a failed or slow prefetch is invisible to the player, who just gets the normal synchronous path.
-- **Tutorial (R14)**: a five-step walkthrough (mechanics, exploring, weather clues, placing a guess, scoring) shown once per browser before the first game (`terraguessr.tutorialSeen.v1`), replayable anytime via the "How to play" button, skippable at every step, and never shown mid-round.
+- **Tutorial (R14)**: a five-step walkthrough (weather, location, confirmation, distance, scoring) with an in-card practice location list and a try-out guess submission, plus an interactive score slider. It auto-opens for every new game and is replayable from the home entry or the in-game "How to play" button; Exit and Restart are available at every step.
 - **Durable result archive with 6-month retention (R18)**: every locked guess is archived (`StreetResult`: actual + guess coordinates, distance, score, difficulty, timestamp) independently of the 24h session, and purged by its own daily retention job — so results outlive the resumable session without the session itself being kept indefinitely.
-- Tab-local resume for 24 hours, including after a lost guess response. Session credentials use their own sessionStorage key and never replace weather/duel player tokens.
+- Tab-local resume for 24 hours, including after a lost guess response. Session credentials use their own sessionStorage key and never replace other player tokens.
 - Loading, ready, exploring, selected, submitting, round results, next-round loading, completed, provider unavailable, and error states. Failed provider requests never produce an invented round or score.
 
 ## Required API configuration
@@ -58,32 +58,35 @@ New, isolated endpoints:
 | Request | Purpose |
 | --- | --- |
 | `GET /api/singleplayer/config` | Server provider configuration availability; no keys returned |
-| `POST /api/singleplayer/games` | Create a five-round session with an optional `{ difficulty }` body (`easy`\|`medium`\|`hard`, default `medium`); return an opaque player token once |
+| `POST /api/singleplayer/games` | Create an endless session with an optional `{ difficulty }` body (`easy`\|`medium`\|`hard`, default `medium`); return an opaque player token once |
 | `GET /api/singleplayer/games/:gameId` | Resume active round and retrieve completed results/total/difficulty |
 | `POST /api/singleplayer/games/:gameId/rounds` | Start next round (weather-validated, prefetch-aware), or return the existing active round on retry |
 | `POST /api/singleplayer/games/:gameId/rounds/:roundId/retry` | Replace unavailable imagery or missing-weather locations in the same unscored round |
-| `POST /api/singleplayer/games/:gameId/rounds/:roundId/guess` | Submit `{lat, lon}` and receive the locked result; archives the result and best-effort prefetches the next round |
+| `PUT /api/singleplayer/games/:gameId/rounds/:roundId/selection` | Persist the latest pin so a timeout can evaluate it (R08) |
+| `POST /api/singleplayer/games/:gameId/rounds/:roundId/unlock` | Unlock additional data using the shared difficulty policy (free / −100 points / −20 seconds) |
+| `POST /api/singleplayer/games/:gameId/rounds/:roundId/guess` | Submit `{lat, lon, final?}`; non-final attempts return attempts remaining, while a final/exhausted attempt locks the round, archives it, and prefetches the next round |
 
 Owned requests require `X-Player-Token`; only its SHA-256 hash is stored. Wrong/missing tokens and expired sessions return 404. Session/round/result responses carry `Cache-Control: no-store`. Resource creation, round creation, reads, and scoring are rate limited. Sessions expire after 24 hours; expired sessions are lazily removed on new session creation, cascading their rounds — the archived `StreetResult` rows (see Retention below) are unaffected by this cascade.
 
 Locations come from 30 independently authored worldwide road targets. Each round randomly tries up to twelve unused targets against Google's live outdoor coverage, accepting a panorama only within 50 m of the target, **then validates Open-Meteo weather data for that same target (R03)** before accepting it — a target that fails either coverage or weather is excluded and another is tried, bounded by both the pool size and an explicit attempt ceiling (R13). Repeated target indices are excluded within an expedition. This is a bounded curated pool, not unrestricted random worldwide sampling, and (being real city roads) is land by construction — verified by a regression test against the same Natural Earth land-mask data the legacy weather game's location pool uses (R02).
 
-The response before guessing contains **only round ID, round number, and panorama ID**. Neither target nor actual coordinates are sent. The server resolves the **exact original panorama position live when scoring**, rather than scoring against the nearby authored search target. Player navigation does not change the round answer.
+The response before guessing contains the **round ID, round number, panorama ID, timer, attempt budget and extra-data access state**. Neither target nor actual coordinates are sent. The server resolves the **exact original panorama position live when scoring**, rather than scoring against the nearby authored search target. Player navigation does not change the round answer.
 
 Distance reuses `backend/src/domain/distance.ts`: Haversine with mean Earth radius **6371.0088 km**. Score reuses `backend/src/domain/scoring.ts`:
 
 ```text
-points = round(clamp(5000 × exp(-distanceKm / 2000), 0, 5000))
-maximum total = 5 × 5000 = 25,000
+points = floor(5000 × (20000 − distanceKm) / 19900), applied to the R9-rounded distance
+          5000 for distanceKm ≤ 100 · 0 for distanceKm ≥ 20000
+endless mode has no fixed total cap
 ```
 
-An atomic conditional database update locks each guess. Identical submissions return the same persisted score; a different guess after locking returns 409. Next-round creation has a unique `(gameId, number)` constraint and recovers concurrent duplicate requests. Client-supplied scores cannot influence calculation.
+Round rules are shared with multiplayer in `domain/gameRules.ts` and `domain/roundFlow.ts`: Easy 7 min / 3 attempts / 6-location list, Medium 4 min / 2 attempts, Hard 2 min / 1 attempt, all with country borders on the map. Each accepted guess creates a `StreetRoundAttempt`; only final submission or the last available attempt locks/evaluates the round. Identical submissions return the same persisted result; a different guess after locking returns 409. Next-round creation has a unique `(gameId, number)` constraint and recovers concurrent duplicate requests. Client-supplied scores cannot influence calculation.
 
 No imagery, provider coordinates, addresses, or other metadata are stored. Only panorama IDs (permitted identifiers), independently authored search targets, user guesses, scores, and distances are persisted. Actual coordinates for restored results are resolved live again, so restored result maps depend on provider availability. SDK imagery is served and attributed by Google directly.
 
-**Retention (R18):** when a guess locks, the backend writes one `StreetResult` row (game/round id, difficulty, actual + guess coordinates, distance, score, timestamp) in addition to updating the live `StreetRound`. `StreetResult` has no relation to `StreetGame`/`StreetRound`, so it survives the 24h session-expiry cleanup untouched. A daily job (`backend/src/scheduler/purge.ts`'s `purgeExpiredStreetResults`, alongside the existing weather-game purge) deletes `StreetResult` rows older than the shared 6-month retention window (`PURGE_RETENTION_MS`).
+**Retention (R18):** when a round finalizes, the backend writes one `StreetResult` row (game/round id, difficulty, actual + guess coordinates, distance, score, timestamp) in addition to updating the live `StreetRound`. `StreetResult` has no relation to `StreetGame`/`StreetRound`, so it survives the 24h session-expiry cleanup untouched. A daily job (`backend/src/scheduler/purge.ts`'s `purgeExpiredStreetResults`, alongside the existing weather-game purge) deletes `StreetResult` rows older than the shared 6-month retention window (`PURGE_RETENTION_MS`).
 
-This is singleplayer only. The API avoids sending answer coordinates early, but an interactive browser SDK inherently exposes panorama metadata to a determined user with developer tools. This is not an anti-cheat system and does not establish a competitive/ranked contract. Existing Duels APIs remain untouched.
+This is singleplayer only. The API avoids sending answer coordinates early, but an interactive browser SDK inherently exposes panorama metadata to a determined user with developer tools. This is not an anti-cheat system and does not establish a competitive/ranked contract. Legacy weather-game and duel APIs have been removed.
 
 ## Verification and screenshots
 

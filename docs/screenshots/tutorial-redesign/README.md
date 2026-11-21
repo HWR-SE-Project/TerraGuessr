@@ -6,7 +6,7 @@ Verified locally on 2026-11-21. Changes have not been pushed.
 
 The tutorial now has one compact Field Guide card. A soft SVG scrim with a rounded transparent cutout and one lime outline draws attention to the actual gameplay element. There is no duplicated Geographic Intelligence panel or practice map during an active round, and there is no page-wide blur. The previous standalone tutorial header, indicator chips, nested practice surfaces and labeled stepper have been removed.
 
-Each step contains a title, a short explanation and one takeaway. Five small progress marks support direct step navigation. Next is primary; Previous is subdued; Skip and Restart are quiet text controls within the card. Formula details are collapsed by default.
+Each step contains a title, a short explanation and one takeaway. Five small progress marks support direct step navigation. Next is primary; Previous is subdued; Exit and Restart controls sit within the card. Formula details are collapsed by default.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Each step contains a title, a short explanation and one takeaway. Five small pro
 - `SingleplayerGamePage.tsx` supplies the round/result and active tutorial step. Temporary presentation overrides reveal a collapsed weather or map panel without overwriting the player's expanded/collapsed preferences.
 - `GeographicIntelligence.tsx` temporarily expands the **existing** panel. On phones the same panel is revealed above the guide; a second weather instance is never mounted. The unused embedded tutorial rendering path was removed.
 - `GameResults.tsx` exposes stable distance and points anchors on the actual round result.
-- `Tutorial.css` defines the scrim, card and responsive target presentation. Narrow layouts reserve space using the measured card height. Short windows and browser zoom scroll only the card's content while navigation, Skip and Restart stay available.
+- `Tutorial.css` defines the scrim, card and responsive target presentation. Narrow layouts reserve space using the measured card height. Short windows and browser zoom scroll only the card's content while navigation, Exit and Restart stay available.
 - The modal keeps the live game controls inactive during the walkthrough, so following the guide cannot accidentally submit a guess. The copy makes the subsequent map action explicit. The panorama and map stay mounted, and their interactions resume on exit.
 - When no live round exists, small, explicitly labeled examples live **inside the same card**. Optional shortlist/map practice cannot create a game or submit a real guess. Missing Maps supports coordinate entry.
 - Distance uses an inline London–Paris example before results are available; an actual result is spotlighted afterward. Points highlights the live HUD or actual round points. Its labeled example slider uses the same scoring function as the backend.
@@ -60,7 +60,7 @@ Concurrent navigation, session-summary and other edits present in the shared wor
 - `npx playwright test e2e/tutorial.spec.ts`: **10 tests passed**.
 - `TERRAGUESSR_LIVE_MAPS=1 TERRAGUESSR_TUTORIAL_SCREENSHOTS=1 npx playwright test e2e/tutorial.live.spec.ts`: **3 tests passed** using the real backend, Google Maps tiles and Street View, without provider doubles.
 
-The browser checks exercise opening automatically and from the home/game menus; all five steps; Previous/Next/direct progression; finishing; Skip and Escape; Restart and reopening; keyboard focus containment and restoration; preserved panorama, pin, score and difficulty; no tutorial gameplay mutations; and a real guess, score result and next round after completion. Easy shortlist selection and the Hard borderless map are exercised after exit. The small-phone check verifies that all four real weather readings fit inside the highlighted panel.
+The browser checks exercise opening automatically and from the home/game menus; all five steps; Previous/Next/direct progression; finishing; Exit and Escape; Restart and reopening; keyboard focus containment and restoration; preserved panorama, pin, score and difficulty; no tutorial gameplay mutations; and a real guess, score result and next round after completion. Easy shortlist selection and the Hard borderless map are exercised after exit. The small-phone check verifies that all four real weather readings fit inside the highlighted panel.
 
 The responsive matrix checks all five steps for one card, reachable controls, no horizontal overflow, and no overlap with the spotlight: **320×720, 375×812, 390×844, 768×1024, 1024×768, 1366×768, 1440×900, 1920×1080 and 844×390**. A separate Chromium check uses actual **200% browser zoom**. Mobile live verification uses a touch-enabled 390×844 context and also checks 320×720.
 

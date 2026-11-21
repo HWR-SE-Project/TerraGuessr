@@ -2,13 +2,12 @@
 
 The application now shares one navy, off-white, and lime identity. The work
 covers Home, Duels, authentication, Street View gameplay, round results, final
-results, account settings, password reset, the weather expedition, daily
-challenges, shared challenges, and their existing dialogs.
+results, account settings, password reset, the weather expedition, shared
+challenges, and their existing dialogs.
 
 ## Visual changes
 
 - A shared geometric explorer mark, wordmark, favicon, and consistent navigation.
-  The Daily challenge entry now leads to the existing working mode.
 - Confident, upright Inter typography replaces the inconsistent italic-heavy
   treatment. Hierarchy, readable secondary text, aligned numeric statistics,
   spacing, borders, cards, inputs, and button dimensions now share foundations.
@@ -115,7 +114,7 @@ passed 59 combinations with zero page errors. The last visual refinement recheck
 Home at all seven sizes and the duel action at both phone sizes.
 The test coverage includes registration, login, logout, validation, account
 updates, preference persistence, deletion of a test account, navigation,
-async challenge sharing, daily challenges, map/list play, real Street View
+async challenge sharing, map/list play, real Street View
 movement, mobile touch guessing, pin persistence, score calculations, results,
 restart, Geographic Intelligence, protected location data, unavailable-provider
 behavior, Escape, and focus restoration.
@@ -154,7 +153,6 @@ tests use a unique name to avoid collisions with past development results.
 - Duels: http://localhost:5175/duels
 - Street View: http://localhost:5175/game/singleplayer
 - Weather expedition: http://localhost:5175/play
-- Daily challenge: http://localhost:5175/daily
 - Account settings: http://localhost:5175/settings
 - Password recovery state: http://localhost:5175/reset-password
 

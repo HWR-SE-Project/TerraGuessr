@@ -174,6 +174,7 @@ never served with an incomplete mandatory set. The weather client is an **inject
 ### 12. Scoring & distance — exact constants (R09/R10, ADR-0006)
 
 - Distance: haversine, Earth radius `R = 6371.0088 km`. Pure fn `domain/distance.ts`.
-- Score: `Math.round(5000 * Math.exp(-distanceKm / 2000))`, clamped `[0, 5000]`. Pure fn
-  `domain/scoring.ts`. Test vectors (TESTING-CHECKLIST): `0→5000`, `2000→1839`, `10000→34`,
-  `≥18421→0`.
+- Score: linear decay applied to the R9-rounded (one-decimal) distance — `5000` up to `100 km`,
+  `0` at `≥20000 km`, `floor(5000 × (20000 − km) / 19900)` in between. Pure fn
+  `domain/scoring.ts`. Test vectors (TESTING-CHECKLIST): `0→5000`, `100→5000`, `2000→4522`,
+  `10000→2512`, `≥20000→0`.

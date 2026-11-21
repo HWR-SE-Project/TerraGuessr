@@ -1,12 +1,11 @@
 # Requirements Traceability Matrix — R01–R20
 
-> **Scope note (2026-11-20):** this matrix documents the original "weather game" at `/play`
-> (`frontend/src/features/*`, `backend/src/modules/games|rounds|results|locations|weather`).
-> The 2026-11-20 frontend rebuild replaced that UI; `/play` is no longer linked from the app.
-> The Singleplayer experience actually reachable today (`Home → Play Solo` →
-> `/game/singleplayer`, real Google Street View) is a separate system — see
-> [`singleplayer-streetview-traceability.md`](./singleplayer-streetview-traceability.md) for its
-> R01–R15/R18–R20 matrix. This document remains accurate for the `/play` system itself.
+> **Historical note (2026-11-21):** this file preserves the originally approved matrix for the
+> legacy "weather game" at `/play`, which has since been removed together with its
+> `frontend/src/features/*` UI and its backend modules/tests. Do not treat those legacy test
+> paths as current evidence. The maintained matrix for the shipped Street View singleplayer app
+> is [`singleplayer-streetview-traceability.md`](./singleplayer-streetview-traceability.md);
+> its R07 row below has been updated to the current implementation.
 
 Status: **approved** (Product Owner, Phase 0.5, 2026-11-14). Source: `Software-Engineering_Anforderungsanalyse.pdf`
 (table) and `appidee.odt` (exploratory idea document, non-binding). Priority is preserved
@@ -26,7 +25,7 @@ requirements are marked separately. Test paths are relative to the repository ro
 | R04 | Actual location hidden before final submit | MUST | `backend/test/unit/rounds.test.ts` (R04 deep scan), `backend/test/integration/game-lifecycle.integration.test.ts` (raw round-start/re-fetch JSON), `backend/test/integration/contract-conformance.integration.test.ts` (R04 holds), `e2e/r04-network.spec.ts` | ✅ Pass |
 | R05 | ≥3 difficulty levels | SHOULD | `backend/test/domain/selection.test.ts`, `e2e/difficulty-modes.spec.ts`, `frontend/src/features/difficulty/DifficultyPicker.test.tsx` | ✅ Pass |
 | R06 | Weather data shown to player | MUST | `backend/test/unit/weather.test.ts`, `e2e/solo-round.spec.ts` | ✅ Pass |
-| R07 | Guess via interactive map or list | SHOULD | `backend/test/domain/selection.test.ts`, `frontend/src/features/map/MapPicker.test.tsx`, `frontend/src/features/list/CandidateList.test.tsx`, `e2e/medium-mode-toggle.spec.ts` | ✅ Pass |
+| R07 | Guess via interactive map or list | SHOULD | Current: `backend/src/domain/gameRules.ts` (Easy = list; Medium/Hard = map with borders), `backend/src/modules/singleplayer/candidates.ts`, `frontend/src/components/CandidateList.tsx`, `frontend/src/pages/singleplayer/GuessMap.tsx`; tests: `backend/test/unit/singleplayer-candidates.test.ts`, `backend/test/integration/singleplayer.integration.test.ts`, `backend/test/integration/lobbies.integration.test.ts`, `frontend/src/components/CandidateList.test.tsx`, `frontend/src/pages/singleplayer/maps.test.tsx`, `e2e/singleplayer-difficulty.live.spec.ts` | ✅ Pass |
 | R08 | Tip modifiable until final submit | MUST | `frontend/src/features/game/RoundScreen.test.tsx`, `e2e/change-guess.spec.ts` (list and map) | ✅ Pass |
 | R09 | Distance calculation (great-circle, km) | MUST | `backend/test/domain/distance.test.ts` | ✅ Pass |
 | R10 | Score from distance | MUST | `backend/test/domain/scoring.test.ts` | ✅ Pass |

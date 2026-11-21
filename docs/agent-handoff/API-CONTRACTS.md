@@ -21,7 +21,6 @@ change here is a contract change and requires an orchestrator-coordinated update
 
 ```ts
 type Difficulty = 'easy' | 'medium' | 'hard';
-type GameMode   = 'solo' | 'challenge';
 type SelectionMode = 'map' | 'list';
 
 interface WeatherDTO {              // R03/R06 — four required metrics plus optional provider metrics
@@ -48,129 +47,15 @@ interface ErrorDTO { error: { code: string; message: string; details?: Record<st
 
 ---
 
-## 1. Games
+## 4. Account statistics and leaderboards
 
-### `POST /api/games`
-Create a game. No auth.
-- **Body:** `{ mode: GameMode; difficulty: Difficulty; roundsTotal?: number; geography?: 'world'|Region; candidateCount?: 2|3|4; attemptsPerRound?: 1|2|3|4|5 }`; solo accepts 1–20 rounds (default 5), 1–5 attempts (default 1), a world/continent pool, and optional list sizes. Challenge is always one shared round with one attempt.
-- **201:** `{ gameId: string; playerToken: string; roundsTotal: number; attemptsPerRound: number }` — `playerToken` returned **once**; client
-  stores it and sends it as `X-Player-Token` thereafter (ADR-0011).
-- Errors: `400 VALIDATION_ERROR`.
-
-### `GET /api/games/{gameId}`
-Game summary. Auth: `X-Player-Token`.
-- **200:**
-  ```ts
-  { gameId: string; mode: GameMode; difficulty: Difficulty;
-    status: 'active'|'completed'; roundsPlayed: number; roundsTotal: number; attemptsPerRound: number;
-    currentRound: { roundId: string; roundNumber: number; status: 'active'|'completed' } | null }
-  ```
-- Errors: `404 NOT_FOUND`.
-
----
-
-## 2. Rounds (R01/R03/R04/R06/R07/R08)
-
-### `POST /api/games/{gameId}/rounds`
-Start the next round. Auth: `X-Player-Token`.
-- **Body:** `{ selectionMode?: SelectionMode }` — honored only for Medium (ADR-0008); ignored for
-  Easy (forced `list`) and Hard (forced `map`).
-- **201:**
-  ```ts
-  { roundId: string; roundNumber: number; attemptsTotal: number; difficulty: Difficulty;
-    selectionMode: SelectionMode;
-    weather: WeatherDTO;
-    candidates?: CandidateDTO[] }      // present iff selectionMode === 'list'
-  ```
-  **MUST NOT contain the actual location coordinates in any field** (R04). In `list` mode the
-  actual is one of `candidates` but is not flagged.
-- Errors: `404 NOT_FOUND`; `409 CONFLICT` (active round exists / game completed / round cap
-  reached); `503 SERVICE_UNAVAILABLE` (no location with complete weather after R13 fallback).
-
-### `GET /api/rounds/{roundId}`
-Idempotent re-fetch of the same shape as the `POST` 201 (minus re-running selection). Auth:
-`X-Player-Token`. Same R04 guarantee. Errors: `404 NOT_FOUND`.
-
-### `POST /api/rounds/{roundId}/guess` (R08/R09/R10/R11)
-Final submit for one-attempt rounds. Auth: `X-Player-Token`. One per round. Multi-attempt games
-must use the attempt endpoints below; this legacy endpoint returns `409 CONFLICT` for them.
-- **Body:** `{ lat: number; lon: number }`
-- **200:** `{ distanceKm: number; score: number; actual: LatLon; resultId: string }` — reveal
-  happens **only here** (R11).
-- Errors: `404 NOT_FOUND`; `409 CONFLICT` (round not active / already guessed); `400
-  VALIDATION_ERROR` (coords out of range).
-
-### `POST /api/rounds/{roundId}/attempts`
-Submit one of the configured 1–5 attempts. Auth: `X-Player-Token`.
-- **Body:** `{ lat: number; lon: number }`
-- **200:** `{ attemptNumber, attemptsTotal, attemptsRemaining, distanceKm, score, result }`. For
-  intermediate attempts `result` is `null` and no actual-location fields are returned. The last
-  configured attempt finalizes the round and returns the normal revealed result in `result`.
-- Scores and distance are retained per attempt. Finishing early selects the highest score, then
-  shortest distance, earliest submission, and ID as deterministic tie-breakers.
-
-### `POST /api/rounds/{roundId}/finish`
-Finish after at least one attempt, using the best saved attempt and reveal its result. Auth:
-`X-Player-Token`. Returns the normal guess-result shape. Returns `409 CONFLICT` if no attempts
-exist or the round has already finished.
-
----
-
-## 3. Results (R11/R18)
-
-### `GET /api/games/{gameId}/results`
-Auth: `X-Player-Token`.
-- **200:** `{ results: ResultDTO[]; totalScore: number }` where
-  ```ts
-  interface ResultDTO { resultId: string; roundNumber: number;
-    distanceKm: number; score: number; actual: LatLon; guess: LatLon; createdAt: string; }
-  ```
-- Errors: `404 NOT_FOUND`.
-
-### `GET /api/results/{resultId}`
-Auth: `X-Player-Token` (must own the parent game). **200:** `ResultDTO`. Errors: `404 NOT_FOUND`.
-
----
-
-## 4. Async challenges (R16, ADR-0005)
-
-### `POST /api/challenges`
-Create a shared challenge from an existing round. Auth: `X-Player-Token` (must own the round).
-- **Body:** `{ roundId: string }`
-- **201:** `{ challengeId: string; shareUrl: string }`
-- Errors: `404 NOT_FOUND`; `400 VALIDATION_ERROR`.
-
-### `POST /api/challenges/{challengeId}/entries`
-Attach a completed result (for the challenge's fixed round) to the leaderboard. Auth:
-`X-Player-Token` (must own the result).
-- **Body:** `{ resultId: string; displayName?: string }`  (`displayName` ≤ 40 chars, no PII)
-- **201:** `{ entryId: string; rank: number }`
-- Errors: `404 NOT_FOUND`; `409 CONFLICT` (result is not for this challenge's round, or already
-  entered); `400 VALIDATION_ERROR`.
-
-### `GET /api/challenges/{challengeId}/leaderboard`
-**Public, no auth** (B.6).
-- **200:**
-  ```ts
-  { challengeId: string;
-    entries: { rank: number; displayName: string | null; score: number; distanceKm: number }[] }
-  ```
-  Entries are only for this challenge's fixed round/location (tested — TESTING-CHECKLIST R16).
-- Errors: `404 NOT_FOUND`.
-
-## 4.1 Account statistics and leaderboards
-
-### `GET /api/statistics?mode=solo|multiplayer|ranked|daily&limit=20&offset=0`
+### `GET /api/statistics?mode=solo|multiplayer|ranked&limit=20&offset=0`
 Cookie-authenticated account history, paginated to 100 rows maximum.
 - **200:** `{ mode, available, entries, total, offset, limit, averageScore, averageDistanceKm }`. Each
   completed entry includes date, round number, actual/guess coordinates, score, distance, and
-  result timestamp. `multiplayer` currently covers account-owned asynchronous challenge games;
-  ranked returns `{ available: false, entries: [], total: 0 }` until ranked exists.
+  result timestamp. `solo`, `multiplayer` and `ranked` return
+  `{ available: false, entries: [], total: 0 }` until account-linked results exist.
 - Errors: `401 UNAUTHORIZED`; `400 VALIDATION_ERROR`.
-
-### `GET /api/daily/{date}/leaderboard?limit=20&offset=0`
-Cookie-authenticated, globally ranked UTC Daily table. Entries include public display name,
-score, distance, rank, and `isCurrentUser`; `myRank` is global even when outside the page.
 
 ### `GET /api/leaderboards/ranked`
 Cookie-authenticated. Returns `503 SERVICE_UNAVAILABLE` until the real ranked queue and ratings

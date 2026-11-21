@@ -55,7 +55,7 @@ code (now in `frontend/src/styles/design-system.css`):
   has none of that — only the real create/share/join/leaderboard flow got a
   visual upgrade.
 - **Dashboard cards** got a small icon badge (top-right, matching the Figma
-  card layout convention) for Solo / Daily Challenge / Multiplayer-placeholder.
+  card layout convention) for Solo / Multiplayer-placeholder.
 - **Auth dialog** (`frontend/src/features/auth/AuthDialog.tsx`) — rebuilt the
   entry step 1:1 against the Figma sign-up card (node `53:1080` desktop /
   `53:1322` mobile): title ("Sign up to play" / "Log in to play"), the
@@ -77,7 +77,7 @@ code (now in `frontend/src/styles/design-system.css`):
   "Back to sign in" inside the email form instead swap mode while staying in
   the email form (so a user who already opted into email isn't bounced back
   to the OAuth chooser). `e2e/phase2-auth.spec.ts`,
-  `e2e/daily-challenge.spec.ts`, and `e2e/phase3-configuration.spec.ts` were
+  `e2e/phase3-configuration.spec.ts` was
   updated to click "Continue with Email" before filling the register form,
   and the Google-button locator moved from `.tg-google-button` to
   `.tg-auth-provider-google`.
@@ -151,8 +151,7 @@ done in this session:
    streak/statistics data — there's a real daily-streak feature already
    (`PlayerPages`) that could reuse that visual pattern.
 3. Any work on the mobile bottom tab bar should map to real destinations
-   only (Home, Daily Challenge) — don't add a third icon unless a third real
-   mode exists.
+   only (Home) — don't add another icon unless another real mode exists.
 
 ## Verification artifacts (this session, not committed — ephemeral)
 

@@ -10,8 +10,8 @@ how to run the backend this talks to.
 src/api/          Typed REST client functions (one file per backend module)
 src/components/   Shared UI primitives, the cosmic background, the map picker
 src/hooks/        Reusable hooks (auth form state, etc.)
-src/pages/        One directory per route (auth, challenge, daily, duels,
-                   home, play, settings, singleplayer)
+src/pages/        One directory per route (auth, home, lobby,
+                   settings, singleplayer)
 src/state/        React context providers (session)
 src/assets/       Per-page images/SVGs/GLB models
 ```
