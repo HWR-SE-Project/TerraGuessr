@@ -6,18 +6,16 @@ import { Brand } from './Brand'
 import { HomeIcon } from '../../pages/home/HomeIcon'
 import './PageNavigation.css'
 
-export type NavActiveKey = 'singleplayer' | 'multiplayer' | 'daily' | 'none'
+export type NavActiveKey = 'singleplayer' | 'multiplayer' | 'none'
 const destinations = [
   { key: 'singleplayer', to: '/game/singleplayer', label: 'Singleplayer', icon: 'gamepad' },
   { key: 'multiplayer', to: '/multiplayer', label: 'Multiplayer', icon: 'users' },
-  { key: 'duels', to: '/duels', label: 'Duels', icon: 'trophy' },
 ] as const
 
 export function AppNavigation({ active, onNavigate }: { active: NavActiveKey; onNavigate?: () => void }) {
-  const { pathname } = useLocation()
   return <>{destinations.map(item => <Link key={item.key} to={item.to}
     className="th-nav-item tg-control tg-nav-pill"
-    aria-current={(item.key === 'duels' ? pathname === '/duels' : item.key === active && pathname !== '/duels') ? 'page' : undefined}
+    aria-current={item.key === active ? 'page' : undefined}
     onClick={onNavigate}><HomeIcon name={item.icon} />{item.label}</Link>)}</>
 }
 

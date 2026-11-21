@@ -21,23 +21,9 @@ const EmailChangePage = lazy(() =>
     default: m.EmailChangePage,
   })),
 )
-const DuelsPage = lazy(() =>
-  import('./pages/duels/DuelsPage').then((m) => ({ default: m.DuelsPage })),
-)
 const SettingsPage = lazy(() =>
   import('./pages/settings/SettingsPage').then((m) => ({
     default: m.SettingsPage,
-  })),
-)
-const PlayPage = lazy(() =>
-  import('./pages/play/PlayPage').then((m) => ({ default: m.PlayPage })),
-)
-const DailyPage = lazy(() =>
-  import('./pages/daily/DailyPage').then((m) => ({ default: m.DailyPage })),
-)
-const ChallengePage = lazy(() =>
-  import('./pages/challenge/ChallengePage').then((m) => ({
-    default: m.ChallengePage,
   })),
 )
 const SingleplayerGamePage = lazy(() =>
@@ -60,11 +46,8 @@ function App() {
     const titles: Record<string, string> = {
       '/': 'Explore the World',
       '/auth': 'Your next adventure',
-      '/duels': 'Duels',
       '/multiplayer': 'Multiplayer',
       '/game/singleplayer': 'World Explorer',
-      '/play': 'Weather expedition',
-      '/daily': 'Daily challenge',
       '/settings': 'Settings',
       '/reset-password': 'Reset password',
       '/verify-email': 'Verify email',
@@ -73,7 +56,7 @@ function App() {
     const title =
       pathname.startsWith('/multiplayer') || pathname.startsWith('/lobby')
         ? 'Multiplayer'
-        : (titles[pathname] ?? 'Challenge a friend')
+        : (titles[pathname] ?? 'Explore the World')
     document.title = `${title} · TerraGuessr`
   }, [pathname])
   return (
@@ -91,15 +74,11 @@ function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/confirm-email-change" element={<EmailChangePage />} />
-          <Route path="/duels" element={<DuelsPage />} />
           <Route path="/multiplayer" element={<LobbyPage />} />
           <Route path="/lobby" element={<Navigate to="/multiplayer" replace />} />
           <Route path="/lobby/:code" element={<LobbyPage />} />
           <Route path="/lobby/:code/game" element={<MultiplayerGamePage />} />
           <Route path="/game/singleplayer" element={<SingleplayerGamePage />} />
-          <Route path="/play" element={<PlayPage />} />
-          <Route path="/daily" element={<DailyPage />} />
-          <Route path="/challenge/:challengeId" element={<ChallengePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

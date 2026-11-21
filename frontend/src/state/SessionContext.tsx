@@ -1,14 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import * as authApi from '../api/auth'
-import type { AuthConfigResponse, DailyStreak, LoginInput, PublicUser, RegisterInput, RegisterResponse, UserPreferences } from '../api/types'
+import type { AuthConfigResponse, LoginInput, PublicUser, RegisterInput, RegisterResponse, UserPreferences } from '../api/types'
 import { ApiError } from '../api/client'
 
 interface SessionState {
   status: 'loading' | 'ready'
   user: PublicUser | null
   preferences: UserPreferences | null
-  dailyStreak: DailyStreak
   authConfig: AuthConfigResponse | null
 }
 
@@ -24,14 +23,11 @@ interface SessionContextValue extends SessionState {
 
 const SessionContext = createContext<SessionContextValue | null>(null)
 
-const EMPTY_STREAK: DailyStreak = { current: 0, longest: 0 }
-
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>({
     status: 'loading',
     user: null,
     preferences: null,
-    dailyStreak: EMPTY_STREAK,
     authConfig: null,
   })
 
@@ -42,7 +38,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       status: 'ready',
       user: session.user,
       preferences: session.preferences ?? null,
-      dailyStreak: session.dailyStreak ?? EMPTY_STREAK,
     }))
   }, [])
 
@@ -55,7 +50,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         status: 'ready',
         user: session.status === 'fulfilled' ? session.value.user : null,
         preferences: session.status === 'fulfilled' ? session.value.preferences ?? null : null,
-        dailyStreak: session.status === 'fulfilled' ? session.value.dailyStreak ?? EMPTY_STREAK : EMPTY_STREAK,
         authConfig: authConfig.status === 'fulfilled' ? authConfig.value : null,
       })
     }
@@ -86,7 +80,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // still means the user is logged out — don't block on it.
       if (!(error instanceof ApiError && error.status === 401)) throw error
     }
-    setState((previous) => ({ ...previous, user: null, preferences: null, dailyStreak: EMPTY_STREAK }))
+    setState((previous) => ({ ...previous, user: null, preferences: null }))
   }, [])
 
   const updateProfile = useCallback(async (displayName: string) => {
@@ -104,7 +98,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async (currentPassword?: string) => {
     await authApi.deleteAccount('DELETE', currentPassword)
-    setState((previous) => ({ ...previous, user: null, preferences: null, dailyStreak: EMPTY_STREAK }))
+    setState((previous) => ({ ...previous, user: null, preferences: null }))
   }, [])
 
   const value = useMemo<SessionContextValue>(

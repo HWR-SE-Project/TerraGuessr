@@ -1,6 +1,6 @@
 /* Compatibility layer for the established weather expedition and shared dialogs.
    Shared primitives keep existing APIs and game behavior intact. */
-#root :is(.tg-play-page, .tg-daily-page, .tg-challenge-page, .tg-auth-root) {
+#root :is(.tg-play-page, .tg-challenge-page, .tg-auth-root) {
   background:
     radial-gradient(ellipse at 35% 0%, #1b38554d, transparent 60%),
     var(--color-bg);
@@ -9,30 +9,28 @@
 #root .tg-play-page .tg-play-bg-glow {
   background: none;
 }
-#root :is(.tg-play-shell, .tg-daily-shell, .tg-challenge-shell) {
+#root :is(.tg-play-shell, .tg-challenge-shell) {
   max-width: 960px;
 }
-#root :is(.tg-play-title, .tg-daily-title, .tg-challenge-title) {
+#root :is(.tg-play-title, .tg-challenge-title) {
   font-style: normal;
   font-weight: 600;
   letter-spacing: -0.045em;
 }
-#root :is(.tg-play-eyebrow, .tg-daily-eyebrow, .tg-challenge-eyebrow) {
+#root :is(.tg-play-eyebrow, .tg-challenge-eyebrow) {
   color: var(--color-cyan);
   font-size: 10px;
   letter-spacing: 2px;
   font-weight: 500;
 }
-#root :is(.tg-play-subtitle, .tg-daily-subtitle, .tg-challenge-subtitle) {
+#root :is(.tg-play-subtitle, .tg-challenge-subtitle) {
   color: var(--color-muted);
   line-height: 1.8;
 }
 #root
   :is(
     .tg-play-cta,
-    .tg-daily-cta,
     .tg-challenge-cta,
-    .tg-duel-overlay-submit,
     .tg-email-submit,
     .tg-confirm-confirm
   ) {
@@ -53,9 +51,7 @@
 #root
   :is(
     .tg-play-cta,
-    .tg-daily-cta,
     .tg-challenge-cta,
-    .tg-duel-overlay-submit,
     .tg-email-submit
   ):hover:enabled {
   background: var(--color-lime-hover);
@@ -63,7 +59,6 @@
 #root
   :is(
     .tg-play-secondary,
-    .tg-daily-secondary,
     .tg-challenge-secondary,
     .tg-confirm-cancel
   ) {
@@ -98,9 +93,7 @@
     .tg-play-result,
     .tg-play-summary,
     .tg-challenge-leaderboard,
-    .tg-daily-result,
     .tg-candidate-option,
-    .tg-duel-overlay,
     .tg-confirm-dialog
   ) {
   border-radius: var(--radius-card);
@@ -113,8 +106,7 @@
 #root
   :is(
     .tg-play-result-score-value,
-    .tg-challenge-result-score,
-    .tg-daily-result-score
+    .tg-challenge-result-score
   ) {
   color: var(--color-lime);
   font-variant-numeric: tabular-nums;
@@ -135,8 +127,7 @@
   padding: 32px;
   box-shadow: var(--shadow-panel);
 }
-#root .tg-confirm-dialog h2,
-#root .tg-duel-overlay-title {
+#root .tg-confirm-dialog h2 {
   font-style: normal;
   font-size: 24px;
   font-weight: 600;
@@ -150,21 +141,6 @@
 #root .tg-confirm-confirm--destructive {
   background: var(--color-red);
   color: #311619;
-}
-#root .tg-duel-overlay-scrim {
-  background: #030812b8;
-  backdrop-filter: blur(8px);
-}
-#root .tg-duel-overlay {
-  padding: 32px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-panel);
-}
-#root .tg-duel-overlay-close {
-  width: 44px;
-  height: 44px;
-  top: 12px;
-  right: 12px;
 }
 #root .tg-email-field input {
   height: 48px;
@@ -207,8 +183,7 @@
   #root .tg-play-shell {
     padding-top: 28px;
   }
-  #root .tg-confirm-dialog,
-  #root .tg-duel-overlay {
+  #root .tg-confirm-dialog {
     padding: 24px;
   }
   #root .tg-confirm-actions {
@@ -243,7 +218,6 @@
 }
 #root .tg-weather-title,
 #root .tg-candidate-heading,
-#root .tg-daily-leaderboard-title,
 #root .tg-challenge-leaderboard h2 {
   font-style: normal;
   font-weight: 550;
@@ -303,19 +277,7 @@
   border-radius: var(--radius-control);
   font-size: 16px;
 }
-#root .tg-daily-streak {
-  background: #f7b16b0a;
-  border-color: #f7b16b30;
-}
-#root .tg-daily-streak-value,
-#root .tg-daily-streak-label {
-  color: var(--color-orange);
-}
-#root .tg-daily-streak-value {
-  font-weight: 550;
-}
 #root .tg-challenge-result-score span,
-#root .tg-daily-result-value,
 #root .tg-play-result-score-value {
   font-style: normal;
   font-weight: 550;
@@ -326,37 +288,26 @@
   color: var(--color-lime);
   font-weight: 550;
 }
-#root .tg-challenge-leaderboard,
-#root .tg-daily-leaderboard {
+#root .tg-challenge-leaderboard {
   padding: 24px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
 }
-#root .tg-daily-leaderboard-row,
 #root .tg-challenge-leaderboard-list li {
   min-height: 48px;
   align-items: center;
 }
-#root .tg-daily-leaderboard-row--me {
-  background: #c0f66b0c;
-}
 @media (max-width: 700px) {
-  #root .tg-daily-body {
-    grid-template-columns: 1fr;
-  }
-  #root .tg-daily-leaderboard,
   #root .tg-challenge-leaderboard {
     padding: 20px 16px;
   }
-  #root .tg-daily-leaderboard-row,
   #root .tg-challenge-leaderboard-list li {
     grid-template-columns: 22px minmax(0, 1fr) 65px 65px;
     padding: 12px 8px;
     gap: 5px;
     font-size: 10px;
   }
-  #root .tg-daily-leaderboard-row > *,
   #root .tg-challenge-leaderboard-list li > * {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -379,12 +330,4 @@
   border-color: #c0f66b40;
   color: var(--color-lime);
   font-style: normal;
-}
-@media (max-width: 600px) {
-  #root .tg-duel-overlay-map {
-    height: 200px;
-  }
-  #root .tg-duel-overlay-map .tg-map-picker {
-    min-height: 200px;
-  }
 }

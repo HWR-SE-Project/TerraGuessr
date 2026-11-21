@@ -134,12 +134,6 @@ export function HomeExperience() {
             title="Play Together"
             subtitle="With friends"
           />
-          <GameModeCard
-            to="/duels"
-            icon="trophy"
-            title="Compete"
-            subtitle="Climb the leaderboards"
-          />
         </nav>
       </section>
       {avatarFeedback && <div className="ae-home-toast" role="status">{avatarFeedback}</div>}

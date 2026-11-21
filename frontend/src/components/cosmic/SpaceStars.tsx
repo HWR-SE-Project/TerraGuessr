@@ -147,7 +147,7 @@ export function SpaceStars({ reducedMotion, pointerRef, isHome, layoutKey }: {
         }
         protect('.td-title, .geo-landing__hero, .cosmic-app h1', shared.uQuietRect)
         protect('.td-arena, .geo-landing__signup-card, .settings-panel, .tg-reset-card, .sp-results, .sp-welcome, .tg-play-setup', shared.uFaceRect)
-        protect('.td-controls, .tg-daily-leaderboard, .tg-challenge-leaderboard, .tg-page-nav', shared.uControlsRect)
+        protect('.td-controls, .tg-challenge-leaderboard, .tg-page-nav', shared.uControlsRect)
         invalidate()
         return
       }

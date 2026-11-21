@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { PageNavigation } from '../../components/ui/PageNavigation'
 import googleLogo from '../../assets/auth/google-logo.svg'
-import appleLogo from '../../assets/auth/apple-logo.svg'
 import { googleSignInUrl } from '../../api/auth'
 import { useSession } from '../../state/SessionContext'
 import { EmailAuthForm } from '../../components/auth/EmailAuthForm'
@@ -100,28 +99,6 @@ export function AuthLandingPage() {
                 >
                   <img src={googleLogo} alt="" />
                   <span>Continue with Google</span>
-                </button>
-                <button
-                  className="geo-landing__provider tg-control geo-landing__provider--apple"
-                  type="button"
-                  onClick={() => setUnavailableProvider('Apple')}
-                >
-                  <img src={appleLogo} alt="" />
-                  <span>Continue with Apple</span>
-                </button>
-                <button
-                  className="geo-landing__provider tg-control tg-control--cyan geo-landing__provider--facebook"
-                  type="button"
-                  onClick={() => setUnavailableProvider('Facebook')}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073c0 6.026 4.388 11.021 10.125 11.927v-8.437H7.078v-3.49h3.047v-2.66c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.49 0-1.956.931-1.956 1.887v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073Z" />
-                  </svg>
-                  <span>Continue with Facebook</span>
                 </button>
                 <button
                   className="geo-landing__provider tg-control tg-control--tinted geo-landing__provider--email"

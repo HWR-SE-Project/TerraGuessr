@@ -28,7 +28,7 @@ export function CosmicBackground({ children, intensity: intensityOverride }: {
   const [mode, setMode] = useState<{ pathname: string; enabled: boolean } | null>(null)
   const isHome = pathname === '/'
   const enabled = mode?.pathname === pathname ? mode.enabled : pathname !== '/game/singleplayer'
-  const intensity: CosmicIntensity = intensityOverride ?? (isHome || pathname === '/duels' || pathname.startsWith('/multiplayer') || pathname.startsWith('/lobby')
+  const intensity: CosmicIntensity = intensityOverride ?? (isHome || pathname.startsWith('/multiplayer') || pathname.startsWith('/lobby')
     ? 'full' : pathname === '/auth' || pathname === '/reset-password' || pathname === '/settings'
       ? 'subdued' : 'moderate')
   const available = supportsWebGL && !failed

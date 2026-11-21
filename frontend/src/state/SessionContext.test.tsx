@@ -43,7 +43,7 @@ describe('SessionProvider', () => {
   it('logs in and reflects the refreshed session', async () => {
     vi.mocked(authApi.fetchSession)
       .mockResolvedValueOnce({ user: null })
-      .mockResolvedValue({ user, dailyStreak: { current: 2, longest: 5 } })
+      .mockResolvedValue({ user })
     vi.mocked(authApi.fetchAuthConfig).mockResolvedValue(authConfig)
     vi.mocked(authApi.login).mockResolvedValue({ user })
 

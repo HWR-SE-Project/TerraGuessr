@@ -146,7 +146,7 @@
     --control-shadow: 0 6px 16px #01061032;
   }
 }
-#root :is(.th-notice-close, .tg-duel-overlay-close, .sp-compass) { border-radius: 50%; }
+#root :is(.th-notice-close, .sp-compass) { border-radius: 50%; }
 #root .sp-map-mode { border-radius: 12px; min-height: 40px; padding: 5px 8px; margin-right: 5px; }
 #root .sp-map-wrap { border-radius: 12px; }
 #root .sp-guess-panel { border-radius: 22px; padding: 7px; }
@@ -155,7 +155,7 @@
 
 /* Supporting shells use the same optics, without lifting or press feedback. */
 #root :is(.sp-glass:not(.tg-control), .gi-panel, .gi-sheet, .sp-dialog,
-  .tg-confirm-dialog, .tg-duel-overlay, .th-notice) {
+  .tg-confirm-dialog, .th-notice) {
   background: var(--glass-reflection), var(--glass-shading), var(--glass-fill);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-inner), 0 16px 48px #0106104d;
@@ -237,7 +237,7 @@
   #root .tg-control { --glass-fill: #192b40; -webkit-backdrop-filter: none; backdrop-filter: none; }
   #root .tg-control--primary { --control-fill: #b6e879; }
   #root .tg-control--light { --control-fill: #e5edf5; }
-  #root :is(.sp-glass, .gi-panel, .gi-sheet, .sp-dialog, .tg-confirm-dialog, .tg-duel-overlay, .th-notice) {
+  #root :is(.sp-glass, .gi-panel, .gi-sheet, .sp-dialog, .tg-confirm-dialog, .th-notice) {
     --glass-fill: #192b40;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

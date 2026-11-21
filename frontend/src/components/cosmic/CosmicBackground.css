@@ -34,7 +34,7 @@
 }
 /* Page shells reveal the shared sky; their cards and dialogs keep their surfaces. */
 #root .cosmic-app :is(.th-home, .tl-page, .td-page, .geo-landing, .settings-screen,
-  .tg-auth-root, .tg-play-page, .tg-daily-page, .tg-challenge-page, .tg-route-loading) {
+  .tg-auth-root, .tg-play-page, .tg-challenge-page, .tg-route-loading) {
   background: transparent;
 }
 #root .cosmic-app .sp-page[data-cosmic='on'] { background: transparent; }
