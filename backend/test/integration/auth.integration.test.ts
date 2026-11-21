@@ -32,7 +32,6 @@ describe('account authentication (integration)', () => {
       nodeEnv: 'test',
       port: 3000,
       corsOrigin: false,
-      adminApiToken: '',
       openMeteoBaseUrl: 'https://api.open-meteo.com',
       logLevel: 'silent',
       appBaseUrl: 'http://localhost:8080',

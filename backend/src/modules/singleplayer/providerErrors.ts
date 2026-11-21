@@ -1,3 +1,5 @@
+import { AppError } from '../../plugins/errors.js';
+
 export type PanoramaErrorCode =
   | 'MISSING_SERVER_KEY'
   | 'PROVIDER_NETWORK_ERROR'
@@ -10,13 +12,12 @@ export type PanoramaErrorCode =
   | 'PANORAMA_UNAVAILABLE'
   | 'WEATHER_UNAVAILABLE';
 
-export class PanoramaError extends Error {
-  readonly statusCode = 503;
+export class PanoramaError extends AppError {
   constructor(
     readonly reason: string,
-    readonly code: PanoramaErrorCode = 'PANORAMA_UNAVAILABLE',
+    code: PanoramaErrorCode = 'PANORAMA_UNAVAILABLE',
   ) {
-    super(reason);
+    super(503, reason, code);
   }
 }
 

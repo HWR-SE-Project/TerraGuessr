@@ -1,5 +1,8 @@
-import { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+
+import type { Prisma } from '@prisma/client';
 import type {
+  Difficulty,
   Lobby,
   LobbyMember,
   LobbyRound,
@@ -18,12 +21,16 @@ import { haversineKm } from '../../domain/distance.js';
 import { gameRulesFor } from '../../domain/gameRules.js';
 import type { GameRules } from '../../domain/gameRules.js';
 import {
-  applyPointPenalty,
   applyTimePenalty,
+  decideAttempt,
   isDeadlinePassed,
 } from '../../domain/roundFlow.js';
 import { scoreForDistance } from '../../domain/scoring.js';
+import { computeScore, extraDataAccess } from '../../domain/roundView.js';
+import { archiveGameResult } from '../../domain/archive.js';
 import { hashPlayerToken } from '../../plugins/auth.js';
+import { AppError } from '../../plugins/errors.js';
+import { isUniqueConstraintError } from '../../db/prismaErrors.js';
 import type {
   LobbyGuessBody,
   LobbyGuessResponse,
@@ -46,12 +53,9 @@ import {
   toLobbyView,
 } from './service.js';
 
-export class LobbyUnavailableError extends Error {
-  public readonly statusCode = 503;
-
-  public constructor(message: string) {
-    super(message);
-    this.name = 'LobbyUnavailableError';
+export class LobbyUnavailableError extends AppError {
+  public constructor(message: string, code?: string) {
+    super(503, message, code);
   }
 }
 
@@ -83,28 +87,9 @@ function roundDeadline(round: MatchRound, member: LobbyMember): Date | null {
   return memberState(round, member.id)?.endsAt ?? round.endsAt;
 }
 
-function extraDataAccess(
-  round: MatchRound,
-  member: LobbyMember,
-  rules: GameRules,
-) {
-  const state = memberState(round, member.id);
-  const unlocked =
-    rules.extraData.mode === 'free' || state?.extraDataUnlockedAt != null;
-  return {
-    mode:
-      rules.extraData.mode === 'free'
-        ? ('immediate' as const)
-        : rules.extraData.mode,
-    cost: rules.extraData.mode === 'free' ? null : rules.extraData.cost,
-    availableAt: null,
-    unlocked,
-    pointsSpent: state?.extraDataPointsSpent ?? 0,
-  };
-}
-
 function publicRound(round: MatchRound, rules: GameRules, member: LobbyMember) {
   const candidates = roundCandidates(round);
+  const state = memberState(round, member.id);
   return {
     id: round.id,
     number: round.number,
@@ -115,7 +100,13 @@ function publicRound(round: MatchRound, rules: GameRules, member: LobbyMember) {
       (attempt) => attempt.memberId === member.id,
     ).length,
     attemptsTotal: rules.attemptsPerRound,
-    extraData: extraDataAccess(round, member, rules),
+    extraData: extraDataAccess(
+      {
+        unlockedAt: state?.extraDataUnlockedAt ?? null,
+        pointsSpent: state?.extraDataPointsSpent ?? 0,
+      },
+      rules,
+    ),
   };
 }
 
@@ -221,34 +212,14 @@ function assertHost(lobby: MatchLobby, member: LobbyMember): void {
   }
 }
 
-function bestAttempt(attempts: LobbyRoundAttempt[]): LobbyRoundAttempt | null {
-  return (
-    [...attempts].sort(
-      (a, b) =>
-        b.score - a.score ||
-        a.distanceKm - b.distanceKm ||
-        a.createdAt.getTime() - b.createdAt.getTime() ||
-        a.id.localeCompare(b.id),
-    )[0] ?? null
-  );
-}
-
 async function finalizeMemberRound(
   db: PrismaClient,
   round: MatchRound,
   member: LobbyMember,
   attempts: LobbyRoundAttempt[],
+  difficulty: Difficulty,
+  matchId: string,
 ): Promise<LobbyRoundResult> {
-  const best = bestAttempt(attempts);
-  const guess =
-    best !== null
-      ? { lat: best.guessLat, lon: best.guessLon }
-      : member.selectionLat !== null && member.selectionLon !== null
-        ? { lat: member.selectionLat, lon: member.selectionLon }
-        : null;
-  const actual = { lat: round.targetLat, lon: round.targetLon };
-  const distanceKm = guess === null ? null : haversineKm(guess, actual);
-  const rawScore = distanceKm === null ? 0 : scoreForDistance(distanceKm);
   // Read the latest per-player state so a concurrent unlock is still charged.
   const state = await db.lobbyRoundMemberState.findUnique({
     where: {
@@ -256,23 +227,60 @@ async function finalizeMemberRound(
     },
   });
   const extraDataPointsSpent = state?.extraDataPointsSpent ?? 0;
-  const score = applyPointPenalty(rawScore, extraDataPointsSpent);
+  const actual = { lat: round.targetLat, lon: round.targetLon };
+  const selection =
+    member.selectionLat !== null && member.selectionLon !== null
+      ? { lat: member.selectionLat, lon: member.selectionLon }
+      : null;
+  const { guess, distanceKm, score } = computeScore({
+    attempts,
+    selection,
+    actual,
+    pointsSpent: extraDataPointsSpent,
+  });
 
-  return db.lobbyRoundResult.upsert({
-    where: {
-      roundId_memberId: { roundId: round.id, memberId: member.id },
-    },
-    create: {
-      roundId: round.id,
-      memberId: member.id,
-      guessLat: guess?.lat ?? null,
-      guessLon: guess?.lon ?? null,
-      distanceKm,
-      score,
-      attemptsUsed: attempts.length,
-      extraDataPointsSpent,
-    },
-    update: {},
+  return db.$transaction(async (tx) => {
+    const result = await tx.lobbyRoundResult.upsert({
+      where: {
+        roundId_memberId: { roundId: round.id, memberId: member.id },
+      },
+      create: {
+        roundId: round.id,
+        memberId: member.id,
+        guessLat: guess?.lat ?? null,
+        guessLon: guess?.lon ?? null,
+        distanceKm,
+        score,
+        attemptsUsed: attempts.length,
+        extraDataPointsSpent,
+      },
+      update: {},
+    });
+
+    if (member.userId !== null) {
+      // R18: archive only signed-in players. The coordinates are the last
+      // submitted attempt (not necessarily the best attempt used for scoring).
+      // Same transaction as the lobby result: no silent missing archive.
+      const last =
+        [...attempts].sort((a, b) => b.attemptNumber - a.attemptNumber)[0] ??
+        null;
+      await archiveGameResult(tx, {
+        prefix: 'lobby',
+        roundId: result.id,
+        userId: member.userId,
+        mode: 'multiplayer',
+        difficulty,
+        sessionId: round.lobbyId,
+        matchId,
+        roundNumber: round.number,
+        actual,
+        lastGuess: last ? { lat: last.guessLat, lon: last.guessLon } : null,
+        distanceKm,
+        score,
+      });
+    }
+
+    return result;
   });
 }
 
@@ -305,6 +313,8 @@ async function ensureLobbyProgress(
       round,
       member,
       round.attempts.filter((attempt) => attempt.memberId === member.id),
+      lobby.difficulty,
+      lobby.matchId,
     );
   }
   if (stillPlaying.length > 0) return;
@@ -376,7 +386,7 @@ async function planLobbyRounds(
     }
   } catch (error) {
     if (error instanceof PanoramaError) {
-      throw new LobbyUnavailableError(error.reason);
+      throw new LobbyUnavailableError(error.reason, error.code);
     }
     throw error;
   }
@@ -405,6 +415,7 @@ async function beginLobbyMatch(
       data: {
         status: 'playing',
         currentRound: 1,
+        matchId: randomUUID(),
         startedAt: now,
         finishedAt: null,
         expiresAt: new Date(now.getTime() + LOBBY_TTL_MS),
@@ -928,11 +939,7 @@ export async function unlockLobbyExtraData(
       });
     } catch (error) {
       // A concurrent unlock already created the row; first unlock wins.
-      if (
-        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-        error.code !== 'P2002'
-      )
-        throw error;
+      if (!isUniqueConstraintError(error)) throw error;
     }
   }
 
@@ -959,29 +966,32 @@ export async function submitLobbyGuess(
   if (!round || round.number !== lobby.currentRound) {
     throw new LobbyConflictError('This round is not the active round');
   }
-  if (isDeadlinePassed(roundDeadline(round, member), new Date())) {
-    await ensureLobbyProgress(lobby, db, new Date());
-    throw new LobbyConflictError('The time limit for this round has expired');
-  }
-  const alreadyFinal = round.results.some(
-    (result) => result.memberId === member.id,
-  );
-  if (alreadyFinal) {
-    throw new LobbyConflictError('Your guess for this round is already final');
-  }
-
   const rules = gameRulesFor(lobby.difficulty);
   const attempts = round.attempts.filter(
     (attempt) => attempt.memberId === member.id,
   );
-  if (attempts.length >= rules.attemptsPerRound) {
-    throw new LobbyConflictError('No attempts remain for this round');
+  const decision = decideAttempt({
+    attemptsUsed: attempts.length,
+    attemptsTotal: rules.attemptsPerRound,
+    requestedFinal: body.final === true,
+    finalized: round.results.some((result) => result.memberId === member.id),
+    deadlinePassed: isDeadlinePassed(roundDeadline(round, member), new Date()),
+  });
+  if (!decision.allowed) {
+    if (decision.reason === 'deadline') {
+      await ensureLobbyProgress(lobby, db, new Date());
+      throw new LobbyConflictError('The time limit for this round has expired');
+    }
+    if (decision.reason === 'exhausted') {
+      throw new LobbyConflictError('No attempts remain for this round');
+    }
+    throw new LobbyConflictError('Your guess for this round is already final');
   }
 
   const actual = { lat: round.targetLat, lon: round.targetLon };
   const distanceKm = haversineKm(body, actual);
   const score = scoreForDistance(distanceKm);
-  const attemptNumber = attempts.length + 1;
+  const attemptNumber = decision.attemptNumber;
 
   let created: LobbyRoundAttempt;
   try {
@@ -997,10 +1007,7 @@ export async function submitLobbyGuess(
       },
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
+    if (isUniqueConstraintError(error)) {
       throw new LobbyConflictError(
         'Another guess was submitted at the same time; retry the action',
       );
@@ -1013,19 +1020,21 @@ export async function submitLobbyGuess(
     data: { selectionLat: body.lat, selectionLon: body.lon },
   });
 
-  const finalized =
-    body.final === true || attemptNumber >= rules.attemptsPerRound;
-  if (!finalized) {
+  if (!decision.finalizes) {
     return {
       finalized: false,
-      attemptsRemaining: rules.attemptsPerRound - attemptNumber,
+      attemptsRemaining: decision.attemptsRemaining,
     };
   }
 
-  const result = await finalizeMemberRound(db, round, member, [
-    ...attempts,
-    created,
-  ]);
+  const result = await finalizeMemberRound(
+    db,
+    round,
+    member,
+    [...attempts, created],
+    lobby.difficulty,
+    lobby.matchId,
+  );
   const afterGuess = await loadMatchLobby(code, db);
   await ensureLobbyProgress(afterGuess, db, new Date());
 
@@ -1077,7 +1086,14 @@ export async function finishLobbyRound(
     );
   }
 
-  const result = await finalizeMemberRound(db, round, member, attempts);
+  const result = await finalizeMemberRound(
+    db,
+    round,
+    member,
+    attempts,
+    lobby.difficulty,
+    lobby.matchId,
+  );
   const afterFinish = await loadMatchLobby(code, db);
   await ensureLobbyProgress(afterFinish, db, new Date());
   return {

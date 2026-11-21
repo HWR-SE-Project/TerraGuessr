@@ -7,6 +7,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 
 import { prisma } from '../../db/prisma.js';
+import { RATE_LIMITS } from '../../config/constants.js';
+import { readTokenHeader } from '../../plugins/auth.js';
 import {
   CreateLobbyBody,
   CreateLobbyResponse,
@@ -39,6 +41,7 @@ import {
   unlockLobbyExtraData,
 } from './match.js';
 import { IntelligenceResponse } from '../intelligence/contract.js';
+import { optionalSessionUserId } from '../auth/session.js';
 import type { IntelligenceLookup } from '../singleplayer/locationSelection.js';
 import {
   googlePanoramaProvider,
@@ -47,8 +50,8 @@ import {
 
 /** Read the lobby token header; missing/blank is a 404, never a 401. */
 function requireLobbyToken(request: FastifyRequest): string {
-  const rawToken = request.headers['x-lobby-token'];
-  if (typeof rawToken !== 'string' || rawToken.length === 0) {
+  const rawToken = readTokenHeader(request, 'x-lobby-token');
+  if (rawToken === undefined) {
     throw new LobbyNotFoundError();
   }
   return rawToken;
@@ -56,10 +59,7 @@ function requireLobbyToken(request: FastifyRequest): string {
 
 /** Optional token, used by the public read so the host can identify itself. */
 function optionalLobbyToken(request: FastifyRequest): string | undefined {
-  const rawToken = request.headers['x-lobby-token'];
-  return typeof rawToken === 'string' && rawToken.length > 0
-    ? rawToken
-    : undefined;
+  return readTokenHeader(request, 'x-lobby-token');
 }
 
 export interface LobbyRouteOptions {
@@ -81,7 +81,7 @@ export function registerLobbiesRoutes(
     '/api/lobbies',
     {
       // Phase C: anonymous resource creation — bound abuse.
-      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.read },
       schema: {
         body: CreateLobbyBody,
         response: { 201: CreateLobbyResponse },
@@ -89,7 +89,11 @@ export function registerLobbiesRoutes(
     },
     async (request, reply) => {
       const body = request.body as CreateLobbyBody;
-      const view = await createLobby(body, db);
+      const view = await createLobby(
+        body,
+        db,
+        await optionalSessionUserId(request, db),
+      );
       reply.code(201);
       return view;
     },
@@ -112,7 +116,7 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/join',
     {
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.write },
       schema: {
         params: LobbyCodeParams,
         body: JoinLobbyBody,
@@ -122,7 +126,12 @@ export function registerLobbiesRoutes(
     async (request, reply) => {
       const { code } = request.params as { code: string };
       const body = request.body as JoinLobbyBody;
-      const view = await joinLobby(code, body, db);
+      const view = await joinLobby(
+        code,
+        body,
+        db,
+        await optionalSessionUserId(request, db),
+      );
       reply.code(201);
       return view;
     },
@@ -195,7 +204,7 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/continue',
     {
-      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.read },
       schema: {
         params: LobbyCodeParams,
         response: { 200: LobbyMatchResponse },
@@ -216,7 +225,7 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/selection',
     {
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.write },
       schema: { params: LobbyCodeParams, body: LobbyCoordinates },
     },
     async (request, reply) => {
@@ -234,7 +243,7 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/rounds/:roundNumber/guess',
     {
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.write },
       schema: {
         params: LobbyRoundParams,
         body: LobbyGuessBody,
@@ -259,7 +268,7 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/rounds/:roundNumber/unlock',
     {
-      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.standard },
       schema: {
         params: LobbyRoundParams,
         response: { 200: LobbyMatchResponse },
@@ -284,7 +293,7 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/rounds/:roundNumber/finish',
     {
-      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.read },
       schema: {
         params: LobbyRoundParams,
         response: { 200: LobbyGuessResponse },
@@ -307,7 +316,7 @@ export function registerLobbiesRoutes(
   app.get(
     '/api/lobbies/:code/rounds/:roundNumber/intelligence',
     {
-      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      config: { rateLimit: RATE_LIMITS.standard },
       schema: {
         params: LobbyRoundParams,
         response: { 200: IntelligenceResponse },

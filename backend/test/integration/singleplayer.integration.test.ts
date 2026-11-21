@@ -7,6 +7,7 @@ import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
 import { PanoramaError } from '../../src/modules/singleplayer/provider.js';
 import { haversineKm } from '../../src/domain/distance.js';
 import { scoreForDistance } from '../../src/domain/scoring.js';
+import { createUserSession } from '../../src/modules/auth/service.js';
 import { runMigrations } from './helpers/database.js';
 import type { GeographicIntelligence } from '../../src/modules/intelligence/contract.js';
 
@@ -36,6 +37,18 @@ function validIntelligence(): GeographicIntelligence {
     },
     climate: null,
   };
+}
+
+/** Creates a directly-authenticated test account and its session cookie. */
+async function signIn(db: PrismaClient, name: string) {
+  const user = await db.user.create({
+    data: {
+      email: `${name}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`,
+      displayName: name,
+    },
+  });
+  const token = await createUserSession(db, user.id);
+  return { user, cookie: `tg_session=${token}` };
 }
 
 // Real PostgreSQL persistence and HTTP validation, explicit provider doubles.
@@ -298,6 +311,7 @@ describe('abandoning an expedition (explicit exit, database integration)', () =>
   const db = new PrismaClient();
   const app = Fastify();
   const ids: string[] = [];
+  const userIds: string[] = [];
   beforeAll(() => {
     registerErrorHandler(app);
     registerSingleplayerRoutes(app, {
@@ -314,18 +328,26 @@ describe('abandoning an expedition (explicit exit, database integration)', () =>
   });
   afterAll(async () => {
     await app.close();
-    await db.streetResult.deleteMany({ where: { gameId: { in: ids } } });
+    await db.gameResult.deleteMany({ where: { sessionId: { in: ids } } });
     await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.user.deleteMany({ where: { id: { in: userIds } } });
     await db.$disconnect();
   });
-  async function create() {
+  async function create(cookie?: string) {
     const auth = (
-      await app.inject({ method: 'POST', url: '/api/singleplayer/games' })
+      await app.inject({
+        method: 'POST',
+        url: '/api/singleplayer/games',
+        headers: cookie ? { cookie } : undefined,
+      })
     ).json();
     ids.push(auth.id);
     return {
       base: `/api/singleplayer/games/${auth.id}`,
-      headers: { 'x-player-token': auth.playerToken },
+      headers: {
+        'x-player-token': auth.playerToken,
+        ...(cookie ? { cookie } : {}),
+      },
       id: auth.id as string,
     };
   }
@@ -345,7 +367,9 @@ describe('abandoning an expedition (explicit exit, database integration)', () =>
     expect((await app.inject({ url: auth.base, headers: auth.headers })).statusCode).toBe(200);
   });
   it('deletes the session and cascades its unscored round, but preserves the archived result of a scored one', async () => {
-    const auth = await create();
+    const account = await signIn(db, 'Archive Abandoner');
+    userIds.push(account.user.id);
+    const auth = await create(account.cookie);
     const first = (
       await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
     ).json();
@@ -366,10 +390,11 @@ describe('abandoning an expedition (explicit exit, database integration)', () =>
     expect(
       await db.streetRound.count({ where: { id: { in: [first.id, second.id] } } }),
     ).toBe(0);
-    const archived = await db.streetResult.findUniqueOrThrow({
-      where: { roundId: first.id },
+    const archived = await db.gameResult.findUniqueOrThrow({
+      where: { id: `solo:${first.id}` },
     });
-    expect(archived.gameId).toBe(auth.id);
+    expect(archived.sessionId).toBe(auth.id);
+    expect(archived.userId).toBe(account.user.id);
     expect(archived.score).toBeGreaterThan(0);
   });
   it('is idempotent: abandoning an already-deleted session reports not-found rather than erroring', async () => {
@@ -874,6 +899,7 @@ describe('durable result archive (R18)', () => {
   const db = new PrismaClient();
   const app = Fastify();
   const ids: string[] = [];
+  const userIds: string[] = [];
   beforeAll(() => {
     registerErrorHandler(app);
     registerSingleplayerRoutes(app, {
@@ -890,36 +916,55 @@ describe('durable result archive (R18)', () => {
   });
   afterAll(async () => {
     await app.close();
-    await db.streetResult.deleteMany({ where: { gameId: { in: ids } } });
+    await db.gameResult.deleteMany({ where: { sessionId: { in: ids } } });
     await db.streetGame.deleteMany({ where: { id: { in: ids } } });
+    await db.user.deleteMany({ where: { id: { in: userIds } } });
     await db.$disconnect();
   });
-  it('archives the completed round with actual + guess coordinates, score, and difficulty', async () => {
+  async function createGame(
+    difficulty: string,
+    cookie?: string,
+  ) {
     const auth = (
       await app.inject({
         method: 'POST',
         url: '/api/singleplayer/games',
-        payload: { difficulty: 'hard' },
+        headers: cookie ? { cookie } : undefined,
+        payload: { difficulty },
       })
     ).json();
     ids.push(auth.id);
-    const base = `/api/singleplayer/games/${auth.id}`;
-    const headers = { 'x-player-token': auth.playerToken };
+    return {
+      base: `/api/singleplayer/games/${auth.id}`,
+      headers: {
+        'x-player-token': auth.playerToken,
+        ...(cookie ? { cookie } : {}),
+      },
+      id: auth.id as string,
+    };
+  }
+  it('archives an authenticated completed round with account and game data', async () => {
+    const account = await signIn(db, 'Archive Player');
+    userIds.push(account.user.id);
+    const auth = await createGame('hard', account.cookie);
     const round = (
-      await app.inject({ method: 'POST', url: `${base}/rounds`, headers })
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
     ).json();
     const scored = (
       await app.inject({
         method: 'POST',
-        url: `${base}/rounds/${round.id}/guess`,
-        headers,
+        url: `${auth.base}/rounds/${round.id}/guess`,
+        headers: auth.headers,
         payload: { lat: 48, lon: 11, final: true },
       })
     ).json();
-    const archived = await db.streetResult.findUniqueOrThrow({
-      where: { roundId: round.id },
+    const archived = await db.gameResult.findUniqueOrThrow({
+      where: { id: `solo:${round.id}` },
     });
-    expect(archived.gameId).toBe(auth.id);
+    expect(archived.userId).toBe(account.user.id);
+    expect(archived.mode).toBe('solo');
+    expect(archived.sessionId).toBe(auth.id);
+    expect(archived.roundNumber).toBe(round.number);
     expect(archived.difficulty).toBe('hard');
     expect(archived.actualLat).toBe(50.25);
     expect(archived.actualLon).toBe(10.25);
@@ -928,28 +973,65 @@ describe('durable result archive (R18)', () => {
     expect(archived.score).toBe(scored.result.score);
     expect(archived.distanceKm).toBe(scored.result.distanceKm);
   });
-  it('survives deletion of the 24h-expired session (decoupled retention, R18)', async () => {
-    const auth = (
-      await app.inject({ method: 'POST', url: '/api/singleplayer/games' })
-    ).json();
-    const base = `/api/singleplayer/games/${auth.id}`;
-    const headers = { 'x-player-token': auth.playerToken };
+  it('does not archive guest rounds', async () => {
+    const auth = await createGame('hard');
     const round = (
-      await app.inject({ method: 'POST', url: `${base}/rounds`, headers })
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
     ).json();
     await app.inject({
       method: 'POST',
-      url: `${base}/rounds/${round.id}/guess`,
-      headers,
+      url: `${auth.base}/rounds/${round.id}/guess`,
+      headers: auth.headers,
+      payload: { lat: 48, lon: 11, final: true },
+    });
+    expect(await db.gameResult.findUnique({ where: { id: `solo:${round.id}` } })).toBeNull();
+  });
+  it('archives the last submitted attempt, not the best one used for scoring', async () => {
+    const account = await signIn(db, 'Archive Last Guess');
+    userIds.push(account.user.id);
+    const auth = await createGame('medium', account.cookie);
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/guess`,
+      headers: auth.headers,
+      payload: { lat: 0, lon: 0 },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/guess`,
+      headers: auth.headers,
+      payload: { lat: 48, lon: 11, final: true },
+    });
+    const archived = await db.gameResult.findUniqueOrThrow({
+      where: { id: `solo:${round.id}` },
+    });
+    expect(archived.guessLat).toBe(48);
+    expect(archived.guessLon).toBe(11);
+  });
+  it('survives deletion of the 24h-expired session and account deletion', async () => {
+    const account = await signIn(db, 'Archive Survivor');
+    const auth = await createGame('hard', account.cookie);
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/guess`,
+      headers: auth.headers,
       payload: { lat: 48, lon: 11, final: true },
     });
     // Simulate the 24h session-expiry cleanup, which cascades StreetRound.
     await db.streetGame.delete({ where: { id: auth.id } });
     expect(await db.streetRound.count({ where: { id: round.id } })).toBe(0);
-    const archived = await db.streetResult.findUniqueOrThrow({
-      where: { roundId: round.id },
+    // Account deletion anonymises the archive but must not delete it.
+    await db.user.delete({ where: { id: account.user.id } });
+    const archived = await db.gameResult.findUniqueOrThrow({
+      where: { id: `solo:${round.id}` },
     });
-    expect(archived.gameId).toBe(auth.id);
-    await db.streetResult.delete({ where: { roundId: round.id } });
+    expect(archived.userId).toBeNull();
+    expect(archived.sessionId).toBe(auth.id);
   });
 });

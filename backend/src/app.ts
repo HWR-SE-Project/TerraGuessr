@@ -8,10 +8,10 @@ import type { FastifyInstance } from 'fastify';
 import { registerSingleplayerRoutes } from './modules/singleplayer/routes.js';
 import { loadEnv } from './config/env.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
-import { registerAdminRoutes } from './modules/admin/routes.js';
 import { registerLobbiesRoutes } from './modules/lobbies/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerStatisticsRoutes } from './modules/statistics/routes.js';
+import { registerResultsRoutes } from './modules/results/routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const config = loadEnv();
@@ -42,6 +42,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(cors, { origin: config.corsOrigin });
   registerAuthRoutes(app, { config });
   registerStatisticsRoutes(app);
+  registerResultsRoutes(app);
   const intelligence = createIntelligenceProvider({
     baseUrl: config.openMeteoBaseUrl,
     apiKey: config.openMeteoApiKey,
@@ -54,7 +55,6 @@ export async function buildApp(): Promise<FastifyInstance> {
     key: config.googleMapsServerKey,
     intelligence,
   });
-  registerAdminRoutes(app, { adminApiToken: config.adminApiToken });
 
   app.get(
     '/api/health',

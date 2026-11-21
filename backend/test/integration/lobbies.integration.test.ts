@@ -4,13 +4,13 @@ import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 
 import {
-  StubWeatherClient,
   buildTestApp,
   setupDatabase,
   teardownDatabase,
 } from './helpers/database.js';
-import type { PanoramaProvider } from '../../../src/modules/singleplayer/provider.js';
-import type { IntelligenceLookup } from '../../../src/modules/singleplayer/locationSelection.js';
+import type { PanoramaProvider } from '../../src/modules/singleplayer/provider.js';
+import type { IntelligenceLookup } from '../../src/modules/singleplayer/locationSelection.js';
+import { createUserSession } from '../../src/modules/auth/service.js';
 
 const MATCH_TARGETS = [
   { lat: 51.5009, lon: -0.1246 },
@@ -78,18 +78,35 @@ describe('lobby lifecycle (integration, R16)', () => {
   let prisma: PrismaClient;
   let app: FastifyInstance;
   const createdCodes: string[] = [];
+  const userIds: string[] = [];
 
   beforeAll(async () => {
     prisma = await setupDatabase();
-    app = buildTestApp(prisma, new StubWeatherClient(), {
+    app = buildTestApp(prisma, {
       provider: matchProvider,
       intelligence: matchIntelligence,
     });
   });
 
+  async function signIn(name: string) {
+    const user = await prisma.user.create({
+      data: {
+        email: `${name}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`,
+        displayName: name,
+      },
+    });
+    userIds.push(user.id);
+    const token = await createUserSession(prisma, user.id);
+    return { user, cookie: `tg_session=${token}` };
+  }
+
   afterAll(async () => {
     if (createdCodes.length > 0) {
       await prisma.lobby.deleteMany({ where: { code: { in: createdCodes } } });
+    }
+    if (userIds.length > 0) {
+      await prisma.gameResult.deleteMany({ where: { userId: { in: userIds } } });
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }
     await app.close();
     await teardownDatabase(prisma);
@@ -99,10 +116,12 @@ describe('lobby lifecycle (integration, R16)', () => {
     difficulty: 'easy' | 'medium' | 'hard' = 'medium',
     displayName = 'Host',
     roundsTotal?: number,
+    cookie?: string,
   ): Promise<LobbyBody> {
     const res = await app.inject({
       method: 'POST',
       url: '/api/lobbies',
+      headers: cookie ? { cookie } : undefined,
       payload: {
         difficulty,
         displayName,
@@ -1053,4 +1072,104 @@ describe('lobby lifecycle (integration, R16)', () => {
     expect(guestView.statusCode).toBe(404);
   });
 
+  it('archives authenticated multiplayer results but not guest results (R18)', async () => {
+    const account = await signIn('Lobby Archive Host');
+    const created = await createLobby('hard', 'Archive Host', 3, account.cookie);
+    const guestResponse = await joinLobby(created.lobby.code, 'Archive Guest');
+    expect(guestResponse.statusCode).toBe(201);
+    const guest = guestResponse.json() as LobbyBody;
+
+    const start = await app.inject({
+      method: 'POST',
+      url: '/api/lobbies/' + created.lobby.code + '/start',
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+    expect(start.statusCode).toBe(200);
+
+    await finishRound(created.lobby.code, 1, created.lobbyToken);
+    await finishRound(created.lobby.code, 1, guest.lobbyToken);
+    // Resolve the finished round/lobby so any deferred finalization runs.
+    await app.inject({
+      method: 'GET',
+      url: '/api/lobbies/' + created.lobby.code + '/match',
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+
+    const lobbyRow = await prisma.lobby.findUniqueOrThrow({
+      where: { code: created.lobby.code },
+    });
+    const archived = await prisma.gameResult.findFirstOrThrow({
+      where: {
+        sessionId: created.lobby.lobbyId,
+        userId: account.user.id,
+      },
+    });
+    expect(archived.mode).toBe('multiplayer');
+    expect(archived.difficulty).toBe('hard');
+    expect(archived.matchId).toBe(lobbyRow.matchId);
+    expect(archived.roundNumber).toBe(1);
+    expect(archived.actualLat).toBe(MATCH_TARGETS[0]!.lat);
+    expect(archived.actualLon).toBe(MATCH_TARGETS[0]!.lon);
+    expect(archived.guessLat).toBe(51.5);
+    expect(archived.guessLon).toBe(-0.12);
+    // The guest member has no account, so nothing is archived for them.
+    expect(
+      await prisma.gameResult.count({
+        where: { sessionId: created.lobby.lobbyId, userId: null },
+      }),
+    ).toBe(0);
+  });
+
+  it('rotates matchId on a rematch while keeping the same sessionId (R18)', async () => {
+    const account = await signIn('Lobby Rematch Host');
+    const created = await createLobby('easy', 'Rematch Host', 3, account.cookie);
+    const guestResponse = await joinLobby(created.lobby.code, 'Rematch Guest');
+    const guest = guestResponse.json() as LobbyBody;
+    const tokens = [created.lobbyToken, guest.lobbyToken];
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/lobbies/' + created.lobby.code + '/start',
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+    await finishMatch(created.lobby.code, tokens, 3);
+
+    const firstMatch = await prisma.lobby.findUniqueOrThrow({
+      where: { code: created.lobby.code },
+    });
+    const firstMatchId = firstMatch.matchId;
+
+    for (const token of tokens) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/lobbies/' + created.lobby.code + '/continue',
+        headers: { 'x-lobby-token': token },
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    const secondMatch = await prisma.lobby.findUniqueOrThrow({
+      where: { code: created.lobby.code },
+    });
+    expect(secondMatch.matchId).not.toBe(firstMatchId);
+
+    await finishRound(created.lobby.code, 1, created.lobbyToken);
+    await finishRound(created.lobby.code, 1, guest.lobbyToken);
+    await app.inject({
+      method: 'GET',
+      url: '/api/lobbies/' + created.lobby.code + '/match',
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+
+    const archived = await prisma.gameResult.findMany({
+      where: {
+        userId: account.user.id,
+        sessionId: firstMatch.id,
+      },
+    });
+    expect(archived).toHaveLength(4);
+    expect(new Set(archived.map((row) => row.matchId))).toEqual(
+      new Set([firstMatchId, secondMatch.matchId]),
+    );
+  });
 });

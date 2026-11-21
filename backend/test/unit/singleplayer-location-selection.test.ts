@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   selectValidatedTarget,
-  isValidStreetWeather,
   nextExclusions,
 } from '../../src/modules/singleplayer/locationSelection.js';
+import { isValidStreetWeather } from '../../src/modules/intelligence/validate.js';
 import { PanoramaError } from '../../src/modules/singleplayer/providerErrors.js';
 import {
   ROAD_TARGETS,

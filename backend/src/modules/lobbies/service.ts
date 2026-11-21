@@ -15,12 +15,15 @@ import {
   LOBBY_TTL_MS,
 } from '../../config/constants.js';
 import { prisma } from '../../db/prisma.js';
-import { lobbyRulesFor } from '../../domain/lobbyRules.js';
-import type { LobbyDifficulty } from '../../domain/lobbyRules.js';
+import { gameRulesFor } from '../../domain/gameRules.js';
+import type { GameDifficulty } from '../../domain/gameRules.js';
+import { normalizeDisplayName } from '../../domain/identity.js';
 import {
   generatePlayerToken,
   hashPlayerToken,
 } from '../../plugins/auth.js';
+import { AppError } from '../../plugins/errors.js';
+import { isUniqueConstraintError } from '../../db/prismaErrors.js';
 import type {
   CreateLobbyBody,
   CreateLobbyResponse,
@@ -30,32 +33,23 @@ import type {
 } from '../../contracts/lobbies.js';
 
 /** 404 for an unknown, expired, or token-less lobby (ADR-0011). */
-export class LobbyNotFoundError extends Error {
-  public readonly statusCode = 404;
-
+export class LobbyNotFoundError extends AppError {
   public constructor() {
-    super('Lobby not found');
-    this.name = 'LobbyNotFoundError';
+    super(404, 'Lobby not found');
   }
 }
 
 /** 409 when a lobby is full or no longer accepting players. */
-export class LobbyConflictError extends Error {
-  public readonly statusCode = 409;
-
+export class LobbyConflictError extends AppError {
   public constructor(message: string) {
-    super(message);
-    this.name = 'LobbyConflictError';
+    super(409, message);
   }
 }
 
 /** 403 when a non-host tries to delete the lobby. */
-export class LobbyForbiddenError extends Error {
-  public readonly statusCode = 403;
-
+export class LobbyForbiddenError extends AppError {
   public constructor(message = 'Only the host can delete this lobby') {
-    super(message);
-    this.name = 'LobbyForbiddenError';
+    super(403, message);
   }
 }
 
@@ -74,24 +68,7 @@ export function generateLobbyCode(
   return code;
 }
 
-/** Prisma unique-constraint violation (code collision on `Lobby.code`). */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { code?: unknown }).code === 'P2002'
-  );
-}
-
 /** Blank/absent names are stored as null (rendered 'Guest' client-side). */
-function normalizeDisplayName(name: string | undefined): string | null {
-  if (name === undefined) {
-    return null;
-  }
-  const trimmed = name.trim();
-  return trimmed.length === 0 ? null : trimmed;
-}
-
 type LobbyWithMembers = Lobby & { members: LobbyMember[] };
 
 /** Public projection: hashes never leave the server. */
@@ -115,7 +92,7 @@ export function toLobbyView(
     difficulty: lobby.difficulty,
     status: lobby.status,
     roundsTotal: lobby.roundsTotal,
-    rules: lobbyRulesFor(lobby.difficulty),
+    rules: gameRulesFor(lobby.difficulty),
     createdAt: lobby.createdAt.toISOString(),
     expiresAt: lobby.expiresAt.toISOString(),
     members,
@@ -147,6 +124,7 @@ async function loadLobbyOrThrow(
 export async function createLobby(
   input: CreateLobbyBody,
   db: PrismaClient = prisma,
+  userId?: string,
 ): Promise<CreateLobbyResponse> {
   const playerToken = generatePlayerToken();
   const playerTokenHash = hashPlayerToken(playerToken);
@@ -160,12 +138,16 @@ export async function createLobby(
       const lobby = await db.lobby.create({
         data: {
           code,
-          difficulty: input.difficulty as LobbyDifficulty,
+          difficulty: input.difficulty as GameDifficulty,
           hostTokenHash: playerTokenHash,
           roundsTotal: input.roundsTotal ?? LOBBY_ROUNDS_TOTAL,
           expiresAt,
           members: {
-            create: { playerTokenHash, displayName },
+            create: {
+              playerTokenHash,
+              displayName,
+              userId: userId ?? null,
+            },
           },
         },
         include: { members: true },
@@ -174,7 +156,7 @@ export async function createLobby(
       return { lobby: toLobbyView(lobby, playerToken), lobbyToken: playerToken };
     } catch (error) {
       lastError = error;
-      if (!isUniqueViolation(error)) {
+      if (!isUniqueConstraintError(error)) {
         throw error;
       }
     }
@@ -203,6 +185,7 @@ export async function joinLobby(
   code: string,
   input: { displayName?: string },
   db: PrismaClient = prisma,
+  userId?: string,
 ): Promise<JoinLobbyResponse> {
   const lobby = await loadLobbyOrThrow(code, db);
 
@@ -216,6 +199,7 @@ export async function joinLobby(
       lobbyId: lobby.id,
       playerTokenHash: hashPlayerToken(playerToken),
       displayName: normalizeDisplayName(input.displayName),
+      userId: userId ?? null,
     },
   });
 

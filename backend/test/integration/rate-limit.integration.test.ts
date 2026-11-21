@@ -21,7 +21,6 @@ describe('rate limiting (integration, Phase C)', () => {
   beforeAll(async () => {
     const url = ensureDatabaseUrl();
     runMigrations(url);
-    process.env.ADMIN_API_TOKEN ??= 'test-admin-token';
     process.env.LOG_LEVEL ??= 'silent';
     app = await buildApp();
     db = prisma;

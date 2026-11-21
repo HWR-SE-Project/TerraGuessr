@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { Prisma } from '@prisma/client';
+
 import {
   generatePlayerToken,
   hashPlayerToken,
 } from '../../src/plugins/auth.js';
-import { lobbyRulesFor } from '../../src/domain/lobbyRules.js';
+import { gameRulesFor } from '../../src/domain/gameRules.js';
 import {
   LobbyForbiddenError,
   LobbyNotFoundError,
@@ -53,21 +55,21 @@ function lobbyRow(overrides: Record<string, unknown> = {}): LobbyRow {
 
 describe('lobby difficulty rules (R5)', () => {
   it('maps each difficulty to its time limit, attempts and selection mode', () => {
-    expect(lobbyRulesFor('easy')).toEqual({
+    expect(gameRulesFor('easy')).toEqual({
       timeLimitSeconds: 420,
       attemptsPerRound: 3,
       selectionMode: 'list',
       countryBorders: true,
       extraData: { mode: 'free' },
     });
-    expect(lobbyRulesFor('medium')).toEqual({
+    expect(gameRulesFor('medium')).toEqual({
       timeLimitSeconds: 240,
       attemptsPerRound: 2,
       selectionMode: 'map',
       countryBorders: true,
       extraData: { mode: 'points', cost: 100 },
     });
-    expect(lobbyRulesFor('hard')).toEqual({
+    expect(gameRulesFor('hard')).toEqual({
       timeLimitSeconds: 120,
       attemptsPerRound: 1,
       selectionMode: 'map',
@@ -148,7 +150,12 @@ describe('createLobby', () => {
   it('retries on a code collision and then succeeds', async () => {
     const create = vi
       .fn()
-      .mockRejectedValueOnce({ code: 'P2002' })
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      )
       .mockResolvedValue({
         id: 'lobby-1',
         code: 'ZZZ234',

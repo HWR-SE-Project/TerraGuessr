@@ -6,11 +6,12 @@
 
 import { Type, type Static } from '@sinclair/typebox';
 
-const Difficulty = Type.Union([
-  Type.Literal('easy'),
-  Type.Literal('medium'),
-  Type.Literal('hard'),
-]);
+import {
+  Candidate,
+  Coordinates,
+  Difficulty,
+  ExtraDataAccess,
+} from './shared.js';
 
 const LobbyStatus = Type.Union([
   Type.Literal('waiting'),
@@ -97,31 +98,12 @@ export const JoinLobbyResponse = Type.Object({
   lobbyToken: Type.String(),
 });
 
-export const LobbyCoordinates = Type.Object({
-  lat: Type.Number({ minimum: -90, maximum: 90 }),
-  lon: Type.Number({ minimum: -180, maximum: 180 }),
-});
+export const LobbyCoordinates = Coordinates;
 
-const MatchCandidate = Type.Object({
-  id: Type.String(),
-  name: Type.String(),
-  region: Type.String(),
-  lat: Type.Number(),
-  lon: Type.Number(),
-});
+const MatchCandidate = Candidate;
 
 /** R5 per-round additional-data access state. */
-const ExtraDataAccessView = Type.Object({
-  mode: Type.Union([
-    Type.Literal('immediate'),
-    Type.Literal('points'),
-    Type.Literal('time'),
-  ]),
-  cost: Type.Union([Type.Integer(), Type.Null()]),
-  availableAt: Type.Union([Type.String(), Type.Null()]),
-  unlocked: Type.Boolean(),
-  pointsSpent: Type.Integer(),
-});
+const ExtraDataAccessView = ExtraDataAccess;
 
 const MatchRound = Type.Object({
   id: Type.String(),

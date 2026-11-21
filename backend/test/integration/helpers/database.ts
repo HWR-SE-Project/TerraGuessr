@@ -3,9 +3,9 @@
  *
  * Owned by QA (MODULE-OWNERSHIP.md: backend/test/integration/**). Assumes
  * `DATABASE_URL` points to a disposable Postgres (CI `services:` container or
- * the docker compose test stack). Runs `prisma migrate deploy`, seeds a small
- * deterministic location pool, and builds a Fastify app with an injected stub
- * `WeatherClient` so integration tests never hit live Open-Meteo.
+ * the docker compose test stack). Runs `prisma migrate deploy` and builds a
+ * Fastify app with injected provider doubles so integration tests never hit
+ * live Street View or Open-Meteo.
  */
 
 import { TEST_DEFAULT_DATABASE_URL } from './env.js'; // first: sets DATABASE_URL eagerly
@@ -14,14 +14,12 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PrismaClient } from '@prisma/client';
-import type { Region } from '@prisma/client';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
 import { registerErrorHandler } from '../../../src/plugins/errorHandler.js';
 import { registerLobbiesRoutes } from '../../../src/modules/lobbies/routes.js';
 import type { LobbyRouteOptions } from '../../../src/modules/lobbies/routes.js';
-import type { WeatherClient, WeatherData } from '../../../src/modules/weather/types.js';
 
 const BACKEND_ROOT = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -36,19 +34,6 @@ const PRISMA_BIN = resolve(
   '.bin',
   process.platform === 'win32' ? 'prisma.cmd' : 'prisma',
 );
-
-/** Default weather served by the stub client (all four R03 fields finite). */
-export const DEFAULT_WEATHER: WeatherData = {
-  temperatureC: 21.5,
-  precipitationMm: 0.4,
-  humidityPct: 62,
-  windSpeedKmh: 12.7,
-  airPressureHpa: 1013.2,
-  windDirectionDeg: 245,
-  uvIndex: 3.1,
-  sunshineDurationSeconds: 7200,
-  localTime: '2026-11-17T12:00',
-};
 
 export function resolveDatabaseUrl(): string {
   return process.env.DATABASE_URL ?? TEST_DEFAULT_DATABASE_URL;
@@ -82,74 +67,9 @@ export function runMigrations(url: string): void {
   throw lastError;
 }
 
-interface SeedLocation {
-  id: string;
-  lat: number;
-  lon: number;
-  region: Region;
-  name: string | null;
-}
-
-/**
- * Small, deterministic, well-separated pool. Every region has at least one
- * location (Easy picks a random region) and the whole pool has >= 8 (Medium
- * list mode). Kept small so the R13 "all weather fails" path stays fast.
- */
-export const SEED_LOCATIONS: readonly SeedLocation[] = [
-  { id: 'test-eu-1', lat: 52.52, lon: 13.405, region: 'EUROPE', name: null },
-  { id: 'test-eu-2', lat: 48.8566, lon: 2.3522, region: 'EUROPE', name: null },
-  { id: 'test-eu-3', lat: 40.4168, lon: -3.7038, region: 'EUROPE', name: null },
-  { id: 'test-af-1', lat: 30.0, lon: 20.0, region: 'AFRICA', name: null },
-  { id: 'test-as-1', lat: 35.0, lon: 100.0, region: 'ASIA', name: null },
-  { id: 'test-as-2', lat: 35.68, lon: 139.69, region: 'ASIA', name: null },
-  { id: 'test-as-3', lat: -6.2, lon: 106.8, region: 'ASIA', name: null },
-  { id: 'test-na-1', lat: 40.0, lon: -100.0, region: 'NORTH_AMERICA', name: null },
-  { id: 'test-sa-1', lat: -15.0, lon: -60.0, region: 'SOUTH_AMERICA', name: null },
-  { id: 'test-oc-1', lat: -25.0, lon: 135.0, region: 'OCEANIA', name: null },
-];
-
-/** Idempotently seed the deterministic pool (safe under parallel workers). */
-export async function seedLocations(prisma: PrismaClient): Promise<void> {
-  for (const location of SEED_LOCATIONS) {
-    await prisma.location.upsert({
-      where: { id: location.id },
-      create: {
-        id: location.id,
-        lat: location.lat,
-        lon: location.lon,
-        region: location.region,
-        name: location.name,
-        isLand: true,
-        source: 'grid',
-      },
-      update: {
-        lat: location.lat,
-        lon: location.lon,
-        region: location.region,
-        name: location.name,
-        isLand: true,
-        source: 'grid',
-      },
-    });
-  }
-}
-
-/** WeatherClient stub: returns finite R03 data, records calls, never hits the network. */
-export class StubWeatherClient implements WeatherClient {
-  readonly calls: Array<{ lat: number; lon: number }> = [];
-
-  constructor(private readonly data: WeatherData = DEFAULT_WEATHER) {}
-
-  async getCurrent(lat: number, lon: number): Promise<WeatherData> {
-    this.calls.push({ lat, lon });
-    return { ...this.data };
-  }
-}
-
-/** Build a Fastify app with the given Prisma client + injected weather client. */
+/** Build a Fastify app with the given Prisma client + injected provider doubles. */
 export function buildTestApp(
   prisma: PrismaClient,
-  weatherClient: WeatherClient,
   lobbyOptions: LobbyRouteOptions = {},
 ): FastifyInstance {
   const app = Fastify({ logger: { level: 'silent' } });
@@ -158,13 +78,11 @@ export function buildTestApp(
   return app;
 }
 
-/** Migrate + seed, returning a connected Prisma client. */
+/** Migrate, returning a connected Prisma client. */
 export async function setupDatabase(): Promise<PrismaClient> {
   const url = ensureDatabaseUrl();
   runMigrations(url);
-  const prisma = new PrismaClient();
-  await seedLocations(prisma);
-  return prisma;
+  return new PrismaClient();
 }
 
 export async function teardownDatabase(prisma: PrismaClient): Promise<void> {
