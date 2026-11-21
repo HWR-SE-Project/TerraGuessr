@@ -1,18 +1,20 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 
-export function GameDialog({
+export function Modal({
   title,
   onClose,
   children,
   className = '',
   closeDisabled = false,
+  role,
 }: {
   title: string
   onClose: () => void
   children: ReactNode
   className?: string
   closeDisabled?: boolean
+  role?: 'alertdialog'
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -32,6 +34,7 @@ export function GameDialog({
       ref={ref}
       className={`sp-dialog ${className}`}
       aria-label={title}
+      role={role}
       onKeyDown={(event) => {
         if (event.key !== 'Tab') return
         const items = Array.from(
@@ -68,7 +71,6 @@ export function GameDialog({
     >
       <header>
         <div>
-          <span className="sp-eyebrow">TERRAGUESSR</span>
           <h2>{title}</h2>
         </div>
         <button className="sp-icon tg-control" aria-label="Close dialog" onClick={onClose} disabled={closeDisabled}>

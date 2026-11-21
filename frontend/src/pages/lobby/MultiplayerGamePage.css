@@ -32,10 +32,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
-  background: #101c2ce8;
-  backdrop-filter: blur(14px);
 }
 
 .mp-timer span {
@@ -43,7 +40,7 @@
   font-weight: 700;
   letter-spacing: 1.6px;
   text-transform: uppercase;
-  color: #c1c9cd;
+  color: var(--color-muted);
 }
 
 .mp-timer strong {
@@ -53,14 +50,14 @@
 }
 
 .mp-timer .mp-timer-low {
-  color: #ff8b8b;
+  color: var(--color-red);
 }
 
 .mp-leaderboard {
   padding: 13px 15px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
-  background: #101c2c;
+  background: var(--color-surface);
 }
 
 .mp-leaderboard header {
@@ -81,7 +78,7 @@
 
 .mp-leaderboard header small {
   font-size: 9px;
-  color: #b7c1c5;
+  color: var(--color-muted);
 }
 
 .mp-leaderboard ol {
@@ -127,7 +124,7 @@
 }
 
 .mp-player small {
-  color: #aeb8bc;
+  color: var(--color-muted);
   font-size: 9px;
 }
 
@@ -190,7 +187,7 @@
 
 .mp-guess-player small {
   overflow: hidden;
-  color: #aeb8bc;
+  color: var(--color-muted);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -202,13 +199,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.mp-inline-notice {
-  margin: 0 0 9px;
-  color: var(--color-lime);
-  font-size: 10px;
-  font-weight: 600;
-  text-align: center;
-}
 
 .mp-waiting {
   margin: 0;
@@ -243,12 +233,12 @@
 .mp-continue-prompt p,
 .mp-continue-prompt small {
   margin: 0;
-  color: #c1c9cd;
+  color: var(--color-muted);
   font-size: 12px;
 }
 
 .mp-continue-prompt small {
-  color: #8fa2b1;
+  color: var(--color-muted);
 }
 
 .mp-no-guess {
@@ -258,8 +248,8 @@
   height: 100%;
   min-height: 220px;
   padding: 24px;
-  background: #13212b;
-  color: #c1c9cd;
+  background: var(--color-surface);
+  color: var(--color-muted);
   font-size: 13px;
   text-align: center;
 }

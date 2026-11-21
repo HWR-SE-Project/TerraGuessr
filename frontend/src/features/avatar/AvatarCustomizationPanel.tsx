@@ -26,6 +26,6 @@ export function AvatarCustomizationPanel({ category, config, onChange }: {
       </div>
       <label className="ae-custom-color">Choose any color <input type="color" aria-label={`${LABELS[part]} custom color`} value={config[part] ?? '#895236'} onChange={event => onChange(part, event.target.value)} /></label>
     </fieldset>)}
-    <p className="ae-model-note">{category === 'hair' ? 'One signature hairstyle. Hair and brows stay coordinated.' : category === 'face' ? 'Color your irises. Your explorer’s expression stays the same.' : 'Your explorer’s original outfit, in your own colors.'}</p>
+    {category !== 'hair' && <p className="ae-model-note">{category === 'face' ? 'Color your irises. Your explorer’s expression stays the same.' : 'Your explorer’s original outfit, in your own colors.'}</p>}
   </div>
 }

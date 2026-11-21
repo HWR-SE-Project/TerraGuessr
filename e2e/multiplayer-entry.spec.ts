@@ -1,8 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const output = 'docs/screenshots/multiplayer-redesign/after'
-const choose = (page: Page, mode: 'Create' | 'Join') => page.getByRole('button', { name: `${mode} a lobby` }).click()
+const output = 'test-results/multiplayer-entry'
+async function choose(page: Page, mode: 'Create' | 'Join') {
+  await expect(page.getByRole('link', { name: 'TerraGuessr home', exact: true })).toBeVisible()
+  if (await page.getByRole('button', { name: 'Open navigation', exact: true }).isVisible()) {
+    await page.getByRole('button', { name: 'Open navigation', exact: true }).click()
+  }
+  await page.getByRole('button', { name: 'Multiplayer', exact: true }).click()
+  await page.getByRole('menuitem', { name: `${mode} a Lobby`, exact: true }).click()
+}
 
 async function pasteCode(page: Page, text: string) {
   await page.getByLabel('Lobby code').evaluate((element, value) => {
@@ -12,9 +19,8 @@ async function pasteCode(page: Page, text: string) {
   }, text)
 }
 
-test('intent first, exclusive flows, keyboard difficulty selection, all round counts and retained name', async ({ page }) => {
-  await page.goto('/multiplayer')
-  await expect(page.getByRole('heading', { name: 'Multiplayer', exact: true })).toBeVisible()
+test('direct dropdown flows, keyboard difficulty selection, all round counts and retained name', async ({ page }) => {
+  await page.goto('/')
   await expect(page.locator('main input, main select, main form')).toHaveCount(0)
   await choose(page, 'Create')
   await page.getByLabel('Display name').fill('Explorer')
@@ -88,7 +94,6 @@ for (const mode of ['Create', 'Join'] as const) {
     await page.getByRole('button', { name: `${mode} lobby`, exact: true }).click()
     await requested
     await expect(page.getByRole('button', { name: mode === 'Create' ? 'Creating…' : 'Joining…' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: `${mode} a lobby` })).toBeDisabled()
     await expect(page.getByLabel('Display name')).toBeDisabled()
     expect(count).toBe(1)
     release()
@@ -107,7 +112,7 @@ test('profile name prefills without preventing edits or requiring authentication
   await expect(page.getByLabel('Display name')).toHaveValue('Custom Explorer')
 })
 
-test('default, Create and Join fit desktop viewports, mobile and enlarged layouts remain reachable', async ({ page }) => {
+test('Create and Join fit desktop viewports, mobile and enlarged layouts remain reachable', async ({ page }) => {
   test.setTimeout(90_000)
   await mkdir(output, { recursive: true })
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -115,9 +120,9 @@ test('default, Create and Join fit desktop viewports, mobile and enlarged layout
   for (const [width, height] of [[1920,1080], [1711,864], [1440,900], [1366,768], [1024,768], [768,1024], [390,844], [375,812], [320,568], [683,384]]) {
     await page.setViewportSize({ width, height })
     await page.goto('/multiplayer')
-    for (const mode of ['default', 'Create', 'Join'] as const) {
-      if (mode !== 'default') await choose(page, mode)
-      await expect(page.locator('.tl-choices')).toBeVisible()
+    for (const mode of ['Create', 'Join'] as const) {
+      await choose(page, mode)
+      await expect(page.getByRole('heading', { name: `${mode} a lobby`, exact: true })).toBeVisible()
       const metrics = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight }))
       results.push({ mode, ...metrics })
       expect(metrics.scrollWidth).toBeLessThanOrEqual(width)
@@ -167,7 +172,7 @@ test('live guests create, return, join in independent browsers and update member
     await friend.getByRole('button', { name: 'Create lobby', exact: true }).click()
     await expect(friend.locator('.tl-code')).toBeVisible()
     await friend.getByRole('button', { name: 'Disband lobby' }).click()
-    await expect(friend).toHaveURL(/\/multiplayer$/)
+    await expect(friend).toHaveURL(/\/multiplayer\/create$/)
     await choose(friend, 'Join')
     await friend.getByLabel('Display name').fill('Lobby Friend')
     await pasteCode(friend, code.toLowerCase())
@@ -181,10 +186,10 @@ test('live guests create, return, join in independent browsers and update member
     await expect(page.locator('.tl-member')).toHaveCount(2)
     await page.screenshot({ path: `${output}/live-joined-lobby.png`, fullPage: true })
     await friend.getByRole('button', { name: 'Leave lobby', exact: true }).click()
-    await expect(friend).toHaveURL(/\/multiplayer$/)
+    await expect(friend).toHaveURL(/\/multiplayer\/create$/)
     await expect(page.locator('.tl-member')).toHaveCount(1, { timeout: 10_000 })
     await page.getByRole('button', { name: 'Disband lobby' }).click()
-    await expect(page).toHaveURL(/\/multiplayer$/)
+    await expect(page).toHaveURL(/\/multiplayer\/create$/)
   } finally {
     await guest.close()
     await host.close()
@@ -194,11 +199,9 @@ test('live guests create, return, join in independent browsers and update member
 for (const width of [1711, 390]) {
   test(`shared navigation remains functional at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 864 })
-    for (const [label, path] of [['TerraGuessr home', '/'], ['Singleplayer', '/game/singleplayer'], ['Settings', '/settings'], ['Sign in', '/auth'], ['How to Play / Tutorial', '/game/singleplayer?tutorial=1']]) {
+    for (const [label, path] of [['TerraGuessr home', '/'], ['Settings', '/settings'], ['Sign in', '/auth'], ['Help', '/game/singleplayer?tutorial=1']]) {
       await page.goto('/multiplayer')
       if (width < 1200 && label !== 'TerraGuessr home' && label !== 'Sign in') await page.getByRole('button', { name: 'Open navigation' }).click()
-      const active = page.getByRole('link', { name: 'Multiplayer', exact: true, includeHidden: true })
-      await expect(active).toHaveAttribute('aria-current', 'page')
       await page.getByRole('link', { name: label, exact: true }).filter({ visible: true }).click()
       await expect(page).toHaveURL(new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'))
     }
@@ -207,7 +210,7 @@ for (const width of [1711, 390]) {
 
 test('invitation URL opens Join with the provided code', async ({ page }) => {
   await page.goto('/lobby/ABC234')
-  await expect(page.getByRole('button', { name: 'Join a lobby' })).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('heading', { name: 'Join a lobby', exact: true })).toBeVisible()
   await expect(page.getByLabel('Lobby code')).toHaveValue('ABC234')
   await expect(page.getByRole('group', { name: 'Difficulty' })).toHaveCount(0)
 })

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { PageNavigation } from '../../components/ui/PageNavigation'
+import { Button } from '../../components/ui/Button'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
-import './tokens.css'
+import './AuthPage.css'
 import '../../components/auth/EmailAuthForm.css'
 
 type Status = 'verifying' | 'success' | 'error'
@@ -35,7 +36,7 @@ export function VerifyEmailPage() {
 
   return (
     <>
-    <PageNavigation active="none" />
+    <PageNavigation />
     <div
       className="tg-auth-root"
       style={{
@@ -70,13 +71,9 @@ export function VerifyEmailPage() {
             </>
           )}
           {status !== 'verifying' && (
-            <button
-              type="button"
-              className="tg-email-submit"
-              onClick={() => navigate('/auth')}
-            >
+            <Button className="tg-email-submit" onClick={() => navigate('/auth')}>
               {status === 'success' ? 'Go to sign in' : 'Back to sign in'}
-            </button>
+            </Button>
           )}
         </div>
       </div>

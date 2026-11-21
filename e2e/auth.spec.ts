@@ -25,7 +25,7 @@ test.describe('authentication', () => {
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: false }).fill(password);
     await page.locator('form').getByRole('button', { name: 'Log in', exact: true }).click();
-    await expect(page.getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible();
     await page.goto('/game/singleplayer');
     await expect(page.locator('.th-profile-name')).toHaveText('Logout Tester');
   });

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 
 // jsdom does not implement <dialog>'s showModal()/close() (as of jsdom 31).
-// Components like GameDialog rely on them; polyfill minimally for tests.
+// Components like Modal rely on them; polyfill minimally for tests.
 if (typeof HTMLDialogElement !== 'undefined') {
   if (!HTMLDialogElement.prototype.showModal) {
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {

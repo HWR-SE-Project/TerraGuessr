@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { GameModeCard } from '../../components/ui/GameModeCard'
 import { PageNavigation } from '../../components/ui/PageNavigation'
+import { Button } from '../../components/ui/Button'
+import { Modal } from '../../components/ui/Modal'
+import { InlineNotice } from '../../components/ui/InlineNotice'
 import './HomePage.css'
 import { HomeIcon } from './HomeIcon'
 import { ResumeLobbyBanner } from './ResumeLobbyBanner'
@@ -53,40 +55,13 @@ export function AvailabilityNotice({
   message: string
   onClose: () => void
 }) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    ref.current?.showModal()
-  }, [])
-  const close = () => ref.current?.close()
   return (
-    <dialog
-      ref={ref}
-      className="th-notice"
-      aria-labelledby="th-notice-title"
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close()
-      }}
-    >
-      <button
-        className="th-notice-close tg-control"
-        type="button"
-        aria-label="Close notice"
-        onClick={close}
-      >
-        <HomeIcon name="close" />
-      </button>
-      <h2 id="th-notice-title">Not available yet</h2>
+    <Modal title="Not available yet" onClose={onClose} className="th-notice">
       <p>{message}</p>
-      <button
-        type="button"
-        className="th-notice-action tg-control tg-control--primary"
-        onClick={close}
-        autoFocus
-      >
+      <Button className="th-notice-action" onClick={onClose} autoFocus>
         Got it
-      </button>
-    </dialog>
+      </Button>
+    </Modal>
   )
 }
 
@@ -112,31 +87,18 @@ export function HomeExperience() {
         <div className="th-orbit th-orbit-one" />
         <div className="th-orbit th-orbit-two" />
       </div>
-      <PageNavigation active="none" />
+      <PageNavigation />
       <HeroSection characterStatus={characterStatus} feetOffset={feetOffset} onEditAvatar={(button) => {
         editAvatarRef.current = button
         setAvatarFeedback('')
         setEditorOpen(true)
       }} />
       <ResumeLobbyBanner />
-      <section className="th-actions">
-        <nav className="th-game-modes" aria-label="Game modes">
-          <GameModeCard
-            to="/game/singleplayer"
-            icon="play"
-            title="Play Solo"
-            subtitle="Challenge yourself"
-            primary
-          />
-          <GameModeCard
-            to="/multiplayer"
-            icon="users"
-            title="Play Together"
-            subtitle="With friends"
-          />
-        </nav>
-      </section>
-      {avatarFeedback && <div className="ae-home-toast" role="status">{avatarFeedback}</div>}
+      {avatarFeedback && (
+        <InlineNotice tone="success" className="th-toast">
+          {avatarFeedback}
+        </InlineNotice>
+      )}
       {editorOpen && <AvatarEditor key={avatar.identity} initialConfig={avatar.config} account={avatar.account}
         loading={avatar.loading} loadError={avatar.error} onRetry={avatar.retry} onSave={avatar.save}
         onClose={(saved) => {

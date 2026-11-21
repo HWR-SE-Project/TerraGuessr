@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import * as authApi from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
+import { Button } from '../ui/Button'
 import './EmailAuthForm.css'
 
 export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
@@ -45,9 +46,9 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
         <input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
       </label>
       {error && <p className="tg-email-error" role="alert">{error}</p>}
-      <button type="submit" className="tg-email-submit tg-control tg-control--primary" disabled={submitting}>
+      <Button type="submit" className="tg-email-submit" disabled={submitting}>
         {submitting ? 'Sending…' : 'Send reset link'}
-      </button>
+      </Button>
       <div className="tg-email-footer">
         <button type="button" className="tg-email-link" onClick={onBack}>
           Back to sign in

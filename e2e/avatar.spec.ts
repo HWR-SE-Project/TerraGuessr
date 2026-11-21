@@ -235,7 +235,6 @@ test('account synchronization, sign-in restoration, failures and guest isolation
   expect((await registration.json()).verificationRequired).toBe(false)
   await home(page)
   await open(page)
-  await expect(page.getByText('Saved to your account', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Hair & brows Forest', exact: true }).click()
   await page.route('**/api/auth/avatar', async route => {
     if (route.request().method() === 'PATCH') await route.fulfill({ status: 503, json: { error: { code: 'UNAVAILABLE', message: 'Test outage' } } })
@@ -254,7 +253,6 @@ test('account synchronization, sign-in restoration, failures and guest isolation
   await page.request.post(`${API}/api/auth/logout`)
   await page.reload()
   await open(page)
-  await expect(page.getByText('Saved on this device', { exact: true })).toBeVisible()
   expect((await rendered(page)).colors.Object_50.enabled).toBe(0)
   await page.keyboard.press('Escape')
   expect((await page.request.post(`${API}/api/auth/login`, { data: { email, password } })).ok()).toBe(true)

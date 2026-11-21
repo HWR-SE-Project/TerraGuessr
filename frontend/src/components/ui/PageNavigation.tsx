@@ -4,24 +4,15 @@ import { Link, useLocation } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
 import { Brand } from './Brand'
 import { HomeIcon } from '../../pages/home/HomeIcon'
+import { MultiplayerMenu } from './MultiplayerMenu'
 import './PageNavigation.css'
 
-export type NavActiveKey = 'singleplayer' | 'multiplayer' | 'none'
 const destinations = [
-  { key: 'singleplayer', to: '/game/singleplayer', label: 'Singleplayer', icon: 'gamepad' },
-  { key: 'multiplayer', to: '/multiplayer', label: 'Multiplayer', icon: 'users' },
+  { to: '/game/singleplayer', label: 'Singleplayer' },
 ] as const
 
-export function AppNavigation({ active, onNavigate }: { active: NavActiveKey; onNavigate?: () => void }) {
-  return <>{destinations.map(item => <Link key={item.key} to={item.to}
-    className="th-nav-item tg-control tg-nav-pill"
-    aria-current={item.key === active ? 'page' : undefined}
-    onClick={onNavigate}><HomeIcon name={item.icon} />{item.label}</Link>)}</>
-}
-
 /** Shared header for discovery pages, account flows and game lifecycle screens. */
-export function PageNavigation({ active, authActions, game = false, summary = false, onHelp, onSettings, onMenu, children }: {
-  active: NavActiveKey
+export function PageNavigation({ authActions, game = false, summary = false, onHelp, onSettings, onMenu, children }: {
   authActions?: ReactNode
   game?: boolean
   summary?: boolean
@@ -41,7 +32,7 @@ export function PageNavigation({ active, authActions, game = false, summary = fa
   useEffect(() => {
     if (!menuOpen) return
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
         event.preventDefault()
         setMenuOpen(false)
         menuRef.current?.focus()
@@ -58,28 +49,31 @@ export function PageNavigation({ active, authActions, game = false, summary = fa
     }
   }, [menuOpen])
   const help = onHelp
-    ? <button className="th-nav-item tg-control tg-action" onClick={() => { setMenuOpen(false); onHelp() }} data-tutorial-trigger><HomeIcon name="info" />How to play</button>
-    : <Link to="/game/singleplayer?tutorial=1" className="th-nav-item th-tutorial-entry tg-control tg-action" onClick={() => setMenuOpen(false)}><HomeIcon name="info" />How to Play / Tutorial</Link>
+    ? <button type="button" className="th-icon-btn" title="How to play" aria-label="How to play" onClick={() => { setMenuOpen(false); onHelp() }} data-tutorial-trigger><HomeIcon name="help" /><span className="th-icon-btn-label">How to play</span></button>
+    : <Link to="/game/singleplayer?tutorial=1" className="th-icon-btn th-tutorial-entry" title="Help" aria-label="Help" onClick={() => setMenuOpen(false)}><HomeIcon name="help" /><span className="th-icon-btn-label">Help</span></Link>
   const settings = onSettings
-    ? <button className="th-nav-item tg-control tg-action" aria-label="Game settings" onClick={() => { setMenuOpen(false); onSettings() }}>Settings</button>
-    : <Link to="/settings" className="th-nav-item tg-control tg-action" onClick={() => setMenuOpen(false)}>Settings</Link>
+    ? <button type="button" className="th-icon-btn" title="Game settings" aria-label="Game settings" onClick={() => { setMenuOpen(false); onSettings() }}><HomeIcon name="gear" /><span className="th-icon-btn-label">Game settings</span></button>
+    : <Link to="/settings" className="th-icon-btn" title="Settings" aria-label="Settings" onClick={() => setMenuOpen(false)}><HomeIcon name="gear" /><span className="th-icon-btn-label">Settings</span></Link>
   return <div className="tg-page-nav" data-navigation-context={game ? 'game' : 'page'}>
     <header ref={headerRef} className="th-header">
       <Link to="/" className="th-brand" aria-label="TerraGuessr home"><Brand /></Link>
-      <nav id="main-navigation" className={`th-navigation${menuOpen ? ' th-navigation-open' : ''}`} aria-label="Main navigation">
-        <AppNavigation active={active} onNavigate={() => setMenuOpen(false)} />
+      {!game && <nav id="main-navigation" className={`th-navigation${menuOpen ? ' th-navigation-open' : ''}`} aria-label="Main navigation">
+        {destinations.map(({ to, label }) => <Link key={to} to={to} className="th-nav-link"
+          aria-current={location.pathname === to ? 'page' : undefined}
+          onClick={() => setMenuOpen(false)}>{label}</Link>)}
+        <MultiplayerMenu mobileMenuOpen={menuOpen} onNavigate={() => setMenuOpen(false)} />
         {!summary && <div className="th-mobile-utilities">{help}{(!user || onSettings) && settings}{authActions && <div className="th-auth-actions" onClick={() => setMenuOpen(false)}>{authActions}</div>}</div>}
-      </nav>
+      </nav>}
       <div className="th-player-tools">
         {!summary && <div className="th-desktop-utilities">{help}{(onSettings || !user) && settings}</div>}
         {children}
-        {!game && (authActions ? <div className="th-desktop-utilities">{authActions}</div> : <Link to={user ? '/settings' : '/auth'} className="th-profile-link tg-control" aria-label={user ? 'Settings' : 'Sign in'}>
+        {!game && (authActions ? <div className="th-desktop-utilities">{authActions}</div> : <Link to={user ? '/settings' : '/auth'} className="th-profile-link" aria-label={user ? 'Settings' : 'Sign in'}>
           <span className="th-profile-avatar" aria-hidden="true">{user ? user.displayName.slice(0, 1).toUpperCase() : 'G'}</span>
           <span className="th-profile-details"><span className="th-profile-name">{user?.displayName ?? 'Sign in'}</span></span>
         </Link>)}
-        {game && onMenu && <button className="tg-control tg-icon-button th-game-menu" aria-label="Game menu" title="Game menu" onClick={onMenu}><HomeIcon name="menu" /></button>}
+        {game && onMenu && <button type="button" className="th-icon-btn" aria-label="Game menu" title="Game menu" onClick={onMenu}><HomeIcon name="menu" /></button>}
       </div>
-      {!game && <button ref={menuRef} className="th-menu-button tg-control tg-icon-button" type="button"
+      {!game && <button ref={menuRef} className="th-icon-btn th-menu-toggle" type="button"
         aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="main-navigation"
         onClick={() => setMenuOpen(!menuOpen)}><HomeIcon name={menuOpen ? 'close' : 'menu'} /></button>}
     </header>

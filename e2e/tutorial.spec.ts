@@ -53,7 +53,7 @@ test('R14: home entry opens one concise guide without starting a game', async ({
   const mutations: string[] = []
   page.on('request', req => { if (req.url().includes('/api/singleplayer/') && req.method() !== 'GET') mutations.push(req.url()) })
   await page.goto('/')
-  await page.getByRole('link', { name: 'How to Play / Tutorial' }).click()
+  await page.getByRole('link', { name: 'Help' }).click()
   await expect(tutorial(page)).toBeVisible()
   await usableCard(page)
   await expect(page.locator('.gi-panel')).toHaveCount(0)

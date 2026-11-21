@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { PageNavigation } from '../../components/ui/PageNavigation'
+import { Button } from '../../components/ui/Button'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
 import type { EmailChangeConfirmation } from '../../api/types'
 import { mapApiError } from '../../api/errorMessages'
 import { useSession } from '../../state/SessionContext'
-import './tokens.css'
+import './AuthPage.css'
 import '../../components/auth/EmailAuthForm.css'
 
 type Status = 'confirming' | 'done' | 'error'
@@ -61,7 +62,7 @@ export function EmailChangePage() {
 
   return (
     <>
-    <PageNavigation active="none" />
+    <PageNavigation />
     <div
       className="tg-auth-root"
       style={{
@@ -104,13 +105,9 @@ export function EmailChangePage() {
             </>
           )}
           {status !== 'confirming' && (
-            <button
-              type="button"
-              className="tg-email-submit"
-              onClick={() => navigate(changed ? '/auth' : '/settings')}
-            >
+            <Button className="tg-email-submit" onClick={() => navigate(changed ? '/auth' : '/settings')}>
               {changed ? 'Go to sign in' : status === 'done' ? 'Back to settings' : 'Back'}
-            </button>
+            </Button>
           )}
         </div>
       </div>

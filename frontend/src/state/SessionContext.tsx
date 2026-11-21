@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import * as authApi from '../api/auth'
 import type { AuthConfigResponse, LoginInput, PublicUser, RegisterInput, RegisterResponse, UserPreferences } from '../api/types'
 import { ApiError } from '../api/client'
+import { loadGuestPreferences, saveGuestPreferences } from '../features/preferences/guestPreferences'
 
 interface SessionState {
   status: 'loading' | 'ready'
@@ -37,7 +38,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...previous,
       status: 'ready',
       user: session.user,
-      preferences: session.preferences ?? null,
+      preferences: session.user
+        ? session.preferences ?? null
+        : { userId: 'guest', ...loadGuestPreferences() },
     }))
   }, [])
 
@@ -46,10 +49,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async function bootstrap() {
       const [session, authConfig] = await Promise.allSettled([authApi.fetchSession(), authApi.fetchAuthConfig()])
       if (cancelled) return
+      const user = session.status === 'fulfilled' ? session.value.user : null
       setState({
         status: 'ready',
-        user: session.status === 'fulfilled' ? session.value.user : null,
-        preferences: session.status === 'fulfilled' ? session.value.preferences ?? null : null,
+        user,
+        preferences: user
+          ? session.status === 'fulfilled' ? session.value.preferences ?? null : null
+          : { userId: 'guest', ...loadGuestPreferences() },
         authConfig: authConfig.status === 'fulfilled' ? authConfig.value : null,
       })
     }
@@ -80,7 +86,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // still means the user is logged out — don't block on it.
       if (!(error instanceof ApiError && error.status === 401)) throw error
     }
-    setState((previous) => ({ ...previous, user: null, preferences: null }))
+    setState((previous) => ({
+      ...previous,
+      user: null,
+      preferences: { userId: 'guest', ...loadGuestPreferences() },
+    }))
   }, [])
 
   const updateProfile = useCallback(async (displayName: string) => {
@@ -90,15 +100,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const updatePreferences = useCallback(
     async (changes: Partial<Pick<UserPreferences, 'language' | 'soundFxVolume' | 'musicVolume' | 'fullscreen'>>) => {
+      if (!state.user) {
+        setState((previous) => ({
+          ...previous,
+          preferences: { userId: 'guest', ...saveGuestPreferences(changes) },
+        }))
+        return
+      }
       const { preferences } = await authApi.updatePreferences(changes)
       setState((previous) => ({ ...previous, preferences }))
     },
-    [],
+    [state.user],
   )
 
   const deleteAccount = useCallback(async (currentPassword?: string) => {
     await authApi.deleteAccount('DELETE', currentPassword)
-    setState((previous) => ({ ...previous, user: null, preferences: null }))
+    setState((previous) => ({
+      ...previous,
+      user: null,
+      preferences: { userId: 'guest', ...loadGuestPreferences() },
+    }))
   }, [])
 
   const value = useMemo<SessionContextValue>(

@@ -1,5 +1,6 @@
 import { useAuthForm } from '../../hooks/useAuthForm'
 import { useSession } from '../../state/SessionContext'
+import { Button } from '../ui/Button'
 import './EmailAuthForm.css'
 
 export interface EmailAuthFormProps {
@@ -55,9 +56,9 @@ export function EmailAuthForm({ onSuccess, onForgotPassword, initialMode = 'logi
         >
           {resending ? 'Sending…' : 'Resend verification email'}
         </button>
-        <button type="button" className="tg-email-submit" onClick={toggleMode}>
+        <Button className="tg-email-submit" onClick={toggleMode}>
           Back to sign in
-        </button>
+        </Button>
       </div>
     )
   }
@@ -122,9 +123,9 @@ export function EmailAuthForm({ onSuccess, onForgotPassword, initialMode = 'logi
         </button>
       )}
 
-      <button type="submit" className="tg-email-submit tg-control tg-control--primary" disabled={submitting}>
+      <Button type="submit" className="tg-email-submit" disabled={submitting}>
         {submitting ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}
-      </button>
+      </Button>
 
       <div className="tg-email-footer">
         {mode === 'login' && authConfig?.passwordRecoveryAvailable && onForgotPassword && (

@@ -3,6 +3,7 @@ import { PageNavigation } from '../../components/ui/PageNavigation'
 import googleLogo from '../../assets/auth/google-logo.svg'
 import { googleSignInUrl } from '../../api/auth'
 import { useSession } from '../../state/SessionContext'
+import { Button } from '../../components/ui/Button'
 import { EmailAuthForm } from '../../components/auth/EmailAuthForm'
 import { ForgotPasswordForm } from '../../components/auth/ForgotPasswordForm'
 import { UnavailableNotice } from '../../components/UnavailableNotice'
@@ -27,31 +28,10 @@ export function AuthLandingPage() {
 
   return (
     <>
-      <PageNavigation
-        active="none"
-        authActions={
-          <>
-            <button
-              className="geo-landing__login tg-control"
-              type="button"
-              onClick={() => showProviders('login')}
-            >
-              Log in
-            </button>
-            <button
-              className="geo-landing__signup tg-control tg-control--primary"
-              type="button"
-              onClick={() => showProviders('register')}
-            >
-              Sign up
-            </button>
-          </>
-        }
-      />
+      <PageNavigation />
       <main className="geo-landing">
         <div className="geo-landing__content">
         <section className="geo-landing__hero" aria-labelledby="explore-title">
-          <p className="geo-landing__eyebrow">A WORLD WAITING TO BE FOUND</p>
           <h1 id="explore-title">
             A little lost.
             <br />
@@ -61,11 +41,6 @@ export function AuthLandingPage() {
             From quiet backstreets to somewhere breathtaking. Follow the clues,
             trust your instincts, and see where curiosity takes you.
           </p>
-          <div className="geo-landing__hero-note">
-            <span>01 / EXPLORE</span>
-            <span>02 / GUESS</span>
-            <span>03 / DISCOVER</span>
-          </div>
         </section>
 
         <section
@@ -74,9 +49,6 @@ export function AuthLandingPage() {
         >
           {cardView === 'providers' ? (
             <>
-              <span className="geo-landing__card-eyebrow">
-                YOUR NEXT ADVENTURE
-              </span>
               <h2>
                 {cardMode === 'login'
                   ? 'Welcome back.'
@@ -88,9 +60,9 @@ export function AuthLandingPage() {
                   : 'Create an account. Find your bearings.'}
               </p>
               <div className="geo-landing__provider-buttons">
-                <button
-                  className="geo-landing__provider tg-control tg-control--light geo-landing__provider--google"
-                  type="button"
+                <Button
+                  variant="light"
+                  className="geo-landing__provider geo-landing__provider--google"
                   onClick={() => {
                     if (authConfig?.googleAvailable)
                       window.location.href = googleSignInUrl()
@@ -99,10 +71,10 @@ export function AuthLandingPage() {
                 >
                   <img src={googleLogo} alt="" />
                   <span>Continue with Google</span>
-                </button>
-                <button
-                  className="geo-landing__provider tg-control tg-control--tinted geo-landing__provider--email"
-                  type="button"
+                </Button>
+                <Button
+                  variant="tinted"
+                  className="geo-landing__provider geo-landing__provider--email"
                   onClick={() => setCardView('email')}
                 >
                   <svg
@@ -116,7 +88,7 @@ export function AuthLandingPage() {
                     <path d="m3 6 8 7a1.5 1.5 0 0 0 2 0l8-7" />
                   </svg>
                   <span>Continue with Email</span>
-                </button>
+                </Button>
               </div>
               {unavailableProvider && (
                 <UnavailableNotice>

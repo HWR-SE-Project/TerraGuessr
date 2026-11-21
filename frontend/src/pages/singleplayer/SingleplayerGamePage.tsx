@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigationGuard } from '../../components/ui/NavigationGuard'
-import { AppNavigation, PageNavigation } from '../../components/ui/PageNavigation'
+import { PageNavigation } from '../../components/ui/PageNavigation'
+import { HomeIcon } from '../home/HomeIcon'
 import type { CSSProperties } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { GuessButton } from './GuessButton'
 import { useGameSession } from './useGameSession'
 import { StreetViewViewer } from './StreetViewViewer'
 import { GuessMap } from './GuessMap'
-import { CandidateList } from '../../components/CandidateList'
+import { CityGuessPanel } from '../../components/CityGuessPanel'
 import { GameplayHUD, GameIcon } from './GameplayHUD'
-import { GameDialog } from './GameDialog'
+import { Modal } from '../../components/ui/Modal'
 import { GameSettings } from './GameSettings'
 import { GeographicIntelligence } from './GeographicIntelligence'
 import { readSettings } from './settings'
@@ -20,6 +21,7 @@ import { Tutorial, markTutorialSeen, shouldShowTutorialForNewGame } from './Tuto
 import { RoundResults, FinalResults } from './GameResults'
 import { useCosmicBackgroundMode } from '../../components/cosmic/CosmicContext'
 import './SingleplayerGamePage.css'
+import './GuessingMapPanel.css'
 import './SingleplayerSetup.css'
 import './SessionSummary.css'
 import { clockLabel } from '../../lib/format'
@@ -58,7 +60,7 @@ export function SingleplayerGamePage() {
     )?.id ?? null
   useCosmicBackgroundMode(!exploring)
   const tutorialOpen = dialog === 'tutorial'
-  const mapExpanded = !tutorialOpen && (expanded || (hovered && settings.hoverExpand))
+  const mapExpanded = !tutorialOpen && !active?.candidates && !collapsed && (expanded || (hovered && settings.hoverExpand))
   const mapCollapsed = !tutorialOpen && collapsed
   useEffect(() => {
     try {
@@ -138,13 +140,11 @@ export function SingleplayerGamePage() {
       ? 'Round complete'
       : game.showFinal
         ? 'Expedition complete'
-        : game.guess
-          ? 'Ready to make your guess'
-          : game.panoramaReady
-            ? 'Explore. Find your bearings.'
-            : active
-              ? 'Loading Street View…'
-              : 'Endless rounds. A whole world.'
+        : game.panoramaReady
+          ? ''
+          : active
+            ? 'Loading Street View…'
+            : 'Endless rounds. A whole world.'
   return (
     <main
       className="sp-page"
@@ -155,7 +155,7 @@ export function SingleplayerGamePage() {
       data-cosmic={exploring ? 'off' : 'on'}
     >
       <div className="sp-top-shade" />
-      <PageNavigation active="singleplayer" game={game.inProgress} summary={view === 'session-summary'}
+      <PageNavigation game={game.inProgress} summary={view === 'session-summary'}
         onHelp={() => setDialog('tutorial')} onSettings={() => setDialog('settings')}
         onMenu={() => setDialog('menu')} />
 
@@ -167,7 +167,6 @@ export function SingleplayerGamePage() {
                 <span>The world is out there.</span>
                 <em>Find your place.</em>
               </h1>
-              <p>Explore the world. Follow the clues. Make your guess.</p>
               <p className="sp-setup-meta">
                 Timed rounds · Difficulty-based attempts · Up to 5,000 points
                 per round
@@ -277,9 +276,34 @@ export function SingleplayerGamePage() {
         <GameplayHUD round={active?.number ?? 1} score={game.session.totalScore} status={status} />
       </footer>}
 
-      {exploring && (
+      {exploring && active?.candidates ? (
+        <CityGuessPanel
+          candidates={active.candidates}
+          selectedId={selectedCandidateId}
+          onChange={game.setGuess}
+          collapsed={mapCollapsed}
+          onToggle={() => setCollapsed(!collapsed)}
+          metadata={[
+            game.remainingSeconds !== null ? clockLabel(game.remainingSeconds) : '',
+            active.attemptsTotal > 0 ? `${active.attemptsUsed}/${active.attemptsTotal} attempts used` : '',
+          ].filter(Boolean).join(' · ')}
+        >
+          <GuessButton compact
+            disabled={!game.guess || !guessReady || game.busy}
+            busy={game.busy}
+            onClick={() => void game.submit(false)}
+          />
+          {active.attemptsUsed > 0 && active.attemptsUsed < active.attemptsTotal && (
+            <GuessButton compact variant="secondary" label="Final submit"
+              disabled={!game.guess || !guessReady || game.busy}
+              busy={game.busy}
+              onClick={() => void game.submit(true)}
+            />
+          )}
+        </CityGuessPanel>
+      ) : exploring && (
         <aside
-          className={`sp-guess-panel sp-glass${mapExpanded ? ' sp-guess-expanded' : ''}${mapCollapsed ? ' sp-guess-collapsed' : ''}`}
+          className={`sp-guess-panel sp-world-panel${mapExpanded ? ' sp-guess-expanded' : ''}${mapCollapsed ? ' sp-guess-collapsed' : ''}`}
           style={
             { '--map-opacity': settings.mapOpacity / 100 } as CSSProperties
           }
@@ -291,27 +315,28 @@ export function SingleplayerGamePage() {
         >
           <header className="sp-map-header">
             <button
-              className="sp-map-mode tg-control"
+              className="sp-map-mode"
               aria-expanded={!mapCollapsed}
               aria-controls="guess-map-content"
               onClick={() => setCollapsed(!collapsed)}
             >
-              <GameIcon name="pin" />
-              <span>
-                {active?.candidates ? 'Pick a city' : 'World Explorer'}
-                <small>
-                  {clockLabel(game.remainingSeconds)} ·{' '}
-                  {active?.attemptsUsed ?? 0}/{active?.attemptsTotal ?? 0}{' '}
-                  attempts used · Moving allowed
-                </small>
-              </span>
-              <span aria-hidden="true">{mapCollapsed ? '▴' : '▾'}</span>
+              <span>World Explorer</span>
+              <svg className="sp-map-chevron" viewBox="0 0 16 16" aria-hidden="true">
+                <path d={mapCollapsed ? 'm5 10 3-3 3 3' : 'm5 6 3 3 3-3'} />
+              </svg>
             </button>
+            {game.remainingSeconds !== null && (
+              <span className="sp-map-timer" aria-label={`${clockLabel(game.remainingSeconds)} remaining`}>
+                {clockLabel(game.remainingSeconds)}
+              </span>
+            )}
             {!active?.candidates && (
               <button
-                className="sp-icon tg-control"
+                className="sp-map-expand"
                 aria-label={mapExpanded ? 'Shrink map' : 'Expand map'}
+                title={mapExpanded ? 'Shrink map' : 'Expand map'}
                 aria-expanded={mapExpanded}
+                aria-controls="guess-map-content"
                 onClick={() => {
                   setExpanded(!mapExpanded)
                   setHovered(false)
@@ -324,36 +349,29 @@ export function SingleplayerGamePage() {
           </header>
           <div id="guess-map-content" hidden={mapCollapsed}>
             <div className="sp-map-wrap">
-              {active?.candidates ? (
-                <CandidateList
-                  candidates={active.candidates}
-                  onChange={game.setGuess}
-                  selectedId={selectedCandidateId}
-                />
-              ) : (
-                <GuessMap
-                  key={active?.id ?? 'idle'}
-                  guess={game.guess}
-                  onChange={game.setGuess}
-                  interactive={exploring && guessReady && !game.busy}
-                  countryBorders
-                />
-              )}
-              {!active?.candidates && !game.guess && guessReady && (
-                <span className="sp-map-hint">
-                  Click the map to place your pin
-                </span>
-              )}
+              <GuessMap
+                key={active?.id ?? 'idle'}
+                guess={game.guess}
+                onChange={game.setGuess}
+                interactive={exploring && guessReady && !game.busy}
+                countryBorders
+              />
             </div>
             <div className="sp-map-footer">
-              <span aria-live="polite">
-                {game.notice ??
-                  (game.guess
-                    ? `${game.guess.lat.toFixed(3)}°, ${game.guess.lon.toFixed(3)}° · pin placed`
-                    : 'Where in the world are you?')}
+              <span className="sp-map-status" aria-live="polite" aria-atomic="true">
+                {game.guess
+                  ? `${game.guess.lat.toFixed(3)}°, ${game.guess.lon.toFixed(3)}° · pin placed`
+                  : guessReady ? 'Tap or click the map to place a pin' : 'Preparing map…'}
               </span>
+              {active && active.attemptsTotal > 1 && (
+                <small className="sp-map-attempts">
+                  {active.attemptsTotal - active.attemptsUsed}{' '}
+                  {active.attemptsTotal - active.attemptsUsed === 1 ? 'try' : 'tries'} left
+                </small>
+              )}
               <div className="sp-map-actions">
                 <GuessButton
+                  appearance="map"
                   disabled={!game.guess || !guessReady || game.busy || !exploring}
                   busy={game.busy}
                   onClick={() => void game.submit(false)}
@@ -361,6 +379,7 @@ export function SingleplayerGamePage() {
                 {active && active.attemptsUsed > 0 &&
                   active.attemptsUsed < active.attemptsTotal && (
                     <GuessButton
+                      appearance="map"
                       variant="secondary"
                       label="Final submit"
                       disabled={!game.guess || !guessReady || game.busy || !exploring}
@@ -392,17 +411,15 @@ export function SingleplayerGamePage() {
         />
       )}
       {dialog === 'menu' && (
-        <GameDialog title="Take a breather" onClose={() => setDialog(null)}>
-          <p className="sp-muted">Your next discovery can wait.</p>
+        <Modal title="Menu" onClose={() => setDialog(null)}>
           <div className="sp-menu-actions">
-            <AppNavigation active="singleplayer" onNavigate={() => setDialog(null)} />
             <button className="sp-primary tg-control tg-control--primary" onClick={() => setDialog(null)}>
-              Back to game <span>→</span>
+              Back to game <span className="sp-primary-arrow">→</span>
             </button>
-            <button className="sp-secondary tg-control" onClick={() => setDialog('tutorial')}>
-              How to Play / Tutorial
-            </button>
-            <button className="sp-secondary tg-control" onClick={() => setDialog('settings')}>Game settings</button>
+            <Link className="sp-secondary tg-control" to="/multiplayer" onClick={() => setDialog(null)}>
+              <HomeIcon name="users" />
+              Multiplayer
+            </Link>
             <button
               className="sp-secondary tg-control"
               disabled={game.busy || !game.available}
@@ -411,17 +428,19 @@ export function SingleplayerGamePage() {
                 else restartExpedition()
               }}
             >
+              <GameIcon name="restart" />
               Restart game
             </button>
             <button
-              className="sp-secondary tg-control"
+              className={`sp-secondary tg-control${game.inProgress ? ' tg-control--danger' : ''}`}
               disabled={game.busy}
               onClick={leave}
             >
+              <GameIcon name="exit" />
               {game.inProgress ? 'Exit Game' : 'Return Home'}
             </button>
           </div>
-        </GameDialog>
+        </Modal>
       )}
       {dialog === 'end' && (
         <ExitGameDialog
@@ -439,7 +458,7 @@ export function SingleplayerGamePage() {
         />
       )}
       {dialog === 'restart' && (
-        <GameDialog title="Start a new expedition?" onClose={() => setDialog(null)}>
+        <Modal title="Start a new expedition?" onClose={() => setDialog(null)}>
           <p className="sp-muted">
             Your current expedition will be replaced. Start a new endless
             session?
@@ -462,7 +481,7 @@ export function SingleplayerGamePage() {
               Restart game
             </button>
           </div>
-        </GameDialog>
+        </Modal>
       )}
     </main>
   )

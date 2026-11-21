@@ -1,7 +1,7 @@
 .sp-page {
   --sp-green: var(--color-lime);
   --sp-muted: var(--color-muted);
-  color: #f4f6f7;
+  color: var(--color-text);
   background: var(--color-bg);
   font-family: Inter, system-ui, sans-serif;
   isolation: isolate;
@@ -51,12 +51,8 @@
   background: linear-gradient(#0005, transparent);
   z-index: 1;
 }
-.sp-glass {
-  background: #101c2ce8;
-  border: 1px solid var(--color-border-strong);
-  box-shadow: 0 3px 16px #0002;
-  backdrop-filter: blur(14px);
-}
+/* Material comes from the shared #root .sp-glass rule in
+   design-system/controls.css (Surface 3) for every real instance. */
 .sp-brand {
   z-index: 4;
   display: flex;
@@ -92,21 +88,20 @@
   font-weight: 600;
   letter-spacing: 1.75px;
   margin: 3px 0 0 1px;
-  color: #dae1e4;
+  color: var(--color-text);
 }
 .sp-top-controls {
   z-index: 5;
   display: flex;
   gap: 10px;
 }
+/* Shape/fill/hover come from the shared icon-button material in
+   design-system/controls.css — this only owns the grid/sizing. */
 .sp-icon {
   display: inline-grid;
   place-items: center;
   width: 44px;
   height: 44px;
-  padding: 11px;
-  border-radius: var(--radius-control);
-  background: transparent;
 }
 .sp-icon svg,
 .sp-return svg,
@@ -116,7 +111,6 @@
   height: 22px;
   flex-shrink: 0;
 }
-.sp-icon:hover,
 .sp-return:hover {
   background: var(--color-surface-hover);
 }
@@ -130,48 +124,48 @@
   font-size: 13px;
   font-weight: 650;
 }
+/* One quiet line of progress, with enough contrast over bright panoramas. */
 .sp-hud {
+  position: relative;
   z-index: 4;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 22px;
-  padding: 11px 24px;
-  border-radius: var(--radius-control);
-  text-align: center;
-  background: #101c2ce8;
-}
-.sp-hud > div {
-  flex: 1;
-}
-.sp-hud div > span {
-  display: block;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 1.6px;
-  color: #c1c9cd;
-  margin-bottom: 4px;
-}
-.sp-hud strong {
-  font-size: 18px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.25rem;
+  width: max-content;
+  max-width: 100%;
+  padding: 0.625rem 0.9375rem;
+  border: 0;
+  border-radius: 0.875rem;
+  background: rgb(15 21 27 / 72%);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 12%);
+  -webkit-backdrop-filter: blur(16px) saturate(115%);
+  backdrop-filter: blur(16px) saturate(115%);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sp-hud-score {
+  color: var(--color-lime);
+  font-size: inherit;
   font-weight: 600;
 }
-.sp-hud small {
-  font-size: 11px;
+.sp-hud-unit {
   font-weight: 500;
-  color: #bec6ca;
 }
-.sp-hud i {
-  height: 27px;
+.sp-hud-sr-only {
+  position: absolute;
   width: 1px;
-  background: #ffffff24;
-}
-.sp-hud p {
-  flex: 0 0 100%;
-  font-size: 9px;
-  margin: 7px 0 0;
-  color: #c1c9cd;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .sp-compass {
   z-index: 3;
@@ -197,7 +191,6 @@
   z-index: 6;
   border-radius: var(--radius-control);
   padding: 5px;
-  background: #101c2ce8;
   transition: width 0.2s ease,
     box-shadow 0.2s ease;
 }
@@ -222,15 +215,15 @@
 .sp-map-mode svg {
   width: 18px;
   height: 18px;
-  color: #d5dfd3;
+  color: var(--color-muted);
 }
 .sp-map-mode small {
   display: block;
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 550;
-  letter-spacing: 0.7px;
-  color: #d2d6d7;
-  margin-top: 4px;
+  letter-spacing: 0.3px;
+  color: var(--color-muted);
+  margin-top: 3px;
 }
 .sp-map-mode > span:last-child {
   margin-left: auto;
@@ -253,13 +246,6 @@
   overflow: hidden;
   opacity: var(--map-opacity);
   transition: height 0.2s ease;
-}
-.sp-map-wrap:has(.tg-candidate-section) {
-  height: auto;
-  max-height: 340px;
-  overflow-y: auto;
-  padding: 14px;
-  background: #0d161cf0;
 }
 .sp-map-surface,
 .sp-google-map {
@@ -310,44 +296,26 @@
   color: #e0e4e5;
   margin: 1px 0 9px;
 }
+/* Color/border/hover/disabled material comes from the shared tg-control(--primary)
+   rule every call site already pairs with these classes — this only owns layout. */
 .sp-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 17px;
-  border: 1px solid #b3f36c;
-  background: var(--sp-green, #a3ed45);
-  color: #17270c;
   min-height: 46px;
   padding: 12px 24px;
-  border-radius: var(--radius-control);
   font-weight: 650;
   font-size: 13px;
-  cursor: pointer;
-}
-.sp-primary:hover:enabled {
-  background: #b5f469;
 }
 .sp-primary-difficulty {
   font-weight: 550;
   font-size: 11px;
   opacity: 0.72;
 }
-.sp-primary:disabled {
-  background: #909a8a;
-  border-color: #ffffff20;
-}
 .sp-secondary {
   padding: 12px 19px;
   min-height: 44px;
-  border: 1px solid #ffffff25;
-  border-radius: var(--radius-control);
-  background: #ffffff08;
-  color: #e8eef1;
-  cursor: pointer;
-}
-.sp-secondary:hover {
-  background: #ffffff13;
 }
 .sp-guess-button {
   width: 100%;
@@ -366,8 +334,8 @@
   place-items: center;
   width: 21px;
   height: 21px;
-  background: #18300a15;
-  border: 1px solid #18300a25;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
   border-radius: 3px;
   font-size: 12px;
 }
@@ -457,7 +425,7 @@
   color: var(--sp-green);
 }
 .sp-welcome > p {
-  color: #bdc7cb;
+  color: var(--color-muted);
   font-size: 13px;
   line-height: 1.8;
 }
@@ -527,7 +495,7 @@
   margin-top: 2px;
   font-size: 11px;
   line-height: 1.65;
-  color: #b9c3c9;
+  color: var(--color-muted);
 }
 /* A non-color signal of selection: never rely on border/glow color alone. */
 .sp-difficulty-check {
@@ -596,10 +564,10 @@
 }
 .sp-unavailable > strong {
   font-size: 12px;
-  color: #e1e8eb;
+  color: var(--color-text);
 }
 .sp-unavailable > p {
-  color: #b9c3c9;
+  color: var(--color-muted);
   font-size: 11px;
   line-height: 1.7;
   margin: 8px 0 13px;
@@ -641,7 +609,7 @@
 .sp-view-error p {
   font-size: 12px;
   line-height: 1.7;
-  color: #bdc7cb;
+  color: var(--color-muted);
 }
 .sp-error {
   position: absolute;
@@ -656,38 +624,47 @@
   font-size: 12px;
   text-align: center;
 }
+/* Visual material (glass fill/border/blur/shadow) comes from the shared
+   #root .sp-dialog rule in design-system/controls.css (Surface 3). This rule
+   only owns geometry/layout — consolidated here from three prior passes that
+   redeclared it at different points in the file. */
 .sp-dialog {
   --sp-green: var(--color-lime);
   color-scheme: dark;
   color: #edf3f6;
-  background: var(--color-surface);
-  border: 1px solid #ffffff26;
-  border-radius: var(--radius-card);
-  padding: 27px;
-  width: min(440px, calc(100% - 32px));
-  max-height: calc(100dvh - 40px);
-  overflow-y: auto;
-  box-shadow: 0 24px 100px #0008;
+  border-radius: var(--radius-panel);
+  padding: clamp(1rem, 3vw, 1.875rem);
+  width: min(30rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  animation: sp-dialog-in 220ms var(--ease-out);
 }
 .sp-dialog::backdrop {
   background: #07111aa6;
-  backdrop-filter: blur(7px);
+  backdrop-filter: blur(12px);
 }
 .sp-dialog header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
 }
 .sp-dialog h2 {
   font-size: 24px;
-  letter-spacing: -0.8px;
+  font-weight: 550;
+  letter-spacing: -0.9px;
   margin: 9px 0 0;
 }
 .sp-dialog .sp-icon {
-  color: #d4dde1;
+  color: var(--color-text);
   font-size: 27px;
   border: none;
   cursor: pointer;
+  flex-shrink: 0;
+}
+.sp-dialog .sp-muted {
+  font-size: 13px;
+  color: var(--color-muted);
 }
 .sp-tutorial h3 {
   margin: 10px 0 6px;
@@ -710,12 +687,37 @@
 .sp-muted {
   font-size: 12px;
   line-height: 1.8;
-  color: #aebdc7;
+  color: var(--color-muted);
 }
 .sp-menu-actions {
   display: grid;
   gap: 10px;
   margin-top: 25px;
+}
+.sp-menu-actions button,
+.sp-menu-actions a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.sp-menu-actions svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.sp-primary-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #17270c1f;
+  transition: transform 180ms var(--ease-out);
+}
+.sp-primary:hover:enabled .sp-primary-arrow {
+  transform: translateX(3px);
 }
 .sp-exit-recap {
   margin: 14px 0 0;
@@ -724,7 +726,7 @@
   background: #ffffff08;
   border: 1px solid var(--color-border);
   font-size: 12px;
-  color: #d4dde1;
+  color: var(--color-text);
   text-align: center;
 }
 .sp-dialog-error {
@@ -764,7 +766,7 @@
 .sp-setting small {
   display: block;
   font-size: 10px;
-  color: #a8b7c0;
+  color: var(--color-muted);
   margin-top: 6px;
   line-height: 1.7;
 }
@@ -780,6 +782,46 @@
 .sp-setting input[type='range'] {
   max-width: 155px;
   min-height: 44px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--sp-green) var(--range-fill, 0%),
+    #ffffff26 var(--range-fill, 0%)
+  );
+}
+.sp-setting input[type='range']::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 6px;
+  border-radius: 999px;
+}
+.sp-setting input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  margin-top: -6px;
+  box-shadow: 0 1px 6px #0007;
+}
+.sp-setting input[type='range']::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--sp-green) var(--range-fill, 0%),
+    #ffffff26 var(--range-fill, 0%)
+  );
+  height: 6px;
+  border-radius: 999px;
+}
+.sp-setting input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 1px 6px #0007;
 }
 .sp-wide {
   width: 100%;
@@ -833,7 +875,7 @@
 }
 .sp-result-body > p {
   font-size: 12px;
-  color: #b9c6cf;
+  color: var(--color-muted);
   margin: 9px 0;
 }
 .sp-result-body > p strong {
@@ -850,7 +892,7 @@
 }
 .sp-earned > span {
   font-size: 12px;
-  color: #aebdc7;
+  color: var(--color-muted);
 }
 .sp-score-track {
   background: #ffffff12;
@@ -874,11 +916,11 @@
 }
 .sp-result-coords > span {
   font-size: 9px;
-  color: #a4b3bf;
+  color: var(--color-muted);
 }
 .sp-result-coords strong {
   display: block;
-  color: #dce4e9;
+  color: var(--color-text);
   font-size: 10px;
   margin-top: 5px;
   font-weight: 500;
@@ -896,13 +938,13 @@
   font-size: 9px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: #a4b3bf;
+  color: var(--color-muted);
 }
 .sp-summary-stats dd {
   margin: 4px 0 0;
   font-size: 15px;
   font-weight: 600;
-  color: #dce4e9;
+  color: var(--color-text);
 }
 .sp-round-list {
   text-align: left;
@@ -921,7 +963,7 @@
 }
 .sp-round-list summary > span:nth-child(2) {
   text-align: center;
-  color: #afbdc7;
+  color: var(--color-muted);
 }
 .sp-round-list summary strong {
   text-align: right;
@@ -930,7 +972,7 @@
 .sp-round-list details > div {
   padding: 0 4px 6px;
   font-size: 10px;
-  color: #b6c5d0;
+  color: var(--color-muted);
 }
 .sp-result-actions {
   display: flex;
@@ -943,10 +985,6 @@
 @media (max-width: 1150px) and (min-width: 701px) {
   .sp-map-wrap {
     height: 185px;
-  }
-  .sp-hud {
-    padding: 11px 16px;
-    gap: 0 14px;
   }
 }
 @media (max-width: 700px) {
@@ -980,20 +1018,6 @@
   .sp-return span {
     display: none;
   }
-  .sp-hud {
-    padding: 9px 15px;
-    gap: 0 17px;
-  }
-  .sp-hud strong {
-    font-size: 15px;
-  }
-  .sp-hud p {
-    font-size: 8px;
-    margin-top: 5px;
-  }
-  .sp-hud div > span {
-    font-size: 7px;
-  }
   .sp-map-wrap {
     height: 145px;
   }
@@ -1009,7 +1033,7 @@
     font-size: 10px;
   }
   .sp-map-mode small {
-    font-size: 5.8px;
+    font-size: 9px;
   }
   .sp-map-mode > span:last-child {
     display: none;
@@ -1154,7 +1178,6 @@
     animation-duration: 2s;
   }
 }
-/* Keep the compact HUD clear of Return on narrow phones. */
 @media (max-height: 650px) and (min-width: 701px) {
   .sp-map-wrap {
     height: clamp(80px, 25dvh, 150px);
@@ -1178,26 +1201,6 @@
   width: 32px;
   height: 34px;
 }
-.sp-hud {
-  border-radius: 16px;
-  padding: 12px 24px;
-}
-.sp-hud div > span {
-  font-size: 9px;
-  letter-spacing: 1.4px;
-  color: var(--color-muted);
-}
-.sp-hud p {
-  font-size: 10px;
-  color: var(--color-muted);
-}
-.sp-hud strong {
-  font-size: 20px;
-  font-weight: 550;
-}
-.sp-hud small {
-  font-size: 11px;
-}
 .sp-guess-panel {
   padding: 7px;
   border-radius: 18px;
@@ -1214,8 +1217,8 @@
   font-weight: 550;
 }
 .sp-map-mode small {
-  font-size: 8px;
-  letter-spacing: 0.6px;
+  font-size: 10px;
+  letter-spacing: 0.3px;
   color: var(--color-muted);
 }
 .sp-map-footer {
@@ -1227,31 +1230,19 @@
 }
 .sp-guess-button {
   min-height: 48px;
-  border-radius: 11px;
   font-size: 14px;
 }
 .sp-primary {
   font-weight: 650;
-  border-color: transparent;
-  background: var(--color-lime);
-}
-.sp-primary:hover:enabled {
-  background: var(--color-lime-hover);
-}
-.sp-primary:disabled {
-  background: #2d3c32;
-  color: #9aaa91;
-  opacity: 0.75;
 }
 .sp-secondary {
   font-size: 13px;
-  border-color: var(--color-border-strong);
 }
+/* Glass fill/border/blur/shadow come from the shared .sp-glass rule in
+   design-system/controls.css (Surface 3) — this only owns radius/padding. */
 .sp-welcome {
-  background: linear-gradient(145deg, #15263ce8, #0e1b2af2);
   padding: 38px;
   border-radius: var(--radius-panel);
-  box-shadow: var(--shadow-panel);
 }
 .sp-welcome h1 {
   font-weight: 550;
@@ -1267,20 +1258,6 @@
 }
 .sp-rules {
   font-size: 11px;
-}
-.sp-dialog {
-  border-color: var(--color-border-strong);
-  border-radius: var(--radius-panel);
-  padding: 30px;
-  animation: sp-dialog-in 220ms var(--ease-out);
-}
-.sp-dialog h2 {
-  font-weight: 550;
-  letter-spacing: -0.9px;
-}
-.sp-dialog .sp-muted {
-  font-size: 13px;
-  color: var(--color-muted);
 }
 .sp-setting {
   padding-block: 22px;
@@ -1398,12 +1375,6 @@
     transform: translateY(0);
   }
 }
-@media (min-width: 701px) {
-  .sp-hud p {
-    margin-top: 6px;
-    font-size: 9px;
-  }
-}
 @media (max-width: 1100px) and (min-width: 701px) {
   .sp-result-body,
   .sp-final .sp-result-body {
@@ -1424,24 +1395,12 @@
     width: 27px;
     height: 29px;
   }
-  .sp-hud {
-    padding: 10px 16px;
-  }
-  .sp-hud strong {
-    font-size: 17px;
-  }
-  .sp-hud div > span {
-    font-size: 8px;
-  }
-  .sp-hud p {
-    font-size: 9px;
-  }
   .sp-map-header {
     padding-left: 5px;
   }
   .sp-map-mode small {
-    font-size: 6px;
-    letter-spacing: 0.4px;
+    font-size: 9px;
+    letter-spacing: 0.3px;
   }
   .sp-map-footer > span {
     font-size: 9px;
@@ -1563,7 +1522,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(18rem, 21.25rem);
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: var(--sp-gap);
-  padding: max(var(--sp-gap), env(safe-area-inset-top)) max(var(--sp-gap), env(safe-area-inset-right)) max(var(--sp-gap), env(safe-area-inset-bottom)) max(var(--sp-gap), env(safe-area-inset-left));
+  padding: env(safe-area-inset-top, 0px) max(var(--sp-gap), env(safe-area-inset-right)) max(var(--sp-gap), env(safe-area-inset-bottom)) max(var(--sp-gap), env(safe-area-inset-left));
   height: 100dvh;
   min-height: 42rem;
 }
@@ -1592,9 +1551,7 @@
   min-width: 0;
 }
 .sp-top-controls { gap: 0.5rem; }
-.sp-bottom-bar .sp-hud { width: auto; max-width: 100%; margin-left: auto; padding: 0.75rem 1rem; }
-.sp-hud > div { min-width: 0; }
-.sp-hud p { overflow-wrap: anywhere; }
+.sp-bottom-bar .sp-hud { margin-left: auto; }
 .sp-page[data-view="setup"], .sp-page[data-view="loading"] {
   height: auto;
   min-height: 100dvh;
@@ -1651,7 +1608,6 @@
 }
 .sp-page:has(.sp-guess-expanded) { grid-template-columns: minmax(18rem, 1fr) minmax(18rem, min(45vw, 40rem)); }
 .sp-map-wrap { height: clamp(8rem, 24dvh, 16rem); transition: none; }
-.sp-map-wrap:has(.tg-candidate-section) { overflow-y: auto; }
 .sp-guess-expanded .sp-map-wrap { height: clamp(8rem, 40dvh, 26rem); }
 .sp-map-header { gap: 0.375rem; }
 .sp-map-mode { min-width: 0; min-height: 2.75rem; padding: 0.25rem; font-size: 0.875rem; }
@@ -1709,9 +1665,6 @@
 .sp-results:not(:has(.sp-result-map)) .sp-result-actions { grid-column: 1 / -1; }
 .sp-result-coords { flex-wrap: wrap; gap: 1rem; }
 .sp-map-legend { flex-wrap: wrap; justify-content: center; white-space: normal; width: max-content; max-width: calc(100% - 1rem); bottom: 1rem; font-size: 0.75rem; }
-.sp-dialog { width: min(30rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); padding: clamp(1rem, 3vw, 1.875rem); overflow: auto; }
-.sp-dialog header { gap: 0.5rem; }
-.sp-dialog header .sp-icon { flex-shrink: 0; }
 .sp-dialog-actions, .sp-setting { flex-wrap: wrap; }
 .sp-setting > span { min-width: 0; flex: 1 1 10rem; }
 .sp-primary, .sp-secondary { white-space: normal; overflow-wrap: anywhere; }
@@ -1745,9 +1698,6 @@
 @media (max-width: 28rem) {
   .sp-brand .tg-brand-word { display: none; }
   .sp-top-controls .sp-icon { width: 2.75rem; height: 2.75rem; }
-  .sp-hud strong { font-size: 1rem; }
-  .sp-hud p { font-size: 0.6875rem; }
-  .sp-bottom-bar .sp-hud { flex: 1; padding: 0.75rem; gap: 0 0.75rem; }
   .sp-bottom-bar .sp-return span { display: inline; }
 }
 

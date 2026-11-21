@@ -47,8 +47,6 @@ test.describe('Street View singleplayer without credentials', () => {
   test('setup shares site navigation and its mobile menu supports Escape', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/game/singleplayer')
-    await expect(page.getByRole('link', { name: 'Singleplayer', exact: true })).toHaveAttribute('aria-current', 'page')
-    await expect(page.getByRole('link', { name: 'Multiplayer', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible()
     await page.setViewportSize({ width: 390, height: 844 })
     const menu = page.getByRole('button', { name: 'Open navigation' })

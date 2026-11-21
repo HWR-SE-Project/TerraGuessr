@@ -19,13 +19,11 @@ test.describe('settings', () => {
   test('a preference change persists across reload', async ({ page }) => {
     await registerAndLogin(page, 'Preference Tester');
     await page.goto('/settings');
-    await page.getByRole('button', { name: 'Preferences' }).click();
 
     await page.getByLabel('Language').selectOption('de');
     await expect(page.getByLabel('Language')).toHaveValue('de');
 
     await page.reload();
-    await page.getByRole('button', { name: 'Preferences' }).click();
     await expect(page.getByLabel('Language')).toHaveValue('de');
   });
 

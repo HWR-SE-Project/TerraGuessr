@@ -25,33 +25,41 @@ test('mobile navigation and game entry points stay usable without horizontal scr
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await registerAndLogin(page, 'Mobile Explorer')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Open navigation' }).click()
-  await page.getByRole('link', { name: 'Multiplayer', exact: true }).click()
-  await expect(page).toHaveURL(/\/multiplayer$/)
-  await expect(page.getByRole('heading', { name: 'Multiplayer' })).toBeVisible()
+  await page.getByRole('button', { name: 'Multiplayer', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Create a Lobby', exact: true }).click()
+  await expect(page).toHaveURL(/\/multiplayer\/create$/)
   await expect(page.getByRole('heading', { name: 'Create a lobby' })).toBeVisible()
   await page.goto('/')
+  const nav = page.getByRole('navigation', { name: 'Main navigation' })
   for (const width of [320, 390, 768, 1024, 1280, 1711]) {
     await page.setViewportSize({ width, height: 864 })
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(width)
+    const collapsed = width <= 1200
+    if (collapsed) await page.getByRole('button', { name: 'Open navigation' }).click()
     await expect(
-      page.getByRole('link', { name: 'Play Solo Challenge yourself' }),
+      nav.getByRole('link', { name: 'Singleplayer', exact: true }),
     ).toBeVisible()
+    if (collapsed) await page.keyboard.press('Escape')
   }
-  await page.getByRole('link', { name: 'Play Solo Challenge yourself' }).click()
+  await nav.getByRole('link', { name: 'Singleplayer', exact: true }).click()
   await expect(
     page.getByRole('main', { name: 'TerraGuessr singleplayer game' }),
   ).toBeVisible()
 })
 
-test('Play Together opens the multiplayer lobby hub', async ({ page }) => {
-  await registerAndLogin(page, 'Lobby Explorer')
-  await page.getByRole('link', { name: 'Play Together With friends' }).click()
-  await expect(page).toHaveURL(/\/multiplayer$/)
-  await expect(page.getByRole('heading', { name: 'Multiplayer' })).toBeVisible()
+test('Multiplayer navigation opens either lobby form directly', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Multiplayer', exact: true }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await page.getByRole('menuitem', { name: 'Create a Lobby', exact: true }).click()
+  await expect(page).toHaveURL(/\/multiplayer\/create$/)
   await expect(page.getByRole('heading', { name: 'Create a lobby' })).toBeVisible()
+  await page.getByRole('button', { name: 'Multiplayer', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Join a Lobby', exact: true }).click()
+  await expect(page).toHaveURL(/\/multiplayer\/join$/)
   await expect(page.getByRole('heading', { name: 'Join a lobby' })).toBeVisible()
 })

@@ -104,7 +104,7 @@ describe('singleplayer session controller (API doubles)', () => {
     await act(() => result.current.submit(false))
     expect(singleplayerApi.guess).toHaveBeenCalledTimes(1)
   })
-  it('keeps the round open after a non-final attempt and reports remaining attempts', async () => {
+  it('keeps the round open after a non-final attempt', async () => {
     const { result } = renderHook(useGameSession)
     await waitFor(() => expect(result.current.available).toBe(true))
     await act(() => result.current.next())
@@ -119,7 +119,6 @@ describe('singleplayer session controller (API doubles)', () => {
     await act(() => result.current.submit(false))
     expect(result.current.result).toBeNull()
     expect(result.current.session.activeRound?.attemptsUsed).toBe(1)
-    expect(result.current.notice).toMatch(/1 attempt remaining/)
     expect(result.current.guess).toEqual({ lat: 10, lon: 20 })
   })
   it('keeps the current round and guess after a network error so the same guess can be retried', async () => {

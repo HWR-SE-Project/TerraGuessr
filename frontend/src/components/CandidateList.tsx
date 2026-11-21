@@ -1,4 +1,3 @@
-import { useId } from 'react'
 import type { CandidateDTO, LatLon } from '../api/types'
 import './CandidateList.css'
 
@@ -26,9 +25,8 @@ function candidateSector(candidate: CandidateDTO): string {
   return `${region} · ${latBand}°${hemisphere} / ${longitude}`
 }
 
-/** Renders the round's candidates as a list; choosing one emits {lat, lon} exactly like the map picker. The actual location is never flagged. */
+/** Renders the round's candidates as a compact list; choosing one emits {lat, lon} exactly like the map picker. The actual location is never flagged. */
 export function CandidateList({ candidates, onChange, selectedId = null }: CandidateListProps) {
-  const headingId = useId()
   const seenLabels = new Map<string, number>()
 
   if (candidates.length === 0) {
@@ -40,37 +38,30 @@ export function CandidateList({ candidates, onChange, selectedId = null }: Candi
   }
 
   return (
-    <section aria-labelledby={headingId} className="tg-candidate-section">
-      <h2 id={headingId} className="tg-candidate-heading">Which region matches?</h2>
-      <p className="tg-candidate-lead">Compare the conditions, then select the most likely sector.</p>
-      <ul className="tg-candidate-list">
-        {candidates.map((candidate, index) => {
-          const selected = candidate.id === selectedId
-          const label = candidate.name?.trim() || candidateSector(candidate)
-          const occurrence = seenLabels.get(label) ?? 0
-          seenLabels.set(label, occurrence + 1)
-          const uniqueLabel = occurrence ? `${label} · sector ${occurrence + 1}` : label
-          return (
-            <li key={candidate.id}>
-              <button
-                type="button"
-                data-testid="candidate-option"
-                aria-pressed={selected}
-                onClick={() => onChange({ lat: candidate.lat, lon: candidate.lon })}
-                className={`tg-candidate tg-control${selected ? ' tg-candidate--selected' : ''}`}
-              >
-                <span className="tg-candidate-index" aria-hidden="true">{String.fromCharCode(65 + index)}</span>
-                <span>
-                  <span className="tg-candidate-name">{uniqueLabel}</span>
-                  <span className="tg-candidate-region">
-                    {formatRegion(candidate.region)} · {Math.abs(candidate.lat).toFixed(0)}°{candidate.lat < 0 ? 'S' : 'N'} latitude band
-                  </span>
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+    <ul className="tg-candidate-list" aria-label="Choose a location">
+      {candidates.map((candidate) => {
+        const selected = candidate.id === selectedId
+        const label = candidate.name?.trim() || candidateSector(candidate)
+        const occurrence = seenLabels.get(label) ?? 0
+        seenLabels.set(label, occurrence + 1)
+        const uniqueLabel = occurrence ? `${label} · ${occurrence + 1}` : label
+        return (
+          <li key={candidate.id}>
+            <button
+              type="button"
+              data-testid="candidate-option"
+              aria-pressed={selected}
+              onClick={() => onChange({ lat: candidate.lat, lon: candidate.lon })}
+              className={`tg-candidate-row${selected ? ' tg-candidate-row--selected' : ''}`}
+            >
+              <span className="tg-candidate-name">{uniqueLabel}</span>
+              <svg className="tg-candidate-mark" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="m3.5 8 3 3 6-6" />
+              </svg>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

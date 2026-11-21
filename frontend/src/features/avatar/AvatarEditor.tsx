@@ -51,7 +51,7 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
     finally { pending.current = false; setSaving(false) }
   }
   const cameraAction = (action: PreviewCommand['action']) => setCommand(previous => ({ id: previous.id + 1, action }))
-  return <dialog ref={dialog} className="ae-dialog" aria-labelledby="ae-title" aria-describedby="ae-subtitle"
+  return <dialog ref={dialog} className="ae-dialog" aria-labelledby="ae-title"
     onKeyDown={event => {
       if (event.key !== 'Tab') return
       const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]')]
@@ -64,7 +64,7 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
     onCancel={event => { event.preventDefault(); cancel() }} onClick={event => { if (event.target === event.currentTarget) cancel() }}>
     <div className="ae-shell">
       <header className="ae-header">
-        <div><span className="ae-eyebrow">EXPLORER STUDIO</span><h2 id="ae-title">A world of <em>you.</em></h2><p id="ae-subtitle">Small details. Your signature explorer.</p></div>
+        <div><span className="ae-eyebrow">EXPLORER STUDIO</span><h2 id="ae-title">A world of <em>you.</em></h2></div>
         <button type="button" className="ae-icon-button tg-control tg-icon-button" aria-label="Close avatar editor" onClick={cancel} disabled={saving} autoFocus>×</button>
       </header>
       <div className="ae-body">
@@ -97,10 +97,9 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
         </section>
       </div>
       <footer className="ae-footer">
-        <div className="ae-storage"><span aria-hidden="true">{account ? '☁' : '◈'}</span><div><strong>{account ? 'Saved to your account' : 'Saved on this device'}</strong><small>{account ? 'Your look follows you when you sign in.' : 'Guest appearance · stored in this browser.'}</small></div></div>
         <div className="ae-feedback" aria-live="polite">{loadError ? <p role="alert">{loadError} <button type="button" onClick={onRetry}>Retry</button></p> : error ? <p role="alert">{error}</p> : loading ? <p>Loading saved appearance…</p> : null}</div>
         <div className="ae-actions">
-          <button type="button" className="ae-reset" aria-label="Reset to Default" onClick={() => { setDraft({ ...DEFAULT_AVATAR }); setError('') }} disabled={saving || loading}>↺ <span>Reset to Default</span></button>
+          <Button variant="ghost" className="ae-reset" aria-label="Reset to Default" onClick={() => { setDraft({ ...DEFAULT_AVATAR }); setError('') }} disabled={saving || loading}>↺ <span>Reset to Default</span></Button>
           <Button variant="secondary" className="ae-cancel" onClick={cancel} disabled={saving}>Cancel</Button>
           <Button className="ae-save" onClick={save} disabled={saving || loading || !ready || previewError}>{saving ? 'Saving…' : 'Save Changes'}</Button>
         </div>

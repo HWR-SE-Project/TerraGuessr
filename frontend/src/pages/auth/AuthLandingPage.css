@@ -8,27 +8,6 @@
   background: var(--color-bg);
   color: var(--color-text);
 }
-.geo-landing__login,
-.geo-landing__signup {
-  min-height: 44px;
-  padding: 10px 22px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 550;
-}
-.geo-landing__signup {
-  border-color: var(--color-border-strong);
-  color: var(--color-text);
-  background: #ffffff05;
-}
-.geo-landing__login:hover,
-.geo-landing__signup:hover {
-  background: #ffffff0c;
-  color: #fff;
-}
 .geo-landing__content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 27.5rem);
@@ -42,14 +21,6 @@
 .geo-landing__hero {
   align-self: start;
   padding-top: 62px;
-}
-.geo-landing__eyebrow,
-.geo-landing__card-eyebrow {
-  font-size: 9px;
-  letter-spacing: 2.5px;
-  font-weight: 550;
-  color: var(--color-cyan);
-  line-height: 1.5;
 }
 .geo-landing__hero h1 {
   margin: 24px 0;
@@ -68,31 +39,10 @@
   max-width: 430px;
   margin: 0;
 }
-.geo-landing__hero-note {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 25px;
-  margin-top: 42px;
-  padding-top: 24px;
-  border-top: 1px solid #b4cddd25;
-  font-size: 8px;
-  letter-spacing: 1.3px;
-  color: #c1d2df;
-  width: fit-content;
-}
 .geo-landing__signup-card {
   padding: 36px;
-  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-panel);
-  background: linear-gradient(145deg, #18283ce8, #0d1827f2);
-  box-shadow: var(--shadow-panel);
-  backdrop-filter: blur(20px);
   min-width: 0;
-}
-.geo-landing__card-eyebrow {
-  color: var(--color-subtle);
-  font-size: 8px;
-  letter-spacing: 1.8px;
 }
 .geo-landing__signup-card h2 {
   margin: 12px 0 9px;
@@ -145,8 +95,8 @@
   border-color: #f4f7fb;
 }
 .geo-landing__provider--email {
-  background: #c0f66b0a;
-  border-color: #c0f66b55;
+  background: var(--color-lime-10);
+  border-color: var(--color-lime-40);
   color: var(--color-lime);
 }
 .geo-landing__provider:hover {
@@ -157,7 +107,7 @@
   background: #fff;
 }
 .geo-landing__provider--email:hover {
-  background: #c0f66b15;
+  background: var(--color-lime-20);
   border-color: var(--color-lime);
 }
 .geo-landing__provider:active {
@@ -290,19 +240,11 @@
     font-size: 14px;
     line-height: 1.8;
   }
-  .geo-landing__hero-note {
-    display: none;
-  }
   .geo-landing__signup-card {
     background: #101c2ce8;
   }
 }
 @media (max-width: 480px) {
-  .geo-landing__login,
-  .geo-landing__signup {
-    padding: 10px 12px;
-    font-size: 11px;
-  }
   .geo-landing__content {
     width: calc(100% - 40px);
     padding-top: 34px;
@@ -310,10 +252,6 @@
   }
   .geo-landing__hero h1 {
     font-size: clamp(41px, 11vw, 52px);
-  }
-  .geo-landing__eyebrow {
-    font-size: 8px;
-    letter-spacing: 1.7px;
   }
   .geo-landing__subtitle {
     font-size: 12px;
@@ -327,10 +265,5 @@
   }
 }
 
-@media (max-width: 37.5rem) {
-  .th-header:has(.th-player-tools-auth) .th-player-tools-auth { grid-column: 1 / -1; grid-row: 2; justify-self: end; }
-  .th-header:has(.th-player-tools-auth) .th-navigation { grid-row: 3; }
-  .geo-landing__login, .geo-landing__signup { font-size: 0.875rem; }
-}
 .geo-landing__subtitle { font-size: 1rem; }
 .geo-landing__signup-card { overflow-wrap: anywhere; }

@@ -5,11 +5,8 @@ import { useSession } from '../../state/SessionContext'
 import { requestEmailChange } from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { Brand } from '../../components/ui/Brand'
 import { PageNavigation } from '../../components/ui/PageNavigation'
 import './SettingsPage.css'
-
-type SettingsTab = 'account' | 'preferences'
 
 function LanguageIcon() {
   return (
@@ -66,8 +63,6 @@ export function SettingsPage() {
     logout,
     deleteAccount,
   } = useSession()
-  const [tab, setTab] = useState<SettingsTab>('account')
-
   const [displayName, setDisplayName] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
@@ -169,7 +164,7 @@ export function SettingsPage() {
   if (status === 'loading') {
     return (
       <>
-        <PageNavigation active="none" />
+        <PageNavigation />
         <main className="settings-screen">
           <p style={{ color: 'rgba(255,255,255,0.6)' }}>Loading…</p>
         </main>
@@ -177,68 +172,30 @@ export function SettingsPage() {
     )
   }
 
-  if (!user) {
-    return (
-      <>
-        <PageNavigation active="none" />
-        <main className="settings-screen">
-          <section
-            className="settings-panel settings-guest"
-            aria-label="Settings"
-          >
-            <Brand />
-            <h1>Make it your world.</h1>
-            <p>Sign in to manage your account and preferences.</p>
-            <button
-              type="button"
-              className="settings-save-btn tg-control tg-control--primary"
-              onClick={() => navigate('/auth')}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              className="settings-footer__close tg-control"
-              onClick={() => navigate('/')}
-            >
-              Return home
-            </button>
-          </section>
-        </main>
-      </>
-    )
-  }
-
   return (
     <>
-      <PageNavigation active="none" />
+      <PageNavigation />
       <main className="settings-screen">
         <section className="settings-panel" aria-label="Settings">
         <header className="settings-header">
           <h1>Settings</h1>
-          <nav className="settings-tabs" aria-label="Settings sections">
-            <button
-              type="button"
-              className={`tg-control${tab === 'account' ? ' is-active' : ''}`}
-              aria-pressed={tab === 'account'}
-              onClick={() => setTab('account')}
-            >
-              Account
-            </button>
-            <button
-              type="button"
-              className={`tg-control${tab === 'preferences' ? ' is-active' : ''}`}
-              aria-pressed={tab === 'preferences'}
-              onClick={() => setTab('preferences')}
-            >
-              Preferences
-            </button>
-          </nav>
-          <span className="settings-header__spacer" />
         </header>
 
-        <div className="settings-content" key={tab}>
-          {tab === 'account' ? (
+        <div className="settings-content">
+          <h2 className="settings-section-title">Account</h2>
+          {
+            !user ? (
+              <div className="settings-row settings-guest">
+                <p>Sign in to manage your account.</p>
+                <button
+                  type="button"
+                  className="settings-save-btn tg-control tg-control--primary"
+                  onClick={() => navigate('/auth')}
+                >
+                  Sign in
+                </button>
+              </div>
+            ) : (
             <>
               <form className="settings-row" onSubmit={saveProfile}>
                 <h2 className="settings-row__label">Display name</h2>
@@ -293,7 +250,7 @@ export function SettingsPage() {
                     </span>
                     <button
                       type="button"
-                      className="settings-save-btn settings-save-btn--muted"
+                      className="settings-save-btn settings-save-btn--muted tg-control"
                       onClick={() => {
                         setEmailFormOpen((open) => !open)
                         setEmailError(null)
@@ -339,7 +296,7 @@ export function SettingsPage() {
                       </p>
                       <button
                         type="submit"
-                        className="settings-save-btn"
+                        className="settings-save-btn tg-control tg-control--primary"
                         disabled={emailBusy || !newEmail.trim()}
                         style={{ justifySelf: 'start' }}
                       >
@@ -383,8 +340,11 @@ export function SettingsPage() {
                 </div>
               </div>
             </>
-          ) : (
-            <>
+            )
+          }
+
+          <h2 className="settings-section-title">Preferences</h2>
+          <>
               <Slider
                 label="Effect volume"
                 value={preferences?.soundFxVolume ?? 50}
@@ -442,7 +402,6 @@ export function SettingsPage() {
                 </p>
               )}
             </>
-          )}
         </div>
 
         <footer className="settings-footer">

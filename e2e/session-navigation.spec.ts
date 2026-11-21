@@ -90,7 +90,10 @@ for (const destination of ['logo', 'multiplayer', 'browser-back'] as const) {
     await start(page)
     const leave = async () => {
       if (destination === 'browser-back') await page.goBack()
-      else await page.getByRole('link', { name: destination === 'logo' ? 'TerraGuessr home' : 'Multiplayer', exact: true }).click()
+      else if (destination === 'multiplayer') {
+        await page.getByRole('button', { name: 'Game menu' }).click()
+        await page.getByRole('link', { name: 'Multiplayer', exact: true }).click()
+      } else await page.getByRole('link', { name: 'TerraGuessr home', exact: true }).click()
     }
     await leave()
     await expect(page.getByRole('dialog', { name: 'End your adventure?' })).toBeVisible()
@@ -99,7 +102,7 @@ for (const destination of ['logo', 'multiplayer', 'browser-back'] as const) {
     expect(api.ended()).toBe(0)
     await leave()
     await page.getByRole('button', { name: 'End Game', exact: true }).click()
-    await expect(page).toHaveURL(destination === 'multiplayer' ? /\/multiplayer$/ : /\/$/)
+    await expect(page).toHaveURL(destination === 'multiplayer' ? /\/multiplayer\/create$/ : /\/$/)
     expect(api.ended()).toBe(1)
     // A fresh visit never resumes the finalized session.
     await page.getByRole('link', { name: 'Singleplayer', exact: true }).click()
@@ -132,8 +135,9 @@ test('one responsive header exposes working help, settings and destinations with
   await start(page)
   await page.getByRole('button', { name: 'Game menu' }).click()
   await expect(page.getByRole('link', { name: 'Multiplayer', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Game settings', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Game settings' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to game', exact: false }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.locator('.sp-page')).toHaveAttribute('data-view', 'playing')
 })
 
 test('failed finalization keeps the session active and preserves the intended route until retry succeeds', async ({ page }) => {

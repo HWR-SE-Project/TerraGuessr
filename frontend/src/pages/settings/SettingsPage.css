@@ -34,58 +34,17 @@
   font-weight: 600;
   letter-spacing: -1.4px;
 }
-.settings-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: #080f1b80;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  margin-right: 32px;
-}
-.settings-tabs button {
-  min-height: 40px;
-  padding: 10px 18px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--color-muted);
+.settings-section-title {
+  margin: 0;
+  padding: 24px 0 4px;
   font-size: 12px;
-  font-weight: 550;
-}
-.settings-tabs button:hover {
-  color: var(--color-text);
-}
-.settings-tabs button.is-active {
-  background: #c0f66b12;
-  color: var(--color-lime);
-}
-.settings-header__spacer {
-  display: none;
-}
-.settings-top-close {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  width: 44px;
-  height: 44px;
-  padding: 12px;
-  display: grid;
-  place-items: center;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--color-muted);
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
 }
-.settings-top-close:hover {
-  background: #ffffff08;
-}
-.settings-top-close svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.5;
+.settings-section-title:first-child {
+  padding-top: 0;
 }
 .settings-content {
   min-height: 0;
@@ -110,49 +69,28 @@
   font-size: 14px;
   line-height: 1.5;
   font-weight: 500;
-  color: #e2eaf3;
+  color: var(--color-text);
 }
+/* Background/border/focus-ring come from the shared .tg-field material in
+   design-system/controls.css — this only owns size/layout. */
 .settings-text-input {
   min-width: 0;
   width: 100%;
   flex: 1 1 180px;
   height: 48px;
-  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
   padding: 0 14px;
-  background: #080f1b70;
   color: var(--color-text);
   font: inherit;
   font-size: 14px;
 }
+/* Color/border/hover/disabled material comes from the shared tg-control
+   variant every call site pairs with these classes — this only owns layout. */
 .settings-save-btn {
   min-height: 48px;
   padding: 12px 24px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  background: var(--color-lime);
-  color: var(--color-on-lime);
   font-size: 13px;
   font-weight: 600;
-}
-.settings-save-btn:hover:enabled {
-  background: var(--color-lime-hover);
-}
-.settings-save-btn:disabled {
-  opacity: 0.4;
-}
-.settings-save-btn--muted {
-  background: #ffffff06;
-  border-color: var(--color-border-strong);
-  color: var(--color-text);
-}
-.settings-save-btn--danger {
-  background: #ff9b9e0a;
-  border-color: #ff9b9e40;
-  color: var(--color-red);
-}
-.settings-save-btn--danger:hover:enabled {
-  background: #ff9b9e1a;
 }
 .settings-note {
   margin: 0;
@@ -179,15 +117,8 @@
 .settings-footer__close {
   min-height: 48px;
   padding: 12px 28px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-control);
-  background: #ffffff06;
-  color: var(--color-text);
   font-size: 13px;
   font-weight: 550;
-}
-.settings-footer__close:hover {
-  background: var(--color-surface-hover);
 }
 .settings-slider-wrap {
   position: relative;
@@ -259,9 +190,7 @@
   align-items: center;
   width: min(100%, 330px);
   height: 48px;
-  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
-  background: #080f1b70;
 }
 .settings-language-select__icon {
   display: grid;
@@ -305,32 +234,37 @@
   width: 1px;
   height: 1px;
 }
+/* Matches the shared .sp-setting switch (design-system/controls.css) so
+   in-game and account settings use one toggle-switch look. */
 .settings-toggle > span {
   position: relative;
   display: block;
   width: 48px;
   height: 28px;
-  border-radius: 20px;
-  background: #2a3c50;
+  border-radius: var(--radius-pill);
+  background: var(--glass-shading), #27394f;
+  box-shadow: inset 0 1px 4px #01061066, 0 1px #ffffff14;
+  border: 1px solid #d3e6ff26;
   transition: background 160ms;
 }
 .settings-toggle > span::after {
   content: '';
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: 3px;
+  left: 3px;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #9cacc0;
+  background: linear-gradient(145deg, #f2f7fc, #a5bbd1);
+  box-shadow: inset 0 1px #fff9, 0 2px 5px #0106104d;
   transition: transform 160ms;
 }
 .settings-toggle input:checked + span {
-  background: var(--color-lime);
+  background: linear-gradient(160deg, #d3fc9c, #93c359);
 }
 .settings-toggle input:checked + span::after {
   transform: translateX(20px);
-  background: #172512;
+  background: linear-gradient(145deg, #f3ffdf, #d4edba);
 }
 .settings-toggle input:focus-visible + span {
   outline: 2px solid var(--color-lime);
@@ -376,14 +310,6 @@
   .settings-header h1 {
     font-size: 29px;
   }
-  .settings-tabs {
-    margin: 20px 0 0;
-    width: fit-content;
-  }
-  .settings-tabs button {
-    min-height: 44px;
-    padding-inline: 16px;
-  }
   .settings-row {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -403,7 +329,6 @@
 .settings-panel { max-height: none; }
 .settings-content { overflow: visible; }
 .settings-header { flex-wrap: wrap; padding-right: 2rem; }
-.settings-tabs { flex-wrap: wrap; max-width: 100%; }
 .settings-row > div { min-width: 0; }
 .settings-note, .settings-inline-message { overflow-wrap: anywhere; }
 .settings-row { overflow-wrap: anywhere; }

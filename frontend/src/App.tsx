@@ -74,8 +74,10 @@ function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/confirm-email-change" element={<EmailChangePage />} />
-          <Route path="/multiplayer" element={<LobbyPage />} />
-          <Route path="/lobby" element={<Navigate to="/multiplayer" replace />} />
+          <Route path="/multiplayer" element={<Navigate to="/multiplayer/create" replace />} />
+          <Route path="/multiplayer/create" element={<LobbyPage />} />
+          <Route path="/multiplayer/join" element={<LobbyPage mode="join" />} />
+          <Route path="/lobby" element={<Navigate to="/multiplayer/create" replace />} />
           <Route path="/lobby/:code" element={<LobbyPage />} />
           <Route path="/lobby/:code/game" element={<MultiplayerGamePage />} />
           <Route path="/game/singleplayer" element={<SingleplayerGamePage />} />

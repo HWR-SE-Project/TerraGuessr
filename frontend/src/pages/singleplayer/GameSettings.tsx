@@ -1,5 +1,6 @@
+import type { CSSProperties } from 'react'
 import { Button } from '../../components/ui/Button'
-import { GameDialog } from './GameDialog'
+import { Modal } from '../../components/ui/Modal'
 import type { GameplaySettings } from './settings'
 export function GameSettings({
   settings,
@@ -14,8 +15,7 @@ export function GameSettings({
     onChange({ ...settings, [key]: !settings[key] })
   }
   return (
-    <GameDialog title="Game settings" onClose={onClose}>
-      <p className="sp-muted">Make yourself at home, wherever you are.</p>
+    <Modal title="Game settings" onClose={onClose}>
       {(
         [
           [
@@ -55,6 +55,7 @@ export function GameSettings({
           min="60"
           max="100"
           value={settings.mapOpacity}
+          style={{ '--range-fill': `${settings.mapOpacity}%` } as CSSProperties}
           onChange={(event) =>
             onChange({ ...settings, mapOpacity: Number(event.target.value) })
           }
@@ -63,6 +64,6 @@ export function GameSettings({
       <Button className="sp-primary tg-control tg-control--primary sp-wide" onClick={onClose}>
         Back to exploring
       </Button>
-    </GameDialog>
+    </Modal>
   )
 }

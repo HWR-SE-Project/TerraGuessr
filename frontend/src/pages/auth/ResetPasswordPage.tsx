@@ -3,7 +3,7 @@ import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
-import './tokens.css'
+import './AuthPage.css'
 import '../../components/auth/EmailAuthForm.css'
 
 export function ResetPasswordPage() {
@@ -35,7 +35,7 @@ export function ResetPasswordPage() {
 
   return (
     <>
-    <PageNavigation active="none" />
+    <PageNavigation />
     <div
       className="tg-auth-root"
       style={{

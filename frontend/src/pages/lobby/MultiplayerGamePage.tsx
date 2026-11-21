@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import * as lobbiesApi from '../../api/lobbies'
 import { ApiError } from '../../api/client'
@@ -10,11 +11,14 @@ import type {
   LobbyMatchResponseDTO,
   LobbyMatchResult,
 } from '../../api/types'
-import { AppNavigation, PageNavigation } from '../../components/ui/PageNavigation'
+import { PageNavigation } from '../../components/ui/PageNavigation'
 import { useNavigationGuard } from '../../components/ui/NavigationGuard'
-import { GameDialog } from '../singleplayer/GameDialog'
+import { Modal } from '../../components/ui/Modal'
+import { GameSettings } from '../singleplayer/GameSettings'
+import { readSettings } from '../singleplayer/settings'
 import { Button } from '../../components/ui/Button'
-import { CandidateList } from '../../components/CandidateList'
+import { CityGuessPanel } from '../../components/CityGuessPanel'
+import { GuessButton } from '../singleplayer/GuessButton'
 import { StreetViewViewer } from '../singleplayer/StreetViewViewer'
 import { GuessMap } from '../singleplayer/GuessMap'
 import type { GuessMapMarker } from '../singleplayer/GuessMap'
@@ -351,7 +355,6 @@ export function MultiplayerGamePage() {
   const token = useMemo(() => lobbiesApi.getLobbyToken(code), [code])
   const [data, setData] = useState<LobbyMatchResponseDTO | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [guess, setGuess] = useState<LatLon | null>(null)
   const [busy, setBusy] = useState(false)
   const [unlocking, setUnlocking] = useState(false)
@@ -362,6 +365,19 @@ export function MultiplayerGamePage() {
   const [lastResult, setLastResult] = useState<LobbyMatchResult | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [showBoard, setShowBoard] = useState(false)
+  const [settings, setSettings] = useState(readSettings)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'terraguessr.gameplay.settings',
+        JSON.stringify(settings),
+      )
+    } catch {
+      /* Settings remain available in memory. */
+    }
+  }, [settings])
   const roundKey = data?.match.round?.id ?? null
   const previousRound = useRef<string | null>(null)
   const loadId = useRef(0)
@@ -483,7 +499,6 @@ export function MultiplayerGamePage() {
     setGuess(data?.match.you.selection ?? null)
     setPanoramaReady(false)
     setPanoramaUnavailable(false)
-    setNotice(null)
   }, [data?.match.you.selection, roundKey])
 
   useEffect(() => {
@@ -582,7 +597,6 @@ export function MultiplayerGamePage() {
     if (!token || !match || !round || !guess || finalized || busy) return
     setBusy(true)
     setError(null)
-    setNotice(null)
     try {
       const response = final
         ? await lobbiesApi.finishLobbyRound(code, round.number, token)
@@ -593,11 +607,7 @@ export function MultiplayerGamePage() {
             guess,
             false,
           )
-      if (!response.finalized) {
-        setNotice(
-          `Guess submitted. ${response.attemptsRemaining} attempt${response.attemptsRemaining === 1 ? '' : 's'} remaining.`,
-        )
-      } else if (response.result) {
+      if (response.finalized && response.result) {
         setLastResult(response.result)
       }
       await load()
@@ -651,21 +661,44 @@ export function MultiplayerGamePage() {
           round={streetRound}
           onReady={setPanoramaReady}
           onUnavailable={setPanoramaUnavailable}
-          showCompass
-          scrollZoom
+          showCompass={settings.compass}
+          scrollZoom={settings.scrollZoom}
         />
       )}
       <div className="sp-top-shade" />
-      <PageNavigation active="multiplayer" game={match?.status === 'playing'} summary onMenu={() => setMenuOpen(true)}>
-        <button className="tg-control tg-icon-button th-game-menu" aria-label="Show leaderboard" title="Show leaderboard" onClick={() => setShowBoard(value => !value)}><GameIcon name="info" /></button>
+      <PageNavigation
+        game={match?.status === 'playing'}
+        summary={match?.status === 'finished'}
+        onHelp={() => setHelpOpen(true)}
+        onSettings={() => setSettingsOpen(true)}
+        onMenu={() => setMenuOpen(true)}
+      >
+        <button className="th-icon-btn" aria-label="Show leaderboard" title="Show leaderboard" onClick={() => setShowBoard(value => !value)}><GameIcon name="info" /></button>
       </PageNavigation>
-      {menuOpen && navigation.state !== 'blocked' && <GameDialog title="Match menu" onClose={() => setMenuOpen(false)}>
+      {menuOpen && navigation.state !== 'blocked' && <Modal title="Match menu" onClose={() => setMenuOpen(false)}>
         <div className="sp-menu-actions">
-          <AppNavigation active="multiplayer" onNavigate={() => setMenuOpen(false)} />
           <button className="sp-secondary tg-control" onClick={() => { setMenuOpen(false); backToLobby() }}>Back to lobby</button>
         </div>
-      </GameDialog>}
-      {navigation.state === 'blocked' && <GameDialog title="Leave this match?" closeDisabled={leaving}
+      </Modal>}
+      {helpOpen && (
+        <Modal title="How to play" onClose={() => setHelpOpen(false)}>
+          <div className="sp-menu-actions">
+            <p>Drop a pin on the map before the round timer runs out. Everyone in the lobby guesses the same location, and scores are ranked on the leaderboard after each round.</p>
+            <p>Use your attempts wisely: a final submit locks in your answer early, but you can keep refining your guess until the timer ends or you run out of attempts.</p>
+            <button className="sp-primary tg-control tg-control--primary" onClick={() => setHelpOpen(false)}>
+              Back to game
+            </button>
+          </div>
+        </Modal>
+      )}
+      {settingsOpen && (
+        <GameSettings
+          settings={settings}
+          onChange={setSettings}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {navigation.state === 'blocked' && <Modal title="Leave this match?" closeDisabled={leaving}
         onClose={() => { navigation.reset(); setLeaveError('') }}>
         <p>Leaving ends your participation in this match.</p>
         {leaveError && <p role="alert">{leaveError}</p>}
@@ -673,7 +706,7 @@ export function MultiplayerGamePage() {
           <Button disabled={leaving} onClick={() => { navigation.reset(); setLeaveError('') }}>Keep Playing</Button>
           <Button variant="secondary" disabled={leaving} onClick={() => void confirmLeave()}>{leaving ? 'Leaving…' : 'Leave match'}</Button>
         </div>
-      </GameDialog>}
+      </Modal>}
 
       {match?.status === 'finished' ? (
         <FinalMatchResults
@@ -709,15 +742,33 @@ export function MultiplayerGamePage() {
       )}
 
       {!result && !finalized && match?.status === 'playing' && (
+        round?.candidates ? (
+          <CityGuessPanel
+            className="mp-guess-panel"
+            candidates={round.candidates}
+            selectedId={selectedCandidateId}
+            onChange={choose}
+            metadata={match.you.attemptsTotal > 0
+              ? `${match.you.attemptsUsed}/${match.you.attemptsTotal} attempts used` : undefined}
+          >
+            <GuessButton compact disabled={!guess || !guessReady || busy} busy={busy}
+              onClick={() => void submit(false)} />
+            {match.you.attemptsUsed > 0 && (
+              <GuessButton compact variant="secondary" label="Final submit"
+                disabled={!guess || busy} onClick={() => void submit(true)} />
+            )}
+          </CityGuessPanel>
+        ) : (
         <aside
           className="sp-guess-panel sp-glass mp-guess-panel"
+          style={{ '--map-opacity': settings.mapOpacity / 100 } as CSSProperties}
           aria-label="Guessing map"
         >
           <header className="sp-map-header">
             <span className="sp-map-mode">
               <GameIcon name="pin" />
               <span>
-                {round?.candidates ? 'Pick a city' : 'World Explorer'}
+                World Explorer
                 <small>
                   {match.you.attemptsUsed} / {match.you.attemptsTotal} attempts
                   used
@@ -726,22 +777,14 @@ export function MultiplayerGamePage() {
             </span>
           </header>
           <div className="sp-map-wrap">
-            {round?.candidates ? (
-              <CandidateList
-                candidates={round.candidates}
-                onChange={choose}
-                selectedId={selectedCandidateId}
-              />
-            ) : (
-              <GuessMap
-                key={round?.id ?? 'match'}
-                guess={guess}
-                onChange={choose}
-                interactive={exploring && guessReady && !busy}
-                countryBorders={match.rules.countryBorders}
-              />
-            )}
-            {!round?.candidates && !guess && guessReady && (
+            <GuessMap
+              key={round?.id ?? 'match'}
+              guess={guess}
+              onChange={choose}
+              interactive={exploring && guessReady && !busy}
+              countryBorders={match.rules.countryBorders}
+            />
+            {!guess && guessReady && (
               <span className="sp-map-hint">Click the map to place your pin</span>
             )}
           </div>
@@ -749,13 +792,8 @@ export function MultiplayerGamePage() {
             <span aria-live="polite">
               {guess
                 ? `${guess.lat.toFixed(3)}°, ${guess.lon.toFixed(3)}° · pin placed`
-                : 'Where in the world are you?'}
+                : ''}
             </span>
-            {notice && (
-              <p className="mp-inline-notice" role="status">
-                {notice}
-              </p>
-            )}
             <div className="mp-guess-actions">
               <button
                 className="sp-primary tg-control tg-control--primary sp-guess-button"
@@ -777,6 +815,7 @@ export function MultiplayerGamePage() {
             </div>
           </div>
         </aside>
+        )
       )}
 
       {match && !result && !finalized && match.status === 'playing' && (
@@ -796,18 +835,20 @@ export function MultiplayerGamePage() {
       )}
 
       {match?.status !== 'finished' && (
-        <GameplayHUD
-          round={match?.currentRound ?? match?.roundsTotal ?? 1}
-          roundsTotal={match?.roundsTotal ?? 5}
-          score={match?.results.reduce((sum, entry) => sum + entry.score, 0) ?? 0}
-          status={
-            busy
-              ? 'Submitting your guess…'
-              : finalized
-                ? 'Round complete'
-                : 'Explore. Find your bearings.'
-          }
-        />
+        <footer className="sp-bottom-bar">
+          <GameplayHUD
+            round={match?.currentRound ?? match?.roundsTotal ?? 1}
+            roundsTotal={match?.roundsTotal ?? 5}
+            score={match?.results.reduce((sum, entry) => sum + entry.score, 0) ?? 0}
+            status={
+              busy
+                ? 'Submitting your guess…'
+                : finalized
+                  ? 'Round complete'
+                  : ''
+            }
+          />
+        </footer>
       )}
 
       {error && (

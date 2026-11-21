@@ -1,7 +1,6 @@
 /* Setup-only materials and layout; gameplay retains its existing controls. */
 .sp-page:is([data-view='setup'], [data-view='loading']) {
   grid-template-rows: auto minmax(min-content, 1fr);
-  padding-top: env(safe-area-inset-top, 0px);
 }
 .sp-setup-shell {
   grid-column: 1 / -1;
@@ -16,12 +15,6 @@
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: clamp(2rem, 4vw, 4rem);
   padding: clamp(1.75rem, 3vw, 2.5rem);
-  border: 1px solid #d5e8ff0d;
-  border-radius: 1.75rem;
-  background: #101b2a2e;
-  box-shadow: none;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
 }
 .sp-welcome .sp-setup-intro h1 {
   margin: 0 0 1.5rem;
@@ -35,18 +28,18 @@
 .sp-setup-intro h1 > em { display: block; }
 .sp-setup-intro h1 > em {
   margin-top: 0.15em;
-  color: #c6f48d;
+  color: var(--color-lime);
   font-weight: 500;
 }
 .sp-setup-intro > p {
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.8;
-  color: #b3c1d0;
+  color: var(--color-muted);
 }
 .sp-setup-intro > .sp-setup-meta {
   margin-top: 1.75rem;
-  color: #98aabc;
+  color: var(--color-muted);
   font-size: 0.75rem;
   line-height: 1.8;
   text-wrap: pretty;
@@ -55,7 +48,7 @@
 .sp-welcome .sp-difficulty { margin-bottom: 1.25rem; }
 .sp-welcome .sp-difficulty legend {
   padding-bottom: 1rem;
-  color: #dfe7ef;
+  color: var(--color-text);
   font-size: 0.9375rem;
   font-weight: 500;
   letter-spacing: 0;
@@ -81,14 +74,14 @@
   font-size: 0.9375rem;
   font-weight: 500;
   letter-spacing: 0;
-  color: #edf3f6;
+  color: var(--color-text);
 }
 .sp-setup-shell .sp-difficulty-description {
   grid-column: 1;
   margin: 0;
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: #adbdcd;
+  color: var(--color-muted);
 }
 #root .sp-setup-shell .sp-difficulty-option--selected {
   background: #c0f66b09;
@@ -102,24 +95,20 @@
   height: 0.875rem;
   margin-top: -0.4375rem;
   background: transparent;
-  color: #c6f48d;
+  color: var(--color-lime);
   box-shadow: none;
   animation: none;
 }
 .sp-setup-shell .sp-difficulty-check svg { width: 100%; height: 100%; }
+/* Color/radius come from the shared tg-control--primary material; this only
+   owns the full-width hero layout for this one call site. */
 #root .sp-setup-options > .sp-primary {
   justify-content: center;
   width: 100%;
   min-height: 3.125rem;
   padding: 0.875rem 1.375rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: #c6ef94;
-  color: #203317;
-  box-shadow: none;
   font-size: 0.875rem;
   font-weight: 600;
-  transition: background 180ms ease;
 }
 .sp-setup-shell .sp-setup-back {
   position: static;
@@ -132,7 +121,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #9bafc2;
+  color: var(--color-muted);
   box-shadow: none;
   font-size: 0.75rem;
   cursor: pointer;
@@ -154,11 +143,9 @@
     background: #c0f66b0d;
   }
   #root .sp-setup-options > .sp-primary:hover:enabled {
-    background: #d2f5a7;
-    box-shadow: none;
     translate: none;
   }
-  .sp-setup-shell .sp-setup-back:hover { color: #e4edf6; }
+  .sp-setup-shell .sp-setup-back:hover { color: var(--color-text); }
 }
 @media (max-width: 60rem) and (min-width: 45.001rem) {
   #root .sp-setup-shell .sp-welcome.sp-glass {
@@ -173,7 +160,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 2rem;
     padding: 1.75rem 1.5rem;
-    border-radius: 1.5rem;
   }
   .sp-welcome .sp-setup-intro h1 {
     margin-bottom: 1rem;
@@ -197,11 +183,6 @@
   .sp-setup-shell .sp-setup-back { transition: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  #root .sp-setup-shell .sp-welcome.sp-glass {
-    background: #101c2c;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
   #root .sp-setup-shell .sp-difficulty-option { background: #152335; }
   #root .sp-setup-shell .sp-difficulty-option--selected { background: #1e2e29; }
 }

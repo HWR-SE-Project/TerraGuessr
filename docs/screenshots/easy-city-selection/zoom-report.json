@@ -1,0 +1,222 @@
+[
+  {
+    "zoom": 80,
+    "width": 1800,
+    "height": 1016,
+    "scrollWidth": 1800,
+    "scrollHeight": 1016,
+    "pixelRatio": 0.800000011920929,
+    "panelWidth": 303.984375,
+    "panelHeight": 334.8828125,
+    "headerHeight": 39.23828125,
+    "rows": [
+      {
+        "top": 50.46875,
+        "bottom": 86.46484375,
+        "height": 35.99609375
+      },
+      {
+        "top": 88.45703125,
+        "bottom": 124.453125,
+        "height": 35.99609375
+      },
+      {
+        "top": 126.4453125,
+        "bottom": 162.44140625,
+        "height": 35.99609375
+      },
+      {
+        "top": 164.43359375,
+        "bottom": 200.4296875,
+        "height": 35.99609375
+      },
+      {
+        "top": 202.421875,
+        "bottom": 238.41796875,
+        "height": 35.99609375
+      },
+      {
+        "top": 240.41015625,
+        "bottom": 276.40625,
+        "height": 35.99609375
+      }
+    ],
+    "internalScroll": false
+  },
+  {
+    "zoom": 100,
+    "width": 1440,
+    "height": 813,
+    "scrollWidth": 1440,
+    "scrollHeight": 813,
+    "pixelRatio": 1,
+    "panelWidth": 304,
+    "panelHeight": 334,
+    "headerHeight": 39,
+    "rows": [
+      {
+        "top": 50,
+        "bottom": 86,
+        "height": 36
+      },
+      {
+        "top": 88,
+        "bottom": 124,
+        "height": 36
+      },
+      {
+        "top": 126,
+        "bottom": 162,
+        "height": 36
+      },
+      {
+        "top": 164,
+        "bottom": 200,
+        "height": 36
+      },
+      {
+        "top": 202,
+        "bottom": 238,
+        "height": 36
+      },
+      {
+        "top": 240,
+        "bottom": 276,
+        "height": 36
+      }
+    ],
+    "internalScroll": false
+  },
+  {
+    "zoom": 125,
+    "width": 1152,
+    "height": 650,
+    "scrollWidth": 1152,
+    "scrollHeight": 672,
+    "pixelRatio": 1.25,
+    "panelWidth": 304,
+    "panelHeight": 333.20001220703125,
+    "headerHeight": 38.79999923706055,
+    "rows": [
+      {
+        "top": 49.600006103515625,
+        "bottom": 85.60000610351562,
+        "height": 36
+      },
+      {
+        "top": 87.60000610351562,
+        "bottom": 123.60000610351562,
+        "height": 36
+      },
+      {
+        "top": 125.60000610351562,
+        "bottom": 161.60000610351562,
+        "height": 36
+      },
+      {
+        "top": 163.60000610351562,
+        "bottom": 199.60000610351562,
+        "height": 36
+      },
+      {
+        "top": 201.60000610351562,
+        "bottom": 237.60000610351562,
+        "height": 36
+      },
+      {
+        "top": 239.60000610351562,
+        "bottom": 275.6000061035156,
+        "height": 36
+      }
+    ],
+    "internalScroll": false
+  },
+  {
+    "zoom": 150,
+    "width": 960,
+    "height": 542,
+    "scrollWidth": 960,
+    "scrollHeight": 753,
+    "pixelRatio": 1.5,
+    "panelWidth": 304,
+    "panelHeight": 332.66668701171875,
+    "headerHeight": 38.66666793823242,
+    "rows": [
+      {
+        "top": 49.333343505859375,
+        "bottom": 85.33334350585938,
+        "height": 36
+      },
+      {
+        "top": 87.33334350585938,
+        "bottom": 123.33334350585938,
+        "height": 36
+      },
+      {
+        "top": 125.33334350585938,
+        "bottom": 161.33334350585938,
+        "height": 36
+      },
+      {
+        "top": 163.33334350585938,
+        "bottom": 199.33334350585938,
+        "height": 36
+      },
+      {
+        "top": 201.33334350585938,
+        "bottom": 237.33334350585938,
+        "height": 36
+      },
+      {
+        "top": 239.33334350585938,
+        "bottom": 275.3333435058594,
+        "height": 36
+      }
+    ],
+    "internalScroll": false
+  },
+  {
+    "zoom": 200,
+    "width": 720,
+    "height": 406,
+    "scrollWidth": 720,
+    "scrollHeight": 741,
+    "pixelRatio": 2,
+    "panelWidth": 304,
+    "panelHeight": 334,
+    "headerHeight": 39,
+    "rows": [
+      {
+        "top": 50,
+        "bottom": 86,
+        "height": 36
+      },
+      {
+        "top": 88,
+        "bottom": 124,
+        "height": 36
+      },
+      {
+        "top": 126,
+        "bottom": 162,
+        "height": 36
+      },
+      {
+        "top": 164,
+        "bottom": 200,
+        "height": 36
+      },
+      {
+        "top": 202,
+        "bottom": 238,
+        "height": 36
+      },
+      {
+        "top": 240,
+        "bottom": 276,
+        "height": 36
+      }
+    ],
+    "internalScroll": false
+  }
+]

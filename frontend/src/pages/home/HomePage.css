@@ -116,22 +116,6 @@
   white-space: nowrap;
 }
 .th-edit-avatar .th-icon { width: 12px; height: 12px; }
-.th-actions {
-  position: relative;
-  z-index: 3;
-  flex: none;
-  display: grid;
-  justify-items: center;
-  gap: clamp(0.5rem, 1.2vh, 0.75rem);
-  width: 100%;
-  padding-bottom: clamp(0.75rem, 2.5vh, 1.5rem);
-}
-.th-game-modes {
-  width: min(1000px, calc(100% - 96px));
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
-  gap: 14px;
-}
 .th-scene3d,
 .th-earth {
   position: absolute;
@@ -187,64 +171,25 @@
   left: 24px;
   top: -100px;
   padding: 14px 20px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
 }
 .th-skip:focus {
   top: 14px;
 }
-.th-notice {
-  width: min(440px, calc(100% - 32px));
-  padding: 2rem;
-  max-height: calc(100dvh - 2rem);
-  overflow: auto;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-panel);
-}
-.th-notice::backdrop {
-  background: #030812b8;
-  backdrop-filter: blur(8px);
-}
-.th-notice h2 {
-  margin: 0 20px 16px 0;
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.7px;
-}
-.th-notice p {
-  color: var(--color-muted);
-  font-size: 14px;
-  line-height: 1.8;
-  margin: 0 0 24px;
-}
-.th-notice-close {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-muted);
-}
-.th-notice-close:hover {
-  background: #ffffff08;
-}
+/* Box model, glass material, header, and body copy now come from the shared
+   .sp-dialog/.th-notice Modal treatment (design-system/controls.css +
+   SingleplayerGamePage.css). This file only owns the action button margin. */
 .th-notice-action {
-  min-height: 48px;
-  padding: 12px 24px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: var(--color-lime);
-  color: var(--color-on-lime);
-  font-weight: 650;
-  font-size: 14px;
+  margin-top: 8px;
+}
+.th-toast {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 30;
+  max-width: calc(100vw - 32px);
 }
 @media (max-width: 68.75rem) {
   .th-game-modes { width: calc(100% - 2.5rem); }

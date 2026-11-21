@@ -6,7 +6,7 @@ import type {
   StreetRound,
 } from '../../api/singleplayer'
 import type { AdditionalDataAccessDTO } from '../../api/types'
-import { GameDialog } from './GameDialog'
+import { Modal } from '../../components/ui/Modal'
 import './GeographicIntelligence.css'
 
 type IconName =
@@ -285,7 +285,6 @@ export function GeographicIntelligence({
               <section className="gi-weather" aria-label="Weather conditions">
                 <div className="gi-section-label">
                   <h3>Weather</h3>
-                  <span>MODEL ESTIMATE</span>
                 </div>
                 <div className="gi-temperature">
                   <div className="gi-temperature-reading">
@@ -467,7 +466,6 @@ export function GeographicIntelligence({
                 ? `${data?.cached ? 'Cached model' : 'Weather model'}${timeLabel ? ` · ${timeLabel}` : ' · time unavailable'}`
                 : 'Weather data unavailable'}
             </div>
-            <p>Model weather; Street View imagery may be older.</p>
             <div className="gi-attribution">
               <a
                 href="https://open-meteo.com/"
@@ -556,13 +554,11 @@ export function GeographicIntelligence({
               <br /> INTELLIGENCE
             </strong>
             <small>
-              {isExpanded
-                ? 'READ THE WORLD AROUND YOU'
-                : loading
-                  ? 'Connecting…'
-                  : weather
-                    ? `${metric(weather.temperatureC, 1)}°C${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
-                    : 'Environmental clues'}
+              {loading
+                ? 'Connecting…'
+                : weather
+                  ? `${metric(weather.temperatureC, 1)}°C${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
+                  : 'Environmental clues'}
             </small>
           </span>
           <GeoIcon name="chevron" />
@@ -620,7 +616,7 @@ export function GeographicIntelligence({
       </button>
       {mobileOpen &&
         createPortal(
-          <GameDialog
+          <Modal
             title="Geographic intelligence"
             onClose={() => {
               setMobileOpen(false)
@@ -628,9 +624,8 @@ export function GeographicIntelligence({
             }}
             className="gi-sheet"
           >
-            <span className="gi-sheet-eyebrow">READ THE WORLD AROUND YOU</span>
             {body('gi-mobile')}
-          </GameDialog>,
+          </Modal>,
           document.body,
         )}
     </>

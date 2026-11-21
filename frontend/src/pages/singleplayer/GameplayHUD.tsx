@@ -2,9 +2,41 @@ import type { ReactNode } from 'react'
 export function GameIcon({
   name,
 }: {
-  name: 'settings' | 'menu' | 'return' | 'expand' | 'collapse' | 'pin' | 'info'
+  name:
+    | 'settings'
+    | 'menu'
+    | 'return'
+    | 'expand'
+    | 'collapse'
+    | 'pin'
+    | 'info'
+    | 'flag'
+    | 'star'
+    | 'restart'
+    | 'exit'
 }) {
   const paths: Record<typeof name, ReactNode> = {
+    restart: (
+      <>
+        <path d="M3 12a9 9 0 1 0 3-6.7" />
+        <path d="M3 4v5h5" />
+      </>
+    ),
+    exit: (
+      <>
+        <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" />
+        <path d="M16 17l5-5-5-5M21 12H9" />
+      </>
+    ),
+    flag: (
+      <>
+        <path d="M5 21V4" />
+        <path d="M5 4h13l-3 4.5L18 13H5Z" />
+      </>
+    ),
+    star: (
+      <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z" />
+    ),
     settings: (
       <>
         <path d="m9 3-1 3-3 1-2 3 2 2v3l3 1 1 3h4l1-3 3-1v-3l2-2-2-3-3-1-1-3Z" />
@@ -62,23 +94,16 @@ export function GameplayHUD({
   status: string
 }) {
   return (
-    <div className="sp-hud sp-glass" aria-label="Game progress">
-      <div>
-        <span>ROUND</span>
-        <strong>
-          {round}
-          {roundsTotal !== undefined && <small> / {roundsTotal}</small>}
-        </strong>
-      </div>
-      <i />
-      <div>
-        <span>TOTAL SCORE</span>
-        <strong>
-          {score.toLocaleString()}
-          <small> pts</small>
-        </strong>
-      </div>
-      <p role="status">{status}</p>
+    <div className="sp-hud" role="status" aria-label="Game progress" aria-atomic="true">
+      <span className="sp-hud-round">
+        Round {round}
+        {roundsTotal !== undefined && <span className="sp-hud-sr-only"> of {roundsTotal}</span>}
+      </span>
+      <strong className="sp-hud-score">
+        <span className="sp-hud-sr-only">Total score: </span>
+        {score.toLocaleString()} <span className="sp-hud-unit">pts</span>
+      </strong>
+      <span className="sp-hud-sr-only">{status}</span>
     </div>
   )
 }

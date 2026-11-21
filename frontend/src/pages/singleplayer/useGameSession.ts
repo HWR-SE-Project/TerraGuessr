@@ -28,7 +28,6 @@ export function useGameSession(autoStart = false) {
   const [available, setAvailable] = useState(false)
   const [setupIssues, setSetupIssues] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [panoramaReady, setPanoramaReady] = useState(false)
   const [panoramaUnavailable, setPanoramaUnavailable] = useState(false)
   const [showFinal, setShowFinal] = useState(false)
@@ -93,7 +92,6 @@ export function useGameSession(autoStart = false) {
           setGuess(null)
           setPanoramaReady(false)
           setShowFinal(false)
-          setNotice(null)
           setError(
             'Your expedition has expired or is no longer available. Start a new game.',
           )
@@ -121,7 +119,6 @@ export function useGameSession(autoStart = false) {
           setShowFinal(false)
           setGuess(null)
           setPanoramaReady(false)
-          setNotice(null)
           setUnlockError(null)
         }
         if (!credentials.current) {
@@ -136,7 +133,6 @@ export function useGameSession(autoStart = false) {
         setGuess(null)
         setPanoramaReady(false)
         setShowFinal(false)
-        setNotice(null)
         setUnlockError(null)
         timeoutSettled.current = null
       })
@@ -187,7 +183,6 @@ export function useGameSession(autoStart = false) {
         if (scored) {
           setResult(scored)
           setGuess(scored.guess)
-          setNotice(null)
         }
       })
       .catch(() => {})
@@ -215,7 +210,6 @@ export function useGameSession(autoStart = false) {
       setSession((current) => ({ ...current, activeRound: replacement }))
       setGuess(null)
       setPanoramaReady(false)
-      setNotice(null)
       setUnlockError(null)
       timeoutSettled.current = null
     })
@@ -261,9 +255,6 @@ export function useGameSession(autoStart = false) {
         return
       }
       if (!received.finalized) {
-        setNotice(
-          `Guess submitted. ${received.attemptsRemaining} attempt${received.attemptsRemaining === 1 ? '' : 's'} remaining.`,
-        )
         setSession((current) =>
           current.activeRound
             ? {
@@ -283,7 +274,6 @@ export function useGameSession(autoStart = false) {
       if (!scored) throw new Error('The round result was missing. Please retry.')
       setResult(scored)
       setGuess(scored.guess)
-      setNotice(null)
       setSession((current) => {
         const results = [
           ...current.results.filter((r) => r.roundId !== scored.roundId),
@@ -352,7 +342,6 @@ export function useGameSession(autoStart = false) {
       setGuess(null)
       setPanoramaReady(false)
       setError(null)
-      setNotice(null)
       setSession(current => ({ ...current, activeRound: null }))
       setShowFinal(true)
       return true
@@ -423,7 +412,6 @@ export function useGameSession(autoStart = false) {
     available,
     setupIssues,
     error,
-    notice,
     phase,
     panoramaReady,
     setPanoramaReady,

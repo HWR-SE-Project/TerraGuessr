@@ -30,13 +30,6 @@ const LONDON = { lat: 51.5074, lon: -0.1278 }
 const PARIS = { lat: 48.8566, lon: 2.3522 }
 const EXAMPLE_DISTANCE = haversineKm(LONDON, PARIS)
 
-/** Self-contained practice options; they never touch the live round. */
-const PRACTICE_LOCATIONS = [
-  { id: 'london', label: 'London', detail: 'Europe' },
-  { id: 'paris', label: 'Paris', detail: 'Europe' },
-  { id: 'tokyo', label: 'Tokyo', detail: 'Asia' },
-] as const
-type PracticeLocationId = (typeof PRACTICE_LOCATIONS)[number]['id']
 type Rect = { x: number; y: number; width: number; height: number }
 
 /** Measure the actual interface, including resize, panel animation and page scroll.
@@ -104,15 +97,13 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
 }) {
   const [step, setStep] = useState(0)
   const [distance, setDistance] = useState(500)
-  const [practiceSelection, setPracticeSelection] = useState<PracticeLocationId | null>(null)
-  const [practiceLocked, setPracticeLocked] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   const card = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const mask = useId()
   const live = !!round
   const selector = live && step < 3
-    ? ['.sp-stage > .gi-panel', '.sp-guess-panel', '.sp-map-footer .sp-guess-button'][step]!
+    ? ['.sp-stage > .gi-panel', '.sp-guess-panel', '.sp-guess-panel button[aria-label="Guess"]'][step]!
     : result && step === 3 ? '[data-tutorial-distance]'
       : result && step === 4 ? '[data-tutorial-points]'
         : live && step === 4 ? '.sp-hud' : null
@@ -135,12 +126,6 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
     heading.current?.focus({ preventScroll: true })
     card.current?.scrollTo?.({ top: 0 })
   }, [step])
-  function restart() {
-    setStep(0); setDistance(500)
-    setPracticeSelection(null); setPracticeLocked(false)
-    heading.current?.focus({ preventScroll: true })
-    card.current?.scrollTo?.({ top: 0 })
-  }
   const trapFocus = (event: KeyboardEvent<HTMLDialogElement>) => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose() }
     if (event.key !== 'Tab') return
@@ -163,57 +148,15 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
       <section ref={card} className="tt-coach" style={{ left: layout.x, top: layout.y }} data-target={layout.target ? SUBJECTS[step] : 'example'}>
         <header className="tt-bar">
           <span className="tt-step-count">{step + 1} / 5</span>
-          <div className="tt-bar-actions">
-            <button className="tt-icon-btn" aria-label="Restart tutorial" title="Restart tutorial" onClick={restart}>
-              <span aria-hidden="true">↺</span>
-            </button>
-            <button className="tt-icon-btn tt-close" aria-label="Exit tutorial" title="Exit tutorial (Esc)" onClick={onClose}>
-              <span aria-hidden="true">×</span>
-            </button>
-          </div>
+          <button className="tt-icon-btn tt-close" aria-label="Exit tutorial" title="Exit tutorial (Esc)" onClick={onClose}>
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
         </header>
         <div className="tt-copy" key={step}>
           <h2 ref={heading} tabIndex={-1}>{TITLES[step]}</h2>
           <p id="tt-description">{COPY[step]}</p>
-          {(step === 1 || step === 2) && (
-            <div className="tt-practice" aria-label="Tutorial location practice">
-              <span className="tt-demo-label">Try it</span>
-              <div className="tt-practice-list" role="group" aria-label="Practice location list">
-                {PRACTICE_LOCATIONS.map(location => {
-                  const selected = practiceSelection === location.id
-                  return (
-                    <button
-                      key={location.id}
-                      type="button"
-                      aria-pressed={selected}
-                      className={`tt-practice-option${selected ? ' tt-practice-option--selected' : ''}`}
-                      onClick={() => { setPracticeSelection(location.id); setPracticeLocked(false) }}
-                    >
-                      <strong>{location.label}</strong>
-                      <small>{location.detail}</small>
-                    </button>
-                  )
-                })}
-              </div>
-              {step === 2 && (
-                <div className="tt-practice-submit">
-                  <button
-                    type="button"
-                    className="tt-practice-confirm"
-                    disabled={!practiceSelection || practiceLocked}
-                    onClick={() => setPracticeLocked(true)}
-                  >
-                    {practiceLocked ? 'Guess submitted' : 'Submit try-out guess'}
-                  </button>
-                  {practiceLocked && (
-                    <p className="tt-practice-status" role="status">
-                      Locked in. In a real round you can still change it before submitting.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
           {step === 3 && !result && (
             <div className="tt-demo" aria-label="Tutorial example: London to Paris">
               <span className="tt-demo-label">Example</span>

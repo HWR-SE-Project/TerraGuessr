@@ -12,7 +12,7 @@
   border: 0;
   overflow: hidden;
   background: transparent;
-  color: #eff5f7;
+  color: var(--color-text);
   font: 14px/1.6 Inter, system-ui, sans-serif;
 }
 .tt-overlay::backdrop { background: transparent; }
@@ -29,81 +29,40 @@
   width: min(320px, calc(100% - 24px));
   max-height: calc(100dvh - 24px);
   padding: 14px 18px 16px;
-  border: 1px solid #d8e8f22e;
-  border-radius: 16px;
-  background: linear-gradient(145deg, #ffffff08, transparent 70%), #142231f5;
-  box-shadow: 0 16px 48px #0003, inset 0 1px #ffffff09;
-  backdrop-filter: blur(10px);
+  border-radius: var(--radius-control);
 }
 .tt-overlay button { cursor: pointer; font: inherit; border: 0; background: transparent; color: inherit; }
 .tt-overlay button:disabled { cursor: default; }
 .tt-overlay :is(button, input):focus-visible { outline: 2px solid var(--tt-lime); outline-offset: 2px; }
 
 .tt-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
-.tt-step-count { font-size: 11px; letter-spacing: 0.4px; color: #9fb2c2; font-variant-numeric: tabular-nums; }
-.tt-bar-actions { display: flex; align-items: center; gap: 2px; }
-.tt-icon-btn { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #b7c6d2; font-size: 15px; line-height: 1; }
-.tt-icon-btn:hover { background: #ffffff10; color: #eff5f7; }
-.tt-icon-btn.tt-close span { font-size: 19px; font-weight: 300; }
+.tt-step-count { font-size: 11px; letter-spacing: 0.4px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.tt-icon-btn { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: var(--color-muted); font-size: 15px; line-height: 1; }
+.tt-icon-btn:hover { background: #ffffff10; color: var(--color-text); }
 
 .tt-copy { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .tt-copy h2 { margin: 0 0 6px; font-size: 20px; line-height: 1.25; letter-spacing: -0.4px; font-weight: 600; text-wrap: balance; }
 .tt-copy h2:focus { outline: none; }
-.tt-copy > p { margin: 0; color: #c7d3db; font-size: 13px; line-height: 1.6; }
+.tt-copy > p { margin: 0; color: var(--color-muted); font-size: 13px; line-height: 1.6; }
 
 .tt-demo { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ffffff16; }
-.tt-demo-label { display: block; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; color: #9fb2c2; }
-.tt-distance-line { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: #c5d5e0; }
-.tt-distance-line > i { flex: 1; border-top: 1px dashed #b0ee6480; }
-.tt-distance-line strong { font-weight: 500; color: #e6f3dd; font-size: 20px; }
+.tt-demo-label { display: block; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; color: var(--color-muted); }
+.tt-distance-line { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--color-muted); }
+.tt-distance-line > i { flex: 1; border-top: 1px dashed color-mix(in srgb, var(--tt-lime) 50%, transparent); }
+.tt-distance-line strong { font-weight: 500; color: var(--color-text); font-size: 20px; }
 .tt-distance-line small { font-size: 11px; }
 .tt-score-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 8px; }
 .tt-score-row output { color: var(--tt-lime); font-size: 22px; font-weight: 500; }
-.tt-score-row output small, .tt-score-row > span { font-size: 11px; color: #b9cbd8; font-weight: 400; }
+.tt-score-row output small, .tt-score-row > span { font-size: 11px; color: var(--color-muted); font-weight: 400; }
 .tt-demo input[type='range'] { width: 100%; min-height: 30px; margin-top: 8px; accent-color: var(--tt-lime); cursor: pointer; }
 
 .tt-navigation { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
-.tt-overlay .tt-previous, .tt-overlay .tt-next { min-height: 40px; border-radius: 10px; padding: 9px 14px; font-size: 13px; }
-.tt-overlay .tt-previous { color: #c4d1db; background: #ffffff07; }
+.tt-overlay .tt-previous, .tt-overlay .tt-next { min-height: 40px; border-radius: var(--radius-control); padding: 9px 14px; font-size: 13px; }
+.tt-overlay .tt-previous { color: var(--color-muted); background: #ffffff07; }
 .tt-overlay .tt-previous:disabled { opacity: 0.35; }
 .tt-overlay .tt-next { display: flex; align-items: center; justify-content: center; gap: 14px; flex: 1; background: var(--tt-lime); color: #1d2b16; font-weight: 650; }
 .tt-overlay .tt-next:hover { filter: brightness(1.07); }
 
-/* In-card practice: a tiny selection list plus a submit step. Tutorial-only. */
-.tt-practice { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ffffff16; }
-.tt-practice-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
-.tt-practice-option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  min-height: 44px;
-  padding: 6px 8px;
-  border: 1px solid #ffffff1c;
-  border-radius: 10px;
-  background: #ffffff06;
-  color: #d8e4ec;
-  text-align: left;
-}
-.tt-practice-option strong { font-size: 11px; font-weight: 600; }
-.tt-practice-option small { font-size: 9px; color: #9fb2c2; }
-.tt-practice-option:hover { border-color: #b0ee6455; background: #ffffff0d; }
-.tt-practice-option--selected { border-color: #b0ee6488; background: #b0ee6414; color: #eaf6dd; }
-.tt-practice-option--selected small { color: #cfe4b3; }
-.tt-practice-submit { display: grid; gap: 6px; margin-top: 8px; }
-.tt-practice-confirm {
-  min-height: 40px;
-  border-radius: 10px;
-  padding: 9px 14px;
-  font-size: 12px;
-  font-weight: 650;
-  background: var(--tt-lime);
-  color: #1d2b16;
-}
-.tt-practice-confirm:disabled { opacity: 0.4; }
-.tt-practice-status { margin: 0; font-size: 11px; line-height: 1.5; color: #cfe4b3; }
-
-@media (prefers-reduced-transparency: reduce) { .tt-coach { backdrop-filter: none; background: #142231; } }
 @media (forced-colors: active) { .tt-target-ring { stroke: Highlight; } .tt-coach { border: 1px solid CanvasText; } }
 
 /* Hide nonessential global navigation while the guide is open; the card owns Exit. */

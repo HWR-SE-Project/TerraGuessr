@@ -1,0 +1,22 @@
+.tg-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+.tg-notice--error {
+  border-color: color-mix(in srgb, var(--color-red) 40%, transparent);
+  background: color-mix(in srgb, var(--color-red) 12%, var(--color-surface));
+  color: var(--color-red);
+}
+.tg-notice--success {
+  border-color: var(--color-lime-40);
+  background: color-mix(in srgb, var(--color-lime) 10%, var(--color-surface));
+  color: var(--color-lime);
+}

@@ -306,7 +306,7 @@ test('compact navigation expands in flow and keeps primary routes reachable', as
     await audit(page)
     const navigation=page.getByRole('navigation',{name:'Main navigation'})
     await expect(navigation.getByRole('link',{name:'Singleplayer'})).toBeInViewport()
-    await expect(navigation.getByRole('link',{name:'Multiplayer'})).toBeInViewport()
+    await expect(navigation.getByRole('button',{name:'Multiplayer',exact:true})).toBeInViewport()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('button',{name:'Open navigation'})).toBeFocused()
   }

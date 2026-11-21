@@ -60,6 +60,15 @@
   --control-edge: #ff9b9e50;
 }
 
+#root .tg-control--ghost {
+  --control-fill: #ffffff00;
+  --control-edge: #ffffff1c;
+  --control-shading: linear-gradient(#ffffff00, #ffffff00);
+  --control-reflection: linear-gradient(#ffffff00, #ffffff00);
+  --control-inner: none;
+  --control-shadow: none;
+}
+
 #root .tg-control--light {
   --control-fill: #e5edf5ed;
   --control-ink: #192b3c;
@@ -106,18 +115,19 @@
 }
 
 /* Shapes and small optical adjustments shared by each control family. */
-#root :is(.th-nav-item, .th-edit-avatar, .th-profile-link,
+#root :is(.th-edit-avatar,
   .geo-landing__login, .geo-landing__signup, .gi-mobile-trigger) {
   border-radius: var(--radius-pill);
 }
-#root .th-profile-link { padding: 5px 12px 5px 5px; min-height: 44px; }
-#root .th-profile-avatar { box-shadow: inset 0 1px #e9ffc42b; }
-#root .tg-candidate { border-radius: 24px; }
+#root .tg-candidate { border-radius: var(--radius-card); }
 
 /* Reusable quiet pills and small scene actions share the same soft optics.
    Kept deliberately low-opacity: these float over the cosmic scene rather
-   than reading as solid buttons. */
-#root :is(.tg-nav-pill, .tg-action, .tg-icon-button) {
+   than reading as solid buttons. Every icon-only control in the app (nav,
+   HUD, dialogs, avatar editor, tutorial) is grouped here so they share one
+   circular shape and one glass recipe regardless of which page renders them. */
+#root :is(.tg-action, .tg-icon-button, .sp-icon, .th-icon-btn,
+  .ae-icon-button, .tt-icon-btn) {
   --control-fill: #15243b3d;
   --control-edge: #c1daef1c;
   --control-shading: linear-gradient(155deg, #cae6ff0a, #bfdcff02 55%, #030a1610);
@@ -127,57 +137,62 @@
   border-radius: var(--radius-pill);
   font-weight: 550;
 }
-#root .tg-nav-pill { --control-ink: #c7d4e3; }
-#root .tg-nav-pill .th-icon { color: #b0c7df; }
-#root .tg-nav-pill[aria-current='page'] {
-  --control-fill: #9bc96420;
-  --control-ink: #d5fba5;
-  --control-edge: #c6f39140;
-  --control-reflection: radial-gradient(ellipse at 15% 0%, #dfffba1a, transparent 75%);
-  --control-shadow: 0 3px 14px #01061018, 0 0 14px #c0f66b06;
-}
-#root .tg-nav-pill[aria-current='page'] .th-icon { color: #d5fba5; }
 #root .tg-action { min-height: 44px; --control-fill: #16243c38; }
-#root .tg-icon-button { border-radius: var(--radius-control); min-height: 44px; min-width: 44px; }
+#root .tg-icon-button { border-radius: 50%; min-height: 44px; min-width: 44px; }
 @media (hover: hover) and (pointer: fine) {
-  #root :is(.tg-nav-pill, .tg-action, .tg-icon-button):hover {
+  #root :is(.tg-action, .tg-icon-button, .sp-icon, .th-icon-btn,
+    .ae-icon-button, .tt-icon-btn):hover {
     --control-edge: #cce7ff66;
     --control-ink: #f4f7fb;
     --control-shadow: 0 6px 16px #01061032;
   }
 }
-#root :is(.th-notice-close, .sp-compass) { border-radius: 50%; }
+#root .sp-compass { border-radius: 50%; }
 #root .sp-map-mode { border-radius: 12px; min-height: 40px; padding: 5px 8px; margin-right: 5px; }
 #root .sp-map-wrap { border-radius: 12px; }
 #root .sp-guess-panel { border-radius: 22px; padding: 7px; }
 #root .sp-guess-button kbd { border-radius: 6px; }
 #root .tg-button svg { width: 18px; height: 18px; flex-shrink: 0; }
+#root .tg-icon-button svg { width: 20px; height: 20px; flex-shrink: 0; }
 
-/* Supporting shells use the same optics, without lifting or press feedback. */
-#root :is(.sp-glass:not(.tg-control), .gi-panel, .gi-sheet, .sp-dialog,
-  .tg-confirm-dialog, .th-notice) {
+/* Surface 3 — elevated dialogs/shells: strongest blur, used for focused,
+   modal-like interactions. */
+#root :is(.sp-glass:not(.tg-control), .gi-sheet, .sp-dialog,
+  .th-notice, .tt-coach, .geo-landing__signup-card, .ae-dialog, .th-multiplayer-menu) {
   background: var(--glass-reflection), var(--glass-shading), var(--glass-fill);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-inner), 0 16px 48px #0106104d;
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(135%);
   backdrop-filter: blur(var(--glass-blur)) saturate(135%);
 }
-#root :is(.sp-hud, .gi-panel) { border-radius: 20px; }
-#root .settings-tabs { border-radius: 20px; gap: 5px; }
+/* Surface 2 — interactive panels floating over Street View/the guess map:
+   lighter blur so the imagery underneath stays legible. */
+#root :is(.gi-panel, .mp-timer, .tl-entry-form) {
+  background: var(--glass-reflection), var(--glass-shading), var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-inner), 0 16px 48px #0106104d;
+  -webkit-backdrop-filter: blur(var(--glass-blur-panel)) saturate(135%);
+  backdrop-filter: blur(var(--glass-blur-panel)) saturate(135%);
+}
+#root .gi-panel { border-radius: var(--radius-card); }
+#root .settings-tabs { border-radius: var(--radius-card); gap: 5px; }
 
-/* Inset fields and tactile switches complete the control surface. */
-#root :is(.tg-email-field input, .settings-text-input, .settings-language-select,
-  .tg-challenge-entry-form input) {
+/* Inset fields and tactile switches complete the control surface. .tg-field
+   is the one shared class for every text/select control in the app (auth,
+   lobby, settings); the other selectors here are kept additively so existing
+   markup styles correctly before each page adopts the shared class name. */
+#root :is(.tg-field, .tg-email-field input, .settings-text-input, .settings-language-select,
+  .tl-name input, .tl-name select, .tl-name-join input) {
   background: linear-gradient(165deg, #040c1633, #8cb4de08), #080f1b80;
   border: 1px solid #b4d2ed2e;
   box-shadow: inset 0 2px 5px #0000001a, 0 1px #ffffff08;
   transition: border-color 180ms, box-shadow 180ms;
 }
-#root :is(.tg-email-field input, .settings-text-input,
-  .tg-challenge-entry-form input):focus-visible {
+#root :is(.tg-field, .tg-email-field input, .settings-text-input,
+  .tl-name input, .tl-name select, .tl-name-join input):focus-visible {
   outline: 2px solid #d4ff9b;
   outline-offset: 3px;
-  border-color: #c0f66b70;
+  border-color: var(--color-lime-70);
 }
 #root .settings-toggle > span {
   background: var(--glass-shading), #27394f;
@@ -223,11 +238,7 @@
   background: linear-gradient(160deg, #d3fc9c, #93c359);
 }
 #root .sp-setting input[role='switch']:checked::after { transform: translateX(20px); }
-#root .sp-setting input[type='range'] { accent-color: #c6f391; }
 
-@media (max-width: 600px) {
-  #root .th-profile-link { padding: 4px; }
-}
 @media (prefers-reduced-motion: reduce) {
   #root .tg-control { transition: none; }
   #root .tg-control:is(:hover, :active) { translate: none; scale: none; }
@@ -237,7 +248,9 @@
   #root .tg-control { --glass-fill: #192b40; -webkit-backdrop-filter: none; backdrop-filter: none; }
   #root .tg-control--primary { --control-fill: #b6e879; }
   #root .tg-control--light { --control-fill: #e5edf5; }
-  #root :is(.sp-glass, .gi-panel, .gi-sheet, .sp-dialog, .tg-confirm-dialog, .th-notice) {
+  #root :is(.sp-glass, .gi-panel, .gi-sheet, .sp-dialog, .th-notice,
+    .tt-coach, .geo-landing__signup-card, .mp-timer, .tl-entry-form, .ae-dialog,
+    .th-multiplayer-menu) {
     --glass-fill: #192b40;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

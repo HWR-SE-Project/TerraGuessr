@@ -1,4 +1,4 @@
-import { GameDialog } from './GameDialog'
+import { Modal } from '../../components/ui/Modal'
 
 export interface ExitDialogError {
   action: 'end'
@@ -30,7 +30,7 @@ export function ExitGameDialog({
 }) {
   const busy = pending !== null
   return (
-    <GameDialog title="End your adventure?" onClose={onContinue} closeDisabled={busy}>
+    <Modal title="End your adventure?" onClose={onContinue} closeDisabled={busy}>
       <p className="sp-muted">
         Your current game will end. You won&apos;t be able to continue this
         session afterward.
@@ -62,6 +62,6 @@ export function ExitGameDialog({
           {pending === 'end' ? 'Ending…' : 'End Game'}
         </button>
       </div>
-    </GameDialog>
+    </Modal>
   )
 }

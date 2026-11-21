@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import * as lobbiesApi from '../../api/lobbies'
 import { ApiError } from '../../api/client'
 import { mapApiError } from '../../api/errorMessages'
@@ -60,13 +60,15 @@ interface LobbySession {
   token: string
 }
 
-export function LobbyPage() {
+export function LobbyPage({ mode = 'create' }: { mode?: 'create' | 'join' }) {
   const { code: routeCode } = useParams<{ code?: string }>()
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useSession()
 
-  const [entryMode, setEntryMode] = useState<'create' | 'join' | null>(routeCode ? 'join' : null)
+  // The nav dropdown and invitation links pick the mode; there is no in-page
+  // landing choice anymore, so this is derived rather than toggled.
+  const entryMode = routeCode ? 'join' : mode
   const [codeInvalid, setCodeInvalid] = useState(false)
   const codeInputRef = useRef<HTMLInputElement>(null)
   const [displayName, setDisplayName] = useState('')
@@ -106,7 +108,7 @@ export function LobbyPage() {
       ? displayName
       : (user?.displayName ?? '')
 
-  // Keep the in-memory session in sync with the URL: the hub has none, a room
+  // Keep the in-memory session in sync with the URL: an entry form has none, a room
   // URL resumes the token this browser stored for that code.
   useEffect(() => {
     if (!routeCode) {
@@ -355,7 +357,7 @@ export function LobbyPage() {
 
   return (
     <div className="tl-page">
-      <PageNavigation active="multiplayer" />
+      <PageNavigation />
       <main className={`tl-main${session && routeCode ? '' : ' tl-entry'}`}>
         {session && routeCode && feedback}
         {session && routeCode ? (
@@ -380,9 +382,13 @@ export function LobbyPage() {
         ) : (
           <>
             <header className="tl-hero">
-              <span className="tl-eyebrow">Play together</span>
-              <h1>Multiplayer</h1>
-              <p>The same world. A little friendly competition.</p>
+              <span className="tl-eyebrow">Multiplayer</span>
+              <h1>{entryMode === 'create' ? 'Create a lobby' : 'Join a lobby'}</h1>
+              <p>
+                {entryMode === 'create'
+                  ? 'Start a new game with friends.'
+                  : 'Enter an existing lobby using a code.'}
+              </p>
             </header>
 
             {resumable && (
@@ -397,139 +403,124 @@ export function LobbyPage() {
               </section>
             )}
 
-            <div className="tl-choices" aria-label="Choose how to play">
-              {(['create', 'join'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={`tl-choice${entryMode === mode ? ' tl-choice-selected' : ''}`}
-                  aria-expanded={entryMode === mode}
-                  aria-controls="tl-entry-flow"
-                  disabled={busy}
-                  onClick={() => {
-                    setEntryMode(mode)
-                    setError(null)
-                    setCodeInvalid(false)
-                  }}
-                >
-                  <span className="tl-choice-icon"><HomeIcon name={mode === 'create' ? 'crown' : 'users'} /></span>
-                  <span className="tl-choice-copy">
-                    <span role="heading" aria-level={2}>{mode === 'create' ? 'Create a lobby' : 'Join a lobby'}</span>
-                    <span>{mode === 'create' ? 'Start a game with friends.' : 'Enter a code to join.'}</span>
-                  </span>
-                  <HomeIcon name={entryMode === mode ? 'check' : 'arrow'} className="tl-choice-indicator" />
-                </button>
-              ))}
-            </div>
-
-            <div id="tl-entry-flow">
-              {entryMode && (
-                <form
-                  key={entryMode}
-                  className="tl-entry-form"
-                  aria-label={entryMode === 'create' ? 'Create a lobby' : 'Join a lobby'}
-                  aria-busy={busy}
-                  noValidate
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    if (busy) return
-                    void (entryMode === 'create' ? handleCreate() : handleJoin())
-                  }}
-                >
-                  {entryMode === 'create' ? (
-                    <fieldset className="tl-difficulty" disabled={busy}>
-                      <legend>Difficulty</legend>
-                      <div className="tl-difficulty-options">
-                        {DIFFICULTIES.map((option) => (
-                          <label key={option.value} className="tl-difficulty-option">
-                            <input
-                              type="radio"
-                              name="difficulty"
-                              value={option.value}
-                              checked={difficulty === option.value}
-                              onChange={() => setDifficulty(option.value)}
-                            />
-                            <span className="tl-difficulty-label">{option.label}</span>
-                            <span className="tl-difficulty-detail">{option.detail}</span>
-                            <span className="tl-difficulty-selection">{option.selection}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                  ) : (
-                    <label className="tl-name tl-name-join">
-                      <span>Lobby code</span>
-                      <input
-                        ref={codeInputRef}
-                        name="lobbyCode"
-                        value={joinCode}
-                        maxLength={6}
-                        placeholder="ABC234"
-                        autoCapitalize="characters"
-                        autoComplete="off"
-                        spellCheck={false}
-                        inputMode="text"
-                        enterKeyHint="go"
-                        aria-invalid={codeInvalid || undefined}
-                        aria-describedby="tl-code-hint"
-                        disabled={busy}
-                        onChange={(event) => {
-                          setJoinCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
-                          setCodeInvalid(false)
-                          setError(null)
-                        }}
-                        onPaste={(event) => {
-                          event.preventDefault()
-                          setJoinCode(event.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
-                          setCodeInvalid(false)
-                          setError(null)
-                        }}
-                      />
-                      <span id="tl-code-hint" className={codeInvalid ? 'tl-field-error' : 'tl-field-hint'} role={codeInvalid ? 'alert' : undefined}>
-                        {codeInvalid ? 'Enter all 6 letters or numbers to join.' : '6 letters or numbers, shared by your host.'}
-                      </span>
-                    </label>
-                  )}
-
-                  <div className={`tl-entry-fields${entryMode === 'create' ? ' tl-entry-fields-create' : ''}`}>
-                    <label className="tl-name">
-                      <span>Display name <span className="tl-optional">optional</span></span>
-                      <input
-                        name="displayName"
-                        autoComplete="nickname"
-                        value={effectiveName}
-                        maxLength={40}
-                        placeholder="Guest explorer"
-                        disabled={busy}
-                        onChange={(event) => {
-                          setNameTouched(true)
-                          setDisplayName(event.target.value)
-                        }}
-                      />
-                    </label>
-                    {entryMode === 'create' && (
-                      <label className="tl-name tl-rounds">
-                        <span>Number of rounds</span>
-                        <select name="rounds" value={roundsTotal} disabled={busy} onChange={(event) => setRoundsTotal(Number(event.target.value))}>
-                          {ROUND_OPTIONS.map((rounds) => <option key={rounds} value={rounds}>{rounds} rounds</option>)}
-                        </select>
+            <form
+              className="tl-entry-form"
+              aria-label={entryMode === 'create' ? 'Create a lobby' : 'Join a lobby'}
+              aria-busy={busy}
+              noValidate
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (busy) return
+                void (entryMode === 'create' ? handleCreate() : handleJoin())
+              }}
+            >
+              {entryMode === 'create' ? (
+                <fieldset className="tl-difficulty" disabled={busy}>
+                  <legend>Difficulty</legend>
+                  <div className="tl-difficulty-options">
+                    {DIFFICULTIES.map((option) => (
+                      <label key={option.value} className="tl-difficulty-option">
+                        <input
+                          type="radio"
+                          name="difficulty"
+                          value={option.value}
+                          checked={difficulty === option.value}
+                          onChange={() => setDifficulty(option.value)}
+                        />
+                        <span className="tl-difficulty-label">{option.label}</span>
+                        <span className="tl-difficulty-detail">{option.detail}</span>
+                        <span className="tl-difficulty-selection">{option.selection}</span>
                       </label>
-                    )}
+                    ))}
                   </div>
-
-                  {feedback}
-                  <div className="tl-entry-footer">
-                    <span>{entryMode === 'create' ? 'Your lobby. Your invite list.' : 'Your next adventure is one code away.'}</span>
-                    <button type="submit" className="tl-primary" disabled={busy}>
-                      {busy && <span className="tl-spinner" aria-hidden="true" />}
-                      {entryMode === 'create' ? (busy ? 'Creating…' : 'Create lobby') : (busy ? 'Joining…' : 'Join lobby')}
-                      {!busy && <HomeIcon name="arrow" />}
-                    </button>
-                  </div>
-                </form>
+                </fieldset>
+              ) : (
+                <label className="tl-name tl-name-join">
+                  <span>Lobby code</span>
+                  <input
+                    ref={codeInputRef}
+                    name="lobbyCode"
+                    value={joinCode}
+                    maxLength={6}
+                    placeholder="ABC234"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    spellCheck={false}
+                    inputMode="text"
+                    enterKeyHint="go"
+                    aria-invalid={codeInvalid || undefined}
+                    aria-describedby="tl-code-hint"
+                    disabled={busy}
+                    onChange={(event) => {
+                      setJoinCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
+                      setCodeInvalid(false)
+                      setError(null)
+                    }}
+                    onPaste={(event) => {
+                      event.preventDefault()
+                      setJoinCode(event.clipboardData.getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
+                      setCodeInvalid(false)
+                      setError(null)
+                    }}
+                  />
+                  <span id="tl-code-hint" className={codeInvalid ? 'tl-field-error' : 'tl-field-hint'} role={codeInvalid ? 'alert' : undefined}>
+                    {codeInvalid ? 'Enter all 6 letters or numbers to join.' : '6 letters or numbers, shared by your host.'}
+                  </span>
+                </label>
               )}
-              {!entryMode && feedback}
-            </div>
+
+              <div className={`tl-entry-fields${entryMode === 'create' ? ' tl-entry-fields-create' : ''}`}>
+                <label className="tl-name">
+                  <span>Display name <span className="tl-optional">optional</span></span>
+                  <input
+                    name="displayName"
+                    autoComplete="nickname"
+                    value={effectiveName}
+                    maxLength={40}
+                    placeholder="Guest explorer"
+                    disabled={busy}
+                    onChange={(event) => {
+                      setNameTouched(true)
+                      setDisplayName(event.target.value)
+                    }}
+                  />
+                </label>
+                {entryMode === 'create' && (
+                  <label className="tl-name tl-rounds">
+                    <span>Number of rounds</span>
+                    <select name="rounds" value={roundsTotal} disabled={busy} onChange={(event) => setRoundsTotal(Number(event.target.value))}>
+                      {ROUND_OPTIONS.map((rounds) => <option key={rounds} value={rounds}>{rounds} rounds</option>)}
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              {feedback}
+              <div className="tl-entry-footer">
+                <span>{entryMode === 'join' && 'Your next adventure is one code away.'}</span>
+                <button type="submit" className="tl-primary" disabled={busy}>
+                  {busy && <span className="tl-spinner" aria-hidden="true" />}
+                  {entryMode === 'create' ? (busy ? 'Creating…' : 'Create lobby') : (busy ? 'Joining…' : 'Join lobby')}
+                  {!busy && <HomeIcon name="arrow" />}
+                </button>
+              </div>
+            </form>
+
+            {!routeCode && (
+              <p className="tl-switch-mode">
+                {entryMode === 'create' ? (
+                  <>
+                    Looking to join a friend instead?{' '}
+                    <Link to="/multiplayer/join">Join a lobby</Link>
+                  </>
+                ) : (
+                  <>
+                    Want to host your own game?{' '}
+                    <Link to="/multiplayer/create">Create a lobby</Link>
+                  </>
+                )}
+              </p>
+            )}
           </>
         )}
       </main>

@@ -76,7 +76,7 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     await expect(page.locator('.th-character-slot')).toHaveAttribute('data-character-status', 'ready', { timeout: 30_000 })
     await page.screenshot({ path: `${out}/home.png` })
     await page.goto('/multiplayer')
-    await expect(page.getByRole('heading', { name: 'Multiplayer', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Create a lobby', exact: true })).toBeVisible()
     await page.screenshot({ path: `${out}/multiplayer.png` })
     await page.goto('/')
     await page.setViewportSize({ width: 390, height: 844 })
@@ -88,7 +88,7 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     expect(config.ok()).toBe(true)
     expect((await config.json()).available).toBe(true)
     await page
-      .getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })
+      .getByRole('link', { name: 'Singleplayer', exact: true })
       .click()
     await expect(page).toHaveURL(/\/game\/singleplayer$/)
     // R05: a fresh visit lands on the difficulty picker, not an auto-started
@@ -331,7 +331,7 @@ test('live Google mobile: touch map, preserve pin through collapse, refuse to re
       page.getByRole('button', { name: 'Guess', exact: true }),
     ).toBeEnabled()
     const chosen = await page.locator('.sp-map-footer > span').innerText()
-    expect(chosen).not.toBe('Where in the world are you?')
+    expect(chosen).toContain('pin placed')
     // R13: the browser's own generic beforeunload prompt still guards an
     // in-progress session (no custom text), but accepting it must not
     // silently promise the game comes back afterward.

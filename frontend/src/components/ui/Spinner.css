@@ -1,0 +1,21 @@
+.tg-spinner {
+  display: inline-flex;
+}
+.tg-spinner__ring {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--glass-border);
+  border-top-color: var(--color-lime);
+  animation: tg-spin 700ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tg-spinner__ring {
+    animation-duration: 1400ms;
+  }
+}
+@keyframes tg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

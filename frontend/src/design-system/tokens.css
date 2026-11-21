@@ -12,6 +12,12 @@
   --color-lime: #c0f66b;
   --color-lime-hover: #d1ff8e;
   --color-on-lime: #172512;
+  /* Alpha sub-scale for the single accent hue. Replaces hand-picked
+     #c0f66bNN-style literals scattered per component. */
+  --color-lime-10: color-mix(in srgb, var(--color-lime) 10%, transparent);
+  --color-lime-20: color-mix(in srgb, var(--color-lime) 20%, transparent);
+  --color-lime-40: color-mix(in srgb, var(--color-lime) 40%, transparent);
+  --color-lime-70: color-mix(in srgb, var(--color-lime) 70%, transparent);
   --color-cyan: #83d5ed;
   --color-purple: #b5a0ef;
   --color-orange: #f7b16b;
@@ -45,6 +51,9 @@
   /* Shared glass material. Lighter fill + taller blur keeps frosted panels
      legible over maps and panoramas despite the lower opacity. */
   --glass-blur: 34px;
+  /* Lighter touch for surfaces that float over Street View/the guess map —
+     keeps imagery legible underneath instead of frosting it as hard as chrome. */
+  --glass-blur-panel: 20px;
   --glass-fill: #16243c58;
   --glass-border: #d7ebff38;
   --glass-border-hover: #e3f2ff70;
