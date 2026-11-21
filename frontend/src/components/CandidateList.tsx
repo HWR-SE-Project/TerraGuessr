@@ -26,7 +26,7 @@ function candidateSector(candidate: CandidateDTO): string {
   return `${region} · ${latBand}°${hemisphere} / ${longitude}`
 }
 
-/** Renders the round's candidates as a list; choosing one emits {lat, lon} exactly like MapPicker. The actual location is never flagged. */
+/** Renders the round's candidates as a list; choosing one emits {lat, lon} exactly like the map picker. The actual location is never flagged. */
 export function CandidateList({ candidates, onChange, selectedId = null }: CandidateListProps) {
   const headingId = useId()
   const seenLabels = new Map<string, number>()

@@ -1,14 +1,10 @@
 import { Button } from '../../components/ui/Button'
 import type { StreetResult, StreetSession } from '../../api/singleplayer'
-import type { LatLon } from '../../api/types'
 import { GuessMap } from './GuessMap'
 import { DIFFICULTY_LEVELS } from './difficulty'
-function distanceLabel(km: number) {
-  return `${km.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`
-}
-function coordinates(point: LatLon) {
-  return `${Math.abs(point.lat).toFixed(3)}° ${point.lat >= 0 ? 'N' : 'S'}, ${Math.abs(point.lon).toFixed(3)}° ${point.lon >= 0 ? 'E' : 'W'}`
-}
+import { coordinates, distanceLabel } from '../../lib/format'
+import { ScoreBreakdown } from '../../components/ScoreBreakdown'
+import { ResultCoords } from '../../components/ResultCoords'
 function Legend() {
   return (
     <div className="sp-map-legend">
@@ -48,24 +44,16 @@ export function RoundResults({
               : 'Every guess is a discovery.'}
         </h1>
         <p data-tutorial-distance>
-          You were <strong>{distanceLabel(result.distanceKm)}</strong> from the
-          correct location.
+          {result.guess
+            ? <>You were <strong>{distanceLabel(result.distanceKm)}</strong> from the correct location.</>
+            : 'You ran out of time before placing a guess.'}
         </p>
-        <div className="sp-earned" data-tutorial-points>
-          <strong>{result.score.toLocaleString()}</strong>
-          <span> / 5,000 points</span>
-        </div>
-        <div className="sp-score-track">
-          <span style={{ width: `${result.score / 50}%` }} />
-        </div>
-        <div className="sp-result-coords">
-          <span>
-            Correct location<strong>{coordinates(result.actual)}</strong>
-          </span>
-          <span>
-            Your guess<strong>{coordinates(result.guess)}</strong>
-          </span>
-        </div>
+        <ScoreBreakdown
+          score={result.score}
+          extraDataPointsSpent={result.extraDataPointsSpent}
+          tutorialAnchor
+        />
+        <ResultCoords actual={result.actual} guess={result.guess} />
       </div>
       <footer className="sp-result-actions">
         <Button className="sp-primary tg-control tg-control--primary" disabled={busy} onClick={onNext}>
@@ -89,7 +77,7 @@ export function FinalResults({
 }) {
   const rounds = session.results.length
   const difficultyLabel = DIFFICULTY_LEVELS.find(level => level.id === session.difficulty)?.label ?? session.difficulty
-  const totalDistance = session.results.reduce((sum, result) => sum + result.distanceKm, 0)
+  const totalDistance = session.results.reduce((sum, result) => sum + (result.distanceKm ?? 0), 0)
   const bestRound = session.results.reduce<StreetResult | null>((best, result) =>
     !best || result.score > best.score ? result : best, null)
   return (

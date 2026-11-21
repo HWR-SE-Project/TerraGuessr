@@ -35,16 +35,16 @@ export const DIFFICULTY_LEVELS: readonly DifficultyInfo[] = [
   {
     id: 'easy',
     label: 'Easy',
-    description: 'Choose from 4 locations.',
+    description: '7 min · 3 attempts · choose from 6 locations.',
   },
   {
     id: 'medium',
     label: 'Medium',
-    description: 'World map with country borders.',
+    description: '4 min · 2 attempts · world map with country borders · clues cost 100 points.',
   },
   {
     id: 'hard',
     label: 'Hard',
-    description: 'World map without country borders.',
+    description: '2 min · 1 attempt · unlock clues for 20 seconds.',
   },
 ]

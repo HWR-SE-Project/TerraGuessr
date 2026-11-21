@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { singleplayerApi } from '../../api/singleplayer'
 import { useGameSession } from './useGameSession'
 import { browserMapsKey } from './googleMaps'
+import { testRound } from './testRound'
 import type { StreetSession } from '../../api/singleplayer'
 vi.mock('../../api/singleplayer', () => ({
   singleplayerApi: {
@@ -14,6 +15,9 @@ vi.mock('../../api/singleplayer', () => ({
     next: vi.fn(),
     guess: vi.fn(),
     retry: vi.fn(),
+    selection: vi.fn(),
+    unlock: vi.fn(),
+    intelligence: vi.fn(),
     end: vi.fn(),
   },
 }))
@@ -27,7 +31,7 @@ const empty: StreetSession = {
   results: [],
   totalScore: 0,
 }
-const round = { id: 'test-round', number: 1, panoId: 'test-only-panorama' }
+const round = testRound({ id: 'test-round', number: 1, panoId: 'test-only-panorama' })
 beforeEach(() => {
   vi.resetAllMocks()
   sessionStorage.clear()
@@ -73,13 +77,50 @@ describe('singleplayer session controller (API doubles)', () => {
       distanceKm: 4500,
       score: 527,
     }
-    vi.mocked(singleplayerApi.guess).mockResolvedValue(scored)
+    vi.mocked(singleplayerApi.guess).mockResolvedValue({
+      finalized: true,
+      attemptsRemaining: 0,
+      result: scored,
+    })
     await act(async () => {
       await Promise.all([result.current.submit(), result.current.submit()])
     })
     expect(singleplayerApi.guess).toHaveBeenCalledTimes(1)
     expect(result.current.result).toEqual(scored)
     expect(result.current.session.totalScore).toBe(527)
+  })
+  it('allows submitting a guess when the panorama is unavailable (R07)', async () => {
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next())
+    act(() => {
+      result.current.setGuess({ lat: 10, lon: 20 })
+      result.current.setPanoramaUnavailable(true)
+    })
+    vi.mocked(singleplayerApi.guess).mockResolvedValue({
+      finalized: false,
+      attemptsRemaining: 2,
+    })
+    await act(() => result.current.submit(false))
+    expect(singleplayerApi.guess).toHaveBeenCalledTimes(1)
+  })
+  it('keeps the round open after a non-final attempt and reports remaining attempts', async () => {
+    const { result } = renderHook(useGameSession)
+    await waitFor(() => expect(result.current.available).toBe(true))
+    await act(() => result.current.next())
+    act(() => {
+      result.current.setGuess({ lat: 10, lon: 20 })
+      result.current.setPanoramaReady(true)
+    })
+    vi.mocked(singleplayerApi.guess).mockResolvedValueOnce({
+      finalized: false,
+      attemptsRemaining: 1,
+    })
+    await act(() => result.current.submit(false))
+    expect(result.current.result).toBeNull()
+    expect(result.current.session.activeRound?.attemptsUsed).toBe(1)
+    expect(result.current.notice).toMatch(/1 attempt remaining/)
+    expect(result.current.guess).toEqual({ lat: 10, lon: 20 })
   })
   it('keeps the current round and guess after a network error so the same guess can be retried', async () => {
     const { result } = renderHook(useGameSession)
@@ -199,11 +240,11 @@ describe('recovery and complete expedition', () => {
     const history: StreetSession['results'] = []
     const ROUNDS = 10 // Past the old five-round cap — endless mode.
     for (let number = 1; number <= ROUNDS; number++) {
-      const activeRound = {
+      const activeRound = testRound({
         id: `test-round-${number}`,
         number,
         panoId: `test-pano-${number}`,
-      }
+      })
       vi.mocked(singleplayerApi.next).mockResolvedValueOnce(activeRound)
       vi.mocked(singleplayerApi.session).mockResolvedValueOnce({
         ...empty,
@@ -226,7 +267,11 @@ describe('recovery and complete expedition', () => {
         distanceKm: 3218.88,
         score: 1000,
       }
-      vi.mocked(singleplayerApi.guess).mockResolvedValueOnce(accepted)
+      vi.mocked(singleplayerApi.guess).mockResolvedValueOnce({
+        finalized: true,
+        attemptsRemaining: 0,
+        result: accepted,
+      })
       await act(() => result.current.submit())
       history.push(accepted)
       // Next Round is always available — no fixed-round completion flag exists.

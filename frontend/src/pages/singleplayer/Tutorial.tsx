@@ -29,6 +29,14 @@ const COPY = [
 const LONDON = { lat: 51.5074, lon: -0.1278 }
 const PARIS = { lat: 48.8566, lon: 2.3522 }
 const EXAMPLE_DISTANCE = haversineKm(LONDON, PARIS)
+
+/** Self-contained practice options; they never touch the live round. */
+const PRACTICE_LOCATIONS = [
+  { id: 'london', label: 'London', detail: 'Europe' },
+  { id: 'paris', label: 'Paris', detail: 'Europe' },
+  { id: 'tokyo', label: 'Tokyo', detail: 'Asia' },
+] as const
+type PracticeLocationId = (typeof PRACTICE_LOCATIONS)[number]['id']
 type Rect = { x: number; y: number; width: number; height: number }
 
 /** Measure the actual interface, including resize, panel animation and page scroll.
@@ -96,6 +104,8 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
 }) {
   const [step, setStep] = useState(0)
   const [distance, setDistance] = useState(500)
+  const [practiceSelection, setPracticeSelection] = useState<PracticeLocationId | null>(null)
+  const [practiceLocked, setPracticeLocked] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   const card = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -127,6 +137,7 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
   }, [step])
   function restart() {
     setStep(0); setDistance(500)
+    setPracticeSelection(null); setPracticeLocked(false)
     heading.current?.focus({ preventScroll: true })
     card.current?.scrollTo?.({ top: 0 })
   }
@@ -164,6 +175,45 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
         <div className="tt-copy" key={step}>
           <h2 ref={heading} tabIndex={-1}>{TITLES[step]}</h2>
           <p id="tt-description">{COPY[step]}</p>
+          {(step === 1 || step === 2) && (
+            <div className="tt-practice" aria-label="Tutorial location practice">
+              <span className="tt-demo-label">Try it</span>
+              <div className="tt-practice-list" role="group" aria-label="Practice location list">
+                {PRACTICE_LOCATIONS.map(location => {
+                  const selected = practiceSelection === location.id
+                  return (
+                    <button
+                      key={location.id}
+                      type="button"
+                      aria-pressed={selected}
+                      className={`tt-practice-option${selected ? ' tt-practice-option--selected' : ''}`}
+                      onClick={() => { setPracticeSelection(location.id); setPracticeLocked(false) }}
+                    >
+                      <strong>{location.label}</strong>
+                      <small>{location.detail}</small>
+                    </button>
+                  )
+                })}
+              </div>
+              {step === 2 && (
+                <div className="tt-practice-submit">
+                  <button
+                    type="button"
+                    className="tt-practice-confirm"
+                    disabled={!practiceSelection || practiceLocked}
+                    onClick={() => setPracticeLocked(true)}
+                  >
+                    {practiceLocked ? 'Guess submitted' : 'Submit try-out guess'}
+                  </button>
+                  {practiceLocked && (
+                    <p className="tt-practice-status" role="status">
+                      Locked in. In a real round you can still change it before submitting.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {step === 3 && !result && (
             <div className="tt-demo" aria-label="Tutorial example: London to Paris">
               <span className="tt-demo-label">Example</span>

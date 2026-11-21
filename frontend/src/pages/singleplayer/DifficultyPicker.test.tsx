@@ -50,9 +50,10 @@ describe('DifficultyPicker (R05)', () => {
 
   it('explains the difference between difficulty levels', () => {
     render(<DifficultyPicker value="easy" onChange={vi.fn()} />)
-    expect(screen.getByText(/4 locations/i)).toBeVisible()
+    expect(screen.getByText(/6 locations/i)).toBeVisible()
+    expect(screen.getByText(/3 attempts/i)).toBeVisible()
     expect(screen.getByText(/with country borders/i)).toBeVisible()
-    expect(screen.getByText(/without country borders/i)).toBeVisible()
+    expect(screen.getByText(/20 seconds/i)).toBeVisible()
   })
 
   it('marks the selected option with a non-color checkmark indicator', () => {

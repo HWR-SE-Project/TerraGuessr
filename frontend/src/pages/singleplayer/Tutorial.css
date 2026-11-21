@@ -69,6 +69,40 @@
 .tt-overlay .tt-next { display: flex; align-items: center; justify-content: center; gap: 14px; flex: 1; background: var(--tt-lime); color: #1d2b16; font-weight: 650; }
 .tt-overlay .tt-next:hover { filter: brightness(1.07); }
 
+/* In-card practice: a tiny selection list plus a submit step. Tutorial-only. */
+.tt-practice { margin-top: 12px; padding-top: 12px; border-top: 1px solid #ffffff16; }
+.tt-practice-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.tt-practice-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid #ffffff1c;
+  border-radius: 10px;
+  background: #ffffff06;
+  color: #d8e4ec;
+  text-align: left;
+}
+.tt-practice-option strong { font-size: 11px; font-weight: 600; }
+.tt-practice-option small { font-size: 9px; color: #9fb2c2; }
+.tt-practice-option:hover { border-color: #b0ee6455; background: #ffffff0d; }
+.tt-practice-option--selected { border-color: #b0ee6488; background: #b0ee6414; color: #eaf6dd; }
+.tt-practice-option--selected small { color: #cfe4b3; }
+.tt-practice-submit { display: grid; gap: 6px; margin-top: 8px; }
+.tt-practice-confirm {
+  min-height: 40px;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 650;
+  background: var(--tt-lime);
+  color: #1d2b16;
+}
+.tt-practice-confirm:disabled { opacity: 0.4; }
+.tt-practice-status { margin: 0; font-size: 11px; line-height: 1.5; color: #cfe4b3; }
+
 @media (prefers-reduced-transparency: reduce) { .tt-coach { backdrop-filter: none; background: #142231; } }
 @media (forced-colors: active) { .tt-target-ring { stroke: Highlight; } .tt-coach { border: 1px solid CanvasText; } }
 

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GuessMap } from './GuessMap'
 import { StreetViewViewer } from './StreetViewViewer'
 import { loadGoogleMaps, onMapsAuthFailure } from './googleMaps'
+import { testRound } from './testRound'
 vi.mock('./googleMaps', () => ({
   browserMapsKey: () => 'test-only-key',
   loadGoogleMaps: vi.fn(),
@@ -244,7 +245,7 @@ describe('map and panorama controls (explicit SDK doubles, no imagery)', () => {
   })
   it('enables real panorama controls, gates readiness on provider status, and applies settings', async () => {
     const ready = vi.fn()
-    const round = { id: 'test-round', number: 1, panoId: 'test-only-panorama' }
+    const round = testRound({ id: 'test-round', number: 1, panoId: 'test-only-panorama' })
     const { rerender, unmount } = render(
       <StreetViewViewer round={round} onReady={ready} showCompass scrollZoom />,
     )

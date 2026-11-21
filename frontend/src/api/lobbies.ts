@@ -148,6 +148,17 @@ export function submitLobbyGuess(
   )
 }
 
+export function unlockLobbyExtraData(
+  code: string,
+  roundNumber: number,
+  token: string,
+): Promise<LobbyMatchResponseDTO> {
+  return apiFetch<LobbyMatchResponseDTO>(
+    `/lobbies/${encodeURIComponent(code)}/rounds/${roundNumber}/unlock`,
+    { method: 'POST', lobbyToken: token },
+  )
+}
+
 export function finishLobbyRound(
   code: string,
   roundNumber: number,

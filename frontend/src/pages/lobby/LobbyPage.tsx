@@ -15,9 +15,9 @@ const DIFFICULTIES: Array<{
   detail: string
   selection: string
 }> = [
-  { value: 'easy', label: 'Easy', detail: '7 min · 3 attempts', selection: 'Pick from a list' },
-  { value: 'medium', label: 'Medium', detail: '4 min · 2 attempts', selection: 'World map' },
-  { value: 'hard', label: 'Hard', detail: '2 min · 1 attempt', selection: 'World map' },
+  { value: 'easy', label: 'Easy', detail: '7 min · 3 attempts · free clues', selection: 'Pick from a list' },
+  { value: 'medium', label: 'Medium', detail: '4 min · 2 attempts · clues cost 100 pts', selection: 'World map' },
+  { value: 'hard', label: 'Hard', detail: '2 min · 1 attempt · clues cost 20 s', selection: 'World map' },
 ]
 
 const ROUND_OPTIONS = Array.from({ length: 8 }, (_, index) => index + 3)

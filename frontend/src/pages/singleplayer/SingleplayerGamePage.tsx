@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigationGuard } from '../../components/ui/NavigationGuard'
-import { BackNavigation } from '../../components/ui/BackNavigation'
 import { AppNavigation, PageNavigation } from '../../components/ui/PageNavigation'
 import type { CSSProperties } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -23,6 +22,7 @@ import { useCosmicBackgroundMode } from '../../components/cosmic/CosmicContext'
 import './SingleplayerGamePage.css'
 import './SingleplayerSetup.css'
 import './SessionSummary.css'
+import { clockLabel } from '../../lib/format'
 
 export function SingleplayerGamePage() {
   const navigate = useNavigate()
@@ -46,6 +46,8 @@ export function SingleplayerGamePage() {
   const active = game.session.activeRound
   const view = game.view
   const exploring = view === 'playing'
+  // R07: a failed panorama must not block placing and submitting a guess.
+  const guessReady = game.panoramaReady || game.panoramaUnavailable
   const dialog = navigation.state === 'blocked' ? 'end' : localDialog
   const selectedCandidateId =
     active?.candidates?.find(
@@ -84,7 +86,7 @@ export function SingleplayerGamePage() {
         event.target === document.body &&
         exploring &&
         game.guess &&
-        game.panoramaReady &&
+        guessReady &&
         !game.busy
       ) {
         event.preventDefault()
@@ -99,7 +101,7 @@ export function SingleplayerGamePage() {
     }
     window.addEventListener('keydown', escape)
     return () => window.removeEventListener('keydown', escape)
-  }, [dialog, expanded, hovered, exploring, game, view])
+  }, [dialog, expanded, guessReady, hovered, exploring, game, view])
   function leave() {
     if (game.inProgress) setDialog('end')
     else navigate('/')
@@ -167,7 +169,8 @@ export function SingleplayerGamePage() {
               </h1>
               <p>Explore the world. Follow the clues. Make your guess.</p>
               <p className="sp-setup-meta">
-                Unlimited rounds · Up to 5,000 points per round · No time limit
+                Timed rounds · Difficulty-based attempts · Up to 5,000 points
+                per round
               </p>
             </div>
             <div className="sp-setup-options">
@@ -216,7 +219,6 @@ export function SingleplayerGamePage() {
               )}
             </div>
           </section>
-          <BackNavigation to="/">Return Home</BackNavigation>
         </div>
       )}
       {exploring && <section className="sp-stage" aria-label="Exploration controls">
@@ -224,13 +226,14 @@ export function SingleplayerGamePage() {
           <StreetViewViewer
             round={active}
             onReady={game.setPanoramaReady}
+            onUnavailable={game.setPanoramaUnavailable}
             showCompass={settings.compass}
             scrollZoom={settings.scrollZoom}
             onRetryLocation={() => void game.retryLocation()}
             retrying={game.busy}
           />
         )}
-        {exploring && !game.panoramaReady && (
+        {exploring && !game.panoramaReady && !game.panoramaUnavailable && (
           <div className="sp-loading sp-glass" role="status">
             <span className="sp-spinner" />
             Loading your location…
@@ -242,8 +245,11 @@ export function SingleplayerGamePage() {
             key={`${active.id}:${active.panoId}`}
             load={game.loadIntelligence}
             round={active}
-            defaultExpanded={game.session.difficulty !== 'hard'}
             tutorialFocused={tutorialOpen && tutorialStep === 0}
+            access={active.extraData}
+            onUnlock={() => void game.unlockExtraData()}
+            unlocking={game.unlocking}
+            unlockError={game.unlockError}
           />
         )}
       </section>}
@@ -293,7 +299,11 @@ export function SingleplayerGamePage() {
               <GameIcon name="pin" />
               <span>
                 {active?.candidates ? 'Pick a city' : 'World Explorer'}
-                <small>NO TIME LIMIT · MOVING ALLOWED</small>
+                <small>
+                  {clockLabel(game.remainingSeconds)} ·{' '}
+                  {active?.attemptsUsed ?? 0}/{active?.attemptsTotal ?? 0}{' '}
+                  attempts used · Moving allowed
+                </small>
               </span>
               <span aria-hidden="true">{mapCollapsed ? '▴' : '▾'}</span>
             </button>
@@ -325,11 +335,11 @@ export function SingleplayerGamePage() {
                   key={active?.id ?? 'idle'}
                   guess={game.guess}
                   onChange={game.setGuess}
-                  interactive={exploring && game.panoramaReady && !game.busy}
-                  countryBorders={game.session.difficulty !== 'hard'}
+                  interactive={exploring && guessReady && !game.busy}
+                  countryBorders
                 />
               )}
-              {!active?.candidates && !game.guess && game.panoramaReady && (
+              {!active?.candidates && !game.guess && guessReady && (
                 <span className="sp-map-hint">
                   Click the map to place your pin
                 </span>
@@ -337,15 +347,28 @@ export function SingleplayerGamePage() {
             </div>
             <div className="sp-map-footer">
               <span aria-live="polite">
-                {game.guess
-                  ? `${game.guess.lat.toFixed(3)}°, ${game.guess.lon.toFixed(3)}° · pin placed`
-                  : 'Where in the world are you?'}
+                {game.notice ??
+                  (game.guess
+                    ? `${game.guess.lat.toFixed(3)}°, ${game.guess.lon.toFixed(3)}° · pin placed`
+                    : 'Where in the world are you?')}
               </span>
-              <GuessButton
-                disabled={!game.guess || !game.panoramaReady || game.busy || !exploring}
-                busy={game.busy}
-                onClick={() => void game.submit()}
-              />
+              <div className="sp-map-actions">
+                <GuessButton
+                  disabled={!game.guess || !guessReady || game.busy || !exploring}
+                  busy={game.busy}
+                  onClick={() => void game.submit(false)}
+                />
+                {active && active.attemptsUsed > 0 &&
+                  active.attemptsUsed < active.attemptsTotal && (
+                    <GuessButton
+                      variant="secondary"
+                      label="Final submit"
+                      disabled={!game.guess || !guessReady || game.busy || !exploring}
+                      busy={game.busy}
+                      onClick={() => void game.submit(true)}
+                    />
+                  )}
+              </div>
             </div>
           </div>
         </aside>

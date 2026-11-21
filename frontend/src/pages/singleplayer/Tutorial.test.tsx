@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Tutorial, hasSeenTutorial, markTutorialSeen, shouldShowTutorialForNewGame } from './Tutorial'
+import { testRound } from './testRound'
 vi.mock('./googleMaps', () => ({ browserMapsKey: () => '', loadGoogleMaps: vi.fn(), onMapsAuthFailure: () => () => {} }))
 beforeEach(() => {
   localStorage.clear()
@@ -55,7 +56,7 @@ describe('R14 guided tutorial', () => {
   })
   it('uses one small card with no copied weather panel, map, or Guess control during a live round', () => {
     const changed = vi.fn()
-    const { container } = render(<Tutorial onClose={vi.fn()} onStepChange={changed} round={{ id: 'safe', number: 1, panoId: 'private' }} />)
+    const { container } = render(<Tutorial onClose={vi.fn()} onStepChange={changed} round={testRound({ id: 'safe', number: 1, panoId: 'private' })} />)
     expect(container.querySelectorAll('.tt-coach')).toHaveLength(1)
     expect(container.querySelector('.gi-panel')).not.toBeInTheDocument()
     expect(screen.getByText(/Use temperature, rainfall, humidity and wind/)).toBeVisible()
@@ -71,8 +72,34 @@ describe('R14 guided tutorial', () => {
     goTo(2)
     expect(screen.getByText('Choose where you think you are. You can change your answer before submitting.')).toBeVisible()
   })
+  it('lets the player practise list selection and a guess submission without touching the live round', () => {
+    const close = vi.fn()
+    render(<Tutorial onClose={close} />)
+    next()
+    const paris = screen.getByRole('button', { name: /Paris/ })
+    fireEvent.click(paris)
+    expect(paris).toHaveAttribute('aria-pressed', 'true')
+    next()
+    const submit = screen.getByRole('button', { name: 'Submit try-out guess' })
+    expect(submit).toBeEnabled()
+    fireEvent.click(submit)
+    expect(screen.getByRole('button', { name: 'Guess submitted' })).toBeDisabled()
+    expect(screen.getByText(/Locked in/)).toBeVisible()
+    expect(close).not.toHaveBeenCalled()
+  })
+  it('clears practice state on restart', () => {
+    render(<Tutorial onClose={vi.fn()} />)
+    next()
+    fireEvent.click(screen.getByRole('button', { name: /Paris/ }))
+    next()
+    fireEvent.click(screen.getByRole('button', { name: 'Submit try-out guess' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Restart tutorial' }))
+    expect(screen.getByText('1 / 5')).toBeVisible()
+    next()
+    expect(screen.getByRole('button', { name: /Paris/ })).toHaveAttribute('aria-pressed', 'false')
+  })
   it('explains distance without exposing the actual round location', () => {
-    render(<Tutorial onClose={vi.fn()} round={{ id: 'safe', number: 1, panoId: 'hidden' }} />)
+    render(<Tutorial onClose={vi.fn()} round={testRound({ id: 'safe', number: 1, panoId: 'hidden' })} />)
     goTo(4)
     expect(screen.getByText('343.6', { exact: false })).toBeVisible()
     expect(screen.getByLabelText('Tutorial example: London to Paris')).toBeVisible()
@@ -81,7 +108,7 @@ describe('R14 guided tutorial', () => {
     render(<Tutorial onClose={vi.fn()} />)
     goTo(5)
     const slider = screen.getByRole('slider')
-    for (const [distance, points] of [[0, '5,000'], [2000, '1,839'], [20000, '0']]) {
+    for (const [distance, points] of [[0, '5,000'], [2000, '4,522'], [20000, '0']]) {
       fireEvent.change(slider, { target: { value: distance } })
       await waitFor(() => expect(screen.getByLabelText('Example score')).toHaveTextContent(String(points)))
     }

@@ -28,8 +28,13 @@ export function useGameSession(autoStart = false) {
   const [available, setAvailable] = useState(false)
   const [setupIssues, setSetupIssues] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [panoramaReady, setPanoramaReady] = useState(false)
+  const [panoramaUnavailable, setPanoramaUnavailable] = useState(false)
   const [showFinal, setShowFinal] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [unlockError, setUnlockError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   // Credentials live only in memory for this tab's current session — never
   // written to storage — so a refresh or tab close can never resume a prior
   // game. An interrupted session simply ages out server-side via the 24h
@@ -39,6 +44,7 @@ export function useGameSession(autoStart = false) {
   const exitLock = useRef(false)
   const checked = useRef(0)
   const autoStarted = useRef(false)
+  const timeoutSettled = useRef<string | null>(null)
   const refreshConfig = useCallback(async () => {
     const generation = ++checked.current
     setChecking(true)
@@ -87,6 +93,7 @@ export function useGameSession(autoStart = false) {
           setGuess(null)
           setPanoramaReady(false)
           setShowFinal(false)
+          setNotice(null)
           setError(
             'Your expedition has expired or is no longer available. Start a new game.',
           )
@@ -114,6 +121,8 @@ export function useGameSession(autoStart = false) {
           setShowFinal(false)
           setGuess(null)
           setPanoramaReady(false)
+          setNotice(null)
+          setUnlockError(null)
         }
         if (!credentials.current) {
           credentials.current = await singleplayerApi.create(difficulty)
@@ -127,6 +136,9 @@ export function useGameSession(autoStart = false) {
         setGuess(null)
         setPanoramaReady(false)
         setShowFinal(false)
+        setNotice(null)
+        setUnlockError(null)
+        timeoutSettled.current = null
       })
     },
     [run],
@@ -144,6 +156,55 @@ export function useGameSession(autoStart = false) {
       void Promise.resolve().then(() => next())
     }
   }, [autoStart, available, checking, session.id, error, next])
+  // Keep the local clock aligned with the server-declared round deadline.
+  useEffect(() => {
+    if (!session.activeRound || result || showFinal) return
+    const interval = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(interval)
+  }, [session.activeRound, result, showFinal])
+  const remainingSeconds = session.activeRound?.endsAt
+    ? Math.max(
+        0,
+        Math.ceil((Date.parse(session.activeRound.endsAt) - now) / 1000),
+      )
+    : null
+  // The server settles expired rounds when the session is read. Ask once the
+  // visible timer reaches zero so the timeout result replaces the round.
+  useEffect(() => {
+    const active = session.activeRound
+    const auth = credentials.current
+    if (!active || !auth || result || showFinal) return
+    if (remainingSeconds === null || remainingSeconds > 0) return
+    if (timeoutSettled.current === active.id) return
+    timeoutSettled.current = active.id
+    void singleplayerApi
+      .session(auth)
+      .then((fresh) => {
+        setSession(fresh)
+        const scored = fresh.results.find(
+          (entry) => entry.roundId === active.id,
+        )
+        if (scored) {
+          setResult(scored)
+          setGuess(scored.guess)
+          setNotice(null)
+        }
+      })
+      .catch(() => {})
+  }, [remainingSeconds, session.activeRound, result, showFinal])
+  // Persist the latest pin so a timeout can evaluate it even if the player
+  // never pressed Submit (R08). Debounced so ordinary map clicks stay cheap.
+  useEffect(() => {
+    const round = session.activeRound
+    const auth = credentials.current
+    if (!round || !guess || !auth || result || showFinal) return
+    const timer = window.setTimeout(() => {
+      void Promise.resolve(
+        singleplayerApi.selection(auth, round.id, guess),
+      ).catch(() => {})
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [guess, session.activeRound, result, showFinal])
   async function retryLocation() {
     if (!session.activeRound || !credentials.current || result || showFinal)
       return
@@ -154,9 +215,12 @@ export function useGameSession(autoStart = false) {
       setSession((current) => ({ ...current, activeRound: replacement }))
       setGuess(null)
       setPanoramaReady(false)
+      setNotice(null)
+      setUnlockError(null)
+      timeoutSettled.current = null
     })
   }
-  async function submit() {
+  async function submit(final = false) {
     if (
       !guess ||
       !Number.isFinite(guess.lat) ||
@@ -165,7 +229,7 @@ export function useGameSession(autoStart = false) {
       Math.abs(guess.lon) > 180 ||
       !session.activeRound ||
       !credentials.current ||
-      !panoramaReady ||
+      (!panoramaReady && !panoramaUnavailable) ||
       result ||
       showFinal
     )
@@ -174,23 +238,56 @@ export function useGameSession(autoStart = false) {
     const round = session.activeRound
     const auth = credentials.current
     await run('guess', async () => {
-      let received: StreetResult
+      let received
       try {
-        received = await singleplayerApi.guess(auth, round.id, submitted)
+        received = await singleplayerApi.guess(auth, round.id, submitted, final)
       } catch (cause) {
         const restored = await singleplayerApi.session(auth).catch(() => null)
         const accepted = restored?.results.find(
           (entry) => entry.roundId === round.id,
         )
         if (!accepted) throw cause
-        received = accepted
+        setResult(accepted)
         setGuess(accepted.guess)
+        setSession((current) => ({
+          ...current,
+          activeRound: null,
+          results: [
+            ...current.results.filter((r) => r.roundId !== accepted.roundId),
+            accepted,
+          ],
+          totalScore: current.totalScore + accepted.score,
+        }))
+        return
       }
-      setResult(received)
+      if (!received.finalized) {
+        setNotice(
+          `Guess submitted. ${received.attemptsRemaining} attempt${received.attemptsRemaining === 1 ? '' : 's'} remaining.`,
+        )
+        setSession((current) =>
+          current.activeRound
+            ? {
+                ...current,
+                activeRound: {
+                  ...current.activeRound,
+                  attemptsUsed:
+                    current.activeRound.attemptsTotal -
+                    received.attemptsRemaining,
+                },
+              }
+            : current,
+        )
+        return
+      }
+      const scored = received.result
+      if (!scored) throw new Error('The round result was missing. Please retry.')
+      setResult(scored)
+      setGuess(scored.guess)
+      setNotice(null)
       setSession((current) => {
         const results = [
-          ...current.results.filter((r) => r.roundId !== received.roundId),
-          received,
+          ...current.results.filter((r) => r.roundId !== scored.roundId),
+          scored,
         ]
         return {
           ...current,
@@ -200,6 +297,32 @@ export function useGameSession(autoStart = false) {
         }
       })
     })
+  }
+  async function unlockExtraData() {
+    if (
+      !session.activeRound ||
+      !credentials.current ||
+      result ||
+      showFinal ||
+      unlocking
+    )
+      return
+    const auth = credentials.current
+    const round = session.activeRound
+    setUnlocking(true)
+    setUnlockError(null)
+    try {
+      const updated = await singleplayerApi.unlock(auth, round.id)
+      setSession((current) => ({ ...current, activeRound: updated }))
+    } catch (cause) {
+      setUnlockError(
+        cause instanceof Error
+          ? cause.message
+          : 'Additional data could not be unlocked.',
+      )
+    } finally {
+      setUnlocking(false)
+    }
   }
   const [exitPending, setExitPending] = useState<'end' | null>(null)
   const [exitError, setExitError] = useState<{
@@ -229,6 +352,7 @@ export function useGameSession(autoStart = false) {
       setGuess(null)
       setPanoramaReady(false)
       setError(null)
+      setNotice(null)
       setSession(current => ({ ...current, activeRound: null }))
       setShowFinal(true)
       return true
@@ -299,13 +423,20 @@ export function useGameSession(autoStart = false) {
     available,
     setupIssues,
     error,
+    notice,
     phase,
     panoramaReady,
     setPanoramaReady,
+    panoramaUnavailable,
+    setPanoramaUnavailable,
     showFinal,
+    remainingSeconds,
+    unlocking,
+    unlockError,
     next,
     retryLocation,
     submit,
+    unlockExtraData,
     refreshConfig,
     inProgress,
     endGame,

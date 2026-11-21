@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GeographicIntelligence } from './GeographicIntelligence'
 import { singleplayerApi } from '../../api/singleplayer'
+import { testRound } from './testRound'
 import type { GeographicIntelligence as Data } from '../../api/singleplayer'
 vi.mock('../../api/singleplayer', () => ({
   singleplayerApi: { intelligence: vi.fn() },
@@ -19,7 +20,7 @@ const load = (roundId: string, signal?: AbortSignal) =>
     roundId,
     signal,
   )
-const round = { id: 'round', number: 1, panoId: 'pano' }
+const round = testRound({ id: 'round', number: 1, panoId: 'pano' })
 const data: Data = {
   fetchedAt: '2026-11-19T12:00Z',
   cached: true,
@@ -73,6 +74,17 @@ describe('environmental clues lifecycle', () => {
     )
     expect(within(panel).getByText('Clear sky')).toBeVisible()
     expect(within(panel).getByText('Low relief')).toBeVisible()
+    // R06/R15: all four mandatory weather metrics are shown with their units.
+    expect(within(panel).getByText('°C')).toBeVisible()
+    expect(within(panel).getByText('mm')).toBeVisible()
+    expect(within(panel).getByText('%')).toBeVisible()
+    expect(within(panel).getByText('m/s')).toBeVisible()
+    // R15: labels are present and ordered consistently.
+    const weather = within(panel).getByRole('region', { name: 'Weather conditions' })
+    const labels = ['Temperature', 'Wind speed', 'Humidity', 'Precipitation']
+    const positions = labels.map(label => (weather.textContent ?? '').indexOf(label))
+    expect(positions.every(position => position >= 0)).toBe(true)
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
     fireEvent.click(
       within(panel).getByRole('button', { name: /GEOGRAPHIC INTELLIGENCE/ }),
     )
@@ -80,6 +92,23 @@ describe('environmental clues lifecycle', () => {
       'inert',
     )
     expect(singleplayerApi.intelligence).toHaveBeenCalledTimes(1)
+  })
+  it('shows the same weather labels and units in the compact mobile summary', async () => {
+    vi.mocked(singleplayerApi.intelligence).mockResolvedValue(data)
+    render(<GeographicIntelligence load={load} round={round} />)
+    const trigger = screen.getByRole('button', {
+      name: 'Open geographic intelligence',
+    })
+    await waitFor(() =>
+      expect(within(trigger).getByText('Temperature')).toBeVisible(),
+    )
+    for (const label of ['Temperature', 'Wind speed', 'Humidity', 'Precipitation']) {
+      expect(within(trigger).getByText(label)).toBeVisible()
+    }
+    expect(within(trigger).getByText('0 °C')).toBeVisible()
+    expect(within(trigger).getByText('0 m/s')).toBeVisible()
+    expect(within(trigger).getByText('0 %')).toBeVisible()
+    expect(within(trigger).getByText('0 mm')).toBeVisible()
   })
   it('handles failure without provider text, retries, and aborts requests on round teardown', async () => {
     vi.mocked(singleplayerApi.intelligence)
@@ -123,7 +152,7 @@ describe('environmental clues lifecycle', () => {
     expect(screen.getByText('Rain')).toBeVisible()
     expect(screen.queryByText('Clear sky')).not.toBeInTheDocument()
   })
-  it('starts collapsed on hard difficulty but still exposes the mandatory fields on demand (R05)', async () => {
+  it('supports an optional collapsed state while exposing the mandatory fields on demand', async () => {
     vi.mocked(singleplayerApi.intelligence).mockResolvedValue(data)
     render(
       <GeographicIntelligence load={load} round={round} defaultExpanded={false} />,
@@ -136,7 +165,7 @@ describe('environmental clues lifecycle', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     await waitFor(() => expect(screen.getByText('Clear sky')).toBeVisible())
   })
-  it('defaults to expanded when no defaultExpanded is given (easy/medium)', () => {
+  it('defaults to expanded when no defaultExpanded is given', () => {
     vi.mocked(singleplayerApi.intelligence).mockResolvedValue(data)
     render(<GeographicIntelligence load={load} round={round} />)
     expect(

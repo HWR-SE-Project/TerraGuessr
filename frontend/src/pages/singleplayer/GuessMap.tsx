@@ -131,31 +131,40 @@ export function GuessMap({
           for (const result of initialResults.current) {
             overlays.push(
               pin(
-                result.guess,
-                '#a78bfa',
-                `Round ${result.number}: your guess`,
-              ),
-              pin(
                 result.actual,
                 '#9deb39',
                 `Round ${result.number}: correct location`,
               ),
             )
-            const path = [result.guess, result.actual].map((point) => ({
-              lat: point.lat,
-              lng: point.lon,
-            }))
-            path.forEach((point) => bounds.extend(point))
-            overlays.push(
-              new maps.Polyline({
-                map: instance,
-                path,
-                geodesic: true,
-                strokeColor: '#663ab8',
-                strokeOpacity: 0.8,
-                strokeWeight: 3,
-              }),
-            )
+            if (result.guess) {
+              overlays.push(
+                pin(
+                  result.guess,
+                  '#a78bfa',
+                  `Round ${result.number}: your guess`,
+                ),
+              )
+              const path = [result.guess, result.actual].map((point) => ({
+                lat: point.lat,
+                lng: point.lon,
+              }))
+              path.forEach((point) => bounds.extend(point))
+              overlays.push(
+                new maps.Polyline({
+                  map: instance,
+                  path,
+                  geodesic: true,
+                  strokeColor: '#663ab8',
+                  strokeOpacity: 0.8,
+                  strokeWeight: 3,
+                }),
+              )
+            } else {
+              bounds.extend({
+                lat: result.actual.lat,
+                lng: result.actual.lon,
+              })
+            }
           }
           instance.fitBounds(bounds, 56)
           maps.event.addListenerOnce(instance, 'idle', () => {
@@ -174,7 +183,7 @@ export function GuessMap({
             const b = new maps.LatLngBounds()
             initialResults.current.forEach((r) => {
               b.extend({ lat: r.actual.lat, lng: r.actual.lon })
-              b.extend({ lat: r.guess.lat, lng: r.guess.lon })
+              if (r.guess) b.extend({ lat: r.guess.lat, lng: r.guess.lon })
             })
             instance.fitBounds(b, 56)
           }
@@ -231,7 +240,8 @@ export function GuessMap({
           const bounds = new maps.LatLngBounds()
           initialResults.current.forEach((result) => {
             bounds.extend({ lat: result.actual.lat, lng: result.actual.lon })
-            bounds.extend({ lat: result.guess.lat, lng: result.guess.lon })
+            if (result.guess)
+              bounds.extend({ lat: result.guess.lat, lng: result.guess.lon })
           })
           nextMarkers.forEach((entry) =>
             bounds.extend({

@@ -1,12 +1,10 @@
-// Hand-mirrored copy of backend/src/contracts/*.ts and the auth/daily/
+// Hand-mirrored copy of backend/src/contracts/*.ts and the auth/
 // statistics route shapes. The backend owns the frozen contract — never
 // invent a shape here that isn't backed by a real route.
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
-export type GameMode = 'solo' | 'challenge'
 export type SelectionMode = 'map' | 'list'
 export type AdditionalDataUnlockMode = 'immediate' | 'time' | 'points'
-export type Continent = 'AFRICA' | 'EUROPE' | 'ASIA' | 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'OCEANIA'
 
 export interface LatLon {
   lat: number
@@ -22,10 +20,13 @@ export interface AdditionalDataAccessDTO {
   cost: number | null
   availableAt: string | null
   unlocked: boolean
+  /** Points already deducted from this round for additional data. */
+  pointsSpent: number
 }
 
 /** Exactly these four metrics are always present; the rest are optionally null. */
 export interface WeatherDTO {
+  fetchedAt: string
   temperatureC: number
   precipitationMm: number
   humidityPct: number
@@ -45,102 +46,6 @@ export interface CandidateDTO {
   region: string
 }
 
-// --- Games / Rounds / Results -----------------------------------------
-
-export interface CreateGameInput {
-  mode: GameMode
-  difficulty: Difficulty
-  roundsTotal?: number
-  geography?: 'world' | Continent
-  candidateCount?: number
-  attemptsPerRound?: number
-  additionalDataUnlockMode?: AdditionalDataUnlockMode
-  additionalDataUnlockCost?: number
-}
-
-export interface CreateGameResponse {
-  gameId: string
-  playerToken: string
-  roundsTotal: number
-  attemptsPerRound: number
-  additionalDataUnlockMode: AdditionalDataUnlockMode
-  additionalDataUnlockCost: number | null
-}
-
-export interface GameSummary {
-  gameId: string
-  mode: GameMode
-  difficulty: Difficulty
-  roundsTotal: number
-  attemptsPerRound: number
-  status: 'active' | 'completed'
-  roundsPlayed: number
-  currentRound: { roundId: string; roundNumber: number; status: 'active' | 'completed' } | null
-}
-
-export interface RoundDTO {
-  roundId: string
-  roundNumber: number
-  attemptsTotal: number
-  difficulty: Difficulty
-  selectionMode: SelectionMode
-  weather: WeatherDTO
-  additionalData: AdditionalDataAccessDTO
-  candidates?: CandidateDTO[]
-}
-
-export interface GuessResultDTO {
-  resultId: string
-  distanceKm: number
-  score: number
-  actual: LatLon
-}
-
-export interface ResultDTO {
-  resultId: string
-  roundNumber: number
-  distanceKm: number
-  score: number
-  actual: LatLon
-  guess: LatLon
-  createdAt: string
-}
-
-export interface GameResultsDTO {
-  results: ResultDTO[]
-  totalScore: number
-}
-
-// --- Challenges (async "duels") -----------------------------------------
-
-export interface ChallengeDTO {
-  challengeId: string
-  shareUrl: string
-}
-
-export interface JoinedChallengeRound {
-  gameId: string
-  playerToken: string
-  round: RoundDTO
-}
-
-export interface ChallengeEntryDTO {
-  entryId: string
-  rank: number
-}
-
-export interface LeaderboardEntryDTO {
-  rank: number
-  displayName: string | null
-  score: number
-  distanceKm: number
-}
-
-export interface LeaderboardDTO {
-  challengeId: string
-  entries: LeaderboardEntryDTO[]
-}
-
 // --- Lobbies (R16) -------------------------------------------------------
 
 export type LobbyStatus = 'waiting' | 'playing' | 'finished'
@@ -149,6 +54,11 @@ export interface LobbyRulesDTO {
   timeLimitSeconds: number
   attemptsPerRound: number
   selectionMode: SelectionMode
+  countryBorders: boolean
+  extraData:
+    | { mode: 'free' }
+    | { mode: 'points'; cost: number }
+    | { mode: 'time'; cost: number }
 }
 
 export interface LobbyMemberDTO {
@@ -189,6 +99,10 @@ export interface LobbyMatchRound {
   number: number
   panoId: string
   candidates?: LobbyMatchCandidate[]
+  endsAt: string | null
+  attemptsUsed: number
+  attemptsTotal: number
+  extraData: AdditionalDataAccessDTO
 }
 
 export interface LobbyMatchParticipantGuess {
@@ -209,6 +123,7 @@ export interface LobbyMatchResult {
   guess: LatLon | null
   actual: LatLon
   attemptsUsed: number
+  extraDataPointsSpent?: number
   guesses: LobbyMatchParticipantGuess[]
 }
 
@@ -282,15 +197,9 @@ export interface UserPreferences {
   fullscreen: boolean
 }
 
-export interface DailyStreak {
-  current: number
-  longest: number
-}
-
 export interface SessionResponse {
   user: PublicUser | null
   preferences?: UserPreferences | null
-  dailyStreak?: DailyStreak
 }
 
 export interface AuthConfigResponse {
@@ -328,58 +237,9 @@ export interface EmailChangeConfirmation {
   pending: 'old' | 'new' | null
 }
 
-// --- Daily challenge -------------------------------------------------------
-
-export interface DailyRoundView {
-  roundId: string
-  roundNumber: number
-  attemptsTotal: number
-  difficulty: Difficulty
-  selectionMode: SelectionMode
-  additionalData: AdditionalDataAccessDTO
-  weather: WeatherDTO
-}
-
-export interface DailyResultDTO {
-  resultId: string
-  distanceKm: number
-  score: number
-  guess: LatLon
-  actual: LatLon
-}
-
-export interface DailyTodayResponse {
-  date: string
-  status: 'open' | 'completed'
-  round: DailyRoundView
-  result?: DailyResultDTO
-}
-
-export interface DailyGuessResponse {
-  date: string
-  result: DailyResultDTO
-}
-
-export interface DailyLeaderboardEntry {
-  rank: number
-  displayName: string
-  score: number
-  distanceKm: number
-  isCurrentUser: boolean
-}
-
-export interface DailyLeaderboardResponse {
-  date: string
-  entries: DailyLeaderboardEntry[]
-  total: number
-  offset: number
-  limit: number
-  myRank: number | null
-}
-
 // --- Statistics -------------------------------------------------------
 
-export type StatisticsMode = 'solo' | 'multiplayer' | 'ranked' | 'daily'
+export type StatisticsMode = 'solo' | 'multiplayer' | 'ranked'
 
 export interface StatisticsEntry {
   id: string

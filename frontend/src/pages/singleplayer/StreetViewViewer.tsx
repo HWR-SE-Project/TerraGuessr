@@ -5,6 +5,7 @@ import { loadGoogleMaps, onMapsAuthFailure } from './googleMaps'
 export function StreetViewViewer({
   round,
   onReady,
+  onUnavailable,
   showCompass,
   scrollZoom,
   onRetryLocation,
@@ -12,6 +13,8 @@ export function StreetViewViewer({
 }: {
   round: StreetRound
   onReady: (ready: boolean) => void
+  /** Reports whether the panorama failed, so guessing can still continue. */
+  onUnavailable?: (unavailable: boolean) => void
   showCompass: boolean
   scrollZoom: boolean
   onRetryLocation?: () => void
@@ -36,11 +39,13 @@ export function StreetViewViewer({
     let timer: ReturnType<typeof setTimeout>
     let linksTimer: ReturnType<typeof setTimeout>
     onReady(false)
+    onUnavailable?.(false)
     const fail = (message: string) => {
       if (!cancelled) {
         clearTimeout(timer)
         clearTimeout(linksTimer)
         onReady(false)
+        onUnavailable?.(true)
         setReady(false)
         setError(message)
       }
@@ -102,6 +107,7 @@ export function StreetViewViewer({
           if (viewer.getStatus() === maps.StreetViewStatus.OK) {
             setError(null)
             onReady(true)
+            onUnavailable?.(false)
             setReady(true)
             setCurrentPano(viewer.getPano())
           } else
@@ -144,7 +150,7 @@ export function StreetViewViewer({
       }
       panorama.current = null
     }
-  }, [round.id, round.panoId, attempt, onReady])
+  }, [round.id, round.panoId, attempt, onReady, onUnavailable])
   useEffect(() => {
     panorama.current?.setOptions({ scrollwheel: scrollZoom })
   }, [scrollZoom])

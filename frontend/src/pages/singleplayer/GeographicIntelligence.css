@@ -131,7 +131,18 @@
   align-items: center;
   margin: 10px 0 2px;
 }
-.gi-temperature > div:first-child {
+.gi-temperature-reading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gi-temperature-label {
+  color: var(--gi-muted);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.4px;
+}
+.gi-temperature-value {
   display: flex;
   align-items: flex-start;
   gap: 5px;
@@ -143,7 +154,7 @@
   letter-spacing: -2.8px;
   color: var(--gi-lime);
 }
-.gi-temperature > div > span {
+.gi-temperature-value > span {
   font-size: 22px;
   color: #dce8d0;
   line-height: 1.7;
@@ -573,6 +584,8 @@
     align-items: center;
     gap: 9px;
     min-height: 44px;
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
     padding: 10px 13px;
     border-radius: 10px;
     border: 1px solid #d0e7f22b;
@@ -581,6 +594,30 @@
     backdrop-filter: blur(20px);
     font-size: 11px;
     cursor: pointer;
+  }
+  .sp-page .gi-mobile-trigger-label {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 10px;
+    min-width: 0;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+  .sp-page .gi-mobile-metric {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .sp-page .gi-mobile-metric b {
+    color: var(--gi-muted);
+    font-size: 8px;
+    font-weight: 400;
+    letter-spacing: 0.2px;
+  }
+  .sp-page .gi-mobile-metric > span {
+    color: #dce8d0;
+    white-space: nowrap;
   }
   .gi-mobile-trigger > svg {
     color: var(--gi-lime);
@@ -735,3 +772,19 @@
 .sp-stage > .gi-panel .gi-header { flex-shrink: 0; }
 .sp-stage > .gi-panel .gi-desktop-content { min-height: 0; }
 @media (max-width: 62.5rem) { .sp-stage > .gi-panel { display: none; } }
+
+.gi-unlock {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: var(--radius-panel, 0.75rem);
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+.gi-unlock p { margin: 0; font-size: 0.8rem; opacity: 0.8; }
+.gi-unlock button {
+  justify-self: start;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}

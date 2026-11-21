@@ -5,6 +5,7 @@ import type {
   GeographicIntelligence as Intelligence,
   StreetRound,
 } from '../../api/singleplayer'
+import type { AdditionalDataAccessDTO } from '../../api/types'
 import { GameDialog } from './GameDialog'
 import './GeographicIntelligence.css'
 
@@ -127,16 +128,33 @@ export function GeographicIntelligence({
   round,
   defaultExpanded = true,
   tutorialFocused = false,
+  access = { mode: 'immediate', cost: null, availableAt: null, unlocked: true, pointsSpent: 0 },
+  onUnlock,
+  unlocking = false,
+  unlockError = null,
 }: {
   load: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
   round: StreetRound
-  /** Hard difficulty starts this collapsed — a real but non-misleading
-   * difficulty lever; the four mandatory fields remain fully available on
-   * demand (R05). */
+  /** Optional user preference for the initial expanded state. The four
+   * mandatory weather fields are always rendered (R06/R15); collapsing only
+   * hides them on request. */
   defaultExpanded?: boolean
   /** Temporarily reveal the real panel without changing the player’s preference. */
   tutorialFocused?: boolean
+  /** R05 additional-data gate. Defaults to free access for direct usage. */
+  access?: AdditionalDataAccessDTO
+  onUnlock?: () => void
+  unlocking?: boolean
+  unlockError?: string | null
 }) {
+  const unlocked = access.unlocked
+  const unlockLabel =
+    access.mode === 'points'
+      ? `Unlock · −${access.cost ?? 0} points`
+      : access.mode === 'time'
+        ? `Unlock · −${access.cost ?? 0} seconds`
+        : 'Unlock additional data'
+
   const [expanded, setExpanded] = useState(defaultExpanded)
   const isExpanded = tutorialFocused || expanded
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -231,34 +249,72 @@ export function GeographicIntelligence({
           )}
           {!unavailable && (
             <>
+              {!unlocked && (
+                <div className="gi-unlock" role="status">
+                  <p>
+                    Mandatory weather is visible. Additional metrics and
+                    environment clues are locked for this difficulty.
+                  </p>
+                  <button
+                    type="button"
+                    className="tg-control"
+                    disabled={unlocking || !onUnlock}
+                    onClick={onUnlock}
+                  >
+                    {unlocking ? 'Unlocking…' : unlockLabel}
+                  </button>
+                  {unlockError && (
+                    <p role="alert" className="gi-hint">
+                      {unlockError}
+                    </p>
+                  )}
+                </div>
+              )}
+              {unlocked && access.mode === 'points' && access.pointsSpent > 0 && (
+                <p className="gi-hint" role="status">
+                  Additional data unlocked · −{access.pointsSpent} points from
+                  this round.
+                </p>
+              )}
+              {unlocked && access.mode === 'time' && access.cost !== null && (
+                <p className="gi-hint" role="status">
+                  Additional data unlocked · −{access.cost} seconds on this
+                  round.
+                </p>
+              )}
               <section className="gi-weather" aria-label="Weather conditions">
                 <div className="gi-section-label">
                   <h3>Weather</h3>
                   <span>MODEL ESTIMATE</span>
                 </div>
                 <div className="gi-temperature">
-                  <div>
-                    <strong>{metric(weather?.temperatureC, 1)}</strong>
-                    <span>°C</span>
+                  <div className="gi-temperature-reading">
+                    <span className="gi-temperature-label">Temperature</span>
+                    <div className="gi-temperature-value">
+                      <strong>{metric(weather?.temperatureC, 1)}</strong>
+                      <span>°C</span>
+                    </div>
                   </div>
                   <div className="gi-weather-symbol">
-                    <GeoIcon name={weatherIcon(weather?.condition)} />
+                    <GeoIcon name={weatherIcon(unlocked ? weather?.condition : null)} />
                   </div>
                 </div>
                 <div className="gi-condition">
-                  {weather?.condition ?? 'Conditions unavailable'}
+                  {unlocked
+                    ? (weather?.condition ?? 'Conditions unavailable')
+                    : 'Additional data locked'}
                   <span>Current conditions</span>
                 </div>
                 <div className="gi-metrics">
                   <div title="Wind at 10 m. Direction indicates where the wind comes from.">
                     <GeoIcon name="wind" />
-                    <span>Wind</span>
+                    <span>Wind speed</span>
                     <strong>
                       {metric(weather?.windSpeedKmh == null ? null : weather.windSpeedKmh / 3.6, 1)}
                       <small> m/s</small>
                     </strong>
                     <em>
-                      {weather?.windDirectionDeg != null && (
+                      {unlocked && weather?.windDirectionDeg != null && (
                         <span
                           className="gi-wind-arrow"
                           style={{
@@ -269,7 +325,9 @@ export function GeographicIntelligence({
                           ↑
                         </span>
                       )}
-                      {direction(weather?.windDirectionDeg) || 'Unavailable'}
+                      {unlocked
+                        ? direction(weather?.windDirectionDeg) || 'Unavailable'
+                        : 'Locked'}
                     </em>
                   </div>
                   <div title="Relative humidity at 2 m above ground.">
@@ -295,15 +353,17 @@ export function GeographicIntelligence({
                       <i style={{ width: `${weather?.humidityPct ?? 0}%` }} />
                     </span>
                   </div>
-                  <div title="Atmospheric pressure at the surface, not adjusted to sea level.">
-                    <GeoIcon name="pressure" />
-                    <span>Pressure</span>
-                    <strong>
-                      {metric(weather?.pressureHpa)}
-                      <small> hPa</small>
-                    </strong>
-                    <em>At surface</em>
-                  </div>
+                  {unlocked && (
+                    <div title="Atmospheric pressure at the surface, not adjusted to sea level.">
+                      <GeoIcon name="pressure" />
+                      <span>Pressure</span>
+                      <strong>
+                        {metric(weather?.pressureHpa)}
+                        <small> hPa</small>
+                      </strong>
+                      <em>At surface</em>
+                    </div>
+                  )}
                 </div>
                 <div className="gi-precipitation">
                   <GeoIcon name="rain" />
@@ -324,54 +384,56 @@ export function GeographicIntelligence({
                   <p className="gi-hint">Weather is temporarily unavailable.</p>
                 )}
               </section>
-              <section className="gi-environment" aria-label="Environment">
-                <div className="gi-section-label">
-                  <h3>Environment</h3>
-                  <span>GROUND PROFILE</span>
-                </div>
-                <div className="gi-elevation">
-                  <div className="gi-elevation-icon">
-                    <GeoIcon name="mountain" />
+              {unlocked && (
+                <section className="gi-environment" aria-label="Environment">
+                  <div className="gi-section-label">
+                    <h3>Environment</h3>
+                    <span>GROUND PROFILE</span>
                   </div>
-                  <div>
-                    <span>Elevation</span>
-                    <strong>
-                      {metric(environment?.elevationM)} <small>m</small>
-                    </strong>
-                  </div>
-                  <span className="gi-elevation-note">
-                    above
-                    <br />
-                    sea level
-                  </span>
-                </div>
-                <dl className="gi-environment-list">
-                  <div>
-                    <dt>
+                  <div className="gi-elevation">
+                    <div className="gi-elevation-icon">
                       <GeoIcon name="mountain" />
-                      Terrain
-                    </dt>
-                    <dd>
-                      {environment?.terrain ?? 'Unavailable'}
-                      {environment?.terrain && (
-                        <span className="gi-estimated">EST.</span>
-                      )}
-                    </dd>
+                    </div>
+                    <div>
+                      <span>Elevation</span>
+                      <strong>
+                        {metric(environment?.elevationM)} <small>m</small>
+                      </strong>
+                    </div>
+                    <span className="gi-elevation-note">
+                      above
+                      <br />
+                      sea level
+                    </span>
                   </div>
-                  <div>
-                    <dt>
-                      <GeoIcon name="leaf" />
-                      Biome
-                    </dt>
-                    <dd className="gi-missing">Not available</dd>
-                  </div>
-                </dl>
-                {environment?.reliefM != null && (
-                  <p className="gi-hint">
-                    {metric(environment.reliefM)} m sampled relief across ~2 km.
-                  </p>
-                )}
-              </section>
+                  <dl className="gi-environment-list">
+                    <div>
+                      <dt>
+                        <GeoIcon name="mountain" />
+                        Terrain
+                      </dt>
+                      <dd>
+                        {environment?.terrain ?? 'Unavailable'}
+                        {environment?.terrain && (
+                          <span className="gi-estimated">EST.</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>
+                        <GeoIcon name="leaf" />
+                        Biome
+                      </dt>
+                      <dd className="gi-missing">Not available</dd>
+                    </div>
+                  </dl>
+                  {environment?.reliefM != null && (
+                    <p className="gi-hint">
+                      {metric(environment.reliefM)} m sampled relief across ~2 km.
+                    </p>
+                  )}
+                </section>
+              )}
             </>
           )}
           <section
@@ -499,7 +561,7 @@ export function GeographicIntelligence({
                 : loading
                   ? 'Connecting…'
                   : weather
-                    ? `${metric(weather.temperatureC, 1)}°C · ${weather.condition ?? 'Weather'}`
+                    ? `${metric(weather.temperatureC, 1)}°C${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
                     : 'Environmental clues'}
             </small>
           </span>
@@ -522,7 +584,38 @@ export function GeographicIntelligence({
         onClick={() => setMobileOpen(true)}
       >
         <GeoIcon name="scan" />
-        <span>Geo intel</span>
+        <span className="gi-mobile-trigger-label">
+          {weather ? (
+            <>
+              <span className="gi-mobile-metric">
+                <b>Temperature</b>
+                <span>{metric(weather.temperatureC, 1)} °C</span>
+              </span>
+              <span className="gi-mobile-metric">
+                <b>Wind speed</b>
+                <span>
+                  {metric(
+                    weather.windSpeedKmh == null
+                      ? null
+                      : weather.windSpeedKmh / 3.6,
+                    1,
+                  )}{' '}
+                  m/s
+                </span>
+              </span>
+              <span className="gi-mobile-metric">
+                <b>Humidity</b>
+                <span>{metric(weather.humidityPct)} %</span>
+              </span>
+              <span className="gi-mobile-metric">
+                <b>Precipitation</b>
+                <span>{metric(weather.precipitationMm, 2)} mm</span>
+              </span>
+            </>
+          ) : (
+            <span>Geo intel</span>
+          )}
+        </span>
         <span className="gi-signal-dot" />
       </button>
       {mobileOpen &&

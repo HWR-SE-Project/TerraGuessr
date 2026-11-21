@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { LatLon } from './types'
+import type { AdditionalDataAccessDTO, LatLon } from './types'
 
 export interface GeographicIntelligence {
   fetchedAt: string
@@ -43,14 +43,25 @@ export interface StreetRound {
   panoId: string
   /** Easy-difficulty list-mode options (R07); absent on medium/hard. */
   candidates?: StreetCandidate[]
+  startedAt: string | null
+  endsAt: string | null
+  attemptsUsed: number
+  attemptsTotal: number
+  extraData: AdditionalDataAccessDTO
 }
 export interface StreetResult {
   roundId: string
   number: number
-  guess: LatLon
+  guess: LatLon | null
   actual: LatLon
-  distanceKm: number
+  distanceKm: number | null
   score: number
+  extraDataPointsSpent?: number
+}
+export interface StreetGuessResponse {
+  finalized: boolean
+  attemptsRemaining: number
+  result?: StreetResult
 }
 export interface StreetSession {
   id: string
@@ -106,9 +117,28 @@ export const singleplayerApi = {
       `${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/intelligence`,
       { playerToken: credentials.playerToken, signal },
     ),
-  guess: (credentials: StreetCredentials, roundId: string, guess: LatLon) =>
-    apiFetch<StreetResult>(
+  selection: (credentials: StreetCredentials, roundId: string, point: LatLon) =>
+    apiFetch<void>(
+      `${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/selection`,
+      { method: 'PUT', body: point, playerToken: credentials.playerToken },
+    ),
+  unlock: (credentials: StreetCredentials, roundId: string) =>
+    apiFetch<StreetRound>(
+      `${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/unlock`,
+      { method: 'POST', playerToken: credentials.playerToken },
+    ),
+  guess: (
+    credentials: StreetCredentials,
+    roundId: string,
+    guess: LatLon,
+    final = false,
+  ) =>
+    apiFetch<StreetGuessResponse>(
       `${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/guess`,
-      { method: 'POST', body: guess, playerToken: credentials.playerToken },
+      {
+        method: 'POST',
+        body: { ...guess, final },
+        playerToken: credentials.playerToken,
+      },
     ),
 }

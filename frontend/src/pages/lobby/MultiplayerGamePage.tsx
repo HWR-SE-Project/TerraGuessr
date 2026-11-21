@@ -10,7 +10,6 @@ import type {
   LobbyMatchResponseDTO,
   LobbyMatchResult,
 } from '../../api/types'
-import type { StreetResult, StreetRound } from '../../api/singleplayer'
 import { AppNavigation, PageNavigation } from '../../components/ui/PageNavigation'
 import { useNavigationGuard } from '../../components/ui/NavigationGuard'
 import { GameDialog } from '../singleplayer/GameDialog'
@@ -21,6 +20,10 @@ import { GuessMap } from '../singleplayer/GuessMap'
 import type { GuessMapMarker } from '../singleplayer/GuessMap'
 import { GameplayHUD, GameIcon } from '../singleplayer/GameplayHUD'
 import { GeographicIntelligence } from '../singleplayer/GeographicIntelligence'
+import { clockLabel, coordinates, distanceLabel } from '../../lib/format'
+import { ScoreBreakdown } from '../../components/ScoreBreakdown'
+import { ResultCoords } from '../../components/ResultCoords'
+import { asStreetResults, asStreetRound } from './matchAdapters'
 import '../singleplayer/SingleplayerGamePage.css'
 import './MultiplayerGamePage.css'
 
@@ -71,41 +74,6 @@ function participantMarkers(
         ]
       : [],
   )
-}
-
-function distanceLabel(km: number | null): string {
-  if (km === null) return 'No guess submitted'
-  return km < 1
-    ? `${Math.round(km * 1000).toLocaleString()} m`
-    : `${km.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`
-}
-
-function clockLabel(seconds: number): string {
-  const safe = Math.max(0, seconds)
-  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`
-}
-
-function asStreetRound(round: LobbyMatchDTO['round']): StreetRound | null {
-  if (!round) return null
-  return {
-    id: round.id,
-    number: round.number,
-    panoId: round.panoId,
-    ...(round.candidates?.length ? { candidates: round.candidates } : {}),
-  }
-}
-
-function asStreetResults(results: LobbyMatchResult[]): StreetResult[] {
-  return results
-    .filter((result) => result.guess !== null && result.distanceKm !== null)
-    .map((result) => ({
-      roundId: `round-${result.roundNumber}`,
-      number: result.roundNumber,
-      guess: result.guess!,
-      actual: result.actual,
-      distanceKm: result.distanceKm!,
-      score: result.score,
-    }))
 }
 
 function Leaderboard({
@@ -205,16 +173,14 @@ function RoundResultCard({
   return (
     <section className="sp-results" aria-label="Round results">
       <div className="sp-result-map">
-        {streetResults.length > 0 || participantPins.length > 0 ? (
-          <GuessMap
-            key={result.roundNumber}
-            results={streetResults}
-            markers={participantPins}
-            interactive={false}
-          />
-        ) : (
-          <div className="mp-no-guess">No guess was submitted this round.</div>
-        )}
+        {/* R11: always render the map; the adapted result carries `actual`
+            even when this player submitted no guess. */}
+        <GuessMap
+          key={result.roundNumber}
+          results={streetResults}
+          markers={participantPins}
+          interactive={false}
+        />
       </div>
       <div className="sp-result-body">
         <span className="sp-eyebrow">
@@ -229,27 +195,14 @@ function RoundResultCard({
         </h1>
         <p>
           {result.guess
-            ? `You were ${distanceLabel(result.distanceKm)} from the correct location.`
+            ? <>You were <strong>{distanceLabel(result.distanceKm)}</strong> from the correct location.</>
             : 'You ran out of time before placing a guess.'}
         </p>
-        <div className="sp-earned">
-          <strong>{result.score.toLocaleString()}</strong>
-          <span> / 5,000 points</span>
-        </div>
-        <div className="sp-score-track">
-          <span style={{ width: `${result.score / 50}%` }} />
-        </div>
-        <div className="sp-result-coords">
-          <span>
-            Correct location<strong>{coordinates(result.actual)}</strong>
-          </span>
-          <span>
-            Your guess
-            <strong>
-              {result.guess ? coordinates(result.guess) : 'No guess submitted'}
-            </strong>
-          </span>
-        </div>
+        <ScoreBreakdown
+          score={result.score}
+          extraDataPointsSpent={result.extraDataPointsSpent}
+        />
+        <ResultCoords actual={result.actual} guess={result.guess} />
         <ParticipantGuesses
           guesses={result.guesses}
           roundNumber={result.roundNumber}
@@ -269,10 +222,6 @@ function RoundResultCard({
       </footer>
     </section>
   )
-}
-
-function coordinates(point: LatLon): string {
-  return `${Math.abs(point.lat).toFixed(3)}° ${point.lat >= 0 ? 'N' : 'S'}, ${Math.abs(point.lon).toFixed(3)}° ${point.lon >= 0 ? 'E' : 'W'}`
 }
 
 function FinalMatchResults({
@@ -338,10 +287,7 @@ function FinalMatchResults({
               </summary>
               <div>
                 <p>Correct location: {coordinates(result.actual)}</p>
-                <p>
-                  Your guess:{' '}
-                  {result.guess ? coordinates(result.guess) : 'No guess submitted'}
-                </p>
+                <p>Your guess: {coordinates(result.guess)}</p>
                 <ParticipantGuesses guesses={result.guesses} />
               </div>
             </details>
@@ -408,8 +354,11 @@ export function MultiplayerGamePage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [guess, setGuess] = useState<LatLon | null>(null)
   const [busy, setBusy] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [unlockError, setUnlockError] = useState<string | null>(null)
   const [continuing, setContinuing] = useState(false)
   const [panoramaReady, setPanoramaReady] = useState(false)
+  const [panoramaUnavailable, setPanoramaUnavailable] = useState(false)
   const [lastResult, setLastResult] = useState<LobbyMatchResult | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [showBoard, setShowBoard] = useState(false)
@@ -533,6 +482,7 @@ export function MultiplayerGamePage() {
     previousRound.current = roundKey
     setGuess(data?.match.you.selection ?? null)
     setPanoramaReady(false)
+    setPanoramaUnavailable(false)
     setNotice(null)
   }, [data?.match.you.selection, roundKey])
 
@@ -593,6 +543,8 @@ export function MultiplayerGamePage() {
   const result = match?.you.result ?? completedResult ?? lastResult
   const finalized = (match?.you.finalized ?? false) || lastResult !== null
   const exploring = Boolean(streetRound && !finalized && match?.status === 'playing')
+  // R07: a failed panorama must not block placing and submitting a guess.
+  const guessReady = panoramaReady || panoramaUnavailable
   const remainingSeconds =
     match?.endsAt !== null && match?.endsAt !== undefined
       ? Math.ceil((Date.parse(match.endsAt) - now) / 1000)
@@ -656,6 +608,28 @@ export function MultiplayerGamePage() {
     }
   }
 
+  async function unlockExtraData() {
+    if (!token || !round || finalized || busy || unlocking) return
+    setUnlocking(true)
+    setUnlockError(null)
+    try {
+      const response = await lobbiesApi.unlockLobbyExtraData(
+        code,
+        round.number,
+        token,
+      )
+      applyMatch(response)
+    } catch (cause) {
+      setUnlockError(
+        cause instanceof Error
+          ? cause.message
+          : 'Additional data could not be unlocked.',
+      )
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
   if (!token) return null
 
   return (
@@ -676,6 +650,7 @@ export function MultiplayerGamePage() {
         <StreetViewViewer
           round={streetRound}
           onReady={setPanoramaReady}
+          onUnavailable={setPanoramaUnavailable}
           showCompass
           scrollZoom
         />
@@ -726,7 +701,10 @@ export function MultiplayerGamePage() {
           key={`${streetRound.id}:${streetRound.panoId}`}
           load={loadIntelligence}
           round={streetRound}
-          defaultExpanded={match.difficulty !== 'hard'}
+          access={round?.extraData}
+          onUnlock={() => void unlockExtraData()}
+          unlocking={unlocking}
+          unlockError={unlockError}
         />
       )}
 
@@ -759,10 +737,11 @@ export function MultiplayerGamePage() {
                 key={round?.id ?? 'match'}
                 guess={guess}
                 onChange={choose}
-                interactive={exploring && panoramaReady && !busy}
+                interactive={exploring && guessReady && !busy}
+                countryBorders={match.rules.countryBorders}
               />
             )}
-            {!round?.candidates && !guess && panoramaReady && (
+            {!round?.candidates && !guess && guessReady && (
               <span className="sp-map-hint">Click the map to place your pin</span>
             )}
           </div>
@@ -780,7 +759,7 @@ export function MultiplayerGamePage() {
             <div className="mp-guess-actions">
               <button
                 className="sp-primary tg-control tg-control--primary sp-guess-button"
-                disabled={!guess || !panoramaReady || busy}
+                disabled={!guess || !guessReady || busy}
                 onClick={() => void submit(false)}
               >
                 <GameIcon name="pin" />
