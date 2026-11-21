@@ -13,27 +13,6 @@ const HomeScene = lazy(() =>
   import('../../scene/HomeScene').then((m) => ({ default: m.HomeScene })),
 )
 
-const MODES = [
-  {
-    to: '/singleplayer',
-    icon: 'compass' as const,
-    title: 'Singleplayer',
-    text: 'Drop into a street anywhere on Earth and find your way.',
-  },
-  {
-    to: '/multiplayer',
-    icon: 'users' as const,
-    title: 'Multiplayer',
-    text: 'Challenge friends in a live lobby and race to the right spot.',
-  },
-  {
-    to: '/avatar',
-    icon: 'person' as const,
-    title: 'Your explorer',
-    text: 'Style your own little explorer for every adventure.',
-  },
-]
-
 export function HomePage() {
   const navigate = useNavigate()
   const session = useSession()
@@ -112,33 +91,6 @@ export function HomePage() {
             </Suspense>
             <div className="home-character-slot pointer-events-none absolute left-1/2 top-[4%] h-[84%] w-[64%] -translate-x-1/2 sm:w-[58%]" />
           </motion.div>
-        </div>
-      </section>
-
-      {/* Mode cards */}
-      <section className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
-        <div className="grid gap-4 sm:grid-cols-3">
-          {MODES.map((mode) => (
-            <motion.button
-              key={mode.to}
-              variants={staggerItem}
-              initial="initial"
-              whileInView="animate"
-              viewport={{ once: true }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate(mode.to)}
-              className="surface group flex flex-col items-start gap-3 p-6 text-left transition-transform hover:-translate-y-1"
-            >
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-lime-400/15 text-lime-300">
-                <Icon name={mode.icon} size={24} />
-              </span>
-              <span className="font-display text-xl font-semibold text-cream">{mode.title}</span>
-              <span className="text-sm leading-relaxed text-muted">{mode.text}</span>
-              <span className="mt-1 inline-flex items-center gap-1.5 text-sm font-bold text-lime-300">
-                Go <Icon name="chevronRight" size={16} className="transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </motion.button>
-          ))}
         </div>
       </section>
     </div>

@@ -20,17 +20,17 @@ export function MultiplayerPage() {
   const [mode, setMode] = useState<Mode>(initialMode)
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-3xl flex-col justify-center overflow-hidden px-4 py-4 sm:px-6">
       <motion.div variants={staggerContainer} initial="initial" animate="animate">
         <motion.div variants={staggerItem} className="text-center">
-          <p className="eyebrow">Multiplayer</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold text-cream sm:text-4xl">Play with friends</h1>
-          <p className="mx-auto mt-2 max-w-md text-muted">
+          <p className="eyebrow !text-muted">Multiplayer</p>
+          <h1 className="mt-1 font-display text-2xl font-semibold text-cream sm:text-3xl">Play with friends</h1>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted">
             Host a lobby and share the code, or hop into a friend's game.
           </p>
         </motion.div>
 
-        <motion.div variants={staggerItem} className="mx-auto mt-8 flex max-w-xs rounded-2xl bg-space-700 p-1">
+        <motion.div variants={staggerItem} className="mx-auto mt-4 flex max-w-xs rounded-2xl bg-space-700 p-1">
           {(['create', 'join'] as const).map((m) => (
             <button
               key={m}
@@ -45,7 +45,7 @@ export function MultiplayerPage() {
           ))}
         </motion.div>
 
-        <motion.div variants={fadeUp} className="mt-8">
+        <motion.div variants={fadeUp} className="mt-4">
           {mode === 'create' ? <CreateLobby navigate={navigate} /> : <JoinLobby navigate={navigate} />}
         </motion.div>
       </motion.div>
@@ -76,8 +76,8 @@ function CreateLobby({ navigate }: { navigate: (to: string) => void }) {
   }
 
   return (
-    <form onSubmit={create} className="surface flex flex-col gap-5 p-6">
-      <Field label="Your name" htmlFor="mp-name" hint="Shown to other players.">
+    <form onSubmit={create} className="surface flex flex-col gap-3 p-5">
+      <Field label="Your name" htmlFor="mp-name">
         <Input id="mp-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Wandering Nix" maxLength={40} icon="person" />
       </Field>
 
@@ -88,7 +88,7 @@ function CreateLobby({ navigate }: { navigate: (to: string) => void }) {
         </div>
       </div>
 
-      <Field label="Rounds" htmlFor="mp-rounds" hint="3–10 rounds per match.">
+      <Field label="Rounds" htmlFor="mp-rounds">
         <div className="flex items-center gap-3">
           <StepButton onClick={() => setRounds((r) => Math.max(3, r - 1))} label="Fewer rounds" icon="minus" />
           <span className="font-display text-2xl font-semibold text-cream">{rounds}</span>
@@ -96,7 +96,7 @@ function CreateLobby({ navigate }: { navigate: (to: string) => void }) {
         </div>
       </Field>
 
-      <div className="rounded-2xl bg-space-800 px-4 py-3 text-sm text-muted">
+      <div className="rounded-2xl bg-space-800 px-4 py-2.5 text-sm text-muted">
         <Icon name="info" size={16} className="mr-1.5 inline text-sky-300" />
         {info.label}: {info.detail.join(' · ')}
       </div>
@@ -135,7 +135,7 @@ function JoinLobby({ navigate }: { navigate: (to: string) => void }) {
   }
 
   return (
-    <form onSubmit={join} className="surface flex flex-col gap-5 p-6">
+    <form onSubmit={join} className="surface flex flex-col gap-3 p-5">
       <Field label="Your name" htmlFor="join-name">
         <Input id="join-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Wandering Nix" maxLength={40} icon="person" />
       </Field>

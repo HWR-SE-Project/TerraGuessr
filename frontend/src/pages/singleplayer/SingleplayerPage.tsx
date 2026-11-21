@@ -35,7 +35,7 @@ export function SingleplayerPage() {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <motion.div variants={staggerContainer} initial="initial" animate="animate">
         <motion.div variants={staggerItem} className="text-center">
-          <p className="eyebrow">Singleplayer</p>
+          <p className="eyebrow !text-muted">Singleplayer</p>
           <h1 className="mt-2 font-display text-3xl font-semibold text-cream sm:text-4xl">
             Choose your challenge
           </h1>

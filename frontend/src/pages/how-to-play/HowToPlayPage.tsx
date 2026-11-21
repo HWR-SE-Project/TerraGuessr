@@ -39,7 +39,7 @@ export function HowToPlayPage() {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <motion.div variants={staggerContainer} initial="initial" animate="animate" className="flex flex-col gap-8">
         <motion.div variants={staggerItem} className="text-center">
-          <p className="eyebrow">How to play</p>
+          <p className="eyebrow !text-muted">How to play</p>
           <h1 className="mt-2 font-display text-4xl font-semibold text-cream">Become a master explorer</h1>
           <p className="mx-auto mt-2 max-w-md text-muted">
             A minute to learn, a lifetime to master. Here's everything you need.

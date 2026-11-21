@@ -52,10 +52,13 @@ export function CosmicBackground() {
         className="absolute bottom-[-15%] left-[-5%] h-[50vh] w-[45vw] rounded-full opacity-25 blur-3xl"
         style={{ background: 'radial-gradient(closest-side, #5e3a6e 0%, transparent 70%)' }}
       />
-      {/* Star layers */}
-      <div className="absolute inset-0 animate-twinkle" style={{ boxShadow: layerA } as CSSProperties} />
+      {/* Star layers: each div is a zero-size point — the visible "stars" are
+          entirely its box-shadow clones, positioned via vw/vh offsets. Giving
+          this div real dimensions (e.g. inset-0) would make every clone a
+          full-size copy of the box instead of a tiny dot. */}
+      <div className="absolute left-0 top-0 h-0 w-0 animate-twinkle" style={{ boxShadow: layerA } as CSSProperties} />
       <div
-        className="absolute inset-0 animate-twinkle opacity-70"
+        className="absolute left-0 top-0 h-0 w-0 animate-twinkle opacity-70"
         style={{ boxShadow: layerB, animationDelay: '-2s' } as CSSProperties}
       />
       {/* Vignette to focus the centre */}
