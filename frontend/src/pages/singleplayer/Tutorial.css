@@ -1,3 +1,4 @@
+@layer components {
 /* A single small guide card and a cutout over the real interface. No background blur. */
 .tt-overlay {
   --tt-lime: var(--color-lime, #b0ee64);
@@ -66,7 +67,7 @@
 @media (forced-colors: active) { .tt-target-ring { stroke: Highlight; } .tt-coach { border: 1px solid CanvasText; } }
 
 /* Hide nonessential global navigation while the guide is open; the card owns Exit. */
-body.tt-active .tg-page-nav, body.tt-active .tg-back-navigation { opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+body.tt-active .tg-page-nav { opacity: 0; pointer-events: none; transition: opacity 0.15s; }
 
 /* Only the highlighted surface stays prominent; other gameplay panels recede. */
 .sp-page[data-tutorial-step] .sp-guess-panel { pointer-events: none; }
@@ -138,4 +139,5 @@ body.tt-active .tg-page-nav, body.tt-active .tg-back-navigation { opacity: 0; po
   .tt-coach { padding: 10px 16px 12px; max-height: calc(100dvh - 16px); }
   .tt-copy h2 { font-size: 18px; margin-top: 2px; }
   .tt-copy > p { font-size: 12px; line-height: 1.55; }
+}
 }

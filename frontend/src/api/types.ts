@@ -24,20 +24,6 @@ export interface AdditionalDataAccessDTO {
   pointsSpent: number
 }
 
-/** Exactly these four metrics are always present; the rest are optionally null. */
-export interface WeatherDTO {
-  fetchedAt: string
-  temperatureC: number
-  precipitationMm: number
-  humidityPct: number
-  windSpeedKmh: number
-  airPressureHpa: number | null
-  windDirectionDeg: number | null
-  uvIndex: number | null
-  sunshineDurationSeconds: number | null
-  localTime: string | null
-}
-
 export interface CandidateDTO {
   id: string
   name: string | null
@@ -86,19 +72,11 @@ export interface LobbySessionDTO {
   lobbyToken: string
 }
 
-export interface LobbyMatchCandidate {
-  id: string
-  name: string
-  region: string
-  lat: number
-  lon: number
-}
-
 export interface LobbyMatchRound {
   id: string
   number: number
   panoId: string
-  candidates?: LobbyMatchCandidate[]
+  candidates?: CandidateDTO[]
   endsAt: string | null
   attemptsUsed: number
   attemptsTotal: number
@@ -235,31 +213,4 @@ export interface EmailChangeConfirmation {
   changed: boolean
   email?: string
   pending: 'old' | 'new' | null
-}
-
-// --- Statistics -------------------------------------------------------
-
-export type StatisticsMode = 'solo' | 'multiplayer' | 'ranked'
-
-export interface StatisticsEntry {
-  id: string
-  date: string
-  roundNumber: number
-  locationName: string | null
-  actual: LatLon
-  guess: LatLon
-  score: number
-  distanceKm: number
-  createdAt: string
-}
-
-export interface StatisticsResponse {
-  mode: StatisticsMode
-  available: boolean
-  entries: StatisticsEntry[]
-  total: number
-  offset: number
-  limit: number
-  averageScore: number | null
-  averageDistanceKm: number | null
 }

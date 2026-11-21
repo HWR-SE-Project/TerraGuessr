@@ -4,7 +4,8 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SingleplayerGamePage } from './SingleplayerGamePage'
 import { singleplayerApi } from '../../api/singleplayer'
-import type { Difficulty, StreetSession } from '../../api/singleplayer'
+import type { StreetSession } from '../../api/singleplayer'
+import type { Difficulty } from '../../api/types'
 import { markTutorialSeen } from './Tutorial'
 import { testRound } from './testRound'
 
@@ -13,13 +14,13 @@ vi.mock('../../state/SessionContext', () => ({ useSession: () => ({ user: null }
 vi.mock('../../api/singleplayer', () => ({ singleplayerApi: {
   config: vi.fn(), create: vi.fn(), next: vi.fn(), session: vi.fn(), intelligence: vi.fn(), guess: vi.fn(), retry: vi.fn(), selection: vi.fn(), unlock: vi.fn(), end: vi.fn(),
 } }))
-vi.mock('./googleMaps', () => ({ browserMapsKey: () => 'test-key' }))
-vi.mock('../../components/cosmic/CosmicContext', () => ({ useCosmicBackgroundMode: vi.fn() }))
-vi.mock('./StreetViewViewer', () => ({ StreetViewViewer: ({ onReady }: { onReady: (ready: boolean) => void }) => {
+vi.mock('../../game/googleMaps', () => ({ browserMapsKey: () => 'test-key' }))
+vi.mock('../../scene/cosmic/CosmicContext', () => ({ useCosmicBackgroundMode: vi.fn() }))
+vi.mock('../../game/StreetViewViewer', () => ({ StreetViewViewer: ({ onReady }: { onReady: (ready: boolean) => void }) => {
   useEffect(() => { onReady(true) }, [onReady])
   return <div data-testid="panorama-instance">Street View provider double</div>
 } }))
-vi.mock('./GuessMap', () => ({ GuessMap: ({ onChange, interactive, guess }: {
+vi.mock('../../game/GuessMap', () => ({ GuessMap: ({ onChange, interactive, guess }: {
   onChange?: (guess: { lat: number; lon: number }) => void; interactive: boolean; guess?: { lat: number; lon: number }
 }) => <button disabled={!interactive} onClick={() => onChange?.({ lat: 12, lon: 34 })}>Map SDK double {guess?.lat}</button> }))
 const round = testRound({ id: 'round-2', number: 2, panoId: 'private-panorama' })

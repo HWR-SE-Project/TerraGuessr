@@ -38,7 +38,7 @@ async function usableCard(page: Page) {
   expect(await card.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
   await expect(tutorial(page).getByRole('button', { name: 'Exit tutorial' })).toBeInViewport()
   await expect(tutorial(page).getByRole('button', { name: /^(Next|Finish tutorial)$/ })).toBeInViewport()
-  await expect(tutorial(page).getByRole('button', { name: 'Restart tutorial' })).toBeInViewport()
+  await expect(tutorial(page).getByRole('button', { name: 'Previous', exact: true })).toBeInViewport()
 }
 async function noOverlap(page: Page) {
   await expect.poll(async () => page.evaluate(() => {
@@ -83,15 +83,16 @@ test('R14: one concise sentence per step, Previous, Next and completion', async 
   await expect(tutorial(page).getByText('1 / 5')).toBeVisible()
 })
 
-test('R14: in-card practice selection and submit, then exit', async ({ page }) => {
+test('R14: illustrative practice never submits a guess, then exits', async ({ page }) => {
   await isolateProviders(page); await open(page)
-  await tutorial(page).getByRole('button', { name: 'Next' }).click()
-  const paris = tutorial(page).getByRole('button', { name: /Paris/ })
-  await paris.click()
-  await expect(paris).toHaveAttribute('aria-pressed', 'true')
-  await tutorial(page).getByRole('button', { name: 'Next' }).click()
-  await tutorial(page).getByRole('button', { name: 'Submit try-out guess' }).click()
-  await expect(tutorial(page).getByRole('button', { name: 'Guess submitted' })).toBeDisabled()
+  const mutations: string[] = []
+  page.on('request', request => { if (request.url().includes('/api/singleplayer/') && request.method() !== 'GET') mutations.push(request.url()) })
+  await goToStep(page, 4)
+  await expect(tutorial(page).getByLabel('Tutorial example: London to Paris')).toContainText('343.6 km')
+  await goToStep(page, 5)
+  await tutorial(page).getByRole('slider', { name: 'Example distance in kilometers' }).fill('2000')
+  await expect(tutorial(page).getByLabel('Example score')).toContainText('4,522')
+  expect(mutations).toEqual([])
   await tutorial(page).getByRole('button', { name: 'Exit tutorial' }).click()
   await expect(tutorial(page)).toHaveCount(0)
 })
@@ -109,10 +110,12 @@ test('R14: actual targets, no duplicated UI, exit and restart at every step pres
   page.on('request', req => { if (req.url().includes('/api/singleplayer/') && req.method() !== 'GET') mutations.push(req.url()) })
   for (let number = 1; number <= 5; number++) {
     await page.getByRole('button', { name: 'Game menu' }).click()
-    await page.getByRole('button', { name: 'How to Play / Tutorial' }).click()
+    await page.getByRole('button', { name: 'How to play', exact: true }).click()
     await goToStep(page, number)
     await usableCard(page); await noOverlap(page)
-    await tutorial(page).getByRole('button', { name: 'Restart tutorial' }).click()
+    await tutorial(page).getByRole('button', { name: 'Exit tutorial' }).click()
+    await page.getByRole('button', { name: 'Game menu', exact: true }).click()
+    await page.getByRole('button', { name: 'How to play', exact: true }).click()
     await expect(tutorial(page).getByText('1 / 5')).toBeVisible()
     await goToStep(page, number)
     if (number % 2) await page.keyboard.press('Escape')
@@ -158,9 +161,10 @@ test('R14: real targets and card do not overlap at phone, tablet, laptop or desk
 test('R14: keyboard focus stays inside the guide and Escape always exits', async ({ page }) => {
   await isolateProviders(page); await open(page)
   const guide = tutorial(page)
+  await goToStep(page, 5)
   await guide.getByRole('button', { name: 'Exit tutorial' }).focus()
   await page.keyboard.press('Shift+Tab')
-  await expect(guide.getByRole('button', { name: 'Restart tutorial' })).toBeFocused()
+  await expect(guide.getByRole('button', { name: 'Finish tutorial' })).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(guide.getByRole('button', { name: 'Exit tutorial' })).toBeFocused()
   await page.keyboard.press('Escape')

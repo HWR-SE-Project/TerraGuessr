@@ -47,6 +47,12 @@ export function clearCurrentLobbyCode(): void {
   localStorage.removeItem(CURRENT_LOBBY_KEY)
 }
 
+/** Clear only this membership; cleanup of an old room must not erase a newer one. */
+export function forgetLobby(code: string): void {
+  clearLobbyToken(code)
+  if (getCurrentLobbyCode() === code.toUpperCase()) clearCurrentLobbyCode()
+}
+
 export function createLobby(input: {
   difficulty: Difficulty
   roundsTotal?: number
@@ -82,13 +88,6 @@ export function getLobby(code: string, token?: string | null): Promise<LobbyDTO>
 export function leaveLobby(code: string, token: string): Promise<void> {
   return apiFetch<void>(`/lobbies/${encodeURIComponent(code)}/leave`, {
     method: 'POST',
-    lobbyToken: token,
-  })
-}
-
-export function deleteLobby(code: string, token: string): Promise<void> {
-  return apiFetch<void>(`/lobbies/${encodeURIComponent(code)}`, {
-    method: 'DELETE',
     lobbyToken: token,
   })
 }

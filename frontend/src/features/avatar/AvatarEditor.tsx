@@ -1,3 +1,5 @@
+import { Dialog } from '../../components/ui/Dialog'
+import { IconButton } from '../../components/ui/IconButton'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_AVATAR } from './avatarConfig'
 import type { AvatarConfig } from './avatarConfig'
@@ -24,13 +26,6 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
   const pending = useRef(false)
   const onReady = useCallback(() => setReady(true), [])
   const onPreviewError = useCallback(() => { setPreviewError(true); setReady(false) }, [])
-  useEffect(() => {
-    const element = dialog.current!
-    const overflow = document.body.style.overflow
-    element.showModal()
-    document.body.style.overflow = 'hidden'
-    return () => { element.close(); document.body.style.overflow = overflow }
-  }, [])
   // Loading finishes before controls become available. Never replace an edited draft.
   // Synchronize the asynchronously loaded saved configuration.
   // oxlint-disable-next-line react/set-state-in-effect
@@ -51,21 +46,12 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
     finally { pending.current = false; setSaving(false) }
   }
   const cameraAction = (action: PreviewCommand['action']) => setCommand(previous => ({ id: previous.id + 1, action }))
-  return <dialog ref={dialog} className="ae-dialog" aria-labelledby="ae-title"
-    onKeyDown={event => {
-      if (event.key !== 'Tab') return
-      const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]')]
-        .filter(element => !element.matches(':disabled') && element.getClientRects().length > 0)
-      const first = controls[0]
-      const last = controls[controls.length - 1]
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
-    }}
-    onCancel={event => { event.preventDefault(); cancel() }} onClick={event => { if (event.target === event.currentTarget) cancel() }}>
+  return <Dialog ref={dialog} className="ae-dialog tg-glass" aria-labelledby="ae-title"
+    onClose={cancel} closeDisabled={saving}>
     <div className="ae-shell">
       <header className="ae-header">
         <div><span className="ae-eyebrow">EXPLORER STUDIO</span><h2 id="ae-title">A world of <em>you.</em></h2></div>
-        <button type="button" className="ae-icon-button tg-control tg-icon-button" aria-label="Close avatar editor" onClick={cancel} disabled={saving} autoFocus>×</button>
+        <IconButton className="ae-icon-button" aria-label="Close avatar editor" onClick={cancel} disabled={saving} autoFocus>×</IconButton>
       </header>
       <div className="ae-body">
         <aside className="ae-customization">
@@ -105,5 +91,5 @@ export function AvatarEditor({ initialConfig, account, loading, loadError, onRet
         </div>
       </footer>
     </div>
-  </dialog>
+  </Dialog>
 }

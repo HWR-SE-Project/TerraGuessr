@@ -1,0 +1,77 @@
+@layer components {
+.sp-guess-panel.tg-city-panel {
+  width: min(100%, 19rem);
+  padding: 0.375rem;
+  border-radius: var(--radius-card);
+}
+
+.tg-city-panel .tg-city-header {
+  padding: 0 0.375rem 0.375rem;
+  border-bottom: 1px solid #ffffff12;
+  margin-bottom: 0.25rem;
+}
+
+.tg-city-title, .sp-page .tg-city-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.tg-city-toggle { cursor: pointer; border-radius: var(--radius-sm); }
+.tg-city-header svg { width: 1rem; height: 1rem; flex: none; color: var(--color-muted); }
+.tg-city-header small {
+  margin-left: auto;
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.tg-city-header .tg-city-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tg-city-footer {
+  margin-top: 0.375rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #ffffff12;
+}
+.tg-city-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.tg-city-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+
+@media (hover: hover) and (pointer: fine) {
+  .tg-city-toggle:hover { color: var(--color-lime-hover); }
+}
+@media (pointer: coarse) {
+  .sp-page .tg-city-toggle { min-height: 2.75rem; }
+}
+@media (forced-colors: active) {
+  .sp-guess-panel.tg-city-panel { border-color: CanvasText; }
+}
+}

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Tutorial, hasSeenTutorial, markTutorialSeen, shouldShowTutorialForNewGame } from './Tutorial'
 import { testRound } from './testRound'
-vi.mock('./googleMaps', () => ({ browserMapsKey: () => '', loadGoogleMaps: vi.fn(), onMapsAuthFailure: () => () => {} }))
+vi.mock('../../game/googleMaps', () => ({ browserMapsKey: () => '', loadGoogleMaps: vi.fn(), onMapsAuthFailure: () => () => {} }))
 beforeEach(() => {
   localStorage.clear()
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })

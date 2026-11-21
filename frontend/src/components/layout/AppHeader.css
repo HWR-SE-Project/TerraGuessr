@@ -1,0 +1,275 @@
+@layer components {
+.th-header {
+  position: relative;
+  z-index: 10;
+  min-height: var(--nav-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  color: var(--color-text);
+}
+
+/* Primary destinations read as plain text with a thin animated underline —
+   no pill chrome competing with the brand or the utility icons. */
+.th-navigation {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+.th-nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.125rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.th-nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0.125rem;
+  right: 0.125rem;
+  bottom: 0.625rem;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-lime);
+  transform: scaleX(0);
+  opacity: 0;
+  transition: transform 220ms var(--ease-out), opacity 220ms var(--ease-out);
+}
+.th-nav-link:hover { color: var(--color-text); }
+.th-nav-link:hover::after { opacity: 0.4; transform: scaleX(1); }
+.th-nav-link[aria-current='page'] { color: var(--color-lime); }
+.th-nav-link[aria-current='page']::after { opacity: 1; transform: scaleX(1); }
+.th-nav-link:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 4px; border-radius: 4px; }
+
+.th-multiplayer { position: relative; min-width: 0; }
+.th-multiplayer-trigger { gap: 0.45rem; border: 0; background: transparent; }
+.th-multiplayer-chevron.tg-icon { width: 11px; height: 11px; transform: rotate(90deg); transition: transform 180ms var(--ease-out); }
+.th-multiplayer-trigger[aria-expanded='true'] { color: var(--color-text); }
+.th-multiplayer-trigger[aria-expanded='true'] .th-multiplayer-chevron { transform: rotate(-90deg); }
+.th-multiplayer-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: 344px;
+  padding: 6px;
+  border-radius: var(--radius-card);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -6px) scale(0.98);
+  transform-origin: top center;
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), visibility 0s 180ms;
+}
+.th-multiplayer-menu-open { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, 0) scale(1); transition-delay: 0s; }
+.th-multiplayer-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 74px;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  transition: background 150ms ease;
+}
+.th-multiplayer-option:hover, .th-multiplayer-option:focus { outline: none; background: #e1edff0d; }
+.th-multiplayer-option:focus-visible { box-shadow: inset 0 0 0 1px var(--color-lime-70); }
+.th-multiplayer-icon { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--color-lime-10); color: var(--color-lime); }
+.th-multiplayer-icon .tg-icon { width: 18px; height: 18px; }
+.th-multiplayer-copy { display: grid; gap: 5px; min-width: 0; }
+.th-multiplayer-title { font-size: 0.875rem; font-weight: 560; letter-spacing: -0.01em; }
+.th-multiplayer-description { color: var(--color-muted); font-size: 0.75rem; line-height: 1.45; }
+.th-multiplayer-arrow.tg-icon { width: 14px; height: 14px; margin-left: auto; color: var(--color-muted); }
+
+/* Compact, borderless control shared by Help, Settings, the mobile toggle
+   and the in-game menu button — deliberately quieter than primary nav. */
+.th-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-muted);
+}
+.th-header .th-icon-btn svg { width: 18px; height: 18px; }
+.th-icon-btn-label { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .th-icon-btn:hover { color: var(--color-text); background: #ffffff0a; }
+}
+.th-icon-btn:active { background: #ffffff14; }
+.th-icon-btn:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
+.th-brand {
+  min-height: 36px;
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0; width: fit-content; border-radius: var(--radius-control); }
+.th-brand:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 5px; }
+
+.th-player-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  min-width: 0;
+}
+.th-desktop-utilities { display: flex; gap: 0.5rem; }
+.th-mobile-utilities { display: none; }
+
+.th-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  min-height: 2.75rem;
+}
+@media (hover: hover) and (pointer: fine) {
+  .th-profile-link:hover { background: #ffffff0a; }
+}
+.th-profile-link:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
+.th-profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-lime-20);
+  background: var(--color-lime-10);
+  border-radius: 50%;
+  color: var(--color-lime);
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: inset 0 1px #e9ffc42b;
+}
+.th-profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 140px;
+}
+.th-profile-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.th-profile-link > .tg-icon {
+  width: 10px;
+  height: 10px;
+  color: var(--color-subtle);
+}
+.th-menu-toggle { display: none; }
+
+.tg-page-nav { position: relative; z-index: 20; width: 100%; }
+.tg-page-nav .th-header { min-height: var(--nav-height); padding: 0.75rem clamp(1rem, 3vw, 3rem); gap: 1rem; }
+[data-navigation-context='game'] .th-header { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 75rem) {
+  .tg-page-nav .th-header { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .th-navigation {
+    display: none;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: #101c2cf7;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+  }
+  .th-navigation-open { display: flex; }
+  .th-nav-link { min-height: 2.75rem; padding: 0 0.875rem; border-radius: var(--radius-control); }
+  .th-nav-link::after { display: none; }
+  .th-nav-link[aria-current='page'] { background: var(--color-lime-10); }
+  .th-multiplayer-trigger { width: 100%; justify-content: space-between; }
+  .th-multiplayer-menu {
+    position: static;
+    width: 100%;
+    max-height: 0;
+    padding: 0 6px;
+    border-width: 0;
+    overflow: hidden;
+    transform: translateY(-4px);
+    transform-origin: top;
+    transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), max-height 180ms var(--ease-out), padding 180ms var(--ease-out), visibility 0s 180ms;
+  }
+  .th-multiplayer-menu-open { max-height: 240px; padding-block: 6px; transform: translateY(0); transition-delay: 0s; box-shadow: inset 0 0 0 1px #e1edff26; }
+  .th-multiplayer-option { gap: 10px; padding: 10px; }
+  .th-player-tools { grid-column: 2; grid-row: 1; }
+  .th-profile-details, .th-profile-link > .tg-icon { display: none; }
+  .th-menu-toggle { grid-column: 3; grid-row: 1; display: grid; }
+  .th-desktop-utilities { display: none; }
+  .th-mobile-utilities {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .th-mobile-utilities .th-icon-btn {
+    width: 100%;
+    height: auto;
+    min-height: 2.75rem;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 0.875rem;
+    border-radius: 10px;
+  }
+  .th-mobile-utilities .th-icon-btn-label { display: inline; font-size: 0.875rem; font-weight: 550; }
+}
+/* AppHeader owns header placement, including within the game grid. */
+.sp-page > .tg-page-nav { grid-column: 1 / -1; grid-row: 1; width: calc(100% + 2 * var(--sp-gap)); margin-inline: calc(-1 * var(--sp-gap)); }
+@media (max-width: 37.5rem) {
+  .tg-page-nav .th-header { gap: 0.5rem; }
+}
+.tg-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+}
+.tg-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 32px;
+  color: var(--color-lime);
+  flex-shrink: 0;
+}
+.tg-brand-mark svg {
+  width: 100%;
+  height: 100%;
+}
+.tg-brand-word {
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -1px;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+.tg-brand-word > span:first-child {
+  font-weight: 450;
+}
+.tg-brand-period {
+  color: var(--color-lime);
+}
+@media (max-width: 600px) {
+  .tg-brand-mark {
+    width: 25px;
+    height: 27px;
+  }
+  .tg-brand-word {
+    font-size: 17px;
+  }
+  .tg-brand {
+    gap: 7px;
+  }
+}
+}

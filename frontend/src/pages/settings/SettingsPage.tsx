@@ -1,11 +1,14 @@
+import { Switch } from '../../components/ui/Switch'
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../state/SessionContext'
 import { requestEmailChange } from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { PageNavigation } from '../../components/ui/PageNavigation'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { AppHeader } from '../../components/layout/AppHeader'
 import './SettingsPage.css'
 
 function LanguageIcon() {
@@ -63,7 +66,8 @@ export function SettingsPage() {
     logout,
     deleteAccount,
   } = useSession()
-  const [displayName, setDisplayName] = useState('')
+  const [nameDraft, setDisplayName] = useState<string | null>(null)
+  const displayName = nameDraft ?? user?.displayName ?? ''
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
 
@@ -81,12 +85,8 @@ export function SettingsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user) setDisplayName(user.displayName)
-  }, [user])
-
-  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !deleteOpen) navigate('/')
+      if (event.key === 'Escape' && !event.defaultPrevented && !deleteOpen) navigate('/')
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -164,7 +164,7 @@ export function SettingsPage() {
   if (status === 'loading') {
     return (
       <>
-        <PageNavigation />
+        <AppHeader />
         <main className="settings-screen">
           <p style={{ color: 'rgba(255,255,255,0.6)' }}>Loading…</p>
         </main>
@@ -174,7 +174,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageNavigation />
+      <AppHeader />
       <main className="settings-screen">
         <section className="settings-panel" aria-label="Settings">
         <header className="settings-header">
@@ -187,13 +187,13 @@ export function SettingsPage() {
             !user ? (
               <div className="settings-row settings-guest">
                 <p>Sign in to manage your account.</p>
-                <button
+                <Button
                   type="button"
-                  className="settings-save-btn tg-control tg-control--primary"
+                  className="settings-save-btn"
                   onClick={() => navigate('/auth')}
                 >
                   Sign in
-                </button>
+                </Button>
               </div>
             ) : (
             <>
@@ -207,7 +207,7 @@ export function SettingsPage() {
                     flexWrap: 'wrap',
                   }}
                 >
-                  <input
+                  <Input
                     aria-label="Display name"
                     className="settings-text-input"
                     value={displayName}
@@ -215,15 +215,15 @@ export function SettingsPage() {
                     maxLength={40}
                     onChange={(event) => setDisplayName(event.target.value)}
                   />
-                  <button
+                  <Button
                     type="submit"
-                    className="settings-save-btn tg-control tg-control--primary"
+                    className="settings-save-btn"
                     disabled={
                       profileSaving || displayName.trim() === user.displayName
                     }
                   >
                     {profileSaving ? 'Saving…' : 'Save'}
-                  </button>
+                  </Button>
                   {profileMessage && (
                     <span className="settings-inline-message">
                       {profileMessage}
@@ -248,9 +248,9 @@ export function SettingsPage() {
                     >
                       {user.email}
                     </span>
-                    <button
+                    <Button variant="secondary"
                       type="button"
-                      className="settings-save-btn settings-save-btn--muted tg-control"
+                      className="settings-save-btn settings-save-btn--muted"
                       onClick={() => {
                         setEmailFormOpen((open) => !open)
                         setEmailError(null)
@@ -258,7 +258,7 @@ export function SettingsPage() {
                       }}
                     >
                       {emailFormOpen ? 'Cancel' : 'Change email'}
-                    </button>
+                    </Button>
                   </div>
                   {emailMessage && (
                     <span className="settings-inline-message">{emailMessage}</span>
@@ -268,7 +268,7 @@ export function SettingsPage() {
                       onSubmit={submitEmailChange}
                       style={{ display: 'grid', gap: 10, maxWidth: 420 }}
                     >
-                      <input
+                      <Input
                         type="email"
                         required
                         aria-label="New email address"
@@ -278,7 +278,7 @@ export function SettingsPage() {
                         onChange={(event) => setNewEmail(event.target.value)}
                       />
                       {user.hasPassword && (
-                        <input
+                        <Input
                           type="password"
                           required
                           aria-label="Current password"
@@ -294,14 +294,14 @@ export function SettingsPage() {
                         We will email both your current address and the new one.
                         The change applies only after both confirm.
                       </p>
-                      <button
+                      <Button
                         type="submit"
-                        className="settings-save-btn tg-control tg-control--primary"
+                        className="settings-save-btn"
                         disabled={emailBusy || !newEmail.trim()}
                         style={{ justifySelf: 'start' }}
                       >
                         {emailBusy ? 'Sending…' : 'Send confirmation'}
-                      </button>
+                      </Button>
                       {emailError && (
                         <p className="settings-inline-message settings-inline-message--error">
                           {emailError}
@@ -314,13 +314,13 @@ export function SettingsPage() {
 
               <div className="settings-row">
                 <h2 className="settings-row__label">Session</h2>
-                <button
+                <Button variant="secondary"
                   type="button"
-                  className="settings-save-btn tg-control tg-control--secondary settings-save-btn--muted"
+                  className="settings-save-btn settings-save-btn--muted"
                   onClick={handleLogout}
                 >
                   Log out
-                </button>
+                </Button>
               </div>
 
               <div className="settings-row">
@@ -330,13 +330,13 @@ export function SettingsPage() {
                     Permanently deletes your account and preferences. Past games
                     and results are kept, anonymized.
                   </p>
-                  <button
+                  <Button variant="danger"
                     type="button"
-                    className="settings-save-btn tg-control tg-control--danger settings-save-btn--danger"
+                    className="settings-save-btn settings-save-btn--danger"
                     onClick={() => setDeleteOpen(true)}
                   >
                     Delete my account
-                  </button>
+                  </Button>
                 </div>
               </div>
             </>
@@ -358,7 +358,7 @@ export function SettingsPage() {
 
               <div className="settings-row settings-row--language">
                 <h2 className="settings-row__label">Language</h2>
-                <div className="settings-language-select">
+                <div className="settings-language-select tg-field">
                   <span className="settings-language-select__icon">
                     <LanguageIcon />
                   </span>
@@ -384,15 +384,13 @@ export function SettingsPage() {
               <div className="settings-row settings-row--toggle">
                 <h2 className="settings-row__label">Fullscreen</h2>
                 <label className="settings-toggle">
-                  <input
-                    type="checkbox"
+                  <Switch
                     aria-label="Fullscreen"
                     checked={preferences?.fullscreen ?? false}
                     onChange={(event) =>
                       patchPreferences({ fullscreen: event.target.checked })
                     }
                   />
-                  <span aria-hidden="true" />
                 </label>
               </div>
 
@@ -405,13 +403,13 @@ export function SettingsPage() {
         </div>
 
         <footer className="settings-footer">
-          <button
-            className="settings-footer__close tg-control"
+          <Button variant="secondary"
+            className="settings-footer__close"
             type="button"
             onClick={() => navigate('/')}
           >
             Close
-          </button>
+          </Button>
         </footer>
       </section>
 
@@ -429,7 +427,7 @@ export function SettingsPage() {
             setDeletePassword('')
           }}
         >
-          <input
+          <Input
             type="password"
             aria-label="Current password"
             className="settings-text-input"

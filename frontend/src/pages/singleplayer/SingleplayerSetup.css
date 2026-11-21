@@ -1,22 +1,31 @@
-/* Setup-only materials and layout; gameplay retains its existing controls. */
+@layer components {
 .sp-page:is([data-view='setup'], [data-view='loading']) {
+  height: auto;
+  min-height: 100dvh;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(min-content, 1fr);
 }
 .sp-setup-shell {
   grid-column: 1 / -1;
   grid-row: 2;
-  align-self: center;
-  justify-self: center;
+  place-self: center;
   width: min(100%, 70rem);
   padding-block: 1rem;
 }
-#root .sp-setup-shell .sp-welcome.sp-glass {
+.sp-welcome {
+  position: relative;
+  z-index: 2;
   width: 100%;
+  display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: center;
   gap: clamp(2rem, 4vw, 4rem);
   padding: clamp(1.75rem, 3vw, 2.5rem);
+  border-radius: var(--radius-panel);
+  text-align: left;
 }
-.sp-welcome .sp-setup-intro h1 {
+.sp-setup-intro, .sp-setup-options { min-width: 0; }
+.sp-setup-intro h1 {
   margin: 0 0 1.5rem;
   font-size: clamp(2rem, 3.1vw, 2.875rem);
   font-weight: 450;
@@ -24,170 +33,27 @@
   line-height: 1.15;
   text-wrap: balance;
 }
-.sp-setup-intro h1 > span,
-.sp-setup-intro h1 > em { display: block; }
-.sp-setup-intro h1 > em {
-  margin-top: 0.15em;
-  color: var(--color-lime);
-  font-weight: 500;
-}
-.sp-setup-intro > p {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.8;
-  color: var(--color-muted);
-}
-.sp-setup-intro > .sp-setup-meta {
-  margin-top: 1.75rem;
-  color: var(--color-muted);
-  font-size: 0.75rem;
-  line-height: 1.8;
-  text-wrap: pretty;
-}
-.sp-setup-shell .sp-setup-options { border: 0; padding: 0; }
-.sp-welcome .sp-difficulty { margin-bottom: 1.25rem; }
-.sp-welcome .sp-difficulty legend {
-  padding-bottom: 1rem;
-  color: var(--color-text);
-  font-size: 0.9375rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-}
-.sp-welcome .sp-difficulty-options { gap: 0.625rem; }
-#root .sp-setup-shell .sp-difficulty-option {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.25rem;
-  min-height: 4.875rem;
-  padding: 0.875rem 2.75rem 0.875rem 1.125rem;
-  border: 1px solid #c5dbef17;
-  border-radius: 0.875rem;
-  background: #b8d5ff04;
-  box-shadow: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  font-weight: 400;
-  transition: background 180ms ease, border-color 180ms ease;
-}
-.sp-setup-shell .sp-difficulty-label {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--color-text);
-}
-.sp-setup-shell .sp-difficulty-description {
-  grid-column: 1;
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
-#root .sp-setup-shell .sp-difficulty-option--selected {
-  background: #c0f66b09;
-  border-color: #c0f66b8c;
-  box-shadow: none;
-}
-.sp-setup-shell .sp-difficulty-check {
-  top: 50%;
-  right: 1.125rem;
-  width: 0.875rem;
-  height: 0.875rem;
-  margin-top: -0.4375rem;
-  background: transparent;
-  color: var(--color-lime);
-  box-shadow: none;
-  animation: none;
-}
-.sp-setup-shell .sp-difficulty-check svg { width: 100%; height: 100%; }
-/* Color/radius come from the shared tg-control--primary material; this only
-   owns the full-width hero layout for this one call site. */
-#root .sp-setup-options > .sp-primary {
-  justify-content: center;
-  width: 100%;
-  min-height: 3.125rem;
-  padding: 0.875rem 1.375rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-.sp-setup-shell .sp-setup-back {
-  position: static;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  margin: 0.5rem 0 0 1.75rem;
-  padding: 0.5rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-muted);
-  box-shadow: none;
-  font-size: 0.75rem;
-  cursor: pointer;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  transition: color 180ms ease;
-}
-.sp-setup-back svg { width: 1rem; height: 1rem; }
-.sp-setup-shell .sp-setup-back span { display: inline; }
-@media (hover: hover) and (pointer: fine) {
-  #root .sp-setup-shell .sp-difficulty-option:hover:enabled {
-    background: #d0e7fc09;
-    border-color: #d5e7f638;
-    box-shadow: none;
-    translate: none;
-  }
-  #root .sp-setup-shell .sp-difficulty-option--selected:hover:enabled {
-    border-color: #c0f66ba6;
-    background: #c0f66b0d;
-  }
-  #root .sp-setup-options > .sp-primary:hover:enabled {
-    translate: none;
-  }
-  .sp-setup-shell .sp-setup-back:hover { color: var(--color-text); }
-}
+.sp-setup-intro h1 > span, .sp-setup-intro h1 > em { display: block; }
+.sp-setup-intro h1 > em { margin-top: 0.15em; color: var(--color-lime); font-weight: 500; font-style: normal; }
+.sp-setup-meta { margin: 1.75rem 0 0; color: var(--color-muted); font-size: 0.75rem; line-height: 1.8; text-wrap: pretty; }
+.sp-setup-loading { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 10px 0 2px; }
+.sp-setup-loading .sp-spinner { width: 26px; height: 26px; }
+.sp-setup-loading p { font-size: 13px; color: var(--color-muted); }
+.sp-unavailable { border: 1px solid var(--color-border); border-radius: var(--radius-control); background: #ffffff04; padding: 1rem; }
+.sp-unavailable > strong { font-size: 0.9375rem; }
+.sp-unavailable > p { color: var(--color-muted); font-size: 0.875rem; line-height: 1.6; overflow-wrap: anywhere; margin: 8px 0 13px; }
 @media (max-width: 60rem) and (min-width: 45.001rem) {
-  #root .sp-setup-shell .sp-welcome.sp-glass {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 2rem;
-    padding: 1.75rem;
-  }
+  .sp-welcome { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; padding: 1.75rem; }
 }
 @media (max-width: 45rem) {
   .sp-setup-shell { width: min(100%, 30rem); padding-block: 0.75rem 0; }
-  #root .sp-setup-shell .sp-welcome.sp-glass {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2rem;
-    padding: 1.75rem 1.5rem;
-  }
-  .sp-welcome .sp-setup-intro h1 {
-    margin-bottom: 1rem;
-    font-size: clamp(2rem, 7vw, 2.5rem);
-  }
-  .sp-setup-intro > p { font-size: 0.8125rem; }
-  .sp-setup-intro > .sp-setup-meta { margin-top: 1rem; font-size: 0.75rem; }
-  .sp-welcome .sp-difficulty legend { padding-bottom: 0.75rem; font-size: 0.875rem; }
-  .sp-setup-shell .sp-setup-back { margin-left: 1rem; }
+  .sp-welcome { grid-template-columns: minmax(0, 1fr); gap: 2rem; padding: 1.75rem 1.5rem; }
+  .sp-setup-intro h1 { margin-bottom: 1rem; font-size: clamp(2rem, 7vw, 2.5rem); }
+  .sp-setup-meta { margin-top: 1rem; }
 }
-@media (max-width: 23rem) {
-  #root .sp-setup-shell .sp-welcome.sp-glass { padding: 1.5rem 1rem; }
-}
+@media (max-width: 23rem) { .sp-welcome { padding: 1.5rem 1rem; } }
 @media (max-height: 760px) and (min-width: 45.001rem) {
   .sp-setup-shell { padding-block: 0.75rem; }
-  #root .sp-setup-shell .sp-welcome.sp-glass { padding-block: 1.75rem; }
+  .sp-welcome { padding-block: 1.75rem; }
 }
-@media (prefers-reduced-motion: reduce) {
-  #root .sp-setup-shell .sp-difficulty-option,
-  #root .sp-setup-options > .sp-primary,
-  .sp-setup-shell .sp-setup-back { transition: none; }
-}
-@media (prefers-reduced-transparency: reduce) {
-  #root .sp-setup-shell .sp-difficulty-option { background: #152335; }
-  #root .sp-setup-shell .sp-difficulty-option--selected { background: #1e2e29; }
-}
-@media (forced-colors: active) {
-  #root .sp-setup-shell .sp-difficulty-option { border-color: ButtonText; }
-  #root .sp-setup-shell .sp-difficulty-option--selected { border-color: Highlight; }
-  .sp-setup-shell .sp-difficulty-check { color: Highlight; }
 }

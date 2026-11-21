@@ -1,3 +1,4 @@
+@layer components {
 /* Layout primitive; shared material variants/states live in controls.css. */
 .tg-button {
   display: inline-flex;
@@ -9,4 +10,35 @@
   font-size: 13px;
   line-height: 1.5;
   font-weight: 600;
+}
+
+/* Sizes are layout only; the visual material is owned by the variant/appearance. */
+.tg-button--sm { min-height: 36px; padding: 7px 15px; font-size: 11px; }
+.tg-button--lg { min-height: 3.125rem; padding: 0.875rem 1.375rem; font-size: 0.875rem; }
+.tg-button--block { width: 100%; }
+
+/* Flat actions are shared by compact guess panels and lobby forms. */
+.tg-button--flat {
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--color-lime);
+  color: var(--color-on-lime);
+  transition: background-color var(--duration-fast);
+}
+.tg-button--flat.tg-button--secondary { background: var(--color-quiet); border-color: var(--color-border-strong); color: var(--color-text); }
+.tg-button--flat.tg-button--danger { background: var(--color-danger-fill); border-color: var(--color-danger-border); color: var(--color-red); }
+.tg-button--flat:disabled { background: var(--color-quiet); color: var(--color-muted); cursor: not-allowed; }
+.tg-icon-button { display: inline-grid; place-items: center; padding: 0; min-width: 44px; min-height: 44px; flex-shrink: 0; border-radius: 50%; }
+.tg-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.tg-button svg { width: 18px; height: 18px; flex-shrink: 0; }
+.tg-icon-button svg { width: 20px; height: 20px; }
+@media (hover: hover) and (pointer: fine) {
+  .tg-button--flat:hover:enabled { background: var(--color-lime-hover); }
+  .tg-button--flat.tg-button--secondary:hover:enabled { background: var(--color-surface-hover); }
+  .tg-button--flat.tg-button--danger:hover:enabled { background: var(--color-danger-hover); }
+}
+@media (forced-colors: active) {
+  .tg-button--flat { border: 1px solid ButtonText; }
+  .tg-button--flat:disabled { color: GrayText; }
+}
 }

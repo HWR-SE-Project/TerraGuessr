@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   clearLobbyToken,
+  forgetLobby,
+  getCurrentLobbyCode,
+  setCurrentLobbyCode,
   getLobbyToken,
   setLobbyToken,
 } from './lobbies'
@@ -33,4 +36,16 @@ describe('lobby token storage', () => {
     setLobbyToken('ABC234', 'lobby-token')
     expect(localStorage.getItem('terraguessr.playerToken')).toBe('game-token')
   })
+  it('cleanup of an old lobby preserves membership in a newer lobby', () => {
+    setLobbyToken('ABC234', 'old-token')
+    setLobbyToken('ZZZ999', 'new-token')
+    setCurrentLobbyCode('ZZZ999')
+    forgetLobby('abc234')
+    expect(getLobbyToken('ABC234')).toBeNull()
+    expect(getLobbyToken('ZZZ999')).toBe('new-token')
+    expect(getCurrentLobbyCode()).toBe('ZZZ999')
+    forgetLobby('zzz999')
+    expect(getCurrentLobbyCode()).toBeNull()
+  })
+
 })

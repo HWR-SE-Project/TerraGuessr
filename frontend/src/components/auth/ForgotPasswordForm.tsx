@@ -1,3 +1,4 @@
+import { Input } from '../ui/Input'
 import { useState } from 'react'
 import * as authApi from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
@@ -43,7 +44,7 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
       <h2 className="tg-email-form-title">Reset your password</h2>
       <label className="tg-email-field">
         <span>Email</span>
-        <input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+        <Input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
       </label>
       {error && <p className="tg-email-error" role="alert">{error}</p>}
       <Button type="submit" className="tg-email-submit" disabled={submitting}>

@@ -6,7 +6,7 @@ export function InlineNotice({
   children,
   className = '',
 }: {
-  tone?: 'info' | 'error' | 'success'
+  tone?: 'info' | 'error' | 'success' | 'warning'
   children: ReactNode
   className?: string
 }) {

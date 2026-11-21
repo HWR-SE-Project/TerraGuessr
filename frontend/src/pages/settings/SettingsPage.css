@@ -1,3 +1,4 @@
+@layer components {
 .settings-screen {
   display: grid;
   place-items: center;
@@ -20,12 +21,19 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-panel);
 }
+.settings-content {
+  scrollbar-color: #31465c transparent;
+  scrollbar-width: thin;
+  min-height: 0;
+  overflow: visible;
+}
 .settings-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 32px 0 24px;
+  padding: 32px 2rem 24px 0;
   border-bottom: 1px solid var(--color-border);
 }
 .settings-header h1 {
@@ -46,20 +54,18 @@
 .settings-section-title:first-child {
   padding-top: 0;
 }
-.settings-content {
-  min-height: 0;
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #31465c transparent;
-}
 .settings-row {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
   align-items: center;
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 24px;
   min-height: 105px;
   padding: 24px 0;
   border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+.settings-row > div {
+  min-width: 0;
 }
 .settings-row:last-child {
   border-bottom: 0;
@@ -71,8 +77,6 @@
   font-weight: 500;
   color: var(--color-text);
 }
-/* Background/border/focus-ring come from the shared .tg-field material in
-   design-system/controls.css — this only owns size/layout. */
 .settings-text-input {
   min-width: 0;
   width: 100%;
@@ -91,6 +95,10 @@
   padding: 12px 24px;
   font-size: 13px;
   font-weight: 600;
+}
+.settings-note,
+.settings-inline-message {
+  overflow-wrap: anywhere;
 }
 .settings-note {
   margin: 0;
@@ -152,7 +160,7 @@
   appearance: none;
   border: 5px solid var(--color-lime);
   border-radius: 50%;
-  background: #172512;
+  background: var(--color-on-lime);
   box-shadow: 0 2px 10px #0003;
 }
 .settings-slider::-moz-range-track {
@@ -169,7 +177,7 @@
   height: 20px;
   border: 4px solid var(--color-lime);
   border-radius: 50%;
-  background: #172512;
+  background: var(--color-on-lime);
 }
 .settings-slider__value {
   position: absolute;
@@ -185,6 +193,7 @@
   border-radius: 50%;
 }
 .settings-language-select {
+  padding: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -227,48 +236,6 @@
   min-height: 44px;
   align-items: center;
   cursor: pointer;
-}
-.settings-toggle input {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-}
-/* Matches the shared .sp-setting switch (design-system/controls.css) so
-   in-game and account settings use one toggle-switch look. */
-.settings-toggle > span {
-  position: relative;
-  display: block;
-  width: 48px;
-  height: 28px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-shading), #27394f;
-  box-shadow: inset 0 1px 4px #01061066, 0 1px #ffffff14;
-  border: 1px solid #d3e6ff26;
-  transition: background 160ms;
-}
-.settings-toggle > span::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #f2f7fc, #a5bbd1);
-  box-shadow: inset 0 1px #fff9, 0 2px 5px #0106104d;
-  transition: transform 160ms;
-}
-.settings-toggle input:checked + span {
-  background: linear-gradient(160deg, #d3fc9c, #93c359);
-}
-.settings-toggle input:checked + span::after {
-  transform: translateX(20px);
-  background: linear-gradient(145deg, #f3ffdf, #d4edba);
-}
-.settings-toggle input:focus-visible + span {
-  outline: 2px solid var(--color-lime);
-  outline-offset: 4px;
 }
 .settings-guest {
   display: flex;
@@ -325,10 +292,4 @@
     padding: 36px 24px;
   }
 }
-
-.settings-panel { max-height: none; }
-.settings-content { overflow: visible; }
-.settings-header { flex-wrap: wrap; padding-right: 2rem; }
-.settings-row > div { min-width: 0; }
-.settings-note, .settings-inline-message { overflow-wrap: anywhere; }
-.settings-row { overflow-wrap: anywhere; }
+}

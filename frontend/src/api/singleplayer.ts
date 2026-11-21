@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { AdditionalDataAccessDTO, LatLon } from './types'
+import type { AdditionalDataAccessDTO, CandidateDTO, Difficulty, LatLon } from './types'
 
 export interface GeographicIntelligence {
   fetchedAt: string
@@ -24,25 +24,17 @@ export interface GeographicIntelligence {
   }
   climate: null
 }
-export type Difficulty = 'easy' | 'medium' | 'hard'
 export interface StreetProviderConfig {
   available: boolean
   provider: 'google'
   serverKeyConfigured: boolean
-}
-export interface StreetCandidate {
-  id: string
-  name: string
-  region: string
-  lat: number
-  lon: number
 }
 export interface StreetRound {
   id: string
   number: number
   panoId: string
   /** Easy-difficulty list-mode options (R07); absent on medium/hard. */
-  candidates?: StreetCandidate[]
+  candidates?: CandidateDTO[]
   startedAt: string | null
   endsAt: string | null
   attemptsUsed: number

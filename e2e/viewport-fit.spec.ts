@@ -71,7 +71,7 @@ test('primary screens fit desktops and keep mobile controls reachable', async ({
   ]) {
     if (name === 'setup') await setup(page)
     else await page.goto(path)
-    await page.locator(controls).first().waitFor()
+    await page.locator(controls).filter({ visible: true }).first().waitFor()
     if (name === 'home') await expect(page.locator('.th-character-slot')).toHaveAttribute('data-character-status', 'ready', { timeout: 30_000 })
     for (const [width, height] of sizes) {
       await page.setViewportSize({ width, height })
@@ -120,7 +120,7 @@ test('genuine browser zoom 80–200% keeps primary screens accessible', async ({
           ]) {
         if (name === 'setup') await setup(page)
         else await page.goto(path)
-        await page.locator(controls).first().waitFor()
+        await page.locator(controls).filter({ visible: true }).first().waitFor()
         await expect.poll(() => page.evaluate(() => devicePixelRatio)).toBeCloseTo(zoom / 100, 1)
         report.push({ name, zoom, ...await metrics(page, zoom <= 100) })
         await reachable(page, controls, zoom <= 100)

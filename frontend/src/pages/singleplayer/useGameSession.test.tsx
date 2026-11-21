@@ -4,7 +4,7 @@ import { ApiError } from '../../api/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { singleplayerApi } from '../../api/singleplayer'
 import { useGameSession } from './useGameSession'
-import { browserMapsKey } from './googleMaps'
+import { browserMapsKey } from '../../game/googleMaps'
 import { testRound } from './testRound'
 import type { StreetSession } from '../../api/singleplayer'
 vi.mock('../../api/singleplayer', () => ({
@@ -21,7 +21,7 @@ vi.mock('../../api/singleplayer', () => ({
     end: vi.fn(),
   },
 }))
-vi.mock('./googleMaps', () => ({
+vi.mock('../../game/googleMaps', () => ({
   browserMapsKey: vi.fn(() => 'test-only-key'),
 }))
 const empty: StreetSession = {

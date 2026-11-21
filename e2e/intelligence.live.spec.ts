@@ -68,7 +68,7 @@ test('live geographic intelligence: protected data, desktop states, movement and
   // Desktop panel stays left, clear of the bottom compass and right guessing map.
   const bounds = await panel.boundingBox()
   const compass = await page.locator('.sp-compass').boundingBox()
-  const brand = await page.locator('.sp-brand').boundingBox()
+  const brand = await page.getByRole('link', { name: 'TerraGuessr home', exact: true }).boundingBox()
   expect(bounds!.y).toBeGreaterThan(brand!.y + brand!.height)
   expect(bounds!.y - brand!.y - brand!.height).toBeLessThanOrEqual(20)
   expect(bounds!.width).toBe(280)

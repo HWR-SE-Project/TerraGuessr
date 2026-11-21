@@ -1,0 +1,43 @@
+@layer components {
+.cosmic-app {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  background: radial-gradient(ellipse at 50% 72%, #16304a66, transparent 58%), var(--color-bg);
+}
+.cosmic-background {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  contain: strict;
+  opacity: 1;
+  transition: opacity 250ms ease;
+}
+.cosmic-background canvas {
+  display: block;
+  pointer-events: none;
+}
+.cosmic-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #080f1bbd 0%, #080f1b20 38%, transparent 65%);
+}
+.cosmic-app[data-cosmic-home='true'] > .cosmic-background {
+  position: absolute;
+}
+.cosmic-app[data-cosmic-intensity='subdued'] > .cosmic-background { opacity: 0.72; }
+.cosmic-app[data-cosmic-intensity='moderate'] > .cosmic-background { opacity: 0.85; }
+.cosmic-background[data-enabled='false'] {
+  visibility: hidden;
+  transition: none;
+}
+/* Page shells reveal the shared sky; their cards and dialogs keep their surfaces. */
+.cosmic-app :is(.th-home, .tl-page, .geo-landing, .settings-screen,
+  .tg-auth-root, .tg-route-loading) {
+  background: transparent;
+}
+.cosmic-app .sp-page[data-cosmic='on'] { background: transparent; }
+.cosmic-app .sp-page[data-cosmic='on']::before { display: none; }
+}

@@ -1,5 +1,7 @@
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
 import { useState } from 'react'
-import { PageNavigation } from '../../components/ui/PageNavigation'
+import { AppHeader } from '../../components/layout/AppHeader'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
 import { mapApiError } from '../../api/errorMessages'
@@ -35,16 +37,8 @@ export function ResetPasswordPage() {
 
   return (
     <>
-    <PageNavigation />
-    <div
-      className="tg-auth-root"
-      style={{
-        minHeight: 'calc(100dvh - var(--nav-height))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
+    <AppHeader />
+    <main className="tg-auth-root">
       <div className="tg-reset-card">
         {!token ? (
           <div className="tg-email-form">
@@ -53,13 +47,13 @@ export function ResetPasswordPage() {
               This password reset link is missing its token. Request a new one
               from the sign-in screen.
             </p>
-            <button
+            <Button
               type="button"
-              className="tg-email-submit tg-control tg-control--primary"
+              className="tg-email-submit"
               onClick={() => navigate('/auth')}
             >
               Back to sign in
-            </button>
+            </Button>
           </div>
         ) : done ? (
           <div className="tg-email-form">
@@ -67,20 +61,20 @@ export function ResetPasswordPage() {
             <p className="tg-email-hint" style={{ textAlign: 'center' }}>
               You can now log in with your new password.
             </p>
-            <button
+            <Button
               type="button"
-              className="tg-email-submit tg-control tg-control--primary"
+              className="tg-email-submit"
               onClick={() => navigate('/auth')}
             >
               Go to sign in
-            </button>
+            </Button>
           </div>
         ) : (
           <form className="tg-email-form" onSubmit={submit}>
             <h2 className="tg-email-form-title">Choose a new password</h2>
             <label className="tg-email-field">
               <span>New password</span>
-              <input
+              <Input
                 type="password"
                 autoComplete="new-password"
                 minLength={12}
@@ -95,17 +89,17 @@ export function ResetPasswordPage() {
                 {error}
               </p>
             )}
-            <button
+            <Button
               type="submit"
-              className="tg-email-submit tg-control tg-control--primary"
+              className="tg-email-submit"
               disabled={submitting}
             >
               {submitting ? 'Updating…' : 'Update password'}
-            </button>
+            </Button>
           </form>
         )}
       </div>
-    </div>
+    </main>
     </>
   )
 }

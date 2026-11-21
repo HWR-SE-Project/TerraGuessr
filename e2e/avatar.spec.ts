@@ -1,3 +1,4 @@
+import { registerAndLogin } from './support/game'
 import { expect, test, type Page } from '@playwright/test'
 
 const API = process.env.AVATAR_TEST_API_URL
@@ -228,11 +229,7 @@ test('account synchronization, sign-in restoration, failures and guest isolation
   test.skip(!API, 'Set AVATAR_TEST_API_URL to an isolated running backend with migrated Postgres')
   test.setTimeout(120_000)
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  const email = `avatar-browser-${Date.now()}@example.test`
-  const password = 'correct horse battery'
-  const registration = await page.request.post(`${API}/api/auth/register`, { data: { email, password, displayName: 'Avatar Tester' } })
-  expect(registration.ok()).toBe(true)
-  expect((await registration.json()).verificationRequired).toBe(false)
+  const { email, password } = await registerAndLogin(page, 'Avatar Tester')
   await home(page)
   await open(page)
   await page.getByRole('button', { name: 'Hair & brows Forest', exact: true }).click()

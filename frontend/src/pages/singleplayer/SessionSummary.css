@@ -1,3 +1,4 @@
+@layer components {
 /* The summary is a content-sized destination, independent of the round map. */
 .sp-page[data-view='session-summary'] {
   height: auto;
@@ -42,4 +43,5 @@
   .sp-session-summary .sp-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 0.75rem; }
   .sp-session-summary .sp-summary-stats > div, .sp-session-summary .sp-summary-stats > div:nth-last-child(-n+2) { grid-column: span 1; }
   .tg-page-actions .tg-button { flex: 1 1 auto; padding-inline: 1rem; }
+}
 }

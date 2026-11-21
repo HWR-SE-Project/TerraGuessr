@@ -1,31 +1,26 @@
+import { AvatarLighting } from './AvatarLighting'
 import type { ComponentRef } from 'react'
 import { Suspense, useEffect, useMemo, useRef } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Environment, Lightformer, OrbitControls } from '@react-three/drei'
+import { Canvas, useThree } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useAvatarModel } from './useAvatarModel'
 import type { AvatarConfig } from './avatarConfig'
-import { usePrefersReducedMotion } from '../../pages/home/scene/hooks'
-import { SceneErrorBoundary } from '../../pages/home/scene/SceneErrorBoundary'
+import { usePrefersReducedMotion } from '../../scene/hooks'
+import { SceneErrorBoundary } from '../../scene/SceneErrorBoundary'
 
 export type PreviewCommand = { id: number; action: 'left' | 'right' | 'in' | 'out' | 'reset' }
 function PreviewScene({ config, command, reducedMotion, onReady }: {
   config: AvatarConfig; command: PreviewCommand; reducedMotion: boolean; onReady: () => void
 }) {
-  const { model, bounds, dimensions, mixer, idle, actions } = useAvatarModel(config)
+  const { model, bounds, dimensions } = useAvatarModel(config, reducedMotion)
   const center = useMemo(() => bounds.getCenter(new THREE.Vector3()), [bounds])
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
   const { camera, size } = useThree()
   const scale = 3.5 / dimensions.y
   const distance = Math.max(6, dimensions.x * scale / (Math.max(1, size.width) / Math.max(1, size.height)) * 1.7)
   useEffect(() => { camera.position.set(0, 0, distance); controls.current?.update() }, [camera, distance])
-  useEffect(() => {
-    const action = idle ? actions[idle.name] : null
-    // AnimationAction is an owned mutable Three.js resource.
-    // oxlint-disable-next-line react/immutability
-    if (action) action.paused = reducedMotion
-    onReady()
-  }, [actions, idle, reducedMotion, onReady])
+  useEffect(onReady, [onReady])
   useEffect(() => {
     const orbit = controls.current
     if (!orbit || command.id === 0) return
@@ -42,18 +37,8 @@ function PreviewScene({ config, command, reducedMotion, onReady }: {
     }
     orbit.update()
   }, [command, camera, distance])
-  // oxlint-disable-next-line react/immutability
-  useFrame(() => { mixer.timeScale = reducedMotion || document.hidden ? 0 : 1 }, -1)
   return <>
-    <hemisphereLight args={['#e7efff', '#394353', 0.7]} />
-    <directionalLight position={[5, 5, 8]} color="#fff3df" intensity={2.1} />
-    <directionalLight position={[-4, 2, 6]} color="#e0eaff" intensity={0.8} />
-    <directionalLight position={[-3, 4, -5]} color="#b8d9ff" intensity={1.2} />
-    <Environment resolution={64} frames={1} environmentIntensity={0.65}>
-      <Lightformer position={[4, 5, 5]} rotation={[0, -Math.PI / 4, 0]} scale={[5, 5, 1]} intensity={2} color="#fff3df" />
-      <Lightformer position={[-4, 2, 3]} rotation={[0, Math.PI / 4, 0]} scale={[4, 5, 1]} intensity={1} color="#e0eaff" />
-      <Lightformer position={[0, 4, -4]} scale={[4, 3, 1]} intensity={1.5} color="#b8d9ff" />
-    </Environment>
+    <AvatarLighting />
     <group scale={scale}>
       <primitive object={model} position={[-center.x, -center.y, -center.z]} dispose={null} />
     </group>

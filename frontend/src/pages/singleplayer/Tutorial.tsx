@@ -1,8 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import { Dialog } from '../../components/ui/Dialog'
+import { IconButton } from '../../components/ui/IconButton'
 import type { StreetResult, StreetRound } from '../../api/singleplayer'
-import { haversineKm } from '../../../../backend/src/domain/distance'
-import { MAX_SCORE, scoreForDistance } from '../../../../backend/src/domain/scoring'
+import { haversineKm } from '../../lib/distance'
+import { MAX_SCORE, scoreForDistance } from '../../lib/scoring'
 import './Tutorial.css'
 
 const STORAGE_KEY = 'terraguessr.tutorialSeen.v1'
@@ -97,7 +98,6 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
 }) {
   const [step, setStep] = useState(0)
   const [distance, setDistance] = useState(500)
-  const dialog = useRef<HTMLDialogElement>(null)
   const card = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const mask = useId()
@@ -110,15 +110,14 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
   const layout = useSpotlight(selector, card, step)
   useEffect(() => { onStepChange?.(step) }, [step, onStepChange])
   useEffect(() => {
-    const element = dialog.current!
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    element.showModal()
     document.body.classList.add('tt-active')
     return () => {
-      element.close()
       document.body.classList.remove('tt-active')
-      const target = previous?.isConnected ? previous
-        : Array.from(document.querySelectorAll<HTMLElement>('[data-tutorial-trigger]')).find(element => element.getClientRects().length > 0)
+      const visible = (selector: string) => Array.from(document.querySelectorAll<HTMLElement>(selector))
+        .find(element => element.getClientRects().length > 0)
+      const target = previous?.isConnected && previous !== document.body ? previous
+        : visible('button[aria-label="Game menu"]') ?? visible('[data-tutorial-trigger]')
       target?.focus({ preventScroll: true })
     }
   }, [])
@@ -126,33 +125,23 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
     heading.current?.focus({ preventScroll: true })
     card.current?.scrollTo?.({ top: 0 })
   }, [step])
-  const trapFocus = (event: KeyboardEvent<HTMLDialogElement>) => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose() }
-    if (event.key !== 'Tab') return
-    const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex="0"]'))
-      .filter(el => el.getClientRects().length > 0 && !el.closest('[hidden]'))
-    const first = items[0], last = items.at(-1)
-    const index = items.indexOf(document.activeElement as HTMLElement)
-    if (event.shiftKey && index <= 0) { event.preventDefault(); last?.focus() }
-    else if (!event.shiftKey && (index < 0 || document.activeElement === last)) { event.preventDefault(); first?.focus() }
-  }
   return (
-    <dialog ref={dialog} className={`tt-overlay tt-step-${step}`} aria-label="How to play / Tutorial" aria-describedby="tt-description"
-      onKeyDownCapture={trapFocus} onCancel={event => { event.preventDefault(); onClose() }}>
+    <Dialog className={`tt-overlay tt-step-${step}`} aria-label="How to play / Tutorial" aria-describedby="tt-description"
+      onClose={onClose} dismissOnBackdrop={false}>
       <svg className="tt-shade" aria-hidden="true" width="100%" height="100%">
         <defs><mask id={mask}><rect width="100%" height="100%" fill="white" />
           {layout.target && <rect {...layout.target} rx="16" fill="black" />}</mask></defs>
         <rect width="100%" height="100%" fill="#07111f" fillOpacity="0.46" mask={`url(#${mask})`} />
         {layout.target && <rect className="tt-target-ring" {...layout.target} rx="16" />}
       </svg>
-      <section ref={card} className="tt-coach" style={{ left: layout.x, top: layout.y }} data-target={layout.target ? SUBJECTS[step] : 'example'}>
+      <section ref={card} className="tt-coach tg-glass" style={{ left: layout.x, top: layout.y }} data-target={layout.target ? SUBJECTS[step] : 'example'}>
         <header className="tt-bar">
           <span className="tt-step-count">{step + 1} / 5</span>
-          <button className="tt-icon-btn tt-close" aria-label="Exit tutorial" title="Exit tutorial (Esc)" onClick={onClose}>
+          <IconButton className="tt-icon-btn tt-close" aria-label="Exit tutorial" title="Exit tutorial (Esc)" onClick={onClose}>
             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
-          </button>
+          </IconButton>
         </header>
         <div className="tt-copy" key={step}>
           <h2 ref={heading} tabIndex={-1}>{TITLES[step]}</h2>
@@ -179,6 +168,6 @@ export function Tutorial({ onClose, round, result, onStepChange }: {
           <button className="tt-next" onClick={() => step === 4 ? onClose() : setStep(value => value + 1)}>{step === 4 ? 'Finish tutorial' : 'Next'} <span aria-hidden="true">→</span></button>
         </footer>
       </section>
-    </dialog>
+    </Dialog>
   )
 }

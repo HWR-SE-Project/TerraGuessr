@@ -1,3 +1,5 @@
+import { GameMenu } from '../../game/GameMenu'
+import { Icon } from '../../components/ui/Icon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -11,24 +13,24 @@ import type {
   LobbyMatchResponseDTO,
   LobbyMatchResult,
 } from '../../api/types'
-import { PageNavigation } from '../../components/ui/PageNavigation'
-import { useNavigationGuard } from '../../components/ui/NavigationGuard'
+import { AppHeader } from '../../components/layout/AppHeader'
+import { useNavigationGuard } from '../../components/layout/useNavigationGuard'
 import { Modal } from '../../components/ui/Modal'
-import { GameSettings } from '../singleplayer/GameSettings'
-import { readSettings } from '../singleplayer/settings'
+import { IconButton } from '../../components/ui/IconButton'
+import { GameSettings } from '../../game/GameSettings'
+import { useGameplaySettings } from '../../game/settings'
 import { Button } from '../../components/ui/Button'
-import { CityGuessPanel } from '../../components/CityGuessPanel'
-import { GuessButton } from '../singleplayer/GuessButton'
-import { StreetViewViewer } from '../singleplayer/StreetViewViewer'
-import { GuessMap } from '../singleplayer/GuessMap'
-import type { GuessMapMarker } from '../singleplayer/GuessMap'
-import { GameplayHUD, GameIcon } from '../singleplayer/GameplayHUD'
-import { GeographicIntelligence } from '../singleplayer/GeographicIntelligence'
+import { CityGuessPanel } from '../../game/CityGuessPanel'
+import { GuessButton } from '../../game/GuessButton'
+import { StreetViewViewer } from '../../game/StreetViewViewer'
+import { GuessMap } from '../../game/GuessMap'
+import type { GuessMapMarker } from '../../game/GuessMap'
+import { GameplayHUD } from '../../game/GameplayHUD'
+import { GeographicIntelligence } from '../../game/GeographicIntelligence'
 import { clockLabel, coordinates, distanceLabel } from '../../lib/format'
-import { ScoreBreakdown } from '../../components/ScoreBreakdown'
-import { ResultCoords } from '../../components/ResultCoords'
+import { RoundResultDetails } from '../../game/RoundResultDetails'
 import { asStreetResults, asStreetRound } from './matchAdapters'
-import '../singleplayer/SingleplayerGamePage.css'
+import '../../game/Game.css'
 import './MultiplayerGamePage.css'
 
 const POLL_INTERVAL_MS = 2000
@@ -190,23 +192,7 @@ function RoundResultCard({
         <span className="sp-eyebrow">
           ROUND {result.roundNumber} OF {roundsTotal} COMPLETE
         </span>
-        <h1>
-          {result.score >= 4500
-            ? 'Incredible instinct.'
-            : result.score >= 2500
-              ? 'Nicely explored.'
-              : 'Every guess is a discovery.'}
-        </h1>
-        <p>
-          {result.guess
-            ? <>You were <strong>{distanceLabel(result.distanceKm)}</strong> from the correct location.</>
-            : 'You ran out of time before placing a guess.'}
-        </p>
-        <ScoreBreakdown
-          score={result.score}
-          extraDataPointsSpent={result.extraDataPointsSpent}
-        />
-        <ResultCoords actual={result.actual} guess={result.guess} />
+        <RoundResultDetails result={result} />
         <ParticipantGuesses
           guesses={result.guesses}
           roundNumber={result.roundNumber}
@@ -320,9 +306,8 @@ function FinalMatchResults({
             )}
           </div>
         )}
-        <button
+        <Button
           type="button"
-          className="sp-primary tg-control tg-control--primary"
           onClick={onContinue}
           disabled={busy || prompt?.youRequested}
         >
@@ -334,15 +319,14 @@ function FinalMatchResults({
           {!prompt?.youRequested && !busy && (
             <span aria-hidden="true">→</span>
           )}
-        </button>
-        <button
+        </Button>
+        <Button variant="secondary"
           type="button"
-          className="sp-secondary tg-control"
           onClick={onHome}
           disabled={busy}
         >
           Return to main page
-        </button>
+        </Button>
       </footer>
     </section>
   )
@@ -365,19 +349,9 @@ export function MultiplayerGamePage() {
   const [lastResult, setLastResult] = useState<LobbyMatchResult | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [showBoard, setShowBoard] = useState(false)
-  const [settings, setSettings] = useState(readSettings)
+  const [settings, setSettings] = useGameplaySettings()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        'terraguessr.gameplay.settings',
-        JSON.stringify(settings),
-      )
-    } catch {
-      /* Settings remain available in memory. */
-    }
-  }, [settings])
   const roundKey = data?.match.round?.id ?? null
   const previousRound = useRef<string | null>(null)
   const loadId = useRef(0)
@@ -405,8 +379,7 @@ export function MultiplayerGamePage() {
     setLeaveError('')
     try {
       if (token) await lobbiesApi.leaveLobby(code, token)
-      lobbiesApi.clearLobbyToken(code)
-      lobbiesApi.clearCurrentLobbyCode()
+      lobbiesApi.forgetLobby(code)
       if (navigation.state === 'blocked') navigation.proceed()
     } catch {
       setLeaveError('Could not leave the match. Check your connection and try again.')
@@ -420,8 +393,7 @@ export function MultiplayerGamePage() {
   const exitToMenu = useCallback(async () => {
     if (token) {
       await lobbiesApi.leaveLobby(code, token).catch(() => {})
-      lobbiesApi.clearLobbyToken(code)
-      lobbiesApi.clearCurrentLobbyCode()
+      lobbiesApi.forgetLobby(code)
     }
     navigate('/')
   }, [code, navigate, token])
@@ -438,8 +410,7 @@ export function MultiplayerGamePage() {
       }
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 404) {
-        lobbiesApi.clearLobbyToken(code)
-        lobbiesApi.clearCurrentLobbyCode()
+        lobbiesApi.forgetLobby(code)
         navigate('/multiplayer', { replace: true })
         return
       }
@@ -469,8 +440,7 @@ export function MultiplayerGamePage() {
     } catch (cause) {
       if (loadId.current !== requestId) return
       if (cause instanceof ApiError && cause.status === 404) {
-        lobbiesApi.clearLobbyToken(code)
-        lobbiesApi.clearCurrentLobbyCode()
+        lobbiesApi.forgetLobby(code)
         navigate('/multiplayer', { replace: true })
         return
       }
@@ -489,6 +459,7 @@ export function MultiplayerGamePage() {
     void tick()
     return () => {
       cancelled = true
+      loadId.current++
       if (timer !== undefined) window.clearTimeout(timer)
     }
   }, [load, token])
@@ -502,15 +473,14 @@ export function MultiplayerGamePage() {
   }, [data?.match.you.selection, roundKey])
 
   useEffect(() => {
-    if (!data) return
-    if (data.match.status !== 'playing' && data.match.status !== 'finished') {
+    if (data?.match.status !== 'playing' && data?.match.status !== 'finished') {
       return
     }
     const tick = () => setNow(Date.now())
     tick()
     const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
-  }, [data])
+  }, [data?.match.status])
 
   useEffect(() => {
     if (data?.match.status === 'waiting') {
@@ -518,15 +488,6 @@ export function MultiplayerGamePage() {
     }
   }, [code, data?.match.status, navigate])
 
-  useEffect(() => {
-    if (!data || data.match.status !== 'playing') return
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [data])
 
   useEffect(() => {
     if (!token || data?.match.status !== 'playing') return
@@ -666,28 +627,27 @@ export function MultiplayerGamePage() {
         />
       )}
       <div className="sp-top-shade" />
-      <PageNavigation
+      <AppHeader
         game={match?.status === 'playing'}
         summary={match?.status === 'finished'}
         onHelp={() => setHelpOpen(true)}
         onSettings={() => setSettingsOpen(true)}
         onMenu={() => setMenuOpen(true)}
       >
-        <button className="th-icon-btn" aria-label="Show leaderboard" title="Show leaderboard" onClick={() => setShowBoard(value => !value)}><GameIcon name="info" /></button>
-      </PageNavigation>
-      {menuOpen && navigation.state !== 'blocked' && <Modal title="Match menu" onClose={() => setMenuOpen(false)}>
-        <div className="sp-menu-actions">
-          <button className="sp-secondary tg-control" onClick={() => { setMenuOpen(false); backToLobby() }}>Back to lobby</button>
-        </div>
-      </Modal>}
+        <IconButton className="th-icon-btn" aria-label="Show leaderboard" title="Show leaderboard" onClick={() => setShowBoard(value => !value)}><Icon name="info" /></IconButton>
+      </AppHeader>
+      {menuOpen && navigation.state !== 'blocked' && <GameMenu title="Match menu" onClose={() => setMenuOpen(false)}
+        onHelp={() => { setMenuOpen(false); setHelpOpen(true) }} onSettings={() => { setMenuOpen(false); setSettingsOpen(true) }}>
+        <Button variant="secondary" onClick={() => { setMenuOpen(false); backToLobby() }}>Back to lobby</Button>
+      </GameMenu>}
       {helpOpen && (
         <Modal title="How to play" onClose={() => setHelpOpen(false)}>
-          <div className="sp-menu-actions">
+          <div className="tg-dialog-menu">
             <p>Drop a pin on the map before the round timer runs out. Everyone in the lobby guesses the same location, and scores are ranked on the leaderboard after each round.</p>
             <p>Use your attempts wisely: a final submit locks in your answer early, but you can keep refining your guess until the timer ends or you run out of attempts.</p>
-            <button className="sp-primary tg-control tg-control--primary" onClick={() => setHelpOpen(false)}>
+            <Button onClick={() => setHelpOpen(false)}>
               Back to game
-            </button>
+            </Button>
           </div>
         </Modal>
       )}
@@ -702,7 +662,7 @@ export function MultiplayerGamePage() {
         onClose={() => { navigation.reset(); setLeaveError('') }}>
         <p>Leaving ends your participation in this match.</p>
         {leaveError && <p role="alert">{leaveError}</p>}
-        <div className="sp-dialog-actions">
+        <div className="tg-dialog-actions">
           <Button disabled={leaving} onClick={() => { navigation.reset(); setLeaveError('') }}>Keep Playing</Button>
           <Button variant="secondary" disabled={leaving} onClick={() => void confirmLeave()}>{leaving ? 'Leaving…' : 'Leave match'}</Button>
         </div>
@@ -760,13 +720,13 @@ export function MultiplayerGamePage() {
           </CityGuessPanel>
         ) : (
         <aside
-          className="sp-guess-panel sp-glass mp-guess-panel"
+          className="sp-guess-panel sp-glass tg-glass mp-guess-panel"
           style={{ '--map-opacity': settings.mapOpacity / 100 } as CSSProperties}
           aria-label="Guessing map"
         >
           <header className="sp-map-header">
             <span className="sp-map-mode">
-              <GameIcon name="pin" />
+              <Icon name="pin" />
               <span>
                 World Explorer
                 <small>
@@ -795,23 +755,9 @@ export function MultiplayerGamePage() {
                 : ''}
             </span>
             <div className="mp-guess-actions">
-              <button
-                className="sp-primary tg-control tg-control--primary sp-guess-button"
-                disabled={!guess || !guessReady || busy}
-                onClick={() => void submit(false)}
-              >
-                <GameIcon name="pin" />
-                {busy ? 'Submitting…' : 'Submit guess'}
-              </button>
-              {match.you.attemptsUsed > 0 && (
-                <button
-                  className="sp-secondary tg-control"
-                  disabled={!guess || busy}
-                  onClick={() => void submit(true)}
-                >
-                  Final submit
-                </button>
-              )}
+              <GuessButton disabled={!guess || !guessReady || busy} busy={busy} onClick={() => void submit(false)} />
+              {match.you.attemptsUsed > 0 && <GuessButton variant="secondary" label="Final submit"
+                disabled={!guess || busy} onClick={() => void submit(true)} />}
             </div>
           </div>
         </aside>
@@ -820,7 +766,7 @@ export function MultiplayerGamePage() {
 
       {match && !result && !finalized && match.status === 'playing' && (
         <div className={`mp-hud-stack${showBoard ? ' mp-hud-stack-open' : ''}`}>
-          <div className="mp-timer" role="timer" aria-label="Time remaining">
+          <div className="mp-timer tg-glass tg-glass--panel" role="timer" aria-label="Time remaining">
             <span>Time left</span>
             <strong className={remainingSeconds !== null && remainingSeconds <= 30 ? 'mp-timer-low' : ''}>
               {remainingSeconds === null ? '—' : clockLabel(remainingSeconds)}
@@ -852,7 +798,7 @@ export function MultiplayerGamePage() {
       )}
 
       {error && (
-        <div className="sp-error sp-glass" role="alert">
+        <div className="sp-error sp-glass tg-glass" role="alert">
           {error}
         </div>
       )}

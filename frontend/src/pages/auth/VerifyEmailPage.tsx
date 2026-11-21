@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { PageNavigation } from '../../components/ui/PageNavigation'
+import { AppHeader } from '../../components/layout/AppHeader'
 import { Button } from '../../components/ui/Button'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as authApi from '../../api/auth'
@@ -36,16 +36,8 @@ export function VerifyEmailPage() {
 
   return (
     <>
-    <PageNavigation />
-    <div
-      className="tg-auth-root"
-      style={{
-        minHeight: 'calc(100dvh - var(--nav-height))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
+    <AppHeader />
+    <main className="tg-auth-root">
       <div className="tg-reset-card">
         <div className="tg-email-form">
           {status === 'verifying' ? (
@@ -77,7 +69,7 @@ export function VerifyEmailPage() {
           )}
         </div>
       </div>
-    </div>
+    </main>
     </>
   )
 }

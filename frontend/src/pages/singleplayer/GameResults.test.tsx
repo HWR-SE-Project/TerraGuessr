@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { FinalResults, RoundResults } from './GameResults'
 import type { StreetSession } from '../../api/singleplayer'
-vi.mock('./GuessMap', () => ({ GuessMap: () => <div>Result map provider double</div> }))
+vi.mock('../../game/GuessMap', () => ({ GuessMap: () => <div>Result map provider double</div> }))
 
 describe('R14 consistent geographic distance display', () => {
   it.each([[0, '0.0 km'], [0.05, '0.1 km'], [123, '123.0 km'], [343.556, '343.6 km']])('displays %s km with one decimal in round results', (km, label) => {

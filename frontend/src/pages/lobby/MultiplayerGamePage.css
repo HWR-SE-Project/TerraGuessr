@@ -1,13 +1,10 @@
+@layer components {
 .mp-guess-actions {
   display: grid;
   gap: 8px;
 }
 
 .mp-guess-actions .sp-guess-button {
-  width: 100%;
-}
-
-.mp-guess-actions .sp-secondary {
   width: 100%;
 }
 
@@ -199,7 +196,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-
 .mp-waiting {
   margin: 0;
   color: var(--color-lime);
@@ -295,7 +291,6 @@
   }
 }
 
-
 .sp-results.sp-final.mp-final-panel {
   display: grid;
   grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
@@ -388,4 +383,5 @@
   .mp-final-panel .sp-round-list summary > span:nth-child(2) {
     display: none;
   }
+}
 }

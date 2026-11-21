@@ -1,26 +1,28 @@
+import { GameMenu } from '../../game/GameMenu'
+import { Button } from '../../components/ui/Button'
+import { Icon } from '../../components/ui/Icon'
 import { useEffect, useState } from 'react'
-import { useNavigationGuard } from '../../components/ui/NavigationGuard'
-import { PageNavigation } from '../../components/ui/PageNavigation'
-import { HomeIcon } from '../home/HomeIcon'
+import { useNavigationGuard } from '../../components/layout/useNavigationGuard'
+import { AppHeader } from '../../components/layout/AppHeader'
 import type { CSSProperties } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { GuessButton } from './GuessButton'
+import { GuessButton } from '../../game/GuessButton'
 import { useGameSession } from './useGameSession'
-import { StreetViewViewer } from './StreetViewViewer'
-import { GuessMap } from './GuessMap'
-import { CityGuessPanel } from '../../components/CityGuessPanel'
-import { GameplayHUD, GameIcon } from './GameplayHUD'
+import { StreetViewViewer } from '../../game/StreetViewViewer'
+import { GuessMap } from '../../game/GuessMap'
+import { CityGuessPanel } from '../../game/CityGuessPanel'
+import { GameplayHUD } from '../../game/GameplayHUD'
 import { Modal } from '../../components/ui/Modal'
-import { GameSettings } from './GameSettings'
-import { GeographicIntelligence } from './GeographicIntelligence'
-import { readSettings } from './settings'
-import { DifficultyPicker } from './DifficultyPicker'
+import { GameSettings } from '../../game/GameSettings'
+import { GeographicIntelligence } from '../../game/GeographicIntelligence'
+import { useGameplaySettings } from '../../game/settings'
+import { DifficultyPicker } from '../../game/DifficultyPicker'
 import { ExitGameDialog } from './ExitGameDialog'
-import { readDifficulty, saveDifficulty } from './difficulty'
+import { readDifficulty, saveDifficulty } from '../../game/difficulty'
 import { Tutorial, markTutorialSeen, shouldShowTutorialForNewGame } from './Tutorial'
 import { RoundResults, FinalResults } from './GameResults'
-import { useCosmicBackgroundMode } from '../../components/cosmic/CosmicContext'
-import './SingleplayerGamePage.css'
+import { useCosmicBackgroundMode } from '../../scene/cosmic/CosmicContext'
+import '../../game/Game.css'
 import './GuessingMapPanel.css'
 import './SingleplayerSetup.css'
 import './SessionSummary.css'
@@ -39,7 +41,7 @@ export function SingleplayerGamePage() {
       setSearchParams(params => { params.delete('tutorial'); return params }, { replace: true })
     }
   }, [searchParams, setSearchParams])
-  const [settings, setSettings] = useState(readSettings)
+  const [settings, setSettings] = useGameplaySettings()
   const [difficulty, setDifficulty] = useState(readDifficulty)
   const [tutorialStep, setTutorialStep] = useState(0)
   const [expanded, setExpanded] = useState(false)
@@ -62,16 +64,6 @@ export function SingleplayerGamePage() {
   const tutorialOpen = dialog === 'tutorial'
   const mapExpanded = !tutorialOpen && !active?.candidates && !collapsed && (expanded || (hovered && settings.hoverExpand))
   const mapCollapsed = !tutorialOpen && collapsed
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        'terraguessr.gameplay.settings',
-        JSON.stringify(settings),
-      )
-    } catch {
-      /* Settings remain available in memory. */
-    }
-  }, [settings])
   useEffect(() => {
     saveDifficulty(difficulty)
   }, [difficulty])
@@ -155,13 +147,13 @@ export function SingleplayerGamePage() {
       data-cosmic={exploring ? 'off' : 'on'}
     >
       <div className="sp-top-shade" />
-      <PageNavigation game={game.inProgress} summary={view === 'session-summary'}
+      <AppHeader game={game.inProgress} summary={view === 'session-summary'}
         onHelp={() => setDialog('tutorial')} onSettings={() => setDialog('settings')}
         onMenu={() => setDialog('menu')} />
 
       {(view === 'setup' || view === 'loading') && (
         <div className="sp-setup-shell">
-          <section className="sp-welcome sp-glass" aria-label="Start expedition">
+          <section className="sp-welcome sp-glass tg-glass" aria-label="Start expedition">
             <div className="sp-setup-intro">
               <h1>
                 <span>The world is out there.</span>
@@ -191,12 +183,12 @@ export function SingleplayerGamePage() {
                     {game.setupIssues.join(' ') ||
                       'The map provider could not be reached. Check the connection and retry.'}
                   </p>
-                  <button
-                    className="sp-secondary tg-control"
+                  <Button variant="secondary"
+                    size="sm"
                     onClick={() => void game.refreshConfig()}
                   >
                     Check again
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <>
@@ -207,13 +199,14 @@ export function SingleplayerGamePage() {
                       disabled={game.busy}
                     />
                   )}
-                  <button
-                    className="sp-primary tg-control tg-control--primary"
+                  <Button
+                    block
+                    size="lg"
                     disabled={game.busy}
                     onClick={startExpedition}
                   >
                     {game.session.id ? 'Continue expedition' : 'Start Exploring'}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -233,7 +226,7 @@ export function SingleplayerGamePage() {
           />
         )}
         {exploring && !game.panoramaReady && !game.panoramaUnavailable && (
-          <div className="sp-loading sp-glass" role="status">
+          <div className="sp-loading sp-glass tg-glass" role="status">
             <span className="sp-spinner" />
             Loading your location…
           </div>
@@ -268,7 +261,7 @@ export function SingleplayerGamePage() {
         />
       )}
       {game.error && (
-        <div className="sp-error sp-glass" role="alert">
+        <div className="sp-error sp-glass tg-glass" role="alert">
           {game.error}
         </div>
       )}
@@ -303,7 +296,7 @@ export function SingleplayerGamePage() {
         </CityGuessPanel>
       ) : exploring && (
         <aside
-          className={`sp-guess-panel sp-world-panel${mapExpanded ? ' sp-guess-expanded' : ''}${mapCollapsed ? ' sp-guess-collapsed' : ''}`}
+          className={`sp-guess-panel sp-world-panel tg-guess-surface tg-glass tg-glass--panel${mapExpanded ? ' sp-guess-expanded' : ''}${mapCollapsed ? ' sp-guess-collapsed' : ''}`}
           style={
             { '--map-opacity': settings.mapOpacity / 100 } as CSSProperties
           }
@@ -343,7 +336,7 @@ export function SingleplayerGamePage() {
                   setCollapsed(false)
                 }}
               >
-                <GameIcon name={mapExpanded ? 'collapse' : 'expand'} />
+                <Icon name={mapExpanded ? 'collapse' : 'expand'} />
               </button>
             )}
           </header>
@@ -411,36 +404,29 @@ export function SingleplayerGamePage() {
         />
       )}
       {dialog === 'menu' && (
-        <Modal title="Menu" onClose={() => setDialog(null)}>
-          <div className="sp-menu-actions">
-            <button className="sp-primary tg-control tg-control--primary" onClick={() => setDialog(null)}>
-              Back to game <span className="sp-primary-arrow">→</span>
-            </button>
-            <Link className="sp-secondary tg-control" to="/multiplayer" onClick={() => setDialog(null)}>
-              <HomeIcon name="users" />
+        <GameMenu onClose={() => setDialog(null)} onHelp={() => setDialog('tutorial')} onSettings={() => setDialog('settings')}>
+            <Link className="tg-button tg-button--secondary tg-control tg-control--secondary" to="/multiplayer" onClick={() => setDialog(null)}>
+              <Icon name="users" />
               Multiplayer
             </Link>
-            <button
-              className="sp-secondary tg-control"
+            <Button variant="secondary"
               disabled={game.busy || !game.available}
               onClick={() => {
                 if (game.inProgress) setDialog('restart')
                 else restartExpedition()
               }}
             >
-              <GameIcon name="restart" />
+              <Icon name="restart" />
               Restart game
-            </button>
-            <button
-              className={`sp-secondary tg-control${game.inProgress ? ' tg-control--danger' : ''}`}
+            </Button>
+            <Button variant={game.inProgress ? 'danger' : 'secondary'}
               disabled={game.busy}
               onClick={leave}
             >
-              <GameIcon name="exit" />
+              <Icon name="exit" />
               {game.inProgress ? 'Exit Game' : 'Return Home'}
-            </button>
-          </div>
-        </Modal>
+            </Button>
+        </GameMenu>
       )}
       {dialog === 'end' && (
         <ExitGameDialog
@@ -459,27 +445,25 @@ export function SingleplayerGamePage() {
       )}
       {dialog === 'restart' && (
         <Modal title="Start a new expedition?" onClose={() => setDialog(null)}>
-          <p className="sp-muted">
+          <p>
             Your current expedition will be replaced. Start a new endless
             session?
           </p>
-          <div className="sp-dialog-actions">
-            <button
-              className="sp-secondary tg-control"
+          <div className="tg-dialog-actions">
+            <Button variant="secondary"
               disabled={game.busy}
               onClick={() => setDialog(null)}
             >
               Keep exploring
-            </button>
-            <button
-              className="sp-primary tg-control tg-control--primary"
+            </Button>
+            <Button
               disabled={game.busy || game.exitPending !== null}
               onClick={async () => {
                 if (await game.endGame()) restartExpedition()
               }}
             >
               Restart game
-            </button>
+            </Button>
           </div>
         </Modal>
       )}

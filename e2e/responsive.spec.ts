@@ -66,7 +66,7 @@ async function audit(page: Page) {
 }
 
 async function reachable(page: Page, selector: string) {
-  const element = page.locator(selector).first()
+  const element = page.locator(selector).filter({ visible: true }).first()
   await element.scrollIntoViewIfNeeded()
   await expect(element).toBeInViewport()
   expect(await element.evaluate(el => {
@@ -105,7 +105,11 @@ async function home(page: Page, screenshot?: string, navigate = true) {
   await expect(page.getByRole('dialog')).toBeVisible()
   await audit(page)
   await page.keyboard.press('Escape')
-  for (const selector of ['.th-tutorial-entry', '.tg-mode-card:nth-child(1)', '.tg-mode-card:nth-child(2)']) await reachable(page, selector)
+  const mobileMenu = page.getByRole('button', { name: 'Open navigation', exact: true })
+  const compact = await mobileMenu.isVisible()
+  if (compact) await mobileMenu.click()
+  for (const selector of ['.th-tutorial-entry', '.th-navigation .th-nav-link', '.th-multiplayer-trigger']) await reachable(page, selector)
+  if (compact) await page.keyboard.press('Escape')
   await page.evaluate(() => scrollTo(0,0))
   if (screenshot) await capture(page, `${output}/home-${screenshot}.png`)
 }
@@ -124,10 +128,11 @@ async function routes(page: Page, screenshot?: string) {
   if (screenshot) await capture(page, `${output}/setup-${screenshot}.png`)
   await page.goto('/game/singleplayer?tutorial=1')
   const dialog=page.getByRole('dialog',{name:'How to play / Tutorial'})
-  for (const [i,subject] of ['Weather','Location','Confirmation','Distance','Points'].entries()) {
-    await dialog.getByRole('button',{name:`Step ${i+1}: ${subject}`}).click()
+  for (const [i, heading] of ['Read the weather', 'Pick your location', 'Lock in your guess', 'Measuring distance', 'Score by distance'].entries()) {
+    await expect(dialog.getByRole('heading', { name: heading, exact: true })).toBeVisible()
     await reachable(page, '.tt-navigation button:last-child')
     expect(await dialog.evaluate(el=>el.scrollWidth <= el.clientWidth+1)).toBe(true)
+    if (i < 4) await dialog.getByRole('button', { name: 'Next', exact: false }).click()
   }
   if (screenshot) await capture(page, `${output}/tutorial-${screenshot}.png`)
   await page.keyboard.press('Escape')

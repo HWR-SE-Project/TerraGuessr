@@ -1,3 +1,4 @@
+@layer components {
 .tg-notice {
   display: flex;
   align-items: center;
@@ -19,4 +20,16 @@
   border-color: var(--color-lime-40);
   background: color-mix(in srgb, var(--color-lime) 10%, var(--color-surface));
   color: var(--color-lime);
+}
+.tg-notice--warning {
+  margin: 6px 16px 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: #ffc6281f;
+  border-color: #ffc62859;
+  color: #ffc628;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+}
 }

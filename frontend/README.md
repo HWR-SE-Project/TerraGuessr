@@ -4,19 +4,9 @@ React 19 + TypeScript + Vite SPA, routed with `react-router-dom`. See the
 repo root `README.md` for the overall project, environment variables, and
 how to run the backend this talks to.
 
-## Structure
-
-```
-src/api/          Typed REST client functions (one file per backend module)
-src/components/   Shared UI primitives, the cosmic background, the map picker
-src/hooks/        Reusable hooks (auth form state, etc.)
-src/pages/        One directory per route (auth, home, lobby,
-                   settings, singleplayer)
-src/state/        React context providers (session)
-src/assets/       Per-page images/SVGs/GLB models
-```
-
-Routes are declared in `src/App.tsx`; every page below `/` is lazy-loaded.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for module ownership, routing, UI,
+state, API access and 3D rendering. The refactor evidence and recovery details
+are in [refactor-report/REPORT.md](refactor-report/REPORT.md).
 
 ## Commands
 

@@ -49,7 +49,6 @@ test.describe('authentication', () => {
 
   test('registering with a too-short password is rejected before it reaches the server', async ({ page }) => {
     await page.goto('/auth');
-    await page.getByRole('button', { name: 'Sign up' }).first().click();
     await page.getByRole('button', { name: 'Continue with Email' }).click();
     await page.getByLabel('Display name').fill('Short Password');
     await page.getByLabel('Email').fill(`short-${Date.now()}@example.test`);

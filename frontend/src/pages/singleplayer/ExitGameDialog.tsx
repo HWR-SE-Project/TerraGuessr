@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 
 export interface ExitDialogError {
@@ -31,7 +32,7 @@ export function ExitGameDialog({
   const busy = pending !== null
   return (
     <Modal title="End your adventure?" onClose={onContinue} closeDisabled={busy}>
-      <p className="sp-muted">
+      <p>
         Your current game will end. You won&apos;t be able to continue this
         session afterward.
       </p>
@@ -39,28 +40,26 @@ export function ExitGameDialog({
         Round {round} · {score.toLocaleString('en-US')} pts
       </p>
       {error && (
-        <p className="sp-dialog-error" role="alert">
+        <p className="tg-dialog-error" role="alert">
           {error.message}
         </p>
       )}
-      <div className="sp-menu-actions">
-        <button
+      <div className="tg-dialog-menu">
+        <Button
           type="button"
-          className="sp-primary tg-control tg-control--primary"
           onClick={onContinue}
           disabled={busy}
           autoFocus
         >
           Keep Playing
-        </button>
-        <button
+        </Button>
+        <Button variant="danger"
           type="button"
-          className="sp-secondary tg-control tg-control--danger"
           onClick={onEnd}
           disabled={busy || waiting}
         >
           {pending === 'end' ? 'Ending…' : 'End Game'}
-        </button>
+        </Button>
       </div>
     </Modal>
   )

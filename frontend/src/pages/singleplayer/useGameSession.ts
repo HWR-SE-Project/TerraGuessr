@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import { singleplayerApi } from '../../api/singleplayer'
 import type {
-  Difficulty,
   StreetCredentials,
   StreetResult,
   StreetSession,
 } from '../../api/singleplayer'
-import type { LatLon } from '../../api/types'
-import { browserMapsKey } from './googleMaps'
-import { DEFAULT_DIFFICULTY } from './difficulty'
+import type { Difficulty, LatLon } from '../../api/types'
+import { browserMapsKey } from '../../game/googleMaps'
+import { DEFAULT_DIFFICULTY } from '../../game/difficulty'
 
 const emptySession = (): StreetSession => ({
   id: '',
@@ -370,17 +369,6 @@ export function useGameSession(autoStart = false) {
       : session.activeRound ? 'playing'
         : busy ? 'loading' : 'setup'
   const inProgress = Boolean((session.id || busy) && !showFinal)
-  useEffect(() => {
-    if (!inProgress) return
-    // Intentionally no custom message: modern browsers show their own
-    // generic prompt and ignore event.returnValue text (R13).
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [inProgress])
   const phase = error
     ? 'error'
     : operation === 'guess'

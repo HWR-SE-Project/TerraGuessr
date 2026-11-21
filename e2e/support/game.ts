@@ -16,15 +16,37 @@ export async function registerAndLogin(page: Page, displayName: string): Promise
   const password = 'correct-horse-battery-staple';
 
   await page.goto('/auth');
-  if ((page.viewportSize()?.width ?? 1280) <= 1200) {
-    await page.getByRole('button', { name: 'Open navigation' }).click();
-  }
-  await page.getByRole('button', { name: 'Sign up' }).first().click();
   await page.getByRole('button', { name: 'Continue with Email' }).click();
   await page.getByLabel('Display name').fill(displayName);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: false }).fill(password);
+  const registration = page.waitForResponse(response => response.url().endsWith('/api/auth/register') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Create account' }).click();
+  const response = await registration;
+  expect(response.ok()).toBe(true);
+  if ((await response.json()).verificationRequired) {
+    const mailpit = process.env.PLAYWRIGHT_MAILPIT_URL;
+    if (!mailpit) throw new Error('This backend requires email verification. Set PLAYWRIGHT_MAILPIT_URL to the isolated test mailbox.');
+    let messageId: string | undefined;
+    await expect.poll(async () => {
+      const search = await page.request.get(`${mailpit}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
+      expect(search.ok()).toBe(true);
+      const messages = (await search.json()).messages;
+      messageId = messages[0]?.ID;
+      return messages.length;
+    }).toBeGreaterThan(0);
+    const message = await (await page.request.get(`${mailpit}/api/v1/message/${messageId}`)).json();
+    const link = message.Text.match(/https?:\/\/[^\s<>"']+\/verify-email\?token=[^\s<>"']+/)?.[0];
+    expect(link).toBeTruthy();
+    await page.goto(`/verify-email${new URL(link).search}`);
+    await expect(page.getByRole('heading', { name: 'Email verified', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Go to sign in', exact: true }).click();
+    await page.getByRole('button', { name: 'Log in', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue with Email' }).click();
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Password', { exact: false }).fill(password);
+    await page.locator('form').getByRole('button', { name: 'Log in', exact: true }).click();
+  }
   await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible({ timeout: 15000 });
 
   const session = await page.request.get('/api/auth/session');

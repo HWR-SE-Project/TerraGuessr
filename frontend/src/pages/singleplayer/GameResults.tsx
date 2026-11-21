@@ -1,10 +1,9 @@
 import { Button } from '../../components/ui/Button'
 import type { StreetResult, StreetSession } from '../../api/singleplayer'
-import { GuessMap } from './GuessMap'
-import { DIFFICULTY_LEVELS } from './difficulty'
+import { GuessMap } from '../../game/GuessMap'
+import { DIFFICULTY_LEVELS } from '../../game/difficulty'
 import { coordinates, distanceLabel } from '../../lib/format'
-import { ScoreBreakdown } from '../../components/ScoreBreakdown'
-import { ResultCoords } from '../../components/ResultCoords'
+import { RoundResultDetails } from '../../game/RoundResultDetails'
 function Legend() {
   return (
     <div className="sp-map-legend">
@@ -36,27 +35,10 @@ export function RoundResults({
       </div>
       <div className="sp-result-body">
         <span className="sp-eyebrow">ROUND {result.number} COMPLETE</span>
-        <h1>
-          {result.score >= 4500
-            ? 'Incredible instinct.'
-            : result.score >= 2500
-              ? 'Nicely explored.'
-              : 'Every guess is a discovery.'}
-        </h1>
-        <p data-tutorial-distance>
-          {result.guess
-            ? <>You were <strong>{distanceLabel(result.distanceKm)}</strong> from the correct location.</>
-            : 'You ran out of time before placing a guess.'}
-        </p>
-        <ScoreBreakdown
-          score={result.score}
-          extraDataPointsSpent={result.extraDataPointsSpent}
-          tutorialAnchor
-        />
-        <ResultCoords actual={result.actual} guess={result.guess} />
+        <RoundResultDetails result={result} tutorialAnchor />
       </div>
       <footer className="sp-result-actions">
-        <Button className="sp-primary tg-control tg-control--primary" disabled={busy} onClick={onNext}>
+        <Button disabled={busy} onClick={onNext}>
           {busy ? 'Loading next location…' : 'Next round'}{' '}
           <span aria-hidden="true">→</span>
         </Button>
@@ -81,7 +63,7 @@ export function FinalResults({
   const bestRound = session.results.reduce<StreetResult | null>((best, result) =>
     !best || result.score > best.score ? result : best, null)
   return (
-    <section className={`sp-session-summary sp-glass${rounds === 0 ? ' sp-session-empty' : ''}`} aria-label="Final results">
+    <section className={`sp-session-summary sp-glass tg-glass${rounds === 0 ? ' sp-session-empty' : ''}`} aria-label="Final results">
       <div className="sp-summary-intro">
         <span className="sp-summary-symbol" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="16" cy="16" r="12" /><path d="m20 12-2 6-6 2 2-6 6-2Z" /><path d="M16 1v3M16 28v3M1 16h3M28 16h3" /></svg></span>
         <h1>{rounds ? 'A world of discoveries.' : 'Adventure ended'}</h1>

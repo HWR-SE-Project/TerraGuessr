@@ -1,5 +1,5 @@
+@layer components {
 .th-home {
-  --lime: var(--color-lime);
   position: relative;
   isolation: isolate;
   min-height: 100dvh;
@@ -14,30 +14,15 @@
 .th-home > .tg-page-nav {
   flex: none;
 }
-.th-icon {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-}
-.th-home button,
-.th-home a,
-.th-header a,
-.th-header button {
+.th-home button, .th-home a {
   transition:
     background var(--duration-fast),
     border-color var(--duration-fast),
     transform var(--duration-fast);
 }
 .th-hero {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: min-content;
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(0.5rem, 2.2vh, 2rem);
 }
 .th-hero-copy {
   position: relative;
@@ -66,14 +51,11 @@
   font-weight: 400;
 }
 .th-avatar-display {
-  --avatar-height: clamp(9rem, 24vh, 22rem);
   position: relative;
-  flex: none;
   width: min(17rem, 100%);
   /* Clearance below the feet so the rotating planet reads as a whole
      miniature world instead of being sliced by the actions below it. */
   margin-bottom: clamp(4.5rem, 17vh, 11rem);
-  z-index: 2;
 }
 .th-character-slot {
   width: min(100%, calc(var(--avatar-height) * 0.67));
@@ -115,8 +97,7 @@
   font-size: 0.6875rem;
   white-space: nowrap;
 }
-.th-edit-avatar .th-icon { width: 12px; height: 12px; }
-.th-scene3d,
+.th-edit-avatar .tg-icon { width: 12px; height: 12px; }
 .th-earth {
   position: absolute;
   inset: 0;
@@ -134,7 +115,6 @@
   height: 100%;
   object-fit: cover;
 }
-.th-scene3d::after,
 .th-earth::after {
   content: '';
   position: absolute;
@@ -177,12 +157,6 @@
 .th-skip:focus {
   top: 14px;
 }
-/* Box model, glass material, header, and body copy now come from the shared
-   .sp-dialog/.th-notice Modal treatment (design-system/controls.css +
-   SingleplayerGamePage.css). This file only owns the action button margin. */
-.th-notice-action {
-  margin-top: 8px;
-}
 .th-toast {
   position: fixed;
   bottom: 22px;
@@ -190,9 +164,6 @@
   translate: -50% 0;
   z-index: 30;
   max-width: calc(100vw - 32px);
-}
-@media (max-width: 68.75rem) {
-  .th-game-modes { width: calc(100% - 2.5rem); }
 }
 @media (max-width: 37.5rem) {
   .th-hero h1 { max-width: 21.25rem; margin: 0.5rem auto; font-size: clamp(2.25rem, 9.5vw, 3.4375rem); }
@@ -207,11 +178,19 @@
 /* Only the decorative orbit artwork is cropped; the screen can grow when
    readable content needs more room (mobile, short windows and browser zoom). */
 .th-orbits { position: absolute; inset: 0; overflow: clip; pointer-events: none; z-index: -1; }
-.th-hero { padding-block: clamp(1rem, 3dvh, 2rem); }
-.th-game-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.th-avatar-display { --avatar-height: clamp(11rem, 26dvh, 22rem); }
+.th-hero {
+  gap: clamp(0.5rem, 2.2vh, 2rem);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  min-height: min-content;
+  flex: 1 1 auto;
+  position: relative; padding-block: clamp(1rem, 3dvh, 2rem); }
+.th-avatar-display {
+  z-index: 2;
+  flex: none; --avatar-height: clamp(11rem, 26dvh, 22rem); }
 @media (max-width: 45rem) {
-  .th-game-modes { grid-template-columns: minmax(0, 1fr); width: min(28rem, calc(100% - 2.5rem)); }
   .th-avatar-display { --avatar-height: clamp(11rem, 24dvh, 16rem); margin-bottom: clamp(9rem, 22dvh, 12rem); }
   .th-hero { flex: 1 0 auto; }
+}
 }

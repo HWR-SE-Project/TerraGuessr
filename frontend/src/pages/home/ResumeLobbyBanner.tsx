@@ -1,41 +1,16 @@
-import { useEffect, useState } from 'react'
+import { Icon } from '../../components/ui/Icon'
 import { Link } from 'react-router-dom'
-import * as lobbiesApi from '../../api/lobbies'
-import type { LobbyDTO } from '../../api/types'
-import { HomeIcon } from './HomeIcon'
+import { useCurrentLobby } from '../../game/useCurrentLobby'
 
 export function ResumeLobbyBanner() {
-  const [lobby, setLobby] = useState<LobbyDTO | null>(null)
-  const [code, setCode] = useState<string | null>(null)
-
-  useEffect(() => {
-    const current = lobbiesApi.getCurrentLobbyCode()
-    const token = current ? lobbiesApi.getLobbyToken(current) : null
-    if (!current || !token) return
-    let cancelled = false
-    lobbiesApi
-      .getLobby(current, token)
-      .then((value) => {
-        if (cancelled) return
-        setCode(current)
-        setLobby(value)
-      })
-      .catch(() => {
-        if (cancelled) return
-        lobbiesApi.clearLobbyToken(current)
-        lobbiesApi.clearCurrentLobbyCode()
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (!lobby || !code) return null
+  const lobby = useCurrentLobby()
+  if (!lobby) return null
+  const code = lobby.code
 
   return (
     <aside className="th-resume" aria-label="Return to lobby">
       <span className="th-resume-icon" aria-hidden="true">
-        <HomeIcon name="users" />
+        <Icon name="users" />
       </span>
       <span className="th-resume-copy">
         <strong>Your multiplayer lobby is still open</strong>
@@ -52,7 +27,7 @@ export function ResumeLobbyBanner() {
         to={`/lobby/${code}`}
         className="th-resume-action tg-control tg-control--primary"
       >
-        Return to lobby <HomeIcon name="arrow" />
+        Return to lobby <Icon name="arrow" />
       </Link>
     </aside>
   )

@@ -1,7 +1,8 @@
+import { AppHeader } from './components/layout/AppHeader'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { HomePage } from './pages/home/HomePage'
 import { lazy, Suspense, useEffect } from 'react'
-import { CosmicBackground } from './components/cosmic/CosmicBackground'
+import { CosmicBackground } from './scene/cosmic/CosmicBackground'
 
 const AuthPage = lazy(() =>
   import('./pages/auth/AuthPage').then((m) => ({ default: m.AuthPage })),
@@ -63,9 +64,7 @@ function App() {
     <CosmicBackground>
       <Suspense
         fallback={
-          <div className="tg-route-loading" role="status">
-            Finding your next discovery…
-          </div>
+          <><AppHeader /><div className="tg-route-loading" role="status">Finding your next discovery…</div></>
         }
       >
         <Routes>

@@ -171,7 +171,16 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
       await page.getByRole('button', { name: 'Guess', exact: true }).click()
       const scored = await response
       expect(scored.ok()).toBe(true)
-      const result = await scored.json()
+      let outcome = await scored.json()
+      if (!outcome.finalized) {
+        const finalResponse = page.waitForResponse(response => response.url().endsWith('/guess') && response.request().method() === 'POST')
+        await page.getByRole('button', { name: 'Final submit', exact: true }).click()
+        const final = await finalResponse
+        expect(final.ok()).toBe(true)
+        outcome = await final.json()
+      }
+      expect(outcome.finalized).toBe(true)
+      const result = outcome.result
       expect(result.number).toBe(number)
       const roundedKm = Math.round(result.distanceKm * 10) / 10
       const expectedScore =

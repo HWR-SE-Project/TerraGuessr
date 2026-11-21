@@ -85,7 +85,7 @@ test.describe('Street View singleplayer without credentials', () => {
         page.getByRole('link', { name: 'TerraGuessr home', exact: true }),
       ).toBeInViewport()
       await expect(
-        page.getByRole('link', { name: 'Return Home', exact: true }),
+        page.getByRole('link', { name: 'TerraGuessr home', exact: true }),
       ).toBeInViewport()
       const start = page.locator('.sp-welcome .sp-primary, .sp-welcome .sp-secondary').first()
       await start.scrollIntoViewIfNeeded()
