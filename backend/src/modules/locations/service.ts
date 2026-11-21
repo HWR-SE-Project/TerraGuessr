@@ -31,8 +31,7 @@ const POOL_SELECT = {
  * DB-facing query layer for the pre-baked location pool (B-04).
  *
  * This class performs no sampling or geometry work: it only reads persisted
- * `Location`/`Round` rows and returns them in the shape the selection domain
- * expects.
+ * `Location` rows.
  */
 export class LocationsService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -40,27 +39,13 @@ export class LocationsService {
   /**
    * All pool locations, optionally restricted to a single region.
    *
-   * Returns `{ id, lat, lon, region }` rows, matching the `PoolItem` contract
-   * used by `selectRound` (ADR-0008).
+   * Returns `{ id, lat, lon, region }` rows.
    */
   async listPool(filter: ListPoolFilter = {}): Promise<PoolLocation[]> {
     return this.prisma.location.findMany({
       where: filter.region ? { region: filter.region } : undefined,
       select: POOL_SELECT,
     });
-  }
-
-  /**
-   * The location ids already used by the rounds of `gameId`, with duplicates
-   * removed (R02: a location may not be selected twice in the same game).
-   */
-  async usedLocationIds(gameId: string): Promise<string[]> {
-    const rounds = await this.prisma.round.findMany({
-      where: { gameId },
-      select: { locationId: true },
-    });
-
-    return [...new Set(rounds.map((round) => round.locationId))];
   }
 
   /** A single location by id, or `null` when it does not exist. */

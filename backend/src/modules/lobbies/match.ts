@@ -4,6 +4,7 @@ import type {
   LobbyMember,
   LobbyRound,
   LobbyRoundAttempt,
+  LobbyRoundMemberState,
   LobbyRoundResult,
   PrismaClient,
 } from '@prisma/client';
@@ -14,8 +15,13 @@ import {
   LOBBY_TTL_MS,
 } from '../../config/constants.js';
 import { haversineKm } from '../../domain/distance.js';
-import { lobbyRulesFor } from '../../domain/lobbyRules.js';
-import type { LobbyDifficulty } from '../../domain/lobbyRules.js';
+import { gameRulesFor } from '../../domain/gameRules.js';
+import type { GameRules } from '../../domain/gameRules.js';
+import {
+  applyPointPenalty,
+  applyTimePenalty,
+  isDeadlinePassed,
+} from '../../domain/roundFlow.js';
 import { scoreForDistance } from '../../domain/scoring.js';
 import { hashPlayerToken } from '../../plugins/auth.js';
 import type {
@@ -52,6 +58,7 @@ export class LobbyUnavailableError extends Error {
 type MatchRound = LobbyRound & {
   attempts: LobbyRoundAttempt[];
   results: LobbyRoundResult[];
+  memberStates: LobbyRoundMemberState[];
 };
 
 type MatchLobby = Lobby & {
@@ -59,21 +66,56 @@ type MatchLobby = Lobby & {
   rounds: MatchRound[];
 };
 
-function isDeadlinePassed(round: MatchRound, now: Date): boolean {
-  return round.endsAt !== null && round.endsAt.getTime() <= now.getTime();
-}
-
 function roundCandidates(round: MatchRound): CandidateOption[] | null {
   return round.candidatesJson as unknown as CandidateOption[] | null;
 }
 
-function publicRound(round: MatchRound) {
+/** Per-player extra-data state for this round (R05/R16). */
+function memberState(
+  round: MatchRound,
+  memberId: string,
+): LobbyRoundMemberState | null {
+  return round.memberStates.find((state) => state.memberId === memberId) ?? null;
+}
+
+/** The player's own deadline, shortened only by their hard-mode unlock. */
+function roundDeadline(round: MatchRound, member: LobbyMember): Date | null {
+  return memberState(round, member.id)?.endsAt ?? round.endsAt;
+}
+
+function extraDataAccess(
+  round: MatchRound,
+  member: LobbyMember,
+  rules: GameRules,
+) {
+  const state = memberState(round, member.id);
+  const unlocked =
+    rules.extraData.mode === 'free' || state?.extraDataUnlockedAt != null;
+  return {
+    mode:
+      rules.extraData.mode === 'free'
+        ? ('immediate' as const)
+        : rules.extraData.mode,
+    cost: rules.extraData.mode === 'free' ? null : rules.extraData.cost,
+    availableAt: null,
+    unlocked,
+    pointsSpent: state?.extraDataPointsSpent ?? 0,
+  };
+}
+
+function publicRound(round: MatchRound, rules: GameRules, member: LobbyMember) {
   const candidates = roundCandidates(round);
   return {
     id: round.id,
     number: round.number,
     panoId: round.panoId,
     ...(candidates && candidates.length ? { candidates } : {}),
+    endsAt: round.endsAt?.toISOString() ?? null,
+    attemptsUsed: round.attempts.filter(
+      (attempt) => attempt.memberId === member.id,
+    ).length,
+    attemptsTotal: rules.attemptsPerRound,
+    extraData: extraDataAccess(round, member, rules),
   };
 }
 
@@ -135,6 +177,7 @@ function resultView(
         : { lat: result.guessLat, lon: result.guessLon },
     actual: { lat: round.targetLat, lon: round.targetLon },
     attemptsUsed: result.attemptsUsed,
+    extraDataPointsSpent: result.extraDataPointsSpent,
     guesses: participantGuesses(lobby, round, viewer),
   };
 }
@@ -149,7 +192,7 @@ async function loadMatchLobby(
       members: { orderBy: { joinedAt: 'asc' } },
       rounds: {
         orderBy: { number: 'asc' },
-        include: { attempts: true, results: true },
+        include: { attempts: true, results: true, memberStates: true },
       },
     },
   });
@@ -205,7 +248,15 @@ async function finalizeMemberRound(
         : null;
   const actual = { lat: round.targetLat, lon: round.targetLon };
   const distanceKm = guess === null ? null : haversineKm(guess, actual);
-  const score = distanceKm === null ? 0 : scoreForDistance(distanceKm);
+  const rawScore = distanceKm === null ? 0 : scoreForDistance(distanceKm);
+  // Read the latest per-player state so a concurrent unlock is still charged.
+  const state = await db.lobbyRoundMemberState.findUnique({
+    where: {
+      roundId_memberId: { roundId: round.id, memberId: member.id },
+    },
+  });
+  const extraDataPointsSpent = state?.extraDataPointsSpent ?? 0;
+  const score = applyPointPenalty(rawScore, extraDataPointsSpent);
 
   return db.lobbyRoundResult.upsert({
     where: {
@@ -219,6 +270,7 @@ async function finalizeMemberRound(
       distanceKm,
       score,
       attemptsUsed: attempts.length,
+      extraDataPointsSpent,
     },
     update: {},
   });
@@ -237,23 +289,25 @@ async function ensureLobbyProgress(
   if (!round) return;
 
   const completed = new Set(round.results.map((result) => result.memberId));
-  const allCompleted = lobby.members.every((member) =>
-    completed.has(member.id),
+  // Each player has their own deadline (a hard-mode unlock shortens only the
+  // unlocking player's timer), so finalize anyone whose own time ran out even
+  // if the round itself stays open for the others.
+  const stillPlaying = lobby.members.filter(
+    (member) =>
+      !completed.has(member.id) &&
+      !isDeadlinePassed(roundDeadline(round, member), now),
   );
-  const deadlinePassed = isDeadlinePassed(round, now);
-  if (!allCompleted && !deadlinePassed) return;
-
-  if (deadlinePassed) {
-    for (const member of lobby.members) {
-      if (completed.has(member.id)) continue;
-      await finalizeMemberRound(
-        db,
-        round,
-        member,
-        round.attempts.filter((attempt) => attempt.memberId === member.id),
-      );
-    }
+  for (const member of lobby.members) {
+    if (completed.has(member.id)) continue;
+    if (!isDeadlinePassed(roundDeadline(round, member), now)) continue;
+    await finalizeMemberRound(
+      db,
+      round,
+      member,
+      round.attempts.filter((attempt) => attempt.memberId === member.id),
+    );
   }
+  if (stillPlaying.length > 0) return;
 
   const nextRound = lobby.rounds.find(
     (candidate) => candidate.number === round.number + 1,
@@ -272,7 +326,7 @@ async function ensureLobbyProgress(
   });
   if (!claimed.count || !nextRound) return;
 
-  const rules = lobbyRulesFor(lobby.difficulty as LobbyDifficulty);
+  const rules = gameRulesFor(lobby.difficulty);
   await db.lobbyRound.update({
     where: { id: nextRound.id },
     data: {
@@ -342,7 +396,7 @@ async function beginLobbyMatch(
   db: PrismaClient,
 ): Promise<boolean> {
   const now = new Date();
-  const rules = lobbyRulesFor(lobby.difficulty as LobbyDifficulty);
+  const rules = gameRulesFor(lobby.difficulty);
   let claimed = false;
 
   await db.$transaction(async (tx) => {
@@ -569,7 +623,7 @@ function buildMatchView(
   lobby: MatchLobby,
   member: LobbyMember,
 ): LobbyMatchView {
-  const rules = lobbyRulesFor(lobby.difficulty as LobbyDifficulty);
+  const rules = gameRulesFor(lobby.difficulty);
   const currentRound =
     lobby.status === 'playing'
       ? (lobby.rounds.find(
@@ -639,8 +693,11 @@ function buildMatchView(
     difficulty: lobby.difficulty,
     rules,
     startedAt: lobby.startedAt?.toISOString() ?? null,
-    endsAt: currentRound?.endsAt?.toISOString() ?? null,
-    round: currentRound ? publicRound(currentRound) : null,
+    // The caller's own deadline (hard-mode unlock shortens only their timer).
+    endsAt: currentRound
+      ? (roundDeadline(currentRound, member)?.toISOString() ?? null)
+      : null,
+    round: currentRound ? publicRound(currentRound, rules, member) : null,
     roundComplete:
       currentRound !== null
         ? pendingPlayers.length === 0
@@ -801,7 +858,7 @@ export async function saveLobbySelection(
   const round = lobby.rounds.find(
     (candidate) => candidate.number === lobby.currentRound,
   );
-  if (!round || isDeadlinePassed(round, new Date())) {
+  if (!round || isDeadlinePassed(roundDeadline(round, member), new Date())) {
     throw new LobbyConflictError('This round is no longer accepting guesses');
   }
   const completed = round.results.some(
@@ -815,6 +872,73 @@ export async function saveLobbySelection(
     where: { id: member.id },
     data: { selectionLat: selection.lat, selectionLon: selection.lon },
   });
+}
+
+export async function unlockLobbyExtraData(
+  code: string,
+  roundNumber: number,
+  rawToken: string,
+  db: PrismaClient = prisma,
+  provider?: PanoramaProvider,
+  intelligence?: IntelligenceLookup,
+): Promise<LobbyMatchResponse> {
+  const lobby = await loadMatchLobby(code, db);
+  const member = memberForToken(lobby, rawToken);
+  if (lobby.status !== 'playing') {
+    throw new LobbyConflictError('The match is not in progress');
+  }
+  const round = lobby.rounds.find(
+    (candidate) => candidate.number === roundNumber,
+  );
+  if (!round || round.number !== lobby.currentRound) {
+    throw new LobbyConflictError('This round is not the active round');
+  }
+  const now = new Date();
+  if (isDeadlinePassed(roundDeadline(round, member), now)) {
+    await ensureLobbyProgress(lobby, db, now);
+    throw new LobbyConflictError('The time limit for this round has expired');
+  }
+  const completed = round.results.some(
+    (result) => result.memberId === member.id,
+  );
+  if (completed) {
+    throw new LobbyConflictError('Your guess for this round is already final');
+  }
+
+  const rules = gameRulesFor(lobby.difficulty);
+  const state = memberState(round, member.id);
+  // R05/R16: only this player unlocks and pays; free mode needs no state.
+  if (rules.extraData.mode !== 'free' && state?.extraDataUnlockedAt == null) {
+    const deadline =
+      roundDeadline(round, member) ??
+      new Date(now.getTime() + rules.timeLimitSeconds * 1000);
+    const data =
+      rules.extraData.mode === 'points'
+        ? {
+            extraDataUnlockedAt: now,
+            extraDataPointsSpent: rules.extraData.cost,
+          }
+        : {
+            extraDataUnlockedAt: now,
+            endsAt: applyTimePenalty(deadline, rules.extraData.cost, now),
+          };
+    try {
+      await db.lobbyRoundMemberState.create({
+        data: { roundId: round.id, memberId: member.id, ...data },
+      });
+    } catch (error) {
+      // A concurrent unlock already created the row; first unlock wins.
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== 'P2002'
+      )
+        throw error;
+    }
+  }
+
+  const refreshed = await loadMatchLobby(code, db);
+  await ensureLobbyProgress(refreshed, db, now);
+  return matchResponse(code, rawToken, db, provider, intelligence);
 }
 
 export async function submitLobbyGuess(
@@ -835,7 +959,7 @@ export async function submitLobbyGuess(
   if (!round || round.number !== lobby.currentRound) {
     throw new LobbyConflictError('This round is not the active round');
   }
-  if (isDeadlinePassed(round, new Date())) {
+  if (isDeadlinePassed(roundDeadline(round, member), new Date())) {
     await ensureLobbyProgress(lobby, db, new Date());
     throw new LobbyConflictError('The time limit for this round has expired');
   }
@@ -846,7 +970,7 @@ export async function submitLobbyGuess(
     throw new LobbyConflictError('Your guess for this round is already final');
   }
 
-  const rules = lobbyRulesFor(lobby.difficulty as LobbyDifficulty);
+  const rules = gameRulesFor(lobby.difficulty);
   const attempts = round.attempts.filter(
     (attempt) => attempt.memberId === member.id,
   );
@@ -934,7 +1058,7 @@ export async function finishLobbyRound(
   if (!round || round.number !== lobby.currentRound) {
     throw new LobbyConflictError('This round is not the active round');
   }
-  if (isDeadlinePassed(round, new Date())) {
+  if (isDeadlinePassed(roundDeadline(round, member), new Date())) {
     await ensureLobbyProgress(lobby, db, new Date());
     throw new LobbyConflictError('The time limit for this round has expired');
   }

@@ -16,6 +16,14 @@ import {
 import type { LatLon } from '../../domain/distance.js';
 import { haversineKm } from '../../domain/distance.js';
 import { scoreForDistance } from '../../domain/scoring.js';
+import { gameRulesFor } from '../../domain/gameRules.js';
+import type { GameRules } from '../../domain/gameRules.js';
+import {
+  applyPointPenalty,
+  applyTimePenalty,
+  decideAttempt,
+  isDeadlinePassed,
+} from '../../domain/roundFlow.js';
 import {
   googlePanoramaProvider,
   googlePanoramaLocator,
@@ -60,19 +68,41 @@ const Candidate = Type.Object({
   lat: Type.Number(),
   lon: Type.Number(),
 });
+const ExtraDataAccess = Type.Object({
+  mode: Type.Union([
+    Type.Literal('immediate'),
+    Type.Literal('points'),
+    Type.Literal('time'),
+  ]),
+  cost: Type.Union([Type.Integer(), Type.Null()]),
+  availableAt: Type.Union([Type.String(), Type.Null()]),
+  unlocked: Type.Boolean(),
+  pointsSpent: Type.Integer(),
+});
 const PublicRound = Type.Object({
   id: Type.String(),
   number: Type.Integer(),
   panoId: Type.String(),
   candidates: Type.Optional(Type.Array(Candidate)),
+  startedAt: Type.Union([Type.String(), Type.Null()]),
+  endsAt: Type.Union([Type.String(), Type.Null()]),
+  attemptsUsed: Type.Integer(),
+  attemptsTotal: Type.Integer(),
+  extraData: ExtraDataAccess,
 });
 const Result = Type.Object({
   roundId: Type.String(),
   number: Type.Integer(),
   actual: Coordinates,
-  guess: Coordinates,
-  distanceKm: Type.Number(),
+  guess: Type.Union([Coordinates, Type.Null()]),
+  distanceKm: Type.Union([Type.Number(), Type.Null()]),
   score: Type.Integer(),
+  extraDataPointsSpent: Type.Integer(),
+});
+const GuessResponse = Type.Object({
+  finalized: Type.Boolean(),
+  attemptsRemaining: Type.Integer(),
+  result: Type.Optional(Result),
 });
 const Session = Type.Object({
   id: Type.String(),
@@ -85,10 +115,32 @@ const Params = Type.Object({
   gameId: Type.String({ minLength: 1, maxLength: 100 }),
 });
 
+type RoundWithAttempts = Prisma.StreetRoundGetPayload<{
+  include: { attempts: true };
+}>;
+type GameWithRounds = Prisma.StreetGameGetPayload<{
+  include: { rounds: { include: { attempts: true } } };
+}>;
+
 function conflict(message: string): Error {
   return Object.assign(new Error(message), { statusCode: 409 });
 }
-function publicRound(round: StreetRound) {
+function extraDataAccess(round: RoundWithAttempts, rules: GameRules) {
+  const unlocked =
+    rules.extraData.mode === 'free' ||
+    round.additionalDataUnlockedAt !== null;
+  return {
+    mode:
+      rules.extraData.mode === 'free'
+        ? ('immediate' as const)
+        : rules.extraData.mode,
+    cost: rules.extraData.mode === 'free' ? null : rules.extraData.cost,
+    availableAt: null,
+    unlocked,
+    pointsSpent: round.additionalDataPointsSpent,
+  };
+}
+function publicRound(round: RoundWithAttempts, rules: GameRules) {
   const candidates = round.candidatesJson as unknown as
     | CandidateOption[]
     | null;
@@ -97,6 +149,11 @@ function publicRound(round: StreetRound) {
     number: round.number,
     panoId: round.panoId,
     ...(candidates && candidates.length ? { candidates } : {}),
+    startedAt: round.startedAt?.toISOString() ?? null,
+    endsAt: round.endsAt?.toISOString() ?? null,
+    attemptsUsed: round.attempts.length,
+    attemptsTotal: rules.attemptsPerRound,
+    extraData: extraDataAccess(round, rules),
   };
 }
 function result(round: StreetRound, actual: LatLon) {
@@ -104,9 +161,29 @@ function result(round: StreetRound, actual: LatLon) {
     roundId: round.id,
     number: round.number,
     actual,
-    guess: { lat: round.guessLat!, lon: round.guessLon! },
-    distanceKm: round.distanceKm!,
+    guess:
+      round.guessLat === null || round.guessLon === null
+        ? null
+        : { lat: round.guessLat, lon: round.guessLon },
+    distanceKm: round.distanceKm,
     score: round.score!,
+    extraDataPointsSpent: round.additionalDataPointsSpent,
+  };
+}
+function bestAttempt(attempts: RoundWithAttempts['attempts']) {
+  return (
+    [...attempts].sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.distanceKm - b.distanceKm ||
+        a.createdAt.getTime() - b.createdAt.getTime() ||
+        a.id.localeCompare(b.id),
+    )[0] ?? null
+  );
+}
+function roundInclude() {
+  return {
+    attempts: { orderBy: { attemptNumber: 'asc' as const } },
   };
 }
 
@@ -142,12 +219,14 @@ export function registerSingleplayerRoutes(
   const limited = { rateLimit: { max: 30, timeWindow: '1 minute' } };
   async function owned(
     request: FastifyRequest<{ Params: { gameId: string } }>,
-  ) {
+  ): Promise<GameWithRounds> {
     const token = request.headers['x-player-token'];
     if (typeof token !== 'string') throw new GameNotFoundError();
     const game = await db.streetGame.findUnique({
       where: { id: request.params.gameId },
-      include: { rounds: { orderBy: { number: 'asc' } } },
+      include: {
+        rounds: { orderBy: { number: 'asc' }, include: roundInclude() },
+      },
     });
     if (
       !game ||
@@ -156,6 +235,78 @@ export function registerSingleplayerRoutes(
     )
       throw new GameNotFoundError();
     return game;
+  }
+  async function finalizeRound(
+    game: GameWithRounds,
+    round: RoundWithAttempts,
+    actual: LatLon,
+  ): Promise<boolean> {
+    if (round.score !== null) return false;
+    const best = bestAttempt(round.attempts);
+    const guess =
+      best !== null
+        ? { lat: best.guessLat, lon: best.guessLon }
+        : round.selectionLat !== null && round.selectionLon !== null
+          ? { lat: round.selectionLat, lon: round.selectionLon }
+          : null;
+    const distanceKm = guess === null ? null : haversineKm(guess, actual);
+    const rawScore = distanceKm === null ? 0 : scoreForDistance(distanceKm);
+    const score = applyPointPenalty(rawScore, round.additionalDataPointsSpent);
+    const updated = await db.streetRound.updateMany({
+      where: { id: round.id, score: null },
+      data: {
+        guessLat: guess?.lat ?? null,
+        guessLon: guess?.lon ?? null,
+        distanceKm,
+        score,
+      },
+    });
+    if (!updated.count) return false;
+    if (guess !== null) {
+      // R18: durable archive, decoupled from the 24h session-expiry cleanup.
+      await db.streetResult
+        .create({
+          data: {
+            gameId: game.id,
+            roundId: round.id,
+            roundNumber: round.number,
+            difficulty: game.difficulty,
+            actualLat: actual.lat,
+            actualLon: actual.lon,
+            guessLat: guess.lat,
+            guessLon: guess.lon,
+            distanceKm: distanceKm!,
+            score,
+          },
+        })
+        .catch(() => {});
+    }
+    // R12: best-effort prefetch of the following round, never awaited.
+    void prefetchNextStreetRound(game.id, db, provider, intelligence);
+    return true;
+  }
+  async function settleExpiredRound(
+    game: GameWithRounds,
+    now = new Date(),
+  ): Promise<boolean> {
+    const active = game.rounds.find((round) => round.score === null);
+    if (!active || !isDeadlinePassed(active.endsAt, now)) return false;
+    const actual = await locate(active.panoId);
+    return finalizeRound(game, active, actual);
+  }
+  /** Load the game and resolve an expired active round before serving a view. */
+  async function ownedSettled(
+    request: FastifyRequest<{ Params: { gameId: string } }>,
+  ): Promise<GameWithRounds> {
+    let game = await owned(request);
+    if (await settleExpiredRound(game)) game = await owned(request);
+    return game;
+  }
+  async function roundWithAttempts(id: string): Promise<RoundWithAttempts> {
+    return db.streetRound.findUniqueOrThrow({
+      where: { id },
+      include: roundInclude(),
+    });
   }
 
   app.get(
@@ -225,7 +376,8 @@ export function registerSingleplayerRoutes(
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      const game = await owned(request);
+      const game = await ownedSettled(request);
+      const rules = gameRulesFor(game.difficulty);
       const results = await Promise.all(
         game.rounds
           .filter((r) => r.score !== null)
@@ -236,7 +388,7 @@ export function registerSingleplayerRoutes(
         id: game.id,
         difficulty: game.difficulty,
         totalScore: results.reduce((sum, r) => sum + r.score, 0),
-        activeRound: active ? publicRound(active) : null,
+        activeRound: active ? publicRound(active, rules) : null,
         results,
       };
     },
@@ -254,10 +406,6 @@ export function registerSingleplayerRoutes(
       // rather than let it expire naturally. A hard delete cascades
       // StreetRound (see schema) but never touches StreetResult, so
       // already-scored rounds remain in the durable archive (R18) untouched.
-      // Deleting the row is itself what makes the session un-resumable —
-      // there is no status flag to flip back, and `owned()` 404s forever
-      // after for this id, which is exactly what "ended sessions cannot be
-      // continued through the API" requires.
       const game = await owned(request);
       await db.streetGame.delete({ where: { id: game.id } });
       reply.code(204);
@@ -272,12 +420,17 @@ export function registerSingleplayerRoutes(
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      const game = await owned(request);
+      const game = await ownedSettled(request);
+      const rules = gameRulesFor(game.difficulty);
       const active = game.rounds.find((r) => r.score === null);
-      if (active) return publicRound(active); // Idempotent retry, including response loss.
+      if (active) return publicRound(active, rules); // Idempotent retry, including response loss.
       // Endless mode: no round cap. Preserve difficulty throughout.
       const usedIndices = game.rounds.map((r) => r.targetIndex);
       const nextNumber = game.rounds.length + 1;
+      const startedAt = new Date();
+      const endsAt = new Date(
+        startedAt.getTime() + rules.timeLimitSeconds * 1000,
+      );
       async function persistRound(target: PanoramaTarget) {
         const candidates =
           game.difficulty === 'easy'
@@ -292,6 +445,8 @@ export function registerSingleplayerRoutes(
               targetIndex: target.targetIndex,
               targetLat: target.lat,
               targetLon: target.lon,
+              startedAt,
+              endsAt,
               ...(candidates
                 ? {
                     candidatesJson:
@@ -299,8 +454,9 @@ export function registerSingleplayerRoutes(
                   }
                 : {}),
             },
+            include: roundInclude(),
           });
-          return publicRound(round);
+          return publicRound(round, rules);
         } catch (error) {
           if (
             !(error instanceof Prisma.PrismaClientKnownRequestError) ||
@@ -309,8 +465,9 @@ export function registerSingleplayerRoutes(
             throw error;
           const existing = await db.streetRound.findUniqueOrThrow({
             where: { gameId_number: { gameId: game.id, number: nextNumber } },
+            include: roundInclude(),
           });
-          return publicRound(existing);
+          return publicRound(existing, rules);
         }
       }
       try {
@@ -370,7 +527,7 @@ export function registerSingleplayerRoutes(
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'private, no-store');
-      const game = await owned(request);
+      const game = await ownedSettled(request);
       const round = game.rounds.find((r) => r.id === request.params.roundId);
       if (!round) throw new GameNotFoundError();
       if (round.score !== null)
@@ -392,6 +549,84 @@ export function registerSingleplayerRoutes(
       return data;
     },
   );
+  app.put<{ Params: { gameId: string; roundId: string } }>(
+    '/api/singleplayer/games/:gameId/rounds/:roundId/selection',
+    {
+      config: limited,
+      errorHandler,
+      schema: {
+        params: Type.Object({ gameId: Type.String(), roundId: Type.String() }),
+        body: Coordinates,
+      },
+    },
+    async (request, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      const game = await ownedSettled(request);
+      const round = game.rounds.find((r) => r.id === request.params.roundId);
+      if (!round) throw new GameNotFoundError();
+      if (round.score !== null)
+        throw conflict('This round has already ended.');
+      if (isDeadlinePassed(round.endsAt, new Date()))
+        throw conflict('The time limit for this round has expired.');
+      const body = request.body as LatLon;
+      await db.streetRound.updateMany({
+        where: { id: round.id, score: null },
+        data: { selectionLat: body.lat, selectionLon: body.lon },
+      });
+      reply.code(204);
+    },
+  );
+  app.post<{ Params: { gameId: string; roundId: string } }>(
+    '/api/singleplayer/games/:gameId/rounds/:roundId/unlock',
+    {
+      config: limited,
+      errorHandler,
+      schema: {
+        params: Type.Object({ gameId: Type.String(), roundId: Type.String() }),
+        response: { 200: PublicRound },
+      },
+    },
+    async (request, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      const game = await ownedSettled(request);
+      const rules = gameRulesFor(game.difficulty);
+      const round = game.rounds.find((r) => r.id === request.params.roundId);
+      if (!round) throw new GameNotFoundError();
+      if (round.score !== null)
+        throw conflict('This round has already ended.');
+      if (rules.extraData.mode === 'free') {
+        if (round.additionalDataUnlockedAt === null) {
+          await db.streetRound.updateMany({
+            where: { id: round.id, score: null },
+            data: { additionalDataUnlockedAt: new Date() },
+          });
+        }
+      } else if (round.additionalDataUnlockedAt === null) {
+        const now = new Date();
+        const data =
+          rules.extraData.mode === 'points'
+            ? {
+                additionalDataUnlockedAt: now,
+                additionalDataPointsSpent: {
+                  increment: rules.extraData.cost,
+                },
+              }
+            : {
+                additionalDataUnlockedAt: now,
+                endsAt: applyTimePenalty(
+                  round.endsAt ?? new Date(now.getTime() + rules.timeLimitSeconds * 1000),
+                  rules.extraData.cost,
+                  now,
+                ),
+              };
+        await db.streetRound.updateMany({
+          where: { id: round.id, score: null, additionalDataUnlockedAt: null },
+          data,
+        });
+      }
+      return publicRound(await roundWithAttempts(round.id), rules);
+    },
+  );
   app.post<{ Params: { gameId: string; roundId: string } }>(
     '/api/singleplayer/games/:gameId/rounds/:roundId/retry',
     {
@@ -404,11 +639,22 @@ export function registerSingleplayerRoutes(
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      const game = await owned(request);
+      const game = await ownedSettled(request);
+      const rules = gameRulesFor(game.difficulty);
       const current = game.rounds.find((r) => r.id === request.params.roundId);
       if (!current) throw new GameNotFoundError();
       if (current.score !== null)
         throw conflict('A scored round cannot be replaced.');
+      if (current.attempts.length > 0)
+        throw conflict('A round cannot be replaced after a guess was submitted.');
+      // R05: never let a retry erase an additional-data cost the player
+      // already accepted. The replacement resets the new location's timer,
+      // so both the medium point spend and hard time penalty would otherwise
+      // disappear for free.
+      if (current.additionalDataUnlockedAt !== null)
+        throw conflict(
+          'A round cannot be replaced after additional data was unlocked.',
+        );
       const usedIndices = game.rounds.map((r) => r.targetIndex);
       // R03/R13: a retry (whether triggered by missing coverage or missing
       // weather data) only accepts a location with valid weather too. R08:
@@ -422,6 +668,7 @@ export function registerSingleplayerRoutes(
         game.difficulty === 'easy'
           ? buildCandidates(target.targetIndex, usedIndices)
           : null;
+      const now = new Date();
       const changed = await db.streetRound.updateMany({
         where: { id: current.id, score: null, panoId: current.panoId },
         data: {
@@ -429,6 +676,12 @@ export function registerSingleplayerRoutes(
           targetIndex: target.targetIndex,
           targetLat: target.lat,
           targetLon: target.lon,
+          selectionLat: null,
+          selectionLon: null,
+          additionalDataUnlockedAt: null,
+          additionalDataPointsSpent: 0,
+          startedAt: now,
+          endsAt: new Date(now.getTime() + rules.timeLimitSeconds * 1000),
           candidatesJson: candidates
             ? (candidates as unknown as Prisma.InputJsonValue)
             : Prisma.DbNull,
@@ -438,14 +691,12 @@ export function registerSingleplayerRoutes(
         throw conflict(
           'The round changed while its panorama was loading. Resume the expedition.',
         );
-      return publicRound(
-        await db.streetRound.findUniqueOrThrow({ where: { id: current.id } }),
-      );
+      return publicRound(await roundWithAttempts(current.id), rules);
     },
   );
   app.post<{
     Params: { gameId: string; roundId: string };
-    Body: { lat: number; lon: number };
+    Body: { lat: number; lon: number; final?: boolean };
   }>(
     '/api/singleplayer/games/:gameId/rounds/:roundId/guess',
     {
@@ -469,70 +720,95 @@ export function registerSingleplayerRoutes(
       errorHandler,
       schema: {
         params: Type.Object({ gameId: Type.String(), roundId: Type.String() }),
-        body: Coordinates,
-        response: { 200: Result },
+        body: Type.Object({
+          lat: Type.Number({ minimum: -90, maximum: 90 }),
+          lon: Type.Number({ minimum: -180, maximum: 180 }),
+          final: Type.Optional(Type.Boolean()),
+        }),
+        response: { 200: GuessResponse },
       },
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      const game = await owned(request);
+      const game = await ownedSettled(request);
+      const rules = gameRulesFor(game.difficulty);
       const round = game.rounds.find((r) => r.id === request.params.roundId);
       if (!round) throw new GameNotFoundError();
       const guess = request.body;
       const actual = await locate(round.panoId);
-      if (round.score !== null) {
-        if (round.guessLat === guess.lat && round.guessLon === guess.lon)
-          return result(round, actual);
-        throw conflict('This guess is already locked.');
-      }
-      const distanceKm = haversineKm(guess, actual);
-      const score = scoreForDistance(distanceKm);
-      const updated = await db.streetRound.updateMany({
-        where: { id: round.id, score: null, panoId: round.panoId },
-        data: {
-          guessLat: guess.lat,
-          guessLon: guess.lon,
-          distanceKm,
-          score,
-        },
-      });
-      const locked = await db.streetRound.findUniqueOrThrow({
+      const latest = await db.streetRound.findUniqueOrThrow({
         where: { id: round.id },
       });
-      if (!updated.count && locked.panoId !== round.panoId)
+      if (latest.panoId !== round.panoId)
         throw conflict(
           'The panorama changed. Reload the current round before guessing.',
         );
-      if (
-        !updated.count &&
-        (locked.guessLat !== guess.lat || locked.guessLon !== guess.lon)
-      )
-        throw conflict('This guess is already locked.');
-      if (updated.count) {
-        // R18: durable archive, decoupled from the 24h session-expiry
-        // cleanup. Best-effort — never blocks the player from seeing their
-        // result if the archive write itself fails.
-        await db.streetResult
-          .create({
-            data: {
-              gameId: game.id,
-              roundId: round.id,
-              roundNumber: round.number,
-              difficulty: game.difficulty,
-              actualLat: actual.lat,
-              actualLon: actual.lon,
-              guessLat: guess.lat,
-              guessLon: guess.lon,
-              distanceKm,
-              score,
-            },
-          })
-          .catch(() => {});
-        // R12: best-effort prefetch of the following round, never awaited.
-        // Endless mode: there is always a next round to prefetch.
-        void prefetchNextStreetRound(game.id, db, provider, intelligence);
+      if (latest.score !== null) {
+        if (latest.guessLat === guess.lat && latest.guessLon === guess.lon)
+          return {
+            finalized: true,
+            attemptsRemaining: 0,
+            result: result(latest, actual),
+          };
+        throw conflict('This round has already ended.');
       }
-      return result(locked, actual);
+      const decision = decideAttempt({
+        attemptsUsed: round.attempts.length,
+        attemptsTotal: rules.attemptsPerRound,
+        requestedFinal: guess.final === true,
+        finalized: round.score !== null,
+        deadlinePassed: isDeadlinePassed(round.endsAt, new Date()),
+      });
+      if (!decision.allowed) {
+        if (decision.reason === 'deadline')
+          throw conflict('The time limit for this round has expired.');
+        if (decision.reason === 'exhausted')
+          throw conflict('No attempts remain for this round.');
+        throw conflict('This round has already ended.');
+      }
+      const distanceKm = haversineKm(guess, actual);
+      const score = scoreForDistance(distanceKm);
+      try {
+        await db.streetRoundAttempt.create({
+          data: {
+            roundId: round.id,
+            attemptNumber: decision.attemptNumber,
+            guessLat: guess.lat,
+            guessLon: guess.lon,
+            distanceKm,
+            score,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        )
+          throw conflict(
+            'Another guess was submitted at the same time; retry the action.',
+          );
+        throw error;
+      }
+      await db.streetRound.updateMany({
+        where: { id: round.id, score: null },
+        data: { selectionLat: guess.lat, selectionLon: guess.lon },
+      });
+      if (!decision.finalizes) {
+        return {
+          finalized: false,
+          attemptsRemaining: decision.attemptsRemaining,
+        };
+      }
+      const current = await roundWithAttempts(round.id);
+      await finalizeRound(game, current, actual);
+      const locked = await db.streetRound.findUniqueOrThrow({
+        where: { id: round.id },
+      });
+      return {
+        finalized: true,
+        attemptsRemaining: 0,
+        result: result(locked, actual),
+      };
     },
   );
 }

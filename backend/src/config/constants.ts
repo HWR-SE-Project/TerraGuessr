@@ -1,9 +1,10 @@
-export const ROUNDS_PER_GAME = 5;
-export const EASY_CANDIDATES = 5;
-export const MEDIUM_CANDIDATES = 8;
-export const MIN_SEPARATION_KM = 500;
-export const MAX_SELECTION_TRIES = 10;
 export const WEATHER_TTL_MS = 3600000;
+
+/**
+ * R03: displayed weather data must never be older than 120 minutes, regardless
+ * of how long an inactive round stays open.
+ */
+export const WEATHER_MAX_DISPLAY_AGE_MS = 120 * 60 * 1000;
 
 /** Open-Meteo request timeout (Phase C hardening): never hang a round-start. */
 export const WEATHER_FETCH_TIMEOUT_MS = 5000;

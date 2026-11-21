@@ -1,4 +1,5 @@
 import type { GeographicIntelligence } from './contract.js';
+import { WEATHER_MAX_DISPLAY_AGE_MS } from '../../config/constants.js';
 
 type Weather = GeographicIntelligence['weather'];
 type Environment = GeographicIntelligence['environment'];
@@ -35,6 +36,22 @@ function number(value: unknown, min: number, max: number): number | null {
     value <= max
     ? value
     : null;
+}
+/**
+ * R03: weather may only be displayed while its model timestamp is no older
+ * than 120 minutes. A missing or unparseable timestamp cannot prove that, so
+ * it is rejected rather than assumed current.
+ */
+function isDisplayableWeather(
+  weather: Weather,
+  now: number,
+): weather is NonNullable<Weather> & { modelTime: string } {
+  if (!weather || weather.modelTime === null) return false;
+  const timestamp = Date.parse(weather.modelTime);
+  return (
+    Number.isFinite(timestamp) &&
+    now - timestamp <= WEATHER_MAX_DISPLAY_AGE_MS
+  );
 }
 interface Entry<T> {
   value: T;
@@ -107,13 +124,21 @@ export function createIntelligenceProvider(
     const units = (data.current_units ?? {}) as Record<string, unknown>;
     const measured = (field: string, unit: string, min: number, max: number) =>
       units[field] === unit ? number(c[field], min, max) : null;
+    const modelTime =
+      typeof c.time === 'string' &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(c.time) &&
+      Number.isFinite(Date.parse(c.time + 'Z'))
+        ? c.time + 'Z'
+        : null;
+    // R03: a displayed observation must carry a timestamp no older than the
+    // 120-minute limit. Reject missing timestamps instead of assuming current.
+    if (
+      modelTime === null ||
+      now() - Date.parse(modelTime) > WEATHER_MAX_DISPLAY_AGE_MS
+    )
+      return null;
     const result: NonNullable<Weather> = {
-      modelTime:
-        typeof c.time === 'string' &&
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(c.time) &&
-        Number.isFinite(Date.parse(c.time + 'Z'))
-          ? c.time + 'Z'
-          : null,
+      modelTime,
       temperatureC: measured('temperature_2m', '°C', -100, 70),
       condition: condition(c.weather_code),
       windSpeedKmh: measured('wind_speed_10m', 'km/h', 0, 500),
@@ -126,7 +151,8 @@ export function createIntelligenceProvider(
           ? null
           : (c.interval as number) / 60,
     };
-    // An unknown valid timestamp must not imply a current observation.
+    // A timestamp alone is not a usable observation: require at least one
+    // projected metric.
     return Object.entries(result).some(
       ([key, value]) =>
         key !== 'modelTime' &&
@@ -187,7 +213,15 @@ export function createIntelligenceProvider(
     if (existing) return existing;
     const job = (async () => {
       const time = now();
-      const cachedWeather = weatherCache.get(key, time);
+      const cachedWeatherEntry = weatherCache.get(key, time);
+      // Negative-cache entries stay usable for their short TTL; a stale
+      // positive entry is treated as a miss so the observation is re-fetched.
+      const cachedWeather =
+        cachedWeatherEntry &&
+        (cachedWeatherEntry.weather === null ||
+          isDisplayableWeather(cachedWeatherEntry.weather, time))
+          ? cachedWeatherEntry
+          : undefined;
       const cachedEnvironment = environmentCache.get(key, time);
       const [w, e] = await Promise.all([
         cachedWeather
@@ -222,8 +256,15 @@ export function createIntelligenceProvider(
                 return value;
               }),
       ]);
+      // Re-check at display time: a cached observation can cross the
+      // 120-minute limit while it is still inside the cache TTL.
+      const displayTime = now();
+      const displayedWeather = isDisplayableWeather(w.weather, displayTime)
+        ? w.weather
+        : null;
       return {
         ...w,
+        weather: displayedWeather,
         cached: Boolean(cachedWeather),
         environment: e,
         climate: null,

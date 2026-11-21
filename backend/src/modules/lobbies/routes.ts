@@ -36,6 +36,7 @@ import {
   saveLobbySelection,
   startLobbyMatch,
   submitLobbyGuess,
+  unlockLobbyExtraData,
 } from './match.js';
 import { IntelligenceResponse } from '../intelligence/contract.js';
 import type { IntelligenceLookup } from '../singleplayer/locationSelection.js';
@@ -251,6 +252,31 @@ export function registerLobbiesRoutes(
         requireLobbyToken(request),
         request.body as LobbyGuessBody,
         db,
+      );
+    },
+  );
+
+  app.post(
+    '/api/lobbies/:code/rounds/:roundNumber/unlock',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        params: LobbyRoundParams,
+        response: { 200: LobbyMatchResponse },
+      },
+    },
+    async (request) => {
+      const { code, roundNumber } = request.params as {
+        code: string;
+        roundNumber: number;
+      };
+      return unlockLobbyExtraData(
+        code,
+        roundNumber,
+        requireLobbyToken(request),
+        db,
+        options.provider,
+        intelligence,
       );
     },
   );

@@ -57,16 +57,22 @@ describe('lobby difficulty rules (R5)', () => {
       timeLimitSeconds: 420,
       attemptsPerRound: 3,
       selectionMode: 'list',
+      countryBorders: true,
+      extraData: { mode: 'free' },
     });
     expect(lobbyRulesFor('medium')).toEqual({
       timeLimitSeconds: 240,
       attemptsPerRound: 2,
       selectionMode: 'map',
+      countryBorders: true,
+      extraData: { mode: 'points', cost: 100 },
     });
     expect(lobbyRulesFor('hard')).toEqual({
       timeLimitSeconds: 120,
       attemptsPerRound: 1,
       selectionMode: 'map',
+      countryBorders: true,
+      extraData: { mode: 'time', cost: 20 },
     });
   });
 });
@@ -193,6 +199,8 @@ describe('getLobby', () => {
       timeLimitSeconds: 240,
       attemptsPerRound: 2,
       selectionMode: 'map',
+      countryBorders: true,
+      extraData: { mode: 'points', cost: 100 },
     });
   });
 

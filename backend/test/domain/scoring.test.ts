@@ -7,19 +7,25 @@ describe('scoreForDistance', () => {
     expect(scoreForDistance(0)).toBe(5000);
   });
 
-  it('awards 1839 points at 2000 km', () => {
-    expect(scoreForDistance(2000)).toBe(1839);
+  it('awards the maximum score for any distance up to 100 km (R10 boundary)', () => {
+    expect(scoreForDistance(100)).toBe(5000);
+    expect(scoreForDistance(50)).toBe(5000);
   });
 
-  it('awards 34 points at 10000 km', () => {
-    expect(scoreForDistance(10000)).toBe(34);
+  it('applies the R10 boundary on the R9-rounded distance', () => {
+    // 100.04 km rounds to 100.0 km and still scores the maximum.
+    expect(scoreForDistance(100.04)).toBe(5000);
+    // 100.05 km rounds to 100.1 km and drops below the maximum.
+    expect(scoreForDistance(100.05)).toBeLessThan(5000);
   });
 
-  it('awards 0 points at the rounding boundary (18421 km)', () => {
-    expect(scoreForDistance(18421)).toBe(0);
+  it('decays linearly between the boundaries', () => {
+    expect(scoreForDistance(2000)).toBe(4522);
+    expect(scoreForDistance(10000)).toBe(2512);
   });
 
-  it('awards 0 points beyond the rounding boundary (20015 km)', () => {
+  it('awards 0 points at and beyond 20000 km (R10 boundary)', () => {
+    expect(scoreForDistance(20000)).toBe(0);
     expect(scoreForDistance(20015)).toBe(0);
   });
 

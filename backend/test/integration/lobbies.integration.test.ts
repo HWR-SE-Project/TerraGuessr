@@ -169,6 +169,8 @@ describe('lobby lifecycle (integration, R16)', () => {
       timeLimitSeconds: 420,
       attemptsPerRound: 3,
       selectionMode: 'list',
+      countryBorders: true,
+      extraData: { mode: 'free' },
     });
     expect(created.lobby.members).toHaveLength(1);
     expect(created.lobby.members[0]).toMatchObject({
@@ -604,6 +606,157 @@ describe('lobby lifecycle (integration, R16)', () => {
     );
   });
 
+
+  it('unlocks additional data per player and deducts only that player (R05/R16)', async () => {
+    const created = await createLobby('medium', 'Host', 3);
+    const joined = await joinLobby(created.lobby.code, 'Guest');
+    const guest = joined.json() as LobbyBody;
+    await app.inject({
+      method: 'POST',
+      url: '/api/lobbies/' + created.lobby.code + '/start',
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+
+    const unlock = await app.inject({
+      method: 'POST',
+      url: `/api/lobbies/${created.lobby.code}/rounds/1/unlock`,
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+    expect(unlock.statusCode).toBe(200);
+    const hostAccess = (
+      unlock.json() as {
+        match: { round: { extraData: { unlocked: boolean; pointsSpent: number } } };
+      }
+    ).match.round.extraData;
+    expect(hostAccess).toMatchObject({ unlocked: true, pointsSpent: 100 });
+
+    const guestView = await app.inject({
+      method: 'GET',
+      url: `/api/lobbies/${created.lobby.code}/match`,
+      headers: { 'x-lobby-token': guest.lobbyToken },
+    });
+    const guestAccess = (
+      guestView.json() as {
+        match: { round: { extraData: { unlocked: boolean; pointsSpent: number } } };
+      }
+    ).match.round.extraData;
+    expect(guestAccess).toMatchObject({ unlocked: false, pointsSpent: 0 });
+
+    const payload = { lat: 51.5, lon: -0.12, final: true };
+    const hostFinal = await app.inject({
+      method: 'POST',
+      url: `/api/lobbies/${created.lobby.code}/rounds/1/guess`,
+      headers: { 'x-lobby-token': created.lobbyToken },
+      payload,
+    });
+    const hostResult = (
+      hostFinal.json() as {
+        result: { score: number; extraDataPointsSpent: number };
+      }
+    ).result;
+    const guestFinal = await app.inject({
+      method: 'POST',
+      url: `/api/lobbies/${created.lobby.code}/rounds/1/guess`,
+      headers: { 'x-lobby-token': guest.lobbyToken },
+      payload,
+    });
+    const guestResult = (
+      guestFinal.json() as {
+        result: { score: number; extraDataPointsSpent: number };
+      }
+    ).result;
+
+    expect(hostResult.extraDataPointsSpent).toBe(100);
+    expect(guestResult.extraDataPointsSpent).toBe(0);
+    expect(guestResult.score).toBe(hostResult.score + 100);
+  });
+
+  it('applies the hard-mode time penalty only to the player who unlocks (R05/R16)', async () => {
+    const created = await createLobby('hard', 'Host', 3);
+    const joined = await joinLobby(created.lobby.code, 'Guest');
+    const guest = joined.json() as LobbyBody;
+    await app.inject({
+      method: 'POST',
+      url: '/api/lobbies/' + created.lobby.code + '/start',
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+
+    const endsAt = async (token: string) => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/lobbies/${created.lobby.code}/match`,
+        headers: { 'x-lobby-token': token },
+      });
+      return (res.json() as { match: { endsAt: string } }).match.endsAt;
+    };
+
+    const hostBefore = await endsAt(created.lobbyToken);
+    const guestBefore = await endsAt(guest.lobbyToken);
+    expect(hostBefore).toBe(guestBefore);
+
+    const unlock = await app.inject({
+      method: 'POST',
+      url: `/api/lobbies/${created.lobby.code}/rounds/1/unlock`,
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+    expect(unlock.statusCode).toBe(200);
+    const hostAfter = (unlock.json() as { match: { endsAt: string } }).match.endsAt;
+    const guestAfter = await endsAt(guest.lobbyToken);
+
+    expect(guestAfter).toBe(guestBefore);
+    expect(Date.parse(guestBefore) - Date.parse(hostAfter)).toBe(20_000);
+  });
+
+  it('returns the shared leaderboard ordered identically to every player', async () => {
+    const created = await createLobby('easy', 'Host', 3);
+    const joined = await joinLobby(created.lobby.code, 'Guest');
+    const guest = joined.json() as LobbyBody;
+    await app.inject({
+      method: 'POST',
+      url: '/api/lobbies/' + created.lobby.code + '/start',
+      headers: { 'x-lobby-token': created.lobbyToken },
+    });
+
+    const guess = (token: string, lat: number, lon: number) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/lobbies/${created.lobby.code}/rounds/1/guess`,
+        headers: { 'x-lobby-token': token },
+        payload: { lat, lon, final: true },
+      });
+    // Host guesses far from London, guest guesses the target exactly.
+    await guess(created.lobbyToken, 0, 0);
+    await guess(guest.lobbyToken, 51.5009, -0.1246);
+
+    const leaderboard = async (token: string) => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/lobbies/${created.lobby.code}/match`,
+        headers: { 'x-lobby-token': token },
+      });
+      return (
+        res.json() as {
+          match: {
+            leaderboard: Array<{
+              displayName: string | null;
+              totalScore: number;
+              rank: number;
+            }>;
+          };
+        }
+      ).match.leaderboard;
+    };
+
+    const hostBoard = await leaderboard(created.lobbyToken);
+    const guestBoard = await leaderboard(guest.lobbyToken);
+
+    expect(hostBoard.map((entry) => entry.displayName)).toEqual(['Guest', 'Host']);
+    expect(hostBoard.map((entry) => entry.rank)).toEqual([1, 2]);
+    expect(hostBoard.map((entry) => entry.totalScore)).toEqual(
+      guestBoard.map((entry) => entry.totalScore),
+    );
+    expect(hostBoard[0]!.totalScore).toBeGreaterThan(hostBoard[1]!.totalScore);
+  });
 
   it('reveals every submitted participant guess and their easy-mode answer', async () => {
     const created = await createLobby('easy', 'Host');

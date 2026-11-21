@@ -32,22 +32,22 @@ describe('rate limiting (integration, Phase C)', () => {
     await teardownDatabase(db);
   });
 
-  it('POST /api/games returns 429 (RATE_LIMITED) after the configured limit', async () => {
+  it('POST /api/lobbies returns 429 (RATE_LIMITED) after the configured limit', async () => {
     const responses = [];
-    for (let i = 0; i < 121; i += 1) {
+    for (let i = 0; i < 61; i += 1) {
       responses.push(
         await app.inject({
           method: 'POST',
-          url: '/api/games',
-          payload: { mode: 'solo', difficulty: 'easy' },
+          url: '/api/lobbies',
+          payload: { difficulty: 'easy' },
         }),
       );
     }
 
     const statuses = responses.map((res) => res.statusCode);
-    expect(statuses.slice(0, 120)).toEqual(Array(120).fill(201));
-    expect(statuses[120]).toBe(429);
-    expect(responses[120]?.json()).toMatchObject({
+    expect(statuses.slice(0, 60)).toEqual(Array(60).fill(201));
+    expect(statuses[60]).toBe(429);
+    expect(responses[60]?.json()).toMatchObject({
       error: { code: 'RATE_LIMITED' },
     });
   });

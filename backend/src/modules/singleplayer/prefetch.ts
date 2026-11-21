@@ -5,7 +5,8 @@ import { nextExclusions, selectValidatedTarget } from './locationSelection.js';
 
 /**
  * Best-effort prefetch of the round after the one just completed (R12).
- * Mirrors the existing `backend/src/modules/rounds/prefetch.ts` pattern:
+ * Prefetches the next target after a round is scored so the next round can
+ * start without another provider round-trip.
  * correctness never depends on this having run — `POST .../rounds` falls
  * back to a synchronous, weather-validated selection when no prefetch is
  * cached (or it was already consumed). Every failure here is swallowed so a

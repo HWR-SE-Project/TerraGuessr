@@ -17,31 +17,10 @@ enum Region {
   OCEANIA
 }
 
-enum GameMode {
-  solo
-  challenge
-}
-
-enum AdditionalDataUnlockMode {
-  immediate
-  time
-  points
-}
-
 enum Difficulty {
   easy
   medium
   hard
-}
-
-enum GameStatus {
-  active
-  completed
-}
-
-enum RoundStatus {
-  active
-  completed
 }
 
 enum LobbyStatus {
@@ -60,34 +39,32 @@ enum WeatherSrc {
 }
 
 model User {
-  id              String               @id @default(cuid())
-  email           String               @unique
-  passwordHash    String?
-  googleSub       String?              @unique
-  displayName     String
-  emailVerifiedAt DateTime?
-  failedLoginAttempts Int              @default(0)
+  id                  String                   @id @default(cuid())
+  email               String                   @unique
+  passwordHash        String?
+  googleSub           String?                  @unique
+  displayName         String
+  emailVerifiedAt     DateTime?
+  failedLoginAttempts Int                      @default(0)
   lastFailedLoginAt   DateTime?
   lockedUntil         DateTime?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  sessions        AuthSession[]
-  resetTokens     PasswordResetToken[]
-  emailVerifications EmailVerificationToken[]
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  sessions            AuthSession[]
+  resetTokens         PasswordResetToken[]
+  emailVerifications  EmailVerificationToken[]
   emailChangeRequests EmailChangeRequest[]
-  preferences     UserPreference?
-  games           Game[]
-  dailySubmissions DailySubmission[]
+  preferences         UserPreference?
 }
 
 model AuthSession {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
-  expiresAt DateTime
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
   lastUsedAt DateTime @default(now())
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([userId, expiresAt])
   // Backs authCleanup.ts's unscoped `WHERE expiresAt <= now OR lastUsedAt <= cutoff`.
@@ -156,181 +133,38 @@ model UserPreference {
   updatedAt     DateTime @updatedAt
 }
 
-model DailyChallenge {
-  date              String             @id @db.VarChar(10)
-  locationId        String
-  location          Location           @relation(fields: [locationId], references: [id], onDelete: Restrict)
-  weatherSnapshotId String
-  weatherSnapshot   WeatherSnapshot    @relation(fields: [weatherSnapshotId], references: [id], onDelete: Restrict)
-  createdAt         DateTime           @default(now())
-  submissions       DailySubmission[]
-}
-
-model DailySubmission {
-  id         String         @id @default(cuid())
-  date       String         @db.VarChar(10)
-  challenge  DailyChallenge @relation(fields: [date], references: [date], onDelete: Cascade)
-  userId     String
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guessLat   Float
-  guessLon   Float
-  distanceKm Float
-  score      Int
-  createdAt  DateTime       @default(now())
-
-  @@unique([date, userId])
-  @@index([date, score, distanceKm])
-  @@index([userId, date])
-}
-
 model Location {
-  id        String            @id @default(cuid())
-  lat       Float
-  lon       Float
-  name      String?
-  region    Region
-  isLand    Boolean           @default(true)
-  source    LocationSrc       @default(grid)
-  createdAt DateTime          @default(now())
-  snapshots WeatherSnapshot[]
-  rounds    Round[]
-  dailyChallenges DailyChallenge[]
+  id              String            @id @default(cuid())
+  lat             Float
+  lon             Float
+  name            String?
+  region          Region
+  isLand          Boolean           @default(true)
+  source          LocationSrc       @default(grid)
+  createdAt       DateTime          @default(now())
+  snapshots       WeatherSnapshot[]
 
   @@index([region])
 }
 
 model WeatherSnapshot {
-  id              String     @id @default(cuid())
-  locationId      String
-  location        Location   @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  fetchedAt       DateTime   @default(now())
-  temperatureC    Float // R03 mandatory
-  precipitationMm Float // R03 mandatory
-  humidityPct     Float // R03 mandatory
-  windSpeedKmh    Float // R03 mandatory
-  airPressureHpa  Float?
-  windDirectionDeg Float?
-  uvIndex         Float?
+  id                      String           @id @default(cuid())
+  locationId              String
+  location                Location         @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  fetchedAt               DateTime         @default(now())
+  temperatureC            Float // R03 mandatory
+  precipitationMm         Float // R03 mandatory
+  humidityPct             Float // R03 mandatory
+  windSpeedKmh            Float // R03 mandatory
+  airPressureHpa          Float?
+  windDirectionDeg        Float?
+  uvIndex                 Float?
   sunshineDurationSeconds Float?
-  localTime       String?
-  extra           Json? // decision B.2: optional, never required
-  source          WeatherSrc @default(open_meteo)
-  rounds          Round[]
-  dailyChallenges DailyChallenge[]
+  localTime               String?
+  extra                   Json? // decision B.2: optional, never required
+  source                  WeatherSrc       @default(open_meteo)
 
   @@index([locationId, fetchedAt]) // drives <=1h staleness lookup (B.11)
-}
-
-model Game {
-  id                    String     @id @default(cuid())
-  mode                  GameMode
-  difficulty            Difficulty
-  status                GameStatus @default(active)
-  roundsTotal           Int        @default(5)
-  attemptsPerRound      Int        @default(1)
-  geoRegion             Region?
-  candidateCount        Int?
-  additionalDataUnlockMode AdditionalDataUnlockMode @default(immediate)
-  additionalDataUnlockCost Int?
-  playerTokenHash       String // sha256(rawToken), ADR-0011
-  nextLocationId        String? // prefetched next round (R12)
-  nextWeatherSnapshotId String?
-  ownerUserId           String?
-  owner                 User?      @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
-  createdAt             DateTime   @default(now())
-  rounds                Round[]
-
-  @@index([playerTokenHash])
-  @@index([ownerUserId, createdAt])
-}
-
-model Round {
-  id                String          @id @default(cuid())
-  gameId            String
-  game              Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  locationId        String
-  location          Location        @relation(fields: [locationId], references: [id])
-  weatherSnapshotId String
-  weatherSnapshot   WeatherSnapshot @relation(fields: [weatherSnapshotId], references: [id])
-  roundNumber       Int
-  difficulty        Difficulty
-  selectionMode     String // 'map' | 'list'
-  status            RoundStatus     @default(active)
-  startedAt         DateTime        @default(now())
-  additionalDataAvailableAt DateTime?
-  additionalDataUnlockedAt DateTime?
-  additionalDataPointsSpent Int @default(0)
-  completedAt       DateTime?
-  guess             Guess?
-  attempts          RoundAttempt[]
-  result            Result?
-  challenge         Challenge?
-
-  @@unique([gameId, roundNumber])
-  @@index([gameId, status])
-}
-
-model Guess {
-  id          String   @id @default(cuid())
-  roundId     String   @unique // one guess per round (R08)
-  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  lat         Float
-  lon         Float
-  submittedAt DateTime @default(now())
-}
-
-model RoundAttempt {
-  id          String   @id @default(cuid())
-  roundId     String
-  round       Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  attemptNumber Int
-  guessLat    Float
-  guessLon    Float
-  distanceKm  Float
-  score       Int
-  createdAt   DateTime @default(now())
-
-  @@unique([roundId, attemptNumber])
-  @@index([roundId, score, distanceKm])
-}
-
-model Result {
-  id         String           @id @default(cuid())
-  roundId    String           @unique
-  round      Round            @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  actualLat  Float
-  actualLon  Float
-  guessLat   Float
-  guessLon   Float
-  distanceKm Float // R09
-  score      Int // R10
-  createdAt  DateTime         @default(now()) // drives 6-month purge (R18)
-  entries    ChallengeEntry[]
-
-  @@index([createdAt]) // purge scan
-}
-
-model Challenge {
-  id        String           @id @default(cuid())
-  roundId   String           @unique // the shared fixed round/location (B.3)
-  round     Round            @relation(fields: [roundId], references: [id], map: "Challenge_round_fkey")
-  createdAt DateTime         @default(now())
-  expiresAt DateTime?
-  entries   ChallengeEntry[]
-}
-
-model ChallengeEntry {
-  id              String    @id @default(cuid())
-  challengeId     String
-  challenge       Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  resultId        String
-  result          Result    @relation(fields: [resultId], references: [id], onDelete: Cascade)
-  displayName     String? // no account (B.6)
-  playerTokenHash String // sha256(rawToken), ADR-0011 — one entry per player per challenge (P0-3)
-
-  @@unique([challengeId, resultId])
-  @@unique([challengeId, playerTokenHash])
-  @@index([challengeId])
 }
 
 // Pre-game multiplayer waiting room (R16). A lobby only stores membership and
@@ -355,47 +189,49 @@ model Lobby {
 }
 
 model LobbyMember {
-  id              String   @id @default(cuid())
-  lobbyId         String
-  lobby           Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
-  playerTokenHash String // sha256(rawToken), ADR-0011
-  displayName     String?
-  selectionLat    Float?
-  selectionLon    Float?
+  id                  String              @id @default(cuid())
+  lobbyId             String
+  lobby               Lobby               @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  playerTokenHash     String // sha256(rawToken), ADR-0011
+  displayName         String?
+  selectionLat        Float?
+  selectionLon        Float?
   // Set when this player chooses to continue after a finished match.
   continueRequestedAt DateTime?
-  joinedAt        DateTime @default(now())
-  attempts        LobbyRoundAttempt[]
-  results         LobbyRoundResult[]
+  joinedAt            DateTime            @default(now())
+  attempts            LobbyRoundAttempt[]
+  results             LobbyRoundResult[]
+  roundStates         LobbyRoundMemberState[]
 
   @@unique([lobbyId, playerTokenHash])
   @@index([lobbyId])
 }
 
 model LobbyRound {
-  id              String   @id @default(cuid())
-  lobbyId         String
-  lobby           Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
-  number          Int
-  panoId          String
-  targetIndex     Int
-  targetLat       Float
-  targetLon       Float
-  candidatesJson  Json?
-  startedAt       DateTime?
-  endsAt          DateTime?
-  createdAt       DateTime @default(now())
-  attempts        LobbyRoundAttempt[]
-  results         LobbyRoundResult[]
+  id             String              @id @default(cuid())
+  lobbyId        String
+  lobby          Lobby               @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+  number         Int
+  panoId         String
+  targetIndex    Int
+  targetLat      Float
+  targetLon      Float
+  candidatesJson Json?
+  startedAt      DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime            @default(now())
+  attempts       LobbyRoundAttempt[]
+  results        LobbyRoundResult[]
+  memberStates   LobbyRoundMemberState[]
 
   @@unique([lobbyId, number])
   @@index([lobbyId])
 }
 
 model LobbyRoundAttempt {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   roundId       String
-  round         LobbyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  round         LobbyRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
   memberId      String
   member        LobbyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
   attemptNumber Int
@@ -403,16 +239,16 @@ model LobbyRoundAttempt {
   guessLon      Float
   distanceKm    Float
   score         Int
-  createdAt     DateTime   @default(now())
+  createdAt     DateTime    @default(now())
 
   @@unique([roundId, memberId, attemptNumber])
   @@index([roundId, memberId])
 }
 
 model LobbyRoundResult {
-  id           String     @id @default(cuid())
+  id           String      @id @default(cuid())
   roundId      String
-  round        LobbyRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  round        LobbyRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
   memberId     String
   member       LobbyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
   guessLat     Float?
@@ -420,10 +256,31 @@ model LobbyRoundResult {
   distanceKm   Float?
   score        Int
   attemptsUsed Int
-  createdAt    DateTime   @default(now())
+  extraDataPointsSpent Int @default(0)
+  createdAt    DateTime    @default(now())
 
   @@unique([roundId, memberId])
   @@index([roundId])
+}
+
+// Per-player state for the active round. Keeps additional-data unlocks and
+// hard-mode time penalties local to the player who chose them (R05/R16).
+model LobbyRoundMemberState {
+  id                   String      @id @default(cuid())
+  roundId              String
+  round                LobbyRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  memberId             String
+  member               LobbyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  extraDataUnlockedAt  DateTime?
+  extraDataPointsSpent Int         @default(0)
+  // Overrides the shared round deadline after a hard-mode time penalty.
+  endsAt               DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@unique([roundId, memberId])
+  @@index([roundId])
+  @@index([memberId])
 }
 
 // Street View is isolated from the existing weather game contracts.
@@ -461,24 +318,51 @@ model StreetGame {
 }
 
 model StreetRound {
-  id          String     @id @default(cuid())
-  gameId      String
-  game        StreetGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  number      Int
-  panoId      String
-  targetIndex Int
-  targetLat   Float
-  targetLon   Float
+  id             String     @id @default(cuid())
+  gameId         String
+  game           StreetGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  number         Int
+  panoId         String
+  targetIndex    Int
+  targetLat      Float
+  targetLon      Float
   // Easy-mode candidate list shown for this round (R07), persisted so a
   // resumed session redisplays the same options instead of re-rolling them.
   candidatesJson Json?
-  guessLat    Float?
-  guessLon    Float?
-  distanceKm  Float?
-  score       Int?
-  createdAt   DateTime   @default(now())
+  // R05/R08 round timer and the player's latest (not yet submitted) selection.
+  // The selection is what a timeout evaluates when no attempt was submitted.
+  startedAt      DateTime?
+  endsAt         DateTime?
+  selectionLat   Float?
+  selectionLon   Float?
+  // R05 additional-data unlock state, server-authoritative.
+  additionalDataUnlockedAt DateTime?
+  additionalDataPointsSpent Int      @default(0)
+  guessLat       Float?
+  guessLon       Float?
+  distanceKm     Float?
+  score          Int?
+  createdAt      DateTime   @default(now())
+  attempts       StreetRoundAttempt[]
 
   @@unique([gameId, number])
+  @@index([endsAt])
+}
+
+// R02: every submitted singleplayer guess, including non-final attempts.
+model StreetRoundAttempt {
+  id            String      @id @default(cuid())
+  roundId       String
+  round         StreetRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  attemptNumber Int
+  guessLat      Float
+  guessLon      Float
+  distanceKm    Float
+  score         Int
+  createdAt     DateTime    @default(now())
+
+  @@unique([roundId, attemptNumber])
+  @@index([roundId])
 }
 
 // Durable archive of a completed Street View round (R18). Written once, at

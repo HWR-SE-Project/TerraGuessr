@@ -23,11 +23,26 @@ const SelectionMode = Type.Union([
   Type.Literal('list'),
 ]);
 
+/** R5 shared extra-data policy for the selected difficulty. */
+const ExtraDataPolicyView = Type.Union([
+  Type.Object({ mode: Type.Literal('free') }, { additionalProperties: false }),
+  Type.Object(
+    { mode: Type.Literal('points'), cost: Type.Integer({ minimum: 0 }) },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    { mode: Type.Literal('time'), cost: Type.Integer({ minimum: 0 }) },
+    { additionalProperties: false },
+  ),
+]);
+
 /** R5 rules derived from the host's difficulty (informational until play starts). */
 export const LobbyRulesView = Type.Object({
   timeLimitSeconds: Type.Integer({ minimum: 1 }),
   attemptsPerRound: Type.Integer({ minimum: 1 }),
   selectionMode: SelectionMode,
+  countryBorders: Type.Boolean(),
+  extraData: ExtraDataPolicyView,
 });
 
 /** Public member summary — never exposes player tokens. */
@@ -95,11 +110,28 @@ const MatchCandidate = Type.Object({
   lon: Type.Number(),
 });
 
+/** R5 per-round additional-data access state. */
+const ExtraDataAccessView = Type.Object({
+  mode: Type.Union([
+    Type.Literal('immediate'),
+    Type.Literal('points'),
+    Type.Literal('time'),
+  ]),
+  cost: Type.Union([Type.Integer(), Type.Null()]),
+  availableAt: Type.Union([Type.String(), Type.Null()]),
+  unlocked: Type.Boolean(),
+  pointsSpent: Type.Integer(),
+});
+
 const MatchRound = Type.Object({
   id: Type.String(),
   number: Type.Integer(),
   panoId: Type.String(),
   candidates: Type.Optional(Type.Array(MatchCandidate)),
+  endsAt: Type.Union([Type.String(), Type.Null()]),
+  attemptsUsed: Type.Integer(),
+  attemptsTotal: Type.Integer(),
+  extraData: ExtraDataAccessView,
 });
 
 const MatchParticipantGuess = Type.Object({
@@ -120,6 +152,7 @@ const MatchResult = Type.Object({
   guess: Type.Union([LobbyCoordinates, Type.Null()]),
   actual: LobbyCoordinates,
   attemptsUsed: Type.Integer(),
+  extraDataPointsSpent: Type.Integer(),
   /** Every participant who has submitted this round, including the caller. */
   guesses: Type.Array(MatchParticipantGuess),
 });

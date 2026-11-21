@@ -89,6 +89,7 @@ describe('environment provider boundary', () => {
   });
   it('keeps elevation during weather outages, rejects bogus units and values, and never infers biome or climate', async () => {
     const get = createIntelligenceProvider({
+      now: () => Date.parse('2026-11-19T12:01Z'),
       fetcher: vi.fn(async (input) => {
         if (String(input).includes('/elevation'))
           return new Response(JSON.stringify({ elevation: [0] }));
@@ -135,6 +136,68 @@ describe('environment provider boundary', () => {
     await get(50, 10);
     expect(fetcher).toHaveBeenCalledTimes(4);
     await expect(get(NaN, 10)).rejects.toThrow('Invalid server location');
+  });
+  it('rejects a weather model timestamp older than 120 minutes at display time', async () => {
+    const fetcher = vi.fn(
+      async (input: URL | RequestInfo) =>
+        new Response(
+          JSON.stringify(
+            String(input).includes('/elevation')
+              ? { elevation: [100] }
+              : { current, current_units },
+          ),
+        ),
+    );
+    const get = createIntelligenceProvider({
+      fetcher: fetcher as typeof fetch,
+      now: () => Date.parse('2026-11-19T14:01Z'),
+    });
+    const value = await get(50, 10);
+    expect(value.weather).toBeNull();
+  });
+  it('rejects cached weather that crosses the 120-minute limit while cached', async () => {
+    const aged = { ...current, time: '2026-11-19T11:00' };
+    let now = Date.parse('2026-11-19T12:50Z');
+    const fetcher = vi.fn(
+      async (input: URL | RequestInfo) =>
+        new Response(
+          JSON.stringify(
+            String(input).includes('/elevation')
+              ? { elevation: [100] }
+              : { current: aged, current_units },
+          ),
+        ),
+    );
+    const get = createIntelligenceProvider({
+      fetcher: fetcher as typeof fetch,
+      now: () => now,
+    });
+    const fresh = await get(50, 10);
+    expect(fresh.weather?.temperatureC).toBe(12.3);
+    expect(fresh.cached).toBe(false);
+    now = Date.parse('2026-11-19T13:01Z');
+    const stale = await get(50, 10);
+    expect(stale.weather).toBeNull();
+    expect(stale.cached).toBe(false);
+  });
+  it('rejects weather without a model timestamp even when metrics are present', async () => {
+    const { time: _time, ...withoutTime } = current;
+    const fetcher = vi.fn(
+      async (input: URL | RequestInfo) =>
+        new Response(
+          JSON.stringify(
+            String(input).includes('/elevation')
+              ? { elevation: [100] }
+              : { current: withoutTime, current_units },
+          ),
+        ),
+    );
+    const get = createIntelligenceProvider({
+      fetcher: fetcher as typeof fetch,
+      now: () => Date.parse('2026-11-19T12:01Z'),
+    });
+    const value = await get(50, 10);
+    expect(value.weather).toBeNull();
   });
 });
 

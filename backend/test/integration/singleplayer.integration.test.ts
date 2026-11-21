@@ -107,7 +107,16 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
       expect(started.statusCode).toBe(200);
       const round = started.json();
       expect(round.number).toBe(number);
-      expect(Object.keys(round).sort()).toEqual(['id', 'number', 'panoId']);
+      expect(Object.keys(round).sort()).toEqual([
+        'attemptsTotal',
+        'attemptsUsed',
+        'endsAt',
+        'extraData',
+        'id',
+        'number',
+        'panoId',
+        'startedAt',
+      ]);
       const resumed = await app.inject({
         method: 'POST',
         url: `${auth.base}/rounds`,
@@ -122,7 +131,7 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
       expect(session).not.toHaveProperty('roundsTotal');
       expect(session).not.toHaveProperty('completed');
       const url = `${auth.base}/rounds/${round.id}/guess`;
-      const payload = { lat: 48.8566, lon: 2.3522 };
+      const payload = { lat: 48.8566, lon: 2.3522, final: true };
       const scored = await app.inject({
         method: 'POST',
         url,
@@ -130,7 +139,8 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
         payload,
       });
       expect(scored.statusCode).toBe(200);
-      const result = scored.json();
+      const response = scored.json();
+      const result = response.result;
       const expectedDistance = haversineKm(payload, {
         lat: 50.0001,
         lon: 10.0001,
@@ -148,14 +158,14 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
             payload,
           })
         ).json(),
-      ).toEqual(result);
+      ).toEqual(response);
       expect(
         (
           await app.inject({
             method: 'POST',
             url,
             headers: auth.headers,
-            payload: { lat: 0, lon: 0 },
+            payload: { lat: 0, lon: 0, final: true },
           })
         ).statusCode,
       ).toBe(409);
@@ -216,10 +226,14 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
       method: 'POST',
       url: `${auth.base}/rounds/${round.id}/guess`,
       headers: auth.headers,
-      payload: { lat: -50, lon: -100, score: 5000 },
+      payload: { lat: -50, lon: -100, score: 5000, final: true },
     });
     expect(guessed.statusCode).toBe(200);
-    expect(guessed.json().score).toBeLessThan(100);
+    const expectedScore = scoreForDistance(
+      haversineKm({ lat: -50, lon: -100 }, { lat: 50.0001, lon: 10.0001 }),
+    );
+    expect(guessed.json().result.score).toBe(expectedScore);
+    expect(guessed.json().result.score).not.toBe(5000);
   });
   it('locks concurrent different guesses atomically', async () => {
     const auth = await create();
@@ -236,7 +250,7 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
           method: 'POST',
           url: `${auth.base}/rounds/${round.id}/guess`,
           headers: auth.headers,
-          payload: { lat, lon: 0 },
+          payload: { lat, lon: 0, final: true },
         }),
       ),
     );
@@ -339,7 +353,7 @@ describe('abandoning an expedition (explicit exit, database integration)', () =>
       method: 'POST',
       url: `${auth.base}/rounds/${first.id}/guess`,
       headers: auth.headers,
-      payload: { lat: 48, lon: 11 },
+      payload: { lat: 48, lon: 11, final: true },
     });
     const second = (
       await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
@@ -412,7 +426,7 @@ describe('Street View scoring availability (real database; provider doubles)', (
       method: 'POST' as const,
       url: `${base}/rounds/${round.id}/guess`,
       headers,
-      payload: { lat: 10, lon: 20 },
+      payload: { lat: 10, lon: 20, final: true },
     };
     const failed = await app.inject(request);
     expect(failed.statusCode).toBe(503);
@@ -481,10 +495,12 @@ describe('replacing unavailable Street View locations (database integration)', (
     expect((await app.inject({ method: 'POST', url })).statusCode).toBe(404);
     const retried = await app.inject({ method: 'POST', url, headers });
     expect(retried.statusCode).toBe(200);
-    expect(retried.json()).toEqual({
+    expect(retried.json()).toMatchObject({
       id: round.id,
       number: 1,
       panoId: 'retry-test-pano-1',
+      attemptsUsed: 0,
+      attemptsTotal: 2,
     });
     const before = (await app.inject({ url: base, headers })).json();
     expect(before.results).toEqual([]);
@@ -495,9 +511,9 @@ describe('replacing unavailable Street View locations (database integration)', (
           method: 'POST',
           url: `${base}/rounds/${round.id}/guess`,
           headers,
-          payload: { lat: 50, lon: 10 },
+          payload: { lat: 50, lon: 10, final: true },
         })
-      ).json().score,
+      ).json().result.score,
     ).toBe(5000);
     expect(
       (await app.inject({ method: 'POST', url, headers })).statusCode,
@@ -514,7 +530,7 @@ describe('replacing unavailable Street View locations (database integration)', (
         method: 'POST',
         url: `${base}/rounds/${round.id}/guess`,
         headers,
-        payload: { lat: 50, lon: 10 },
+        payload: { lat: 50, lon: 10, final: true },
       })
       .then((response) => response);
     await lookupStarted;
@@ -603,6 +619,76 @@ describe('difficulty levels and list-mode candidates (R05/R07)', () => {
     // Resuming the session redisplays the same list instead of re-rolling it.
     const resumed = (await app.inject({ url: auth.base, headers: auth.headers })).json();
     expect(resumed.activeRound.candidates).toEqual(round.candidates);
+  });
+  it('keeps an easy round open until the third attempt and returns no result early', async () => {
+    const auth = await create('easy');
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    const guess = () =>
+      app.inject({
+        method: 'POST',
+        url: `${auth.base}/rounds/${round.id}/guess`,
+        headers: auth.headers,
+        payload: { lat: 50, lon: 10 },
+      });
+    const first = (await guess()).json();
+    expect(first).toMatchObject({ finalized: false, attemptsRemaining: 2 });
+    expect(first.result).toBeUndefined();
+    const afterFirst = (
+      await app.inject({ url: auth.base, headers: auth.headers })
+    ).json();
+    expect(afterFirst.results).toHaveLength(0);
+    expect(afterFirst.activeRound.attemptsUsed).toBe(1);
+    const second = (await guess()).json();
+    expect(second).toMatchObject({ finalized: false, attemptsRemaining: 1 });
+    const third = (await guess()).json();
+    expect(third.finalized).toBe(true);
+    expect(third.result.score).toBe(5000);
+  });
+  it('deducts the medium extra-data cost from the round score', async () => {
+    const auth = await create('medium');
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    const unlocked = await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/unlock`,
+      headers: auth.headers,
+    });
+    expect(unlocked.statusCode).toBe(200);
+    expect(unlocked.json().extraData).toMatchObject({
+      mode: 'points',
+      cost: 100,
+      unlocked: true,
+    });
+    const scored = (
+      await app.inject({
+        method: 'POST',
+        url: `${auth.base}/rounds/${round.id}/guess`,
+        headers: auth.headers,
+        payload: { lat: 50, lon: 10, final: true },
+      })
+    ).json();
+    expect(scored.result.score).toBe(4900);
+  });
+  it('applies the hard extra-data time penalty to the round deadline', async () => {
+    const auth = await create('hard');
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+    const unlocked = (
+      await app.inject({
+        method: 'POST',
+        url: `${auth.base}/rounds/${round.id}/unlock`,
+        headers: auth.headers,
+      })
+    ).json();
+    expect(unlocked.extraData.unlocked).toBe(true);
+    const remainingMs =
+      Date.parse(unlocked.endsAt) - Date.parse(unlocked.startedAt);
+    expect(remainingMs).toBeLessThanOrEqual(100_000);
+    expect(remainingMs).toBeGreaterThan(95_000);
   });
 });
 
@@ -732,7 +818,7 @@ describe('next-round prefetch (R12)', () => {
       method: 'POST',
       url: `${auth.base}/rounds/${round.id}/guess`,
       headers: auth.headers,
-      payload: { lat: 50, lon: 10 },
+      payload: { lat: 50, lon: 10, final: true },
     });
     const callsBefore = provider.mock.calls.length;
     const next = (
@@ -752,7 +838,7 @@ describe('next-round prefetch (R12)', () => {
       method: 'POST',
       url: `${auth.base}/rounds/${round.id}/guess`,
       headers: auth.headers,
-      payload: { lat: 50, lon: 10 },
+      payload: { lat: 50, lon: 10, final: true },
     });
     let game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
     for (let i = 0; i < 40 && !game.nextPanoId; i++) {
@@ -772,7 +858,7 @@ describe('next-round prefetch (R12)', () => {
         method: 'POST',
         url: `${auth.base}/rounds/${round.id}/guess`,
         headers: auth.headers,
-        payload: { lat: 50, lon: 10 },
+        payload: { lat: 50, lon: 10, final: true },
       });
     }
     let game = await db.streetGame.findUniqueOrThrow({ where: { id: auth.id } });
@@ -827,7 +913,7 @@ describe('durable result archive (R18)', () => {
         method: 'POST',
         url: `${base}/rounds/${round.id}/guess`,
         headers,
-        payload: { lat: 48, lon: 11 },
+        payload: { lat: 48, lon: 11, final: true },
       })
     ).json();
     const archived = await db.streetResult.findUniqueOrThrow({
@@ -839,8 +925,8 @@ describe('durable result archive (R18)', () => {
     expect(archived.actualLon).toBe(10.25);
     expect(archived.guessLat).toBe(48);
     expect(archived.guessLon).toBe(11);
-    expect(archived.score).toBe(scored.score);
-    expect(archived.distanceKm).toBe(scored.distanceKm);
+    expect(archived.score).toBe(scored.result.score);
+    expect(archived.distanceKm).toBe(scored.result.distanceKm);
   });
   it('survives deletion of the 24h-expired session (decoupled retention, R18)', async () => {
     const auth = (
@@ -855,7 +941,7 @@ describe('durable result archive (R18)', () => {
       method: 'POST',
       url: `${base}/rounds/${round.id}/guess`,
       headers,
-      payload: { lat: 48, lon: 11 },
+      payload: { lat: 48, lon: 11, final: true },
     });
     // Simulate the 24h session-expiry cleanup, which cascades StreetRound.
     await db.streetGame.delete({ where: { id: auth.id } });

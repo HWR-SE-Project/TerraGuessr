@@ -1,15 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { locationFindMany, locationFindUnique, roundFindMany } = vi.hoisted(() => ({
+const { locationFindMany, locationFindUnique } = vi.hoisted(() => ({
   locationFindMany: vi.fn(),
   locationFindUnique: vi.fn(),
-  roundFindMany: vi.fn(),
 }));
 
 vi.mock('@prisma/client', () => ({
   PrismaClient: class {
     location = { findMany: locationFindMany, findUnique: locationFindUnique };
-    round = { findMany: roundFindMany };
   },
 }));
 
@@ -37,7 +35,6 @@ describe('LocationsService', () => {
   beforeEach(() => {
     locationFindMany.mockReset();
     locationFindUnique.mockReset();
-    roundFindMany.mockReset();
   });
 
   it('listPool returns the full pool when no region filter is given', async () => {
@@ -62,23 +59,6 @@ describe('LocationsService', () => {
     expect(locationFindMany).toHaveBeenCalledWith({
       where: { region: 'EUROPE' },
       select: POOL_SELECT,
-    });
-  });
-
-  it('usedLocationIds returns the unique location ids of the game rounds', async () => {
-    roundFindMany.mockResolvedValue([
-      { locationId: 'loc-1' },
-      { locationId: 'loc-2' },
-      { locationId: 'loc-1' },
-    ]);
-
-    await expect(service.usedLocationIds('game-1')).resolves.toEqual([
-      'loc-1',
-      'loc-2',
-    ]);
-    expect(roundFindMany).toHaveBeenCalledWith({
-      where: { gameId: 'game-1' },
-      select: { locationId: true },
     });
   });
 
