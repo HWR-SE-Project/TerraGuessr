@@ -58,8 +58,8 @@
     "width": 390,
     "height": 844,
     "scrollWidth": 390,
-    "scrollHeight": 927,
-    "vertical": true,
+    "scrollHeight": 844,
+    "vertical": false,
     "horizontal": false
   },
   {
@@ -118,69 +118,6 @@
   },
   {
     "name": "setup",
-    "width": 390,
-    "height": 844,
-    "scrollWidth": 390,
-    "scrollHeight": 896,
-    "vertical": true,
-    "horizontal": false
-  },
-  {
-    "name": "duels",
-    "width": 1920,
-    "height": 1080,
-    "scrollWidth": 1920,
-    "scrollHeight": 1080,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "duels",
-    "width": 1711,
-    "height": 864,
-    "scrollWidth": 1711,
-    "scrollHeight": 864,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "duels",
-    "width": 1440,
-    "height": 900,
-    "scrollWidth": 1440,
-    "scrollHeight": 900,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "duels",
-    "width": 1366,
-    "height": 768,
-    "scrollWidth": 1366,
-    "scrollHeight": 768,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "duels",
-    "width": 1024,
-    "height": 768,
-    "scrollWidth": 1024,
-    "scrollHeight": 768,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "duels",
-    "width": 768,
-    "height": 1024,
-    "scrollWidth": 768,
-    "scrollHeight": 1024,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "duels",
     "width": 390,
     "height": 844,
     "scrollWidth": 390,
@@ -247,12 +184,12 @@
     "width": 390,
     "height": 844,
     "scrollWidth": 390,
-    "scrollHeight": 1105,
+    "scrollHeight": 848,
     "vertical": true,
     "horizontal": false
   },
   {
-    "name": "weather-setup",
+    "name": "avatar",
     "width": 1920,
     "height": 1080,
     "scrollWidth": 1920,
@@ -261,7 +198,7 @@
     "horizontal": false
   },
   {
-    "name": "weather-setup",
+    "name": "avatar",
     "width": 1711,
     "height": 864,
     "scrollWidth": 1711,
@@ -270,7 +207,7 @@
     "horizontal": false
   },
   {
-    "name": "weather-setup",
+    "name": "avatar",
     "width": 1440,
     "height": 900,
     "scrollWidth": 1440,
@@ -279,7 +216,7 @@
     "horizontal": false
   },
   {
-    "name": "weather-setup",
+    "name": "avatar",
     "width": 1366,
     "height": 768,
     "scrollWidth": 1366,
@@ -288,7 +225,7 @@
     "horizontal": false
   },
   {
-    "name": "weather-setup",
+    "name": "avatar",
     "width": 1024,
     "height": 768,
     "scrollWidth": 1024,
@@ -297,7 +234,7 @@
     "horizontal": false
   },
   {
-    "name": "weather-setup",
+    "name": "avatar",
     "width": 768,
     "height": 1024,
     "scrollWidth": 768,
@@ -306,75 +243,12 @@
     "horizontal": false
   },
   {
-    "name": "weather-setup",
+    "name": "avatar",
     "width": 390,
     "height": 844,
     "scrollWidth": 390,
     "scrollHeight": 844,
     "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "avatar",
-    "width": 1920,
-    "height": 1080,
-    "scrollWidth": 1920,
-    "scrollHeight": 1080,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "avatar",
-    "width": 1711,
-    "height": 864,
-    "scrollWidth": 1711,
-    "scrollHeight": 864,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "avatar",
-    "width": 1440,
-    "height": 900,
-    "scrollWidth": 1440,
-    "scrollHeight": 900,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "avatar",
-    "width": 1366,
-    "height": 768,
-    "scrollWidth": 1366,
-    "scrollHeight": 768,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "avatar",
-    "width": 1024,
-    "height": 768,
-    "scrollWidth": 1024,
-    "scrollHeight": 768,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "avatar",
-    "width": 768,
-    "height": 1024,
-    "scrollWidth": 768,
-    "scrollHeight": 1024,
-    "vertical": false,
-    "horizontal": false
-  },
-  {
-    "name": "avatar",
-    "width": 390,
-    "height": 844,
-    "scrollWidth": 390,
-    "scrollHeight": 927,
-    "vertical": true,
     "horizontal": false
   }
 ]

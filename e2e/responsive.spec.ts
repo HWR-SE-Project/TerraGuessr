@@ -122,9 +122,9 @@ async function routes(page: Page, screenshot?: string) {
   await reachable(page, '.tg-email-submit')
   if (screenshot) await capture(page, `${output}/auth-${screenshot}.png`)
   await page.goto('/game/singleplayer')
-  await expect(page.locator('.sp-difficulty-option')).toHaveCount(3)
+  await expect(page.locator('.tg-difficulty-option')).toHaveCount(3)
   for (const label of ['Easy','Medium','Hard']) await page.getByRole('radio',{name:new RegExp(label)}).click()
-  await reachable(page, '.sp-welcome .sp-primary')
+  await reachable(page, '.sp-welcome .tg-button--primary')
   if (screenshot) await capture(page, `${output}/setup-${screenshot}.png`)
   await page.goto('/game/singleplayer?tutorial=1')
   const dialog=page.getByRole('dialog',{name:'How to play / Tutorial'})
@@ -269,7 +269,7 @@ for (const phase of ['active','final']) {
       } else {
         await expect(page.getByRole('region',{name:'Final results'})).toBeVisible()
         await reachable(page,'.tg-page-actions button')
-        await page.locator('.sp-round-list summary').click()
+        await page.locator('.sp-summary-breakdown > summary').click()
         await reachable(page,'.tg-page-actions button:last-child')
       }
       if([1920,390,856].includes(width)) await capture(page, `${output}/${phase}-${width}x${height}.png`)
@@ -296,10 +296,8 @@ test('responsive account settings, preferences and confirmation dialog', async (
     await expect(page.getByRole('alertdialog')).toBeVisible()
     await reachable(page, '.tg-confirm-cancel')
     await page.getByRole('button',{name:'Cancel',exact:true}).click()
-    await page.getByRole('button',{name:'Preferences',exact:true}).click()
     await reachable(page, '.settings-language-select select')
     if([1920,390,856].includes(width)) await capture(page,`${output}/account-${width}x${height}.png`)
-    await page.getByRole('button',{name:'Account',exact:true}).click()
   }
 })
 

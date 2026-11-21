@@ -65,9 +65,9 @@ test('primary screens fit desktops and keep mobile controls reachable', async ({
   await page.emulateMedia({ reducedMotion: 'reduce' })
   const report: unknown[] = []
   for (const [name, path, controls] of [
-    ['home', '/', '.th-edit-avatar, .tg-mode-card, .th-tutorial-entry'],
-    ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .tg-back-navigation'],
-    ['lobby', '/multiplayer', '.tl-choice, .tl-primary, .tl-secondary, .tl-difficulty-option'],
+    ['home', '/', '.th-edit-avatar, .th-nav-link, .th-tutorial-entry'],
+    ['setup', '/game/singleplayer', '.tg-difficulty-option, .sp-welcome .tg-button--primary, .sp-welcome .tg-button--secondary'],
+    ['lobby', '/multiplayer', '.tg-difficulty-option, .tl-entry-form .tg-button--primary'],
   ]) {
     if (name === 'setup') await setup(page)
     else await page.goto(path)
@@ -115,8 +115,8 @@ test('genuine browser zoom 80–200% keeps primary screens accessible', async ({
     for (const zoom of [80, 90, 100, 110, 125, 150, 200]) {
       await settings.locator('#zoomLevel').selectOption({ label: `${zoom}%` })
       for (const [name, path, controls] of [
-        ['home', '/', '.th-edit-avatar, .tg-mode-card'],
-        ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .tg-back-navigation'],
+        ['home', '/', '.th-edit-avatar, .th-nav-link'],
+        ['setup', '/game/singleplayer', '.tg-difficulty-option, .sp-welcome .tg-button--primary, .sp-welcome .tg-button--secondary'],
           ]) {
         if (name === 'setup') await setup(page)
         else await page.goto(path)
@@ -181,7 +181,7 @@ test('live gameplay, round results and summary fit the reference sizes', async (
       await page.evaluate(() => scrollTo(0, 0))
       const desktop = width >= 1024
       report.push({ name: phase, ...await metrics(page, desktop) })
-      await reachable(page, phase === 'active' ? '.sp-top-controls button, .sp-return, .sp-guess-button, .sp-compass, .gi-header, .gi-mobile-trigger' : '.tg-page-actions button, .tg-back-navigation', desktop)
+      await reachable(page, phase === 'active' ? '.th-icon-btn, .sp-guess-button, .sp-compass, .gi-header, .gi-mobile-trigger' : '.tg-page-actions button', desktop)
       if (phase === 'active') {
         await page.getByRole('button', { name: 'Expand map', exact: true }).click()
         await page.mouse.move(0, 0)

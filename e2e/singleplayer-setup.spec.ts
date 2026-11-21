@@ -7,7 +7,7 @@ import { join } from 'node:path'
 test.use({ channel: 'chromium' })
 const output = 'docs/screenshots/setup-minimal'
 const sizes = [[1920, 1080], [1711, 864], [1440, 900], [1366, 768], [1024, 768], [768, 1024], [701, 864], [390, 844], [375, 812], [320, 568]] as const
-const controls = '.sp-difficulty-option, .sp-setup-options > .sp-primary, .tg-back-navigation, .tg-page-nav a:visible, .tg-page-nav button:visible'
+const controls = '.tg-difficulty-option, .sp-setup-options > .tg-button--primary, .tg-page-nav a:visible, .tg-page-nav button:visible'
 
 async function ready(page: Page) {
   await page.goto('/game/singleplayer')
@@ -57,7 +57,7 @@ test('setup fits desktops; all difficulty states and mobile controls are clear a
     await option.click()
     await expect(option).toHaveAttribute('aria-checked', 'true')
     await expect(page.locator('[role=radio][aria-checked=true]')).toHaveCount(1)
-    await expect(option.locator('.sp-difficulty-check')).toBeVisible()
+    await expect(option.locator('.tg-difficulty-check')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Start Exploring', exact: true })).toHaveText('Start Exploring')
     await expect.poll(() => page.evaluate(() => localStorage.getItem('terraguessr.difficulty.v1'))).toBe(difficulty.toLowerCase())
     await page.mouse.move(0, 0)
