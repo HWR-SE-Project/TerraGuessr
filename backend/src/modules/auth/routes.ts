@@ -33,7 +33,6 @@ import {
   buildVerificationEmail,
 } from './emailTemplates.js';
 import { assertSameSiteMutation, readSessionToken, requireSessionUser } from './session.js';
-import { calculateDailyStreaks } from '../daily/streaks.js';
 import {
   clearGoogleFlowCookie,
   clearSessionCookie,
@@ -135,12 +134,8 @@ export function registerAuthRoutes(
   app.get('/api/auth/session', async (request) => {
     const user = await findSessionUser(db, readSessionToken(request));
     if (!user) return { user: null };
-    const [preferences, submissions] = await Promise.all([
-      db.userPreference.findUnique({ where: { userId: user.id } }),
-      db.dailySubmission.findMany({ where: { userId: user.id }, select: { date: true }, orderBy: { date: 'asc' } }),
-    ]);
-    const dailyStreak = calculateDailyStreaks(submissions.map((item) => item.date));
-    return { user: toPublicUser(user), preferences, dailyStreak };
+    const preferences = await db.userPreference.findUnique({ where: { userId: user.id } });
+    return { user: toPublicUser(user), preferences };
   });
 
   app.post('/api/auth/register', {

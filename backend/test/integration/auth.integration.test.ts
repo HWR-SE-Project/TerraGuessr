@@ -6,7 +6,6 @@ import type { PrismaClient } from '@prisma/client';
 import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
 import { registerAuthRoutes } from '../../src/modules/auth/routes.js';
 import type { AuthMailMessage } from '../../src/modules/auth/mailer.js';
-import { registerGamesRoutes } from '../../src/modules/games/routes.js';
 import { hashSecret, issuePasswordReset } from '../../src/modules/auth/service.js';
 import type { Env } from '../../src/config/env.js';
 import { setupDatabase, teardownDatabase } from './helpers/database.js';
@@ -41,7 +40,6 @@ describe('account authentication (integration)', () => {
       trustProxy: false,
     };
     registerAuthRoutes(app, { db, config, mailer: async (message) => { sent.push(message); } });
-    registerGamesRoutes(app, db);
   });
   beforeEach(() => { sent.length = 0; });
   afterAll(async () => { await app.close(); await teardownDatabase(db); });
@@ -137,12 +135,9 @@ describe('account authentication (integration)', () => {
     expect(sent).toHaveLength(1);
   });
 
-  it('persists account preferences and anonymizes owned games on confirmed deletion', async () => {
+  it('persists account preferences and deletes the account on confirmed deletion', async () => {
     const email = `delete-${Date.now()}@example.test`;
     const { cookie, userId } = await registerVerified(email, 'Delete Me');
-    const game = await app.inject({ method: 'POST', url: '/api/games', headers: { cookie }, payload: { mode: 'solo', difficulty: 'easy' } });
-    expect(game.statusCode).toBe(201);
-    expect((await db.game.findUnique({ where: { id: game.json().gameId } }))?.ownerUserId).toBe(userId);
     const pref = await app.inject({ method: 'PATCH', url: '/api/auth/preferences', headers: { cookie }, payload: { language: 'de', fullscreen: true } });
     expect(pref.json().preferences).toMatchObject({ language: 'de', fullscreen: true });
     const denied = await app.inject({ method: 'DELETE', url: '/api/auth/account', headers: { cookie }, payload: { confirmation: 'DELETE', currentPassword: 'wrong password value' } });
@@ -150,7 +145,6 @@ describe('account authentication (integration)', () => {
     const deleted = await app.inject({ method: 'DELETE', url: '/api/auth/account', headers: { cookie }, payload: { confirmation: 'DELETE', currentPassword: PASSWORD } });
     expect(deleted.statusCode).toBe(204);
     expect(await db.user.findUnique({ where: { id: userId } })).toBeNull();
-    expect((await db.game.findUnique({ where: { id: game.json().gameId } }))?.ownerUserId).toBeNull();
   });
 
   it('reports email verification availability and rejects cross-site mutations', async () => {

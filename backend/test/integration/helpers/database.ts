@@ -19,12 +19,8 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
 import { registerErrorHandler } from '../../../src/plugins/errorHandler.js';
-import { registerChallengesRoutes } from '../../../src/modules/challenges/routes.js';
-import { registerGamesRoutes } from '../../../src/modules/games/routes.js';
 import { registerLobbiesRoutes } from '../../../src/modules/lobbies/routes.js';
 import type { LobbyRouteOptions } from '../../../src/modules/lobbies/routes.js';
-import { registerRoundsRoutes } from '../../../src/modules/rounds/routes.js';
-import { registerResultsRoutes } from '../../../src/modules/results/routes.js';
 import type { WeatherClient, WeatherData } from '../../../src/modules/weather/types.js';
 
 const BACKEND_ROOT = resolve(
@@ -150,13 +146,6 @@ export class StubWeatherClient implements WeatherClient {
   }
 }
 
-/** WeatherClient that always fails, forcing the R13 fallback → 503. */
-export class FailingWeatherClient implements WeatherClient {
-  async getCurrent(): Promise<WeatherData> {
-    throw new Error('stubbed Open-Meteo failure');
-  }
-}
-
 /** Build a Fastify app with the given Prisma client + injected weather client. */
 export function buildTestApp(
   prisma: PrismaClient,
@@ -165,11 +154,7 @@ export function buildTestApp(
 ): FastifyInstance {
   const app = Fastify({ logger: { level: 'silent' } });
   registerErrorHandler(app);
-  registerGamesRoutes(app, prisma);
   registerLobbiesRoutes(app, prisma, lobbyOptions);
-  registerRoundsRoutes(app, prisma, weatherClient);
-  registerResultsRoutes(app, prisma);
-  registerChallengesRoutes(app, prisma);
   return app;
 }
 
@@ -184,33 +169,4 @@ export async function setupDatabase(): Promise<PrismaClient> {
 
 export async function teardownDatabase(prisma: PrismaClient): Promise<void> {
   await prisma.$disconnect();
-}
-
-const FORBIDDEN_ACTUAL_KEYS = new Set(['actualLat', 'actualLon', 'actual']);
-
-/** Deep-scan a value for R04-forbidden keys at any nesting depth. */
-export function findLeakedActualKeys(value: unknown): string[] {
-  const leaks: string[] = [];
-  const stack: Array<[string, unknown]> = [['$', value]];
-
-  while (stack.length > 0) {
-    const entry = stack.pop();
-    if (entry === undefined) continue;
-    const [path, current] = entry;
-
-    if (Array.isArray(current)) {
-      for (let i = 0; i < current.length; i += 1) {
-        stack.push([path + '[' + i + ']', current[i]]);
-      }
-    } else if (current !== null && typeof current === "object") {
-      for (const [key, child] of Object.entries(current)) {
-        if (FORBIDDEN_ACTUAL_KEYS.has(key)) {
-          leaks.push(path + '.' + key);
-        }
-        stack.push([path + '.' + key, child]);
-      }
-    }
-  }
-
-  return leaks;
 }
