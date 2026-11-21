@@ -105,7 +105,7 @@ async function home(page: Page, screenshot?: string, navigate = true) {
   await expect(page.getByRole('dialog')).toBeVisible()
   await audit(page)
   await page.keyboard.press('Escape')
-  for (const selector of ['.th-tutorial-entry', '.tg-mode-card:nth-child(1)', '.tg-mode-card:nth-child(2)', '.tg-mode-card:nth-child(3)']) await reachable(page, selector)
+  for (const selector of ['.th-tutorial-entry', '.tg-mode-card:nth-child(1)', '.tg-mode-card:nth-child(2)']) await reachable(page, selector)
   await page.evaluate(() => scrollTo(0,0))
   if (screenshot) await capture(page, `${output}/home-${screenshot}.png`)
 }
@@ -117,9 +117,6 @@ async function routes(page: Page, screenshot?: string) {
   await reachable(page, 'input[type="email"]')
   await reachable(page, '.tg-email-submit')
   if (screenshot) await capture(page, `${output}/auth-${screenshot}.png`)
-  await page.goto('/duels')
-  await reachable(page, '.td-play')
-  if (screenshot) await capture(page, `${output}/duels-${screenshot}.png`)
   await page.goto('/game/singleplayer')
   await expect(page.locator('.sp-difficulty-option')).toHaveCount(3)
   for (const label of ['Easy','Medium','Hard']) await page.getByRole('radio',{name:new RegExp(label)}).click()

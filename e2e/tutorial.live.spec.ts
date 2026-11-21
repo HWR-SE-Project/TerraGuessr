@@ -69,7 +69,7 @@ test('R14 live: real targets, preserved pin/panorama, actual submission, distanc
     }
     if (number === 5) {
       await guide(page).getByRole('slider').fill('2000')
-      await expect(guide(page).getByLabel('Example score')).toContainText('1,839')
+      await expect(guide(page).getByLabel('Example score')).toContainText('4,522')
     }
     await guide(page).getByRole('button', { name: number === 5 ? 'Finish tutorial' : 'Next', exact: true }).click()
   }
@@ -117,7 +117,7 @@ test('R14 live: Easy shortlist and Hard borderless map remain usable after the g
       await page.getByTestId('candidate-option').nth(1).click()
       await expect(page.getByTestId('candidate-option').nth(1)).toHaveAttribute('aria-pressed', 'true')
     } else {
-      await expect(page.locator('.gi-panel')).toHaveClass(/gi-panel-collapsed/)
+      await expect(page.locator('.gi-panel')).not.toHaveClass(/gi-panel-collapsed/)
       const map = page.locator('.sp-guess-panel .sp-google-map')
       await expect(map).toHaveAttribute('data-tiles-ready', 'true', { timeout: 30_000 })
       await map.click({ position: { x: 130, y: 100 } })

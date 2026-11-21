@@ -75,9 +75,6 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
     await page.goto('/')
     await expect(page.locator('.th-character-slot')).toHaveAttribute('data-character-status', 'ready', { timeout: 30_000 })
     await page.screenshot({ path: `${out}/home.png` })
-    await page.goto('/duels')
-    await expect(page.getByRole('heading', { name: 'Duels', exact: true })).toBeVisible()
-    await page.screenshot({ path: `${out}/duels.png` })
     await page.goto('/multiplayer')
     await expect(page.getByRole('heading', { name: 'Multiplayer', exact: true })).toBeVisible()
     await page.screenshot({ path: `${out}/multiplayer.png` })
@@ -176,14 +173,14 @@ test('live Google: Home through six endless rounds, End Game summary, new game, 
       expect(scored.ok()).toBe(true)
       const result = await scored.json()
       expect(result.number).toBe(number)
-      expect(result.score).toBe(
-        Math.round(
-          Math.max(
-            0,
-            Math.min(5000, 5000 * Math.exp(-result.distanceKm / 2000)),
-          ),
-        ),
-      )
+      const roundedKm = Math.round(result.distanceKm * 10) / 10
+      const expectedScore =
+        roundedKm <= 100
+          ? 5000
+          : roundedKm >= 20000
+            ? 0
+            : Math.floor((5000 * (20000 - roundedKm)) / 19900)
+      expect(result.score).toBe(expectedScore)
       expect(Number.isFinite(result.actual.lat)).toBe(true)
       report.rounds.push(result)
       await expect(

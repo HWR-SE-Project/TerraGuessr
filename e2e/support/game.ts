@@ -1,38 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-export type Difficulty = 'easy' | 'medium' | 'hard';
-export type SelectionMode = 'map' | 'list';
-
-const FORBIDDEN_ACTUAL_KEYS = new Set(['actualLat', 'actualLon', 'actual', 'isActual']);
-
-/** Deep-scan a value for R04-forbidden keys at any nesting depth. */
-export function findActualKeys(value: unknown): string[] {
-  const leaks: string[] = [];
-  const stack: Array<[string, unknown]> = [['$', value]];
-
-  while (stack.length > 0) {
-    const entry = stack.pop();
-    if (entry === undefined) continue;
-    const [path, current] = entry;
-
-    if (Array.isArray(current)) {
-      for (let i = 0; i < current.length; i += 1) {
-        stack.push([path + '[' + i + ']', current[i]]);
-      }
-    } else if (current !== null && typeof current === 'object') {
-      for (const [key, child] of Object.entries(current)) {
-        if (FORBIDDEN_ACTUAL_KEYS.has(key)) {
-          leaks.push(path + '.' + key);
-        }
-        stack.push([path + '.' + key, child]);
-      }
-    }
-  }
-
-  return leaks;
-}
-
 // Live development servers enforce 10 registrations per minute. CI may leave
 // this unset; shared local verification can opt into pacing without weakening
 // the real server's account protections.
@@ -64,22 +32,4 @@ export async function registerAndLogin(page: Page, displayName: string): Promise
   expect((await session.json()).user.displayName).toBe(displayName);
 
   return { email, password };
-}
-
-/** Fills out the real GameSetupForm (difficulty / map-or-list / round count) and starts a solo round. */
-export async function startSoloGame(
-  page: Page,
-  options: { difficulty?: Difficulty; mode?: SelectionMode; rounds?: 3 | 5 | 10 } = {},
-): Promise<void> {
-  const { difficulty = 'medium', mode = 'map', rounds = 3 } = options;
-  await page.goto('/play');
-  await page.getByRole('button', { name: difficulty.charAt(0).toUpperCase() + difficulty.slice(1), exact: true }).click();
-  await page.getByRole('button', { name: mode === 'map' ? 'Click the map' : 'Pick from a list' }).click();
-  await page.getByRole('button', { name: String(rounds), exact: true }).click();
-  await page.getByRole('button', { name: 'Start playing' }).click();
-}
-
-/** Drops a guess on the map picker at a fixed, visible offset from its top-left. */
-export async function guessOnMap(page: Page): Promise<void> {
-  await page.locator('.tg-play-round-picker .tg-map-picker').click({ position: { x: 150, y: 130 } });
 }

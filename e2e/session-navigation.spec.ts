@@ -81,7 +81,7 @@ test('completed summary uses saved results, reveals breakdown on demand and adap
   await expect(page.locator('.sp-round-list')).toContainText('100.0 km4,000 pts')
 })
 
-for (const destination of ['logo', 'multiplayer', 'duels', 'browser-back'] as const) {
+for (const destination of ['logo', 'multiplayer', 'browser-back'] as const) {
   test(`active exit guard preserves destination and cancellation: ${destination}`, async ({ page }) => {
     const api = await gameFixture(page)
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -90,7 +90,7 @@ for (const destination of ['logo', 'multiplayer', 'duels', 'browser-back'] as co
     await start(page)
     const leave = async () => {
       if (destination === 'browser-back') await page.goBack()
-      else await page.getByRole('link', { name: destination === 'logo' ? 'TerraGuessr home' : destination === 'duels' ? 'Duels' : 'Multiplayer', exact: true }).click()
+      else await page.getByRole('link', { name: destination === 'logo' ? 'TerraGuessr home' : 'Multiplayer', exact: true }).click()
     }
     await leave()
     await expect(page.getByRole('dialog', { name: 'End your adventure?' })).toBeVisible()
@@ -99,7 +99,7 @@ for (const destination of ['logo', 'multiplayer', 'duels', 'browser-back'] as co
     expect(api.ended()).toBe(0)
     await leave()
     await page.getByRole('button', { name: 'End Game', exact: true }).click()
-    await expect(page).toHaveURL(destination === 'multiplayer' ? /\/multiplayer$/ : destination === 'duels' ? /\/duels$/ : /\/$/)
+    await expect(page).toHaveURL(destination === 'multiplayer' ? /\/multiplayer$/ : /\/$/)
     expect(api.ended()).toBe(1)
     // A fresh visit never resumes the finalized session.
     await page.getByRole('link', { name: 'Singleplayer', exact: true }).click()
@@ -111,13 +111,13 @@ for (const destination of ['logo', 'multiplayer', 'duels', 'browser-back'] as co
 test('one responsive header exposes working help, settings and destinations without overlapping the logo', async ({ page }) => {
   await gameFixture(page)
   await page.setViewportSize({ width: 390, height: 844 })
-  for (const url of ['/', '/duels', '/multiplayer', '/auth', '/reset-password', '/verify-email', '/confirm-email-change', '/game/singleplayer']) {
+  for (const url of ['/', '/multiplayer', '/auth', '/reset-password', '/verify-email', '/confirm-email-change', '/game/singleplayer']) {
     await page.goto(url)
     await expect(page.locator('.tg-page-nav')).toHaveCount(1)
     await expect(page.getByRole('link', { name: 'TerraGuessr home' })).toBeInViewport()
     await page.getByRole('button', { name: 'Open navigation' }).click()
     const nav = page.getByRole('navigation', { name: 'Main navigation' })
-    await expect(nav.getByRole('link', { name: 'Duels', exact: true })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Singleplayer', exact: true })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('button', { name: 'Open navigation' })).toBeFocused()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)

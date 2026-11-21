@@ -25,10 +25,10 @@ test('live geographic intelligence: protected data, desktop states, movement and
   // R14: the tutorial dialog opens asynchronously (after the config check
   // resolves), so an immediate isVisible() check can race it — then it sits
   // on screen as a modal and blocks every subsequent click. Wait for it.
-  const skipTutorial = page.getByRole('button', { name: 'Skip' })
+  const exitTutorial = page.getByRole('button', { name: 'Exit tutorial' })
   try {
-    await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-    await skipTutorial.click()
+    await exitTutorial.waitFor({ state: 'visible', timeout: 8_000 })
+    await exitTutorial.click()
   } catch {
     // Already seen in this profile this run; nothing to dismiss.
   }

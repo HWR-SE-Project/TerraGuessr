@@ -18,7 +18,6 @@ test('shared navigation is consistent across discovery, account, setup and avata
   await expect(page.getByRole('button', { name: 'Edit Avatar' })).toBeFocused()
   for (const [name, path, heading] of [
     ['setup', '/game/singleplayer', 'The world is out there. Find your place.'],
-    ['duels', '/duels', 'Duels'],
     ['multiplayer', '/multiplayer', 'Multiplayer'],
     ['auth', '/auth', 'A little lost. A lot to discover.'],
   ]) {

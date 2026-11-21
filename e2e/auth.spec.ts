@@ -4,11 +4,11 @@ import { registerAndLogin } from './support/game';
 test.describe('authentication', () => {
   test('registration logs the player in and the session survives a reload', async ({ page }) => {
     await registerAndLogin(page, 'Browser Explorer');
-    await page.goto('/duels');
-    await expect(page.getByRole('main').getByText('Browser Explorer', { exact: true })).toBeVisible();
+    await page.goto('/game/singleplayer');
+    await expect(page.locator('.th-profile-name')).toHaveText('Browser Explorer');
 
     await page.reload();
-    await expect(page.getByRole('main').getByText('Browser Explorer', { exact: true })).toBeVisible();
+    await expect(page.locator('.th-profile-name')).toHaveText('Browser Explorer');
   });
 
   test('logout returns to the guest home page, and the account can log back in', async ({ page }) => {
@@ -26,8 +26,8 @@ test.describe('authentication', () => {
     await page.getByLabel('Password', { exact: false }).fill(password);
     await page.locator('form').getByRole('button', { name: 'Log in', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Play Solo Challenge yourself', exact: true })).toBeVisible();
-    await page.goto('/duels');
-    await expect(page.getByRole('main').getByText('Logout Tester', { exact: true })).toBeVisible();
+    await page.goto('/game/singleplayer');
+    await expect(page.locator('.th-profile-name')).toHaveText('Logout Tester');
   });
 
   test('an incorrect password shows an inline error instead of logging in', async ({ page }) => {

@@ -15,10 +15,10 @@ test('live Google easy difficulty: list-mode guessing and expanded clues (R05/R0
   test.setTimeout(90_000)
   await page.setViewportSize({ width: 1792, height: 861 })
   await page.goto('/game/singleplayer')
-  const skipTutorial = page.getByRole('button', { name: 'Skip' })
+  const exitTutorial = page.getByRole('button', { name: 'Exit tutorial' })
   try {
-    await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-    await skipTutorial.click()
+    await exitTutorial.waitFor({ state: 'visible', timeout: 8_000 })
+    await exitTutorial.click()
   } catch {
     // Already seen in this profile this run; nothing to dismiss.
   }
@@ -55,7 +55,7 @@ test('live Google easy difficulty: list-mode guessing and expanded clues (R05/R0
   ).toBeVisible()
 })
 
-test('live Google hard difficulty: free map placement with clues collapsed by default (R05)', async ({
+test('live Google hard difficulty: free map placement with weather visible by default (R05/R06)', async ({
   page,
 }) => {
   test.skip(
@@ -65,10 +65,10 @@ test('live Google hard difficulty: free map placement with clues collapsed by de
   test.setTimeout(90_000)
   await page.setViewportSize({ width: 1792, height: 861 })
   await page.goto('/game/singleplayer')
-  const skipTutorial = page.getByRole('button', { name: 'Skip' })
+  const exitTutorial = page.getByRole('button', { name: 'Exit tutorial' })
   try {
-    await skipTutorial.waitFor({ state: 'visible', timeout: 8_000 })
-    await skipTutorial.click()
+    await exitTutorial.waitFor({ state: 'visible', timeout: 8_000 })
+    await exitTutorial.click()
   } catch {
     // Already seen in this profile this run; nothing to dismiss.
   }
@@ -77,15 +77,13 @@ test('live Google hard difficulty: free map placement with clues collapsed by de
   await expect(page.locator('.sp-panorama[data-ready="true"]')).toBeVisible({
     timeout: 45_000,
   })
-  // Hard difficulty: clues collapsed by default, but still reachable.
+  // Hard difficulty: core weather is visible without collapsing (R06).
   const panel = page.getByRole('complementary', {
     name: 'Geographic intelligence',
   })
   const toggle = panel.getByRole('button', {
     name: /GEOGRAPHIC INTELLIGENCE/,
   })
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await toggle.click()
   await expect(toggle).toHaveAttribute('aria-expanded', 'true')
   await expect(panel.getByText(/°C/)).toBeVisible()
   // Hard difficulty: free map placement, not a list.

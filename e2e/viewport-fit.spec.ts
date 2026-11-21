@@ -67,9 +67,7 @@ test('primary screens fit desktops and keep mobile controls reachable', async ({
   for (const [name, path, controls] of [
     ['home', '/', '.th-edit-avatar, .tg-mode-card, .th-tutorial-entry'],
     ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .tg-back-navigation'],
-    ['duels', '/duels', '.td-play, .td-lobby-link'],
     ['lobby', '/multiplayer', '.tl-choice, .tl-primary, .tl-secondary, .tl-difficulty-option'],
-    ['weather-setup', '/play', '.tg-play-choice, .tg-play-cta'],
   ]) {
     if (name === 'setup') await setup(page)
     else await page.goto(path)
@@ -119,8 +117,7 @@ test('genuine browser zoom 80–200% keeps primary screens accessible', async ({
       for (const [name, path, controls] of [
         ['home', '/', '.th-edit-avatar, .tg-mode-card'],
         ['setup', '/game/singleplayer', '.sp-difficulty-option, .sp-welcome .sp-primary, .sp-welcome .sp-secondary, .tg-back-navigation'],
-        ['duels', '/duels', '.td-play, .td-lobby-link'],
-      ]) {
+          ]) {
         if (name === 'setup') await setup(page)
         else await page.goto(path)
         await page.locator(controls).first().waitFor()

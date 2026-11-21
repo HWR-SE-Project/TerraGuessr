@@ -73,7 +73,7 @@ test('R14: one concise sentence per step, Previous, Next and completion', async 
     await expect(tutorial(page).getByText(`${number} / 5`)).toBeVisible()
     if (number === 4) await expect(tutorial(page).getByLabel('Tutorial example: London to Paris')).toContainText('343.6 km')
   }
-  for (const [distance, score] of [['0', '5,000'], ['2000', '1,839'], ['20000', '0']]) {
+  for (const [distance, score] of [['0', '5,000'], ['2000', '4,522'], ['20000', '0']]) {
     await tutorial(page).getByRole('slider').fill(distance!)
     await expect(tutorial(page).getByLabel('Example score')).toContainText(score!)
   }
@@ -81,6 +81,19 @@ test('R14: one concise sentence per step, Previous, Next and completion', async 
   await expect(tutorial(page)).toHaveCount(0)
   await open(page)
   await expect(tutorial(page).getByText('1 / 5')).toBeVisible()
+})
+
+test('R14: in-card practice selection and submit, then exit', async ({ page }) => {
+  await isolateProviders(page); await open(page)
+  await tutorial(page).getByRole('button', { name: 'Next' }).click()
+  const paris = tutorial(page).getByRole('button', { name: /Paris/ })
+  await paris.click()
+  await expect(paris).toHaveAttribute('aria-pressed', 'true')
+  await tutorial(page).getByRole('button', { name: 'Next' }).click()
+  await tutorial(page).getByRole('button', { name: 'Submit try-out guess' }).click()
+  await expect(tutorial(page).getByRole('button', { name: 'Guess submitted' })).toBeDisabled()
+  await tutorial(page).getByRole('button', { name: 'Exit tutorial' }).click()
+  await expect(tutorial(page)).toHaveCount(0)
 })
 
 test('R14: actual targets, no duplicated UI, exit and restart at every step preserve the session', async ({ page }) => {
