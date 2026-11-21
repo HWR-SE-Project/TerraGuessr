@@ -1,0 +1,259 @@
+@import 'tailwindcss';
+
+/* -----------------------------------------------------------------------------
+ * TerraGuessr v2 design system.
+ *
+ * A warm, playful, cosmic geography adventure. Deep indigo-violet space,
+ * a confident lime brand accent, chunky tactile controls and friendly rounded
+ * surfaces. Depth comes from solid warm surfaces and soft layered shadows —
+ * not glassmorphism.
+ * -------------------------------------------------------------------------- */
+
+@theme {
+  /* --- Space background scale (deep → raised) --- */
+  --color-space-950: #090718;
+  --color-space-900: #0e0b20;
+  --color-space-850: #14112a;
+  --color-space-800: #1a1636;
+  --color-space-700: #221c41;
+  --color-space-600: #2b2452;
+  --color-space-500: #352d64;
+
+  /* --- Brand lime + ink --- */
+  --color-lime-300: #d7ff96;
+  --color-lime-400: #c0f66b;
+  --color-lime-500: #a8e04e;
+  --color-lime-600: #86c334;
+  --color-ink: #1b2a10;
+
+  /* --- Text --- */
+  --color-cream: #fbf7ee;
+  --color-muted: #bdb5d8;
+  --color-subtle: #948bac;
+
+  /* --- Accents --- */
+  --color-amber-300: #ffc88a;
+  --color-amber-400: #ffb45e;
+  --color-sky-300: #79d7f0;
+  --color-sky-400: #57c4e8;
+  --color-violet-300: #b59bff;
+  --color-violet-400: #9d7dff;
+  --color-gold-300: #f0cf7a;
+  --color-rose-300: #ff9da3;
+  --color-rose-400: #f27f88;
+
+  /* --- Typography --- */
+  --font-display: 'Fredoka', 'Nunito', ui-rounded, system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
+
+  /* --- Radii --- */
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+  --radius-4xl: 2.25rem;
+
+  /* --- Motion --- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* --- Soft layered shadows --- */
+  --shadow-card: 0 10px 28px rgba(5, 3, 16, 0.42), 0 2px 6px rgba(5, 3, 16, 0.28);
+  --shadow-panel: 0 24px 60px rgba(5, 3, 16, 0.55), 0 3px 10px rgba(5, 3, 16, 0.3);
+  --shadow-pop: 0 18px 46px rgba(5, 3, 16, 0.5), 0 2px 8px rgba(5, 3, 16, 0.28);
+  --shadow-press: 0 4px 0 var(--color-lime-600), 0 8px 20px rgba(5, 3, 16, 0.4);
+
+  /* --- Animations --- */
+  --animate-twinkle: twinkle 4s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+  --animate-drift: drift 26s linear infinite;
+  --animate-spin-slow: spin 60s linear infinite;
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.25; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes drift {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Base                                                                        */
+/* -------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-space-900);
+    color: var(--color-cream);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  button {
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-lime-400);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-lime-400) 45%, transparent);
+    color: var(--color-cream);
+  }
+
+  input[type='color'] {
+    accent-color: var(--color-lime-400);
+  }
+
+  /* Safe-area padding helper for notched phones. */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared surfaces & primitives                                                */
+/* -------------------------------------------------------------------------- */
+
+@layer components {
+  /* Warm solid card surface with a subtle top-light. */
+  .surface {
+    background: linear-gradient(180deg, var(--color-space-600), var(--color-space-700));
+    border: 1px solid color-mix(in srgb, #ffffff 9%, transparent);
+    border-radius: var(--radius-3xl);
+    box-shadow: var(--shadow-card);
+  }
+
+  .surface-flat {
+    background: var(--color-space-700);
+    border: 1px solid color-mix(in srgb, #ffffff 8%, transparent);
+    border-radius: var(--radius-2xl);
+  }
+
+  .surface-hairline {
+    border: 1px solid color-mix(in srgb, #ffffff 12%, transparent);
+  }
+
+  .hairline-t {
+    border-top: 1px solid color-mix(in srgb, #ffffff 8%, transparent);
+  }
+
+  /* Chunky, tactile game button — shared by the Button component. */
+  .btn-base {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 1.125rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1;
+    user-select: none;
+    white-space: nowrap;
+    transition:
+      transform 120ms var(--ease-out),
+      box-shadow 120ms var(--ease-out),
+      background-color 160ms var(--ease-out),
+      border-color 160ms var(--ease-out),
+      color 160ms var(--ease-out),
+      filter 160ms var(--ease-out);
+  }
+  .btn-base:active:not(:disabled) {
+    transform: translateY(3px);
+  }
+  .btn-base:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .btn-press {
+    box-shadow: var(--shadow-press);
+  }
+  .btn-press:active:not(:disabled) {
+    box-shadow: 0 1px 0 var(--color-lime-600), 0 4px 12px rgba(5, 3, 16, 0.35);
+  }
+
+  /* Inputs */
+  .field-base {
+    width: 100%;
+    background: var(--color-space-800);
+    border: 1px solid color-mix(in srgb, #ffffff 12%, transparent);
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    color: var(--color-cream);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+  }
+  .field-base::placeholder { color: var(--color-subtle); }
+  .field-base:focus {
+    outline: none;
+    border-color: var(--color-lime-400);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-lime-400) 18%, transparent);
+  }
+
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-lime-400);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Scrollbar & reduced motion                                                  */
+/* -------------------------------------------------------------------------- */
+
+@layer utilities {
+  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, #ffffff 14%, transparent);
+    border-radius: 999px;
+  }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

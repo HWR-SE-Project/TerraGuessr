@@ -1,115 +1,146 @@
+import { lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Button } from '../../components/ui/Button'
+import { Dropdown } from '../../components/ui/Dropdown'
 import { Icon } from '../../components/ui/Icon'
-import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { AppHeader } from '../../components/layout/AppHeader'
-import { InlineNotice } from '../../components/ui/InlineNotice'
-import './HomePage.css'
-import { ResumeLobbyBanner } from './ResumeLobbyBanner'
-import { Home3DScene } from '../../scene/home/Home3DScene'
-import type { CharacterStatus } from '../../scene/home/CharacterModel'
-import { AvatarEditor } from '../../features/avatar/AvatarEditor'
-import { useAvatarPersistence } from '../../features/avatar/useAvatarPersistence'
-import { noticeVariants, staggerContainer, staggerItem } from '../../lib/motion'
+import { useSession } from '../../state/session'
+import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
+import earthFallback from '../../assets/images/earth-horizon.webp'
 
-function HeroSection({
-  characterStatus,
-  onEditAvatar,
-  feetOffset,
-}: {
-  characterStatus: CharacterStatus
-  onEditAvatar: (button: HTMLButtonElement) => void
-  feetOffset: number | null
-}) {
-  return (
-    <motion.main
-      className="th-hero"
-      id="home-main"
-      tabIndex={-1}
-      variants={staggerContainer}
-      initial="initial"
-      animate="animate"
-    >
-      <motion.div className="th-hero-copy" variants={staggerItem}>
-        <h1>
-          Explore the <span>World</span>
-        </h1>
-        <p className="th-description">
-          Somewhere incredible. No idea where.
-          <br className="th-desktop-break" /> Follow the clues. Find your place
-          in the world.
-        </p>
-      </motion.div>
-      <motion.div
-        className="th-avatar-display"
-        variants={staggerItem}
-        style={{ '--feet-y': feetOffset == null ? undefined : `${feetOffset}px` } as CSSProperties}
-      >
-        <div className="th-character-slot" data-character-status={characterStatus}
-          role="img" aria-label={characterStatus === 'ready' ? 'Your explorer, ready for the next discovery' : characterStatus === 'loading' ? 'Loading explorer avatar' : 'Explorer avatar unavailable'}>
-          {characterStatus !== 'ready' && <span className="th-character-status" role="status">
-            {characterStatus === 'loading' ? 'Loading avatar…' : 'Avatar unavailable'}
-          </span>}
-        </div>
-        <button className="th-edit-avatar tg-control tg-action" type="button" aria-haspopup="dialog" onClick={event => onEditAvatar(event.currentTarget)}>
-          <Icon name="pencil" /> Edit Avatar
-        </button>
-      </motion.div>
-    </motion.main>
-  )
-}
+// Lazy-load the heavy R3F scene so `three` stays out of the initial chunk.
+const HomeScene = lazy(() =>
+  import('../../scene/HomeScene').then((m) => ({ default: m.HomeScene })),
+)
+
+const MODES = [
+  {
+    to: '/singleplayer',
+    icon: 'compass' as const,
+    title: 'Singleplayer',
+    text: 'Drop into a street anywhere on Earth and find your way.',
+  },
+  {
+    to: '/multiplayer',
+    icon: 'users' as const,
+    title: 'Multiplayer',
+    text: 'Challenge friends in a live lobby and race to the right spot.',
+  },
+  {
+    to: '/avatar',
+    icon: 'person' as const,
+    title: 'Your explorer',
+    text: 'Style your own little explorer for every adventure.',
+  },
+]
 
 export function HomePage() {
-  const [characterStatus, setCharacterStatus] = useState<CharacterStatus>('loading')
-  const [feetOffset, setFeetOffset] = useState<number | null>(null)
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [avatarFeedback, setAvatarFeedback] = useState('')
-  const avatar = useAvatarPersistence()
-  useEffect(() => {
-    if (!avatarFeedback) return
-    const timeout = window.setTimeout(() => setAvatarFeedback(''), 5000)
-    return () => window.clearTimeout(timeout)
-  }, [avatarFeedback])
-  const editAvatarRef = useRef<HTMLElement | null>(null)
+  const navigate = useNavigate()
+  const session = useSession()
+
   return (
-    <div className="th-home">
-      <a className="th-skip" href="#home-main">
-        Skip to content
-      </a>
-      <Home3DScene onCharacterStatus={setCharacterStatus} onFeetOffset={setFeetOffset} />
-      <div className="th-orbits" aria-hidden="true">
-        <div className="th-orbit th-orbit-one" />
-        <div className="th-orbit th-orbit-two" />
-      </div>
-      <AppHeader />
-      <HeroSection characterStatus={characterStatus} feetOffset={feetOffset} onEditAvatar={(button) => {
-        editAvatarRef.current = button
-        setAvatarFeedback('')
-        setEditorOpen(true)
-      }} />
-      <ResumeLobbyBanner />
-      <AnimatePresence>
-        {avatarFeedback && (
+    <div className="relative">
+      <section className="relative min-h-[calc(100dvh-4rem)]">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-4 pb-12 pt-6 sm:px-6 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-2 lg:gap-4">
+          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="max-w-xl">
+            <motion.p variants={staggerItem} className="eyebrow">
+              A geography guessing game
+            </motion.p>
+            <motion.h1
+              variants={staggerItem}
+              className="mt-3 text-balance font-display text-4xl font-semibold leading-[1.05] text-cream sm:text-5xl lg:text-6xl"
+            >
+              Find your place
+              <br />
+              in the world<span className="text-lime-400">.</span>
+            </motion.h1>
+            <motion.p variants={staggerItem} className="mt-5 max-w-md text-lg leading-relaxed text-muted">
+              You're dropped somewhere on Earth. Read the streets, the skies and the
+              weather — then guess where you are.
+            </motion.p>
+
+            <motion.div variants={staggerItem} className="mt-8 flex flex-wrap items-center gap-3">
+              <Button size="lg" icon="play" onClick={() => navigate('/singleplayer')}>
+                Play singleplayer
+              </Button>
+              <Dropdown
+                align="start"
+                trigger={({ toggle, ref }) => (
+                  <button
+                    ref={ref}
+                    onClick={toggle}
+                    className="btn-base btn-press h-14 px-7 text-lg rounded-2xl bg-space-600 text-cream hover:bg-space-500 border border-white/10 shadow-card"
+                  >
+                    <Icon name="users" size={22} />
+                    Multiplayer
+                    <Icon name="chevronDown" size={18} />
+                  </button>
+                )}
+                items={[
+                  { key: 'create', label: 'Create a lobby', icon: <Icon name="plus" size={18} />, onSelect: () => navigate('/multiplayer?mode=create') },
+                  { key: 'join', label: 'Join with a code', icon: <Icon name="search" size={18} />, onSelect: () => navigate('/multiplayer?mode=join') },
+                ]}
+              />
+            </motion.div>
+
+            {session.status === 'guest' && (
+              <motion.p variants={staggerItem} className="mt-5 text-sm text-subtle">
+                New here?{' '}
+                <button onClick={() => navigate('/auth')} className="font-bold text-lime-300 hover:underline">
+                  Create a free account
+                </button>{' '}
+                to save your explorer and history.
+              </motion.p>
+            )}
+          </motion.div>
+
+          {/* 3D visual: planet + explorer, with a measured character slot. */}
           <motion.div
-            key="avatar-feedback"
-            variants={noticeVariants}
+            variants={fadeUp}
             initial="initial"
             animate="animate"
-            exit="exit"
+            className="relative h-[380px] w-full sm:h-[440px] lg:h-[540px]"
           >
-            <InlineNotice tone="success" className="th-toast">
-              {avatarFeedback}
-            </InlineNotice>
+            <Suspense
+              fallback={
+                <div className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+                  <img src={earthFallback} alt="" className="h-full w-full object-cover opacity-70" />
+                </div>
+              }
+            >
+              <HomeScene />
+            </Suspense>
+            <div className="home-character-slot pointer-events-none absolute left-1/2 top-[4%] h-[84%] w-[64%] -translate-x-1/2 sm:w-[58%]" />
           </motion.div>
-        )}
-      </AnimatePresence>
-      {editorOpen && <AvatarEditor key={avatar.identity} initialConfig={avatar.config} account={avatar.account}
-        loading={avatar.loading} loadError={avatar.error} onRetry={avatar.retry} onSave={avatar.save}
-        onClose={(saved) => {
-          setEditorOpen(false)
-          if (saved) setAvatarFeedback(avatar.account ? 'Avatar saved to your account.' : 'Avatar saved on this device.')
-          editAvatarRef.current?.focus()
-        }} />}
+        </div>
+      </section>
+
+      {/* Mode cards */}
+      <section className="mx-auto max-w-6xl px-4 pb-20 pt-4 sm:px-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {MODES.map((mode) => (
+            <motion.button
+              key={mode.to}
+              variants={staggerItem}
+              initial="initial"
+              whileInView="animate"
+              viewport={{ once: true }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(mode.to)}
+              className="surface group flex flex-col items-start gap-3 p-6 text-left transition-transform hover:-translate-y-1"
+            >
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-lime-400/15 text-lime-300">
+                <Icon name={mode.icon} size={24} />
+              </span>
+              <span className="font-display text-xl font-semibold text-cream">{mode.title}</span>
+              <span className="text-sm leading-relaxed text-muted">{mode.text}</span>
+              <span className="mt-1 inline-flex items-center gap-1.5 text-sm font-bold text-lime-300">
+                Go <Icon name="chevronRight" size={16} className="transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

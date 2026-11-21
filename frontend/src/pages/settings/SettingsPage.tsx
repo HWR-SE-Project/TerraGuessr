@@ -1,407 +1,238 @@
-import { Switch } from '../../components/ui/Switch'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
-import { IconButton } from '../../components/ui/IconButton'
-import { Input } from '../../components/ui/Input'
-import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useSession } from '../../state/SessionContext'
-import { requestEmailChange } from '../../api/auth'
-import { mapApiError } from '../../api/errorMessages'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
-import { AppHeader } from '../../components/layout/AppHeader'
-import { staggerContainer, staggerItem, collapseVariants } from '../../lib/motion'
-import './SettingsPage.css'
+import { Field, Input, Slider, Switch } from '../../components/ui/Form'
+import { Dialog } from '../../components/ui/Dialog'
+import { Icon } from '../../components/ui/Icon'
+import { useSession, signOut, setUser } from '../../state/session'
+import { usePreferences, updatePreference, toggleFullscreen } from '../../state/preferences'
+import { api } from '../../services'
+import { staggerContainer, staggerItem } from '../../lib/motion'
+import type { PublicUser } from '../../lib/contracts'
 
-function LanguageIcon() {
+export function SettingsPage() {
+  const session = useSession()
+  const prefs = usePreferences()
+  const authed = session.status === 'authed'
+  const user = session.user
+
   return (
-    <svg viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M4 4.5h15a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-5.2l-4.4 4v-4H6a2 2 0 0 1-2-2v-13Z" />
-      <path d="M10 9.5h6M13 8v2m-4 5.5c2-.8 4.2-2.6 5.5-5.2M10 11.5c.8 2.2 2.5 3.8 4.5 4.7" />
-      <path d="M17 16.5h9a2 2 0 0 1 2 2v8h-4l-3 2v-2h-4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z" />
-    </svg>
+    <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      <motion.div variants={staggerContainer} initial="initial" animate="animate" className="flex flex-col gap-6">
+        <motion.div variants={staggerItem}>
+          <p className="eyebrow">Settings</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-cream">Make it yours</h1>
+        </motion.div>
+
+        {/* Preferences */}
+        <SettingSection title="Preferences">
+          <SettingRow icon="language" title="Language" hint="Interface language">
+            <div className="flex gap-1 rounded-2xl bg-space-800 p-1">
+              {(['en', 'de'] as const).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => void updatePreference({ language: lang })}
+                  className={`rounded-xl px-4 py-1.5 text-sm font-bold transition-colors ${
+                    prefs.language === lang ? 'bg-lime-400 text-ink' : 'text-muted hover:text-cream'
+                  }`}
+                >
+                  {lang === 'en' ? 'English' : 'Deutsch'}
+                </button>
+              ))}
+            </div>
+          </SettingRow>
+
+          <SettingRow icon="fullscreen" title="Fullscreen" hint="Expand the game to fill your screen">
+            <Switch
+              checked={prefs.fullscreen}
+              onChange={() => void toggleFullscreen()}
+              label="Fullscreen"
+            />
+          </SettingRow>
+
+          <SettingRow icon="volume" title="Sound effects" hint="Feedback for guesses and actions">
+            <div className="w-44">
+              <Slider
+                value={prefs.soundFxVolume}
+                onChange={(value) => void updatePreference({ soundFxVolume: value })}
+                label="Sound effects volume"
+              />
+            </div>
+          </SettingRow>
+
+          <SettingRow icon="volume" title="Music" hint="Ambient background music">
+            <div className="w-44">
+              <Slider
+                value={prefs.musicVolume}
+                onChange={(value) => void updatePreference({ musicVolume: value })}
+                label="Music volume"
+              />
+            </div>
+          </SettingRow>
+        </SettingSection>
+
+        {/* Account */}
+        <SettingSection title="Account">
+          {authed && user ? (
+            <>
+              <AccountProfile user={user} onUpdate={(updated) => setUser(updated)} />
+              <SettingRow icon="mail" title="Email" hint={user.email}>
+                <Button variant="secondary" size="sm" disabled title="Email change requires backend delivery — available in Phase 2.">
+                  Change
+                </Button>
+              </SettingRow>
+              <SettingRow icon="exit" title="Sign out" hint="Leave this device">
+                <Button variant="secondary" size="sm" onClick={() => void signOut()}>
+                  Sign out
+                </Button>
+              </SettingRow>
+              <DeleteAccount />
+            </>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold text-cream">Sign in</p>
+                <p className="text-sm text-subtle">Save your explorer, history and preferences to an account.</p>
+              </div>
+              <Button to="/auth" size="sm">Sign in</Button>
+            </div>
+          )}
+        </SettingSection>
+
+        <p className="text-center text-xs text-subtle">
+          Preferences sync to your account when signed in; guests keep them on this device.
+        </p>
+      </motion.div>
+    </div>
   )
 }
 
-function Slider({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number
-  onChange: (value: number) => void
-}) {
+function AccountProfile({ user, onUpdate }: { user: PublicUser; onUpdate: (user: PublicUser) => void }) {
+  const [name, setName] = useState(user.displayName)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function save() {
+    setSaving(true)
+    setMessage(null)
+    try {
+      const { user: updated } = await api.auth.updateProfile(name)
+      onUpdate(updated)
+      setMessage('Display name updated.')
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Could not update.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="settings-item">
-      <h2 className="settings-item__label">{label}</h2>
-      <div className="settings-slider-wrap">
-        <input
-          aria-label={label}
-          className="settings-slider"
-          type="range"
-          min="0"
-          max="100"
-          value={value}
-          style={{ '--slider-progress': `${value}%` } as CSSProperties}
-          onChange={(event) => onChange(Number(event.target.value))}
-        />
-        <span className="settings-slider__value">{value}</span>
+    <div className="flex flex-col gap-3">
+      <Field label="Display name" htmlFor="profile-name">
+        <Input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} icon="person" />
+      </Field>
+      <div className="flex items-center gap-3">
+        <Button size="sm" loading={saving} onClick={save} disabled={name.trim().length < 2 || name === user.displayName}>
+          Save name
+        </Button>
+        {message && <span className="text-sm font-semibold text-lime-300">{message}</span>}
       </div>
     </div>
   )
 }
 
-export function SettingsPage() {
-  const navigate = useNavigate()
-  const {
-    status,
-    user,
-    preferences,
-    updateProfile,
-    updatePreferences,
-    logout,
-    deleteAccount,
-  } = useSession()
-  const [nameDraft, setDisplayName] = useState<string | null>(null)
-  const displayName = nameDraft ?? user?.displayName ?? ''
-  const [profileSaving, setProfileSaving] = useState(false)
-  const [profileMessage, setProfileMessage] = useState<string | null>(null)
+function DeleteAccount() {
+  const [open, setOpen] = useState(false)
+  const [confirm, setConfirm] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const [emailFormOpen, setEmailFormOpen] = useState(false)
-  const [newEmail, setNewEmail] = useState('')
-  const [emailPassword, setEmailPassword] = useState('')
-  const [emailBusy, setEmailBusy] = useState(false)
-  const [emailMessage, setEmailMessage] = useState<string | null>(null)
-  const [emailError, setEmailError] = useState<string | null>(null)
-
-  const [prefsError, setPrefsError] = useState<string | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deletePassword, setDeletePassword] = useState('')
-  const [deleteBusy, setDeleteBusy] = useState(false)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented && !deleteOpen) navigate('/')
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [navigate, deleteOpen])
-
-  async function saveProfile(event: React.FormEvent) {
-    event.preventDefault()
-    setProfileSaving(true)
-    setProfileMessage(null)
+  async function remove() {
+    setLoading(true)
+    setError(null)
     try {
-      await updateProfile(displayName.trim())
-      setProfileMessage('Saved.')
+      await api.auth.deleteAccount('DELETE', password || undefined)
+      setOpen(false)
+      window.location.href = '/'
     } catch (cause) {
-      setProfileMessage(mapApiError(cause))
-    } finally {
-      setProfileSaving(false)
+      setError(cause instanceof Error ? cause.message : 'Could not delete the account.')
+      setLoading(false)
     }
-  }
-
-  async function submitEmailChange(event: React.FormEvent) {
-    event.preventDefault()
-    setEmailBusy(true)
-    setEmailMessage(null)
-    setEmailError(null)
-    try {
-      const result = await requestEmailChange(newEmail.trim(), emailPassword || undefined)
-      setEmailMessage(result.message)
-      setEmailFormOpen(false)
-      setNewEmail('')
-      setEmailPassword('')
-    } catch (cause) {
-      setEmailError(
-        mapApiError(cause, {
-          EMAIL_IN_USE: 'That email is already used by another account.',
-          EMAIL_UNCHANGED: 'Choose a different email address.',
-          UNAUTHORIZED: 'Current password is incorrect.',
-        }),
-      )
-    } finally {
-      setEmailBusy(false)
-    }
-  }
-
-  async function patchPreferences(
-    changes: Parameters<typeof updatePreferences>[0],
-  ) {
-    setPrefsError(null)
-    if ('fullscreen' in changes) {
-      try {
-        if (changes.fullscreen) await document.documentElement.requestFullscreen()
-        else if (document.fullscreenElement) await document.exitFullscreen()
-      } catch {
-        setPrefsError('Your browser blocked fullscreen. Try again from a direct click.')
-        return
-      }
-    }
-    try {
-      await updatePreferences(changes)
-    } catch (cause) {
-      setPrefsError(mapApiError(cause))
-    }
-  }
-
-  // Keep the toggle in sync when fullscreen is left via Escape or browser UI.
-  useEffect(() => {
-    const onFullscreenChange = () => {
-      if (!document.fullscreenElement && preferences?.fullscreen) void updatePreferences({ fullscreen: false })
-    }
-    document.addEventListener('fullscreenchange', onFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
-  }, [preferences?.fullscreen, updatePreferences])
-
-  async function confirmDelete() {
-    setDeleteBusy(true)
-    setDeleteError(null)
-    try {
-      await deleteAccount(deletePassword || undefined)
-      navigate('/')
-    } catch (cause) {
-      setDeleteError(
-        mapApiError(cause, { UNAUTHORIZED: 'Current password is incorrect.' }),
-      )
-    } finally {
-      setDeleteBusy(false)
-    }
-  }
-
-  async function handleLogout() {
-    await logout()
-    navigate('/')
-  }
-
-  if (status === 'loading') {
-    return (
-      <>
-        <AppHeader />
-        <main className="settings-screen">
-          <p className="settings-note">Loading…</p>
-        </main>
-      </>
-    )
   }
 
   return (
     <>
-      <AppHeader />
-      <main className="settings-screen" onClick={(event) => {
-        if (event.target === event.currentTarget && !deleteOpen) navigate('/')
-      }}>
-        <section className="settings-window tg-glass tg-glass--panel" aria-label="Settings">
-          <header className="settings-window__header">
-            <h1>Settings</h1>
-            <IconButton className="settings-window__close" aria-label="Close settings" onClick={() => navigate('/')}>
-              ×
-            </IconButton>
-          </header>
-
-          <motion.div
-            className="settings-window__body"
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
-          >
-            <motion.section variants={staggerItem} className="settings-group settings-group--account">
-              <h2 className="settings-group__title">Account</h2>
-              {!user ? (
-                <div className="settings-group__box">
-                  <div className="settings-item settings-item--guest">
-                    <p>Sign in to manage your account.</p>
-                    <Button type="button" size="sm" onClick={() => navigate('/auth')}>
-                      Sign in
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="settings-group__box">
-                  <form className="settings-item" onSubmit={saveProfile}>
-                    <h2 className="settings-item__label">Name</h2>
-                    <div className="settings-inline-group">
-                      <Input
-                        aria-label="Display name"
-                        className="settings-text-input"
-                        value={displayName}
-                        minLength={2}
-                        maxLength={40}
-                        onChange={(event) => setDisplayName(event.target.value)}
-                      />
-                      <Button
-                        type="submit"
-                        size="sm"
-                        disabled={profileSaving || displayName.trim() === user.displayName}
-                      >
-                        {profileSaving ? 'Saving…' : 'Save'}
-                      </Button>
-                    </div>
-                    {profileMessage && <span className="settings-inline-message">{profileMessage}</span>}
-                  </form>
-
-                  <div className="settings-item settings-item--stack">
-                    <h2 className="settings-item__label">Email</h2>
-                    <div className="settings-email">
-                      <div className="settings-inline-group">
-                        <span className="settings-email-address">{user.email}</span>
-                        <Button
-                          variant="secondary"
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            setEmailFormOpen((open) => !open)
-                            setEmailError(null)
-                            setEmailMessage(null)
-                          }}
-                        >
-                          {emailFormOpen ? 'Cancel' : 'Change'}
-                        </Button>
-                      </div>
-                      {emailMessage && <span className="settings-inline-message">{emailMessage}</span>}
-                      <AnimatePresence initial={false}>
-                        {emailFormOpen && (
-                          <motion.form
-                            className="settings-email-form"
-                            onSubmit={submitEmailChange}
-                            variants={collapseVariants}
-                            initial="initial"
-                            animate="animate"
-                            exit="exit"
-                            style={{ overflow: 'hidden' }}
-                          >
-                            <Input
-                              type="email"
-                              required
-                              aria-label="New email address"
-                              className="settings-text-input"
-                              placeholder="New email address"
-                              value={newEmail}
-                              onChange={(event) => setNewEmail(event.target.value)}
-                            />
-                            {user.hasPassword && (
-                              <Input
-                                type="password"
-                                required
-                                aria-label="Current password"
-                                className="settings-text-input"
-                                placeholder="Current password"
-                                value={emailPassword}
-                                onChange={(event) => setEmailPassword(event.target.value)}
-                              />
-                            )}
-                            <p className="settings-note">
-                              We'll email both addresses — the change applies once both confirm.
-                            </p>
-                            <Button type="submit" size="sm" disabled={emailBusy || !newEmail.trim()}>
-                              {emailBusy ? 'Sending…' : 'Send confirmation'}
-                            </Button>
-                            {emailError && (
-                              <p className="settings-inline-message settings-inline-message--error">{emailError}</p>
-                            )}
-                          </motion.form>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-
-                  <div className="settings-item settings-item--actions">
-                    <h2 className="settings-item__label">Account</h2>
-                    <div className="settings-account-actions">
-                      <Button variant="secondary" appearance="flat" type="button" size="sm" onClick={handleLogout}>
-                        Log out
-                      </Button>
-                      <Button variant="danger" appearance="flat" type="button" size="sm" onClick={() => setDeleteOpen(true)}>
-                        Delete my account
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </motion.section>
-
-            <motion.section variants={staggerItem} className="settings-group">
-              <h2 className="settings-group__title">Preferences</h2>
-              <div className="settings-group__box">
-                <Slider
-                  label="Effects"
-                  value={preferences?.soundFxVolume ?? 50}
-                  onChange={(value) => patchPreferences({ soundFxVolume: value })}
-                />
-                <Slider
-                  label="Music"
-                  value={preferences?.musicVolume ?? 35}
-                  onChange={(value) => patchPreferences({ musicVolume: value })}
-                />
-
-                <div className="settings-item">
-                  <h2 className="settings-item__label">Language</h2>
-                  <div className="settings-language-select tg-field">
-                    <span className="settings-language-select__icon">
-                      <LanguageIcon />
-                    </span>
-                    <select
-                      aria-label="Language"
-                      value={preferences?.language ?? 'en'}
-                      onChange={(event) =>
-                        patchPreferences({
-                          language: event.target.value as 'en' | 'de',
-                        })
-                      }
-                    >
-                      <option value="en">English</option>
-                      <option value="de">Deutsch</option>
-                    </select>
-                    <span className="settings-language-select__chevron" aria-hidden="true" />
-                  </div>
-                </div>
-
-                <div className="settings-item">
-                  <h2 className="settings-item__label">Fullscreen</h2>
-                  <label className="settings-toggle">
-                    <Switch
-                      aria-label="Fullscreen"
-                      checked={preferences?.fullscreen ?? false}
-                      onChange={(event) => patchPreferences({ fullscreen: event.target.checked })}
-                    />
-                  </label>
-                </div>
-
-                {prefsError && <p className="settings-inline-message settings-inline-message--error">{prefsError}</p>}
-              </div>
-            </motion.section>
-          </motion.div>
-        </section>
-
-        {deleteOpen && (
-          <ConfirmDialog
-            title="Delete your account?"
-            description="This can't be undone. Past games and results are kept, anonymized. If your account has a password, confirm it below."
-            confirmLabel="Delete account"
-            destructive
-            busy={deleteBusy}
-            onConfirm={confirmDelete}
-            onCancel={() => {
-              setDeleteOpen(false)
-              setDeleteError(null)
-              setDeletePassword('')
-            }}
-          >
-            <Input
-              type="password"
-              aria-label="Current password"
-              placeholder="Current password (if set)"
-              className="settings-text-input settings-delete-password"
-              value={deletePassword}
-              onChange={(event) => setDeletePassword(event.target.value)}
-            />
-            {deleteError && <p className="settings-inline-message settings-inline-message--error">{deleteError}</p>}
-          </ConfirmDialog>
-        )}
-      </main>
+      <SettingRow icon="lock" title="Delete account" hint="Permanently remove your account" danger>
+        <Button variant="danger" size="sm" onClick={() => setOpen(true)}>
+          Delete
+        </Button>
+      </SettingRow>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Delete your account?"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="secondary" fullWidth onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" fullWidth loading={loading} disabled={confirm !== 'DELETE'} onClick={remove}>
+              Delete forever
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-muted">
+            This permanently deletes your account and personal data. Type <span className="font-bold text-cream">DELETE</span> to confirm.
+          </p>
+          <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="DELETE" />
+          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Current password (if set)" icon="lock" />
+          {error && <p className="text-sm font-semibold text-rose-300">{error}</p>}
+        </div>
+      </Dialog>
     </>
+  )
+}
+
+function SettingSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="surface overflow-hidden">
+      <h2 className="border-b border-white/8 px-5 py-3 font-display text-sm font-semibold uppercase tracking-widest text-subtle">
+        {title}
+      </h2>
+      <div className="divide-y divide-white/6">{children}</div>
+    </section>
+  )
+}
+
+function SettingRow({
+  icon,
+  title,
+  hint,
+  children,
+  danger,
+}: {
+  icon: Parameters<typeof Icon>[0]['name']
+  title: string
+  hint?: string
+  children: React.ReactNode
+  danger?: boolean
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-5 py-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${danger ? 'bg-rose-400/15 text-rose-300' : 'bg-space-800 text-subtle'}`}>
+          <Icon name={icon} size={18} />
+        </span>
+        <div className="min-w-0">
+          <p className={`font-semibold ${danger ? 'text-rose-300' : 'text-cream'}`}>{title}</p>
+          {hint && <p className="truncate text-sm text-subtle">{hint}</p>}
+        </div>
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
   )
 }

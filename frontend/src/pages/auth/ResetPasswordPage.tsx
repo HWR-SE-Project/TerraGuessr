@@ -1,150 +1,110 @@
-import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
 import { useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { AppHeader } from '../../components/layout/AppHeader'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import * as authApi from '../../api/auth'
-import { mapApiError } from '../../api/errorMessages'
-import { collapseVariants, noticeVariants, staggerContainer, staggerItem } from '../../lib/motion'
-import './AuthPage.css'
-import '../../components/auth/EmailAuthForm.css'
+import { motion } from 'framer-motion'
+import { Button } from '../../components/ui/Button'
+import { Field, Input } from '../../components/ui/Form'
+import { LogoMark } from '../../components/ui/Logo'
+import { api } from '../../services'
+import { scaleIn } from '../../lib/motion'
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams()
+  const token = params.get('token')
   const navigate = useNavigate()
-  const token = params.get('token') ?? ''
-  const [password, setPassword] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [done, setDone] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  async function submit(event: React.FormEvent) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function requestReset(event: React.FormEvent) {
     event.preventDefault()
-    setSubmitting(true)
+    setLoading(true)
     setError(null)
     try {
-      await authApi.completePasswordReset(token, password)
-      setDone(true)
+      const { message } = await api.auth.requestPasswordReset(email)
+      setMessage(message)
     } catch (cause) {
-      setError(
-        mapApiError(cause, {
-          VALIDATION_ERROR: 'That reset link is invalid or has expired.',
-        }),
-      )
+      setError(cause instanceof Error ? cause.message : 'Something went wrong.')
     } finally {
-      setSubmitting(false)
+      setLoading(false)
+    }
+  }
+
+  async function completeReset(event: React.FormEvent) {
+    event.preventDefault()
+    setLoading(true)
+    setError(null)
+    try {
+      await api.auth.completePasswordReset(token!, password)
+      setMessage('Password updated. You can now sign in.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Something went wrong.')
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <>
-    <AppHeader />
-    <main className="tg-auth-root">
-      <motion.div
-        className="tg-reset-card"
-        variants={staggerContainer}
-        initial="initial"
-        animate="animate"
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          {!token ? (
-            <motion.div
-              key="invalid"
-              className="tg-email-form"
-              variants={collapseVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <motion.h2 className="tg-email-form-title" variants={staggerItem}>Invalid link</motion.h2>
-              <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                This password reset link is missing its token. Request a new one
-                from the sign-in screen.
-              </motion.p>
-              <motion.div variants={staggerItem}>
-                <Button
-                  type="button"
-                  className="tg-email-submit"
-                  onClick={() => navigate('/auth')}
-                >
-                  Back to sign in
-                </Button>
-              </motion.div>
-            </motion.div>
-          ) : done ? (
-            <motion.div
-              key="done"
-              className="tg-email-form"
-              variants={collapseVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <motion.h2 className="tg-email-form-title" variants={staggerItem}>Password updated</motion.h2>
-              <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                You can now log in with your new password.
-              </motion.p>
-              <motion.div variants={staggerItem}>
-                <Button
-                  type="button"
-                  className="tg-email-submit"
-                  onClick={() => navigate('/auth')}
-                >
-                  Go to sign in
-                </Button>
-              </motion.div>
-            </motion.div>
-          ) : (
-            <motion.form
-              key="form"
-              className="tg-email-form"
-              onSubmit={submit}
-              variants={collapseVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <h2 className="tg-email-form-title">Choose a new password</h2>
-              <label className="tg-email-field">
-                <span>New password</span>
+    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 py-10">
+      <motion.div variants={scaleIn} initial="initial" animate="animate" className="surface w-full max-w-md p-8">
+        <div className="flex flex-col items-center text-center">
+          <LogoMark size={44} />
+          <h1 className="mt-4 font-display text-2xl font-semibold text-cream">
+            {token ? 'Choose a new password' : 'Reset your password'}
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            {token
+              ? 'Pick something strong and memorable.'
+              : 'Enter your email and we’ll send recovery instructions.'}
+          </p>
+        </div>
+
+        {message ? (
+          <div className="mt-6 flex flex-col items-center gap-4 text-center">
+            <p className="rounded-2xl bg-lime-400/12 px-4 py-3 text-sm font-semibold text-lime-300">{message}</p>
+            <Button onClick={() => navigate('/auth')}>Back to sign in</Button>
+          </div>
+        ) : (
+          <form onSubmit={token ? completeReset : requestReset} className="mt-6 flex flex-col gap-4">
+            {token ? (
+              <Field label="New password" htmlFor="password" hint="At least 12 characters.">
                 <Input
+                  id="password"
                   type="password"
-                  autoComplete="new-password"
-                  minLength={12}
-                  required
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={12}
+                  icon="lock"
+                  autoComplete="new-password"
                 />
-                <small className="tg-email-hint">At least 12 characters.</small>
-              </label>
-              <AnimatePresence>
-                {error && (
-                  <motion.p
-                    key="reset-error"
-                    className="tg-email-error"
-                    role="alert"
-                    variants={noticeVariants}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                  >
-                    {error}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-              <Button
-                type="submit"
-                className="tg-email-submit"
-                disabled={submitting}
-              >
-                {submitting ? 'Updating…' : 'Update password'}
-              </Button>
-            </motion.form>
-          )}
-        </AnimatePresence>
+              </Field>
+            ) : (
+              <Field label="Email" htmlFor="email">
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  icon="mail"
+                  autoComplete="email"
+                />
+              </Field>
+            )}
+            {error && (
+              <p role="alert" className="rounded-xl bg-rose-400/12 px-3 py-2 text-sm font-semibold text-rose-300">
+                {error}
+              </p>
+            )}
+            <Button type="submit" fullWidth size="lg" loading={loading}>
+              {token ? 'Update password' : 'Send instructions'}
+            </Button>
+          </form>
+        )}
       </motion.div>
-    </main>
-    </>
+    </div>
   )
 }

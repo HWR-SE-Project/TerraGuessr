@@ -1,124 +1,69 @@
-import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { AppHeader } from '../../components/layout/AppHeader'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import * as authApi from '../../api/auth'
-import type { EmailChangeConfirmation } from '../../api/types'
-import { mapApiError } from '../../api/errorMessages'
-import { useSession } from '../../state/SessionContext'
-import { collapseVariants, staggerContainer, staggerItem } from '../../lib/motion'
-import './AuthPage.css'
-import '../../components/auth/EmailAuthForm.css'
+import { LogoMark } from '../../components/ui/Logo'
+import { Spinner } from '../../components/ui/Button'
+import { api } from '../../services'
+import { scaleIn } from '../../lib/motion'
 
-type Status = 'confirming' | 'done' | 'error'
-
-function pendingCopy(result: EmailChangeConfirmation): { heading: string; body: string } {
-  if (result.side === 'old') {
-    return {
-      heading: 'Current address confirmed',
-      body: 'Now open the confirmation email sent to your new address to finish the change.',
-    }
-  }
-  return {
-    heading: 'New address confirmed',
-    body: 'Now open the confirmation email sent to your current address to approve the change.',
-  }
-}
+type State = { phase: 'loading' } | { phase: 'ok'; email?: string } | { phase: 'error'; message: string }
 
 export function EmailChangePage() {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
-  const { refresh } = useSession()
-  const token = params.get('token') ?? ''
-  const [status, setStatus] = useState<Status>(token ? 'confirming' : 'error')
-  const [result, setResult] = useState<EmailChangeConfirmation | null>(null)
-  const [message, setMessage] = useState(
-    token ? '' : 'This confirmation link is missing its token.',
-  )
-  const started = useRef(false)
+  const token = params.get('token')
+  const [state, setState] = useState<State>({ phase: 'loading' })
 
   useEffect(() => {
-    // The token is single-use, so StrictMode must not fire the request twice.
-    if (!token || started.current) return
-    started.current = true
-    authApi
+    if (!token) {
+      setState({ phase: 'error', message: 'This confirmation link is missing a token.' })
+      return
+    }
+    api.auth
       .confirmEmailChange(token)
-      .then(async (confirmation) => {
-        setResult(confirmation)
-        setStatus('done')
-        if (confirmation.changed) await refresh().catch(() => {})
-      })
-      .catch((error) => {
-        setStatus('error')
-        setMessage(
-          mapApiError(
-            error,
-            { INVALID_EMAIL_CHANGE_TOKEN: 'This confirmation link is invalid or has expired.' },
-          ),
-        )
-      })
-  }, [token, refresh])
-
-  const changed = status === 'done' && result?.changed === true
+      .then((result) =>
+        setState(
+          result.changed
+            ? { phase: 'ok', email: result.email }
+            : { phase: 'ok' },
+        ),
+      )
+      .catch((cause: Error) => setState({ phase: 'error', message: cause.message }))
+  }, [token])
 
   return (
-    <>
-    <AppHeader />
-    <main className="tg-auth-root">
-      <div className="tg-reset-card">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={`${status}-${result?.changed ?? ''}`}
-            className="tg-email-form"
-            variants={collapseVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <motion.div variants={staggerContainer} initial="initial" animate="animate">
-              {status === 'confirming' ? (
-                <>
-                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Confirming your email change</motion.h2>
-                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                    One moment…
-                  </motion.p>
-                </>
-              ) : status === 'done' && result?.changed ? (
-                <>
-                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Email updated</motion.h2>
-                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                    Your address is now {result.email}. For security, every session
-                    has been signed out. Sign in again with the new address.
-                  </motion.p>
-                </>
-              ) : status === 'done' && result ? (
-                <>
-                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>{pendingCopy(result).heading}</motion.h2>
-                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                    {pendingCopy(result).body}
-                  </motion.p>
-                </>
-              ) : (
-                <>
-                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Confirmation failed</motion.h2>
-                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                    {message}
-                  </motion.p>
-                </>
-              )}
-              {status !== 'confirming' && (
-                <motion.div variants={staggerItem}>
-                  <Button className="tg-email-submit" onClick={() => navigate(changed ? '/auth' : '/settings')}>
-                    {changed ? 'Go to sign in' : status === 'done' ? 'Back to settings' : 'Back'}
-                  </Button>
-                </motion.div>
-              )}
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </main>
-    </>
+    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 py-10">
+      <motion.div variants={scaleIn} initial="initial" animate="animate" className="surface w-full max-w-md p-8 text-center">
+        <LogoMark size={44} />
+        <h1 className="mt-4 font-display text-2xl font-semibold text-cream">Confirm email change</h1>
+        <div className="mt-6">
+          {state.phase === 'loading' && (
+            <div className="flex items-center justify-center gap-2 text-muted">
+              <Spinner className="size-5" /> Confirming…
+            </div>
+          )}
+          {state.phase === 'ok' && (
+            <div className="flex flex-col items-center gap-4">
+              <p className="rounded-2xl bg-lime-400/12 px-4 py-3 text-sm font-semibold text-lime-300">
+                {state.email
+                  ? `Your email is now ${state.email}.`
+                  : 'Your email address has been confirmed.'}
+              </p>
+              <Button to="/settings">Back to settings</Button>
+            </div>
+          )}
+          {state.phase === 'error' && (
+            <div className="flex flex-col items-center gap-4">
+              <p className="rounded-2xl bg-rose-400/12 px-4 py-3 text-sm font-semibold text-rose-300">
+                {state.message}
+              </p>
+              <Link to="/settings" className="font-bold text-lime-300 hover:underline">
+                Back to settings
+              </Link>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
   )
 }

@@ -1,53 +1,87 @@
-import { useEffect, useRef } from 'react'
-import type { ComponentProps } from 'react'
+import { useEffect } from 'react'
+import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { IconButton } from './Button'
+import { scaleIn } from '../../lib/motion'
 
-type DialogProps = Omit<ComponentProps<'dialog'>, 'onClose' | 'open'> & {
+export function Dialog({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  labelledBy,
+  dismissible = true,
+  maxWidth = 'max-w-md',
+}: {
+  open: boolean
   onClose: () => void
-  closeDisabled?: boolean
-  dismissOnBackdrop?: boolean
-}
-
-/** Native modality, dismissal, focus containment and focus return for every overlay. */
-export function Dialog({ onClose, closeDisabled = false, dismissOnBackdrop = true, children, ref, ...props }: DialogProps) {
-  const dialog = useRef<HTMLDialogElement>(null)
+  title?: string
+  children: ReactNode
+  footer?: ReactNode
+  labelledBy?: string
+  dismissible?: boolean
+  maxWidth?: string
+}) {
   useEffect(() => {
-    const element = dialog.current!
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const overflow = document.body.style.overflow
-    element.showModal()
+    if (!open) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && dismissible) onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
-      element.close()
-      document.body.style.overflow = overflow
-      if (previous?.isConnected) previous.focus({ preventScroll: true })
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previous
     }
-  }, [])
+  }, [open, onClose, dismissible])
 
-  return <dialog {...props} ref={element => {
-    dialog.current = element
-    if (typeof ref === 'function') return ref(element)
-    if (ref) ref.current = element
-  }} onCancel={event => {
-    event.preventDefault()
-    if (!closeDisabled) onClose()
-  }} onKeyDownCapture={event => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      event.stopPropagation()
-      if (!closeDisabled) onClose()
-      return
-    }
-    if (event.key !== 'Tab') return
-    const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
-    )).filter(element => element.getClientRects().length > 0 && !element.closest('[hidden], [inert]'))
-    const first = items[0], last = items.at(-1)
-    const index = items.indexOf(document.activeElement as HTMLElement)
-    if (event.shiftKey && index <= 0) { event.preventDefault(); last?.focus() }
-    else if (!event.shiftKey && (index < 0 || document.activeElement === last)) { event.preventDefault(); first?.focus() }
-  }} onClick={event => {
-    if (!dismissOnBackdrop || closeDisabled || event.target !== event.currentTarget) return
-    const bounds = event.currentTarget.getBoundingClientRect()
-    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose()
-  }}>{children}</dialog>
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div
+            className="absolute inset-0 bg-space-950/70 backdrop-blur-sm"
+            onClick={dismissible ? onClose : undefined}
+            aria-hidden="true"
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            aria-labelledby={labelledBy}
+            variants={scaleIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className={`surface relative z-10 flex max-h-[92dvh] w-full ${maxWidth} flex-col overflow-hidden`}
+          >
+            <div className="flex items-start justify-between gap-4 px-6 pt-5">
+              {title ? (
+                <h2 id={labelledBy} className="text-xl font-semibold text-cream">
+                  {title}
+                </h2>
+              ) : (
+                <span />
+              )}
+              {dismissible && (
+                <IconButton name="close" label="Close dialog" onClick={onClose} size="sm" />
+              )}
+            </div>
+            <div className="scroll-thin flex-1 overflow-y-auto px-6 py-4">{children}</div>
+            {footer && <div className="px-6 pb-6 pt-1">{footer}</div>}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
 }

@@ -1,90 +1,61 @@
-import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { AppHeader } from '../../components/layout/AppHeader'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import * as authApi from '../../api/auth'
-import { collapseVariants, staggerContainer, staggerItem } from '../../lib/motion'
-import './AuthPage.css'
-import '../../components/auth/EmailAuthForm.css'
+import { LogoMark } from '../../components/ui/Logo'
+import { Spinner } from '../../components/ui/Button'
+import { api } from '../../services'
+import { scaleIn } from '../../lib/motion'
 
-type Status = 'verifying' | 'success' | 'error'
+type State = { phase: 'loading' } | { phase: 'ok' } | { phase: 'error'; message: string }
 
 export function VerifyEmailPage() {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
-  const token = params.get('token') ?? ''
-  const [status, setStatus] = useState<Status>(token ? 'verifying' : 'error')
-  const [message, setMessage] = useState(
-    token ? '' : 'This verification link is missing its token.',
-  )
-  const started = useRef(false)
+  const token = params.get('token')
+  const [state, setState] = useState<State>({ phase: 'loading' })
 
   useEffect(() => {
-    // Effect cleanup in StrictMode must not cancel the single-use request:
-    // a second POST would always report an already-consumed token.
-    if (!token || started.current) return
-    started.current = true
-    authApi
+    if (!token) {
+      setState({ phase: 'error', message: 'This verification link is missing a token.' })
+      return
+    }
+    api.auth
       .verifyEmail(token)
-      .then(() => setStatus('success'))
-      .catch(() => {
-        setStatus('error')
-        setMessage(
-          'This verification link is invalid or has expired. Sign in to request a new one.',
-        )
-      })
+      .then(() => setState({ phase: 'ok' }))
+      .catch((cause: Error) => setState({ phase: 'error', message: cause.message }))
   }, [token])
 
   return (
-    <>
-    <AppHeader />
-    <main className="tg-auth-root">
-      <div className="tg-reset-card">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={status}
-            className="tg-email-form"
-            variants={collapseVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <motion.div variants={staggerContainer} initial="initial" animate="animate">
-              {status === 'verifying' ? (
-                <>
-                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Verifying your email</motion.h2>
-                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                    One moment…
-                  </motion.p>
-                </>
-              ) : status === 'success' ? (
-                <>
-                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Email verified</motion.h2>
-                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                    Your account is active. Sign in to start exploring.
-                  </motion.p>
-                </>
-              ) : (
-                <>
-                  <motion.h2 className="tg-email-form-title" variants={staggerItem}>Verification failed</motion.h2>
-                  <motion.p className="tg-email-hint" style={{ textAlign: 'center' }} variants={staggerItem}>
-                    {message}
-                  </motion.p>
-                </>
-              )}
-              {status !== 'verifying' && (
-                <motion.div variants={staggerItem}>
-                  <Button className="tg-email-submit" onClick={() => navigate('/auth')}>
-                    {status === 'success' ? 'Go to sign in' : 'Back to sign in'}
-                  </Button>
-                </motion.div>
-              )}
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </main>
-    </>
+    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 py-10">
+      <motion.div variants={scaleIn} initial="initial" animate="animate" className="surface w-full max-w-md p-8 text-center">
+        <LogoMark size={44} />
+        <h1 className="mt-4 font-display text-2xl font-semibold text-cream">Email verification</h1>
+        <div className="mt-6">
+          {state.phase === 'loading' && (
+            <div className="flex items-center justify-center gap-2 text-muted">
+              <Spinner className="size-5" /> Verifying…
+            </div>
+          )}
+          {state.phase === 'ok' && (
+            <div className="flex flex-col items-center gap-4">
+              <p className="rounded-2xl bg-lime-400/12 px-4 py-3 text-sm font-semibold text-lime-300">
+                Your email is verified. Welcome aboard!
+              </p>
+              <Button to="/">Continue exploring</Button>
+            </div>
+          )}
+          {state.phase === 'error' && (
+            <div className="flex flex-col items-center gap-4">
+              <p className="rounded-2xl bg-rose-400/12 px-4 py-3 text-sm font-semibold text-rose-300">
+                {state.message}
+              </p>
+              <Link to="/auth" className="font-bold text-lime-300 hover:underline">
+                Back to sign in
+              </Link>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
   )
 }

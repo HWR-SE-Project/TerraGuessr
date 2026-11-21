@@ -11,7 +11,6 @@ export function useWebGLSupport(): boolean {
       const canvas = document.createElement('canvas')
       const context = canvas.getContext('webgl2') || canvas.getContext('webgl')
       webGLSupport = !!context
-      // A probe must not retain a second GPU context alongside the real canvas.
       context?.getExtension('WEBGL_lose_context')?.loseContext()
       return webGLSupport
     } catch {
@@ -24,9 +23,7 @@ export function useWebGLSupport(): boolean {
 
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -38,57 +35,41 @@ export function usePrefersReducedMotion(): boolean {
 }
 
 export interface PointerState {
-  x: number
-  y: number
-  targetX: number
-  targetY: number
   clientX: number
   clientY: number
   active: boolean
-  lastMovedAt: number
 }
 
-/** Tracks normalized pointer position (-1..1) in a mutable ref so useFrame can read it without re-renders. */
+/** Tracks the pointer in a mutable ref so useFrame can read it without re-renders. */
 export function usePointerParallax(enabled: boolean) {
-  const ref = useRef<PointerState>({ x: 0, y: 0, targetX: 0, targetY: 0, clientX: 0, clientY: 0, active: false, lastMovedAt: 0 })
+  const ref = useRef<PointerState>({ clientX: 0, clientY: 0, active: false })
   useEffect(() => {
     const pointer = ref.current
     const reset = () => {
       pointer.active = false
-      pointer.targetX = 0
-      pointer.targetY = 0
-      pointer.lastMovedAt = performance.now()
+      pointer.clientX = 0
+      pointer.clientY = 0
     }
     reset()
     if (!enabled) return
-    function handleMove(event: PointerEvent) {
-      if (event.pointerType !== 'mouse' || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+    const fine = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    const handleMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || !fine()) return
       pointer.clientX = event.clientX
       pointer.clientY = event.clientY
-      pointer.targetX = (event.clientX / window.innerWidth) * 2 - 1
-      pointer.targetY = (event.clientY / window.innerHeight) * 2 - 1
       pointer.active = true
-      pointer.lastMovedAt = performance.now()
     }
-    function handleOut(event: PointerEvent) {
+    const handleOut = (event: PointerEvent) => {
       if (!event.relatedTarget) reset()
-    }
-    function handleVisibility() {
-      if (document.hidden) reset()
     }
     window.addEventListener('pointermove', handleMove, { passive: true })
     window.addEventListener('pointerout', handleOut)
     window.addEventListener('blur', reset)
-    window.addEventListener('resize', reset)
-    window.visualViewport?.addEventListener('resize', reset)
-    document.addEventListener('visibilitychange', handleVisibility)
+    document.addEventListener('visibilitychange', () => document.hidden && reset())
     return () => {
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerout', handleOut)
       window.removeEventListener('blur', reset)
-      window.removeEventListener('resize', reset)
-      window.visualViewport?.removeEventListener('resize', reset)
-      document.removeEventListener('visibilitychange', handleVisibility)
       reset()
     }
   }, [enabled])
