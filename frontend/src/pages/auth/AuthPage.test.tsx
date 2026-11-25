@@ -55,6 +55,7 @@ describe('AuthPage registration verification flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeVisible()
+    expect(screen.getByText(/spam or junk folder/i)).toBeVisible()
     expect(screen.getByTestId('session-status')).toHaveTextContent('guest')
     expect(auth.getSession).not.toHaveBeenCalled()
 

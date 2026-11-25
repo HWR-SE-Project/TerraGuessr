@@ -86,6 +86,9 @@ export function AuthPage() {
             <p className="mt-2 text-sm text-muted">
               We sent a verification link to <span className="font-semibold text-cream">{pendingVerificationEmail}</span>. Verify your address before signing in.
             </p>
+            <p className="mt-2 text-xs text-subtle">
+              Don’t see it? Check your spam or junk folder.
+            </p>
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
