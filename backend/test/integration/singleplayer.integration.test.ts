@@ -920,8 +920,8 @@ describe('automatic location replacement on weather failure (R03/R13)', () => {
       expect(await db.streetRound.count({ where: { panoId: 'weather-pano-1' } })).toBe(1);
       const clues = await app.inject({ url: `${auth.base}/rounds/${round.id}/intelligence`, headers: auth.headers });
       expect(clues.json().weather).toMatchObject({ temperatureC: 18 });
-      expect(intelligence).toHaveBeenCalledWith(50.001, 10);
-      expect(intelligence).toHaveBeenCalledWith(50.002, 10);
+      expect(intelligence).toHaveBeenCalledWith(50.001, 10, { includeEnvironment: false });
+      expect(intelligence).toHaveBeenCalledWith(50.002, 10, { includeEnvironment: false });
       await pendingStreetPrefetch(auth.id, 2);
     } finally {
       intelligence.mockImplementation(async () => ({
@@ -1044,8 +1044,8 @@ describe('next-round prefetch (R12)', () => {
       (await db.streetRound.findUniqueOrThrow({ where: { id: response.json().id } })).panoId,
     ).toBe('prefetch-pano-1');
     expect(provider).toHaveBeenCalledWith([5]);
-    expect(intelligence).toHaveBeenCalledWith(12, 34);
-    expect(intelligence).toHaveBeenCalledWith(50, 10);
+    expect(intelligence).toHaveBeenCalledWith(12, 34, { includeEnvironment: false });
+    expect(intelligence).toHaveBeenCalledWith(50, 10, { includeEnvironment: false });
     await pendingStreetPrefetch(auth.id, 2);
   });
   it('actually populates a prefetch in the background as soon as a round starts (R12)', async () => {
