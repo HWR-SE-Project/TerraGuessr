@@ -1,7 +1,6 @@
-import type { ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import type { HTMLMotionProps } from 'framer-motion'
 import { Icon } from './Icon'
 import type { IconName } from './Icon'
 
@@ -9,7 +8,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'tint
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'btn-press bg-lime-400 text-ink hover:bg-lime-300',
+  primary: 'btn-press bg-lime-400 text-ink border border-transparent hover:bg-lime-300',
   secondary: 'bg-space-600 text-cream hover:bg-space-500 border border-white/10 shadow-card',
   ghost: 'bg-transparent text-cream hover:bg-white/8 border border-transparent hover:border-white/12',
   danger: 'bg-rose-400/15 text-rose-300 border border-rose-400/30 hover:bg-rose-400/25',
@@ -22,7 +21,7 @@ const SIZES: Record<ButtonSize, string> = {
   lg: 'h-14 px-7 text-lg rounded-2xl',
 }
 
-interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   variant?: ButtonVariant
   size?: ButtonSize
   icon?: IconName
@@ -65,7 +64,7 @@ export function Button({
 
   if (to) {
     return (
-      <Link to={to} className={classes} aria-disabled={disabled || loading}>
+      <Link to={to} className={classes} aria-disabled={disabled || loading || undefined}>
         {content}
       </Link>
     )
@@ -78,15 +77,13 @@ export function Button({
     )
   }
   return (
-    <motion.button
-      whileTap={disabled || loading ? undefined : { scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+    <button
       className={classes}
       disabled={disabled || loading}
       {...props}
     >
       {content}
-    </motion.button>
+    </button>
   )
 }
 
