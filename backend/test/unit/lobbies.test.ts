@@ -200,11 +200,11 @@ describe('getLobby', () => {
       },
     } as unknown as PrismaLike;
 
-    const view = await getLobby('ABC234', db);
+    const view = await getLobby('ABC234', db, 'guest-token');
 
     expect(view.members).toHaveLength(2);
-    expect(view.members[0]).toMatchObject({ displayName: 'Host', isHost: true });
-    expect(view.members[1]).toMatchObject({ displayName: null, isHost: false });
+    expect(view.members[0]).toMatchObject({ displayName: 'Host', isHost: true, isYou: false });
+    expect(view.members[1]).toMatchObject({ displayName: null, isHost: false, isYou: true });
     expect(view.rules).toEqual({
       timeLimitSeconds: 240,
       attemptsPerRound: 2,
@@ -294,6 +294,46 @@ describe('joinLobby', () => {
         /full/i.test(err.message),
     );
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('disambiguates duplicate display names case-insensitively and within 40 chars', async () => {
+    const existing = [
+      member({ id: 'member-1', displayName: 'Alex' }),
+      member({
+        id: 'member-2',
+        playerTokenHash: hashPlayerToken('guest-2'),
+        displayName: 'Alex (2)',
+      }),
+    ];
+    const createdMember = member({
+      id: 'member-3',
+      playerTokenHash: hashPlayerToken('guest-3'),
+      displayName: 'alex (3)',
+      joinedAt: new Date('2026-11-20T12:03:00.000Z'),
+    });
+    const { db, create } = joinDb(lobbyRow({ members: existing }), createdMember);
+
+    await joinLobby('ABC234', { displayName: 'alex' }, db);
+
+    const createData = (create.mock.calls[0] as [{ data: { displayName: string } }])[0].data;
+    expect(createData.displayName).toBe('alex (3)');
+
+    const longName = 'A'.repeat(40);
+    const longMember = member({
+      id: 'member-4',
+      playerTokenHash: hashPlayerToken('guest-4'),
+      displayName: `${'A'.repeat(36)} (2)`,
+    });
+    const longJoin = joinDb(
+      lobbyRow({ members: [member({ displayName: longName })] }),
+      longMember,
+    );
+
+    await joinLobby('ABC234', { displayName: longName }, longJoin.db);
+
+    const longData = (longJoin.create.mock.calls[0] as [{ data: { displayName: string } }])[0].data;
+    expect(longData.displayName).toBe(`${'A'.repeat(36)} (2)`);
+    expect(longData.displayName.length).toBe(40);
   });
 });
 

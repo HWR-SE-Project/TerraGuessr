@@ -26,6 +26,7 @@ const LobbyStatus = Type.Union([
 export const LobbyMemberView = Type.Object({
   displayName: Type.Union([Type.String(), Type.Null()]),
   isHost: Type.Boolean(),
+  isYou: Type.Boolean(),
   joinedAt: Type.String(),
 });
 

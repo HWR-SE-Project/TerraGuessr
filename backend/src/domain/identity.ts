@@ -33,3 +33,35 @@ export function isValidDisplayName(raw: string): boolean {
     trimmed.length <= DISPLAY_NAME_MAX_LENGTH
   );
 }
+
+/**
+ * Ensure a non-null lobby display name is distinct from existing members
+ * (case-insensitively) by appending ` (2)`, ` (3)`, … while staying within
+ * `DISPLAY_NAME_MAX_LENGTH`.
+ */
+export function disambiguateDisplayName(
+  name: string | null,
+  existingNames: ReadonlyArray<string | null>,
+): string | null {
+  if (name === null) return null;
+
+  const taken = new Set(
+    existingNames
+      .filter((entry): entry is string => entry !== null)
+      .map((entry) => entry.trim().toLowerCase()),
+  );
+
+  if (!taken.has(name.toLowerCase())) {
+    return name;
+  }
+
+  for (let suffix = 2; ; suffix += 1) {
+    const tag = ` (${suffix})`;
+    const maxBaseLength = DISPLAY_NAME_MAX_LENGTH - tag.length;
+    const base = name.slice(0, maxBaseLength).trimEnd();
+    const candidate = `${base}${tag}`;
+    if (!taken.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+}

@@ -18,7 +18,10 @@ import {
 import { prisma } from '../../db/prisma.js';
 import { gameRulesFor } from '../../domain/gameRules.js';
 import type { GameDifficulty } from '../../domain/gameRules.js';
-import { normalizeDisplayName } from '../../domain/identity.js';
+import {
+  disambiguateDisplayName,
+  normalizeDisplayName,
+} from '../../domain/identity.js';
 import {
   generatePlayerToken,
   hashPlayerToken,
@@ -84,6 +87,7 @@ export function toLobbyView(
     .map((member) => ({
       displayName: member.displayName,
       isHost: member.playerTokenHash === lobby.hostTokenHash,
+      isYou: callerTokenHash !== null && member.playerTokenHash === callerTokenHash,
       joinedAt: member.joinedAt.toISOString(),
     }));
 
@@ -206,11 +210,16 @@ export async function joinLobby(
       );
     }
 
+    const uniqueDisplayName = disambiguateDisplayName(
+      displayName,
+      existing.members.map((candidate) => candidate.displayName),
+    );
+
     const created = await tx.lobbyMember.create({
       data: {
         lobbyId: existing.id,
         playerTokenHash,
-        displayName,
+        displayName: uniqueDisplayName,
         userId: userId ?? null,
       },
     });
