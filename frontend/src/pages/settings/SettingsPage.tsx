@@ -9,6 +9,7 @@ import { usePreferences, toggleFullscreen } from '../../state/preferences'
 import { api } from '../../services'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { PublicUser } from '../../lib/contracts'
+import googleLogo from '../../assets/brand/google-logo.svg'
 
 export function SettingsPage() {
   const session = useSession()
@@ -46,7 +47,7 @@ export function SettingsPage() {
                   Sign out
                 </Button>
               </SettingRow>
-              <DeleteAccount />
+              <DeleteAccount hasPassword={user.hasPassword !== false} />
             </>
           ) : (
             <div className="flex items-center justify-between gap-4 px-5 py-4">
@@ -136,12 +137,24 @@ function ChangeEmail({ user }: { user: PublicUser }) {
     }
   }
 
+  const isGoogleOnly = Boolean(user.hasGoogle && !user.hasPassword)
   const trimmed = newEmail.trim()
   const needsPassword = user.hasPassword !== false
   const canSubmit =
     trimmed.length >= 3 &&
     trimmed.toLowerCase() !== user.email.toLowerCase() &&
     (!needsPassword || password.length > 0)
+
+  if (isGoogleOnly) {
+    return (
+      <SettingRow icon="mail" title="Email" hint={user.email}>
+        <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-space-800 px-3 py-1.5 text-xs font-semibold text-subtle">
+          <img src={googleLogo} alt="" className="size-3.5" />
+          Managed by Google
+        </span>
+      </SettingRow>
+    )
+  }
 
   return (
     <>
@@ -212,7 +225,7 @@ function ChangeEmail({ user }: { user: PublicUser }) {
   )
 }
 
-function DeleteAccount() {
+function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState('')
   const [password, setPassword] = useState('')
@@ -223,7 +236,7 @@ function DeleteAccount() {
     setLoading(true)
     setError(null)
     try {
-      await api.auth.deleteAccount('DELETE', password || undefined)
+      await api.auth.deleteAccount('DELETE', hasPassword ? (password || undefined) : undefined)
       setOpen(false)
       window.location.href = '/'
     } catch (cause) {
@@ -259,7 +272,9 @@ function DeleteAccount() {
             This permanently deletes your account and personal data. Type <span className="font-bold text-cream">DELETE</span> to confirm.
           </p>
           <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="DELETE" />
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Current password (if set)" icon="lock" />
+          {hasPassword && (
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Current password (if set)" icon="lock" />
+          )}
           {error && <p className="text-sm font-semibold text-rose-300">{error}</p>}
         </div>
       </Dialog>

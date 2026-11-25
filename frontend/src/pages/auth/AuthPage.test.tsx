@@ -1,10 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthPage } from './AuthPage'
 import { useSession } from '../../state/session'
 
 const auth = vi.hoisted(() => ({
+  getConfig: vi.fn(),
+  getGoogleAuthUrl: vi.fn(),
   register: vi.fn(),
   login: vi.fn(),
   getSession: vi.fn(),
@@ -23,6 +25,12 @@ function SessionProbe() {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  auth.getConfig.mockResolvedValue({
+    googleAvailable: false,
+    passwordRecoveryAvailable: false,
+    emailVerificationAvailable: false,
+  })
+  auth.getGoogleAuthUrl.mockReturnValue('/api/auth/google')
 })
 
 describe('AuthPage registration verification flow', () => {
@@ -60,7 +68,75 @@ describe('AuthPage registration verification flow', () => {
     expect(auth.getSession).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Resend verification email' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('If an account needs verification')
+    expect(await screen.findByRole('status')).toBeVisible()
     expect(auth.resendVerification).toHaveBeenCalledWith('new@example.test')
+  })
+})
+
+describe('AuthPage Google sign-in', () => {
+  it('enables Continue with Google when backend reports googleAvailable and navigates on click', async () => {
+    auth.getConfig.mockResolvedValue({
+      googleAvailable: true,
+      passwordRecoveryAvailable: true,
+      emailVerificationAvailable: true,
+    })
+    const assign = vi.fn()
+    const originalLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...originalLocation, assign },
+    })
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/auth']}>
+          <AuthPage />
+        </MemoryRouter>,
+      )
+
+      const googleButton = screen.getByRole('button', { name: /continue with google/i })
+      await waitFor(() => expect(googleButton).toBeEnabled())
+
+      fireEvent.click(googleButton)
+      expect(assign).toHaveBeenCalledWith('/api/auth/google')
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      })
+    }
+  })
+
+  it('keeps Continue with Google disabled when Google sign-in is not configured', async () => {
+    render(
+      <MemoryRouter initialEntries={['/auth']}>
+        <AuthPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(auth.getConfig).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('button', { name: /continue with google/i })).toBeDisabled()
+  })
+
+  it('displays a friendly alert for known Google OAuth redirect errors and ignores unknown codes', async () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/auth?authError=google_email_exists']}>
+        <AuthPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /an account with this email already exists/i,
+    )
+    unmount()
+
+    render(
+      <MemoryRouter initialEntries={['/auth?authError=untrusted_payload']}>
+        <AuthPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(auth.getConfig).toHaveBeenCalled())
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

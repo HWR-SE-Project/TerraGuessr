@@ -102,6 +102,10 @@ export const authMock = {
     })
   },
 
+  getGoogleAuthUrl(): string {
+    return '/api/auth/google'
+  },
+
   getSession(): Promise<SessionResponse> {
     return delay({ user: currentUser(), preferences: currentPreferences() })
   },

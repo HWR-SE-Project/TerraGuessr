@@ -20,12 +20,24 @@ function cookieOptions(secure: boolean): string {
   return `Path=/; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
 }
 
+function appendSetCookie(reply: FastifyReply, cookie: string): void {
+  const existing = reply.getHeader('Set-Cookie');
+  if (!existing) {
+    reply.header('Set-Cookie', cookie);
+    return;
+  }
+  const next = Array.isArray(existing)
+    ? [...existing.map(String), cookie]
+    : [String(existing), cookie];
+  reply.header('Set-Cookie', next);
+}
+
 export function setSessionCookie(reply: FastifyReply, token: string, secure: boolean): void {
-  reply.header('Set-Cookie', `${SESSION_COOKIE_NAME}=${token}; ${cookieOptions(secure)}; Max-Age=2592000`);
+  appendSetCookie(reply, `${SESSION_COOKIE_NAME}=${token}; ${cookieOptions(secure)}; Max-Age=2592000`);
 }
 
 export function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
-  reply.header('Set-Cookie', `${SESSION_COOKIE_NAME}=; ${cookieOptions(secure)}; Max-Age=0`);
+  appendSetCookie(reply, `${SESSION_COOKIE_NAME}=; ${cookieOptions(secure)}; Max-Age=0`);
 }
 
 export interface GoogleFlowState {
@@ -70,10 +82,10 @@ export function verifyGoogleFlowCookie(value: string | undefined, secret: string
 
 export function setGoogleFlowCookie(reply: FastifyReply, value: string, secure: boolean): void {
   const flags = `Path=/api/auth/google/callback; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
-  reply.header('Set-Cookie', `${OAUTH_COOKIE_NAME}=${value}; ${flags}; Max-Age=600`);
+  appendSetCookie(reply, `${OAUTH_COOKIE_NAME}=${value}; ${flags}; Max-Age=600`);
 }
 
 export function clearGoogleFlowCookie(reply: FastifyReply, secure: boolean): void {
   const flags = `Path=/api/auth/google/callback; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
-  reply.header('Set-Cookie', `${OAUTH_COOKIE_NAME}=; ${flags}; Max-Age=0`);
+  appendSetCookie(reply, `${OAUTH_COOKIE_NAME}=; ${flags}; Max-Age=0`);
 }

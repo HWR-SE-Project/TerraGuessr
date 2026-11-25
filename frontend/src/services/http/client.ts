@@ -37,7 +37,7 @@ function getApiBaseUrl(): string {
   return configured && configured.length > 0 ? configured : '/api'
 }
 
-function buildUrl(path: string): string {
+export function buildApiUrl(path: string): string {
   const base = getApiBaseUrl().replace(/\/+$/, '')
   if (/^https?:\/\//i.test(path)) return path
   return `${base}${path.startsWith('/') ? path : `/${path}`}`
@@ -79,7 +79,7 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
 
   let response: Response
   try {
-    response = await fetch(buildUrl(path), {
+    response = await fetch(buildApiUrl(path), {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),

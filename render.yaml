@@ -51,3 +51,10 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      # Google OAuth credentials (all three must be set together to enable Google sign-in).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
