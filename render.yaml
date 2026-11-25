@@ -1,0 +1,56 @@
+# Render Blueprint for the TerraGuessr backend (Free Web Service, Docker).
+# Import this repository in Render -> New -> Blueprint.
+#
+# Prerequisites:
+#   1. Create a free PostgreSQL 16 database on Neon (region: eu-central-1 /
+#      Frankfurt so it sits next to this Render service) and copy its DIRECT
+#      (unpooled) connection string for DATABASE_URL.
+#   2. After Render creates the service, verify its public URL matches the
+#      /api/:path* rewrite in frontend/vercel.json (update vercel.json if
+#      Render appends a suffix to "terraguessr-api").
+#   3. After deploying the frontend on Vercel, set APP_BASE_URL and
+#      CORS_ORIGIN in Render to your Vercel URL (e.g. https://terraguessr.vercel.app).
+
+services:
+  - type: web
+    name: terraguessr-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/ready
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - backend/**
+      ignoredPaths:
+        - backend/**/*.md
+        - backend/test/**
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: LOG_LEVEL
+        value: info
+      - key: OPEN_METEO_BASE_URL
+        value: https://api.open-meteo.com
+      # Neon direct PostgreSQL connection string (must include ?sslmode=require).
+      - key: DATABASE_URL
+        sync: false
+      # Public frontend origin on Vercel (e.g. https://terraguessr.vercel.app), no trailing slash.
+      - key: APP_BASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      # Optional: uncomment and fill in later when connecting an SMTP provider
+      # (e.g. Brevo or Resend) to enable email/password registration & password reset.
+      # - key: SMTP_URL
+      #   sync: false
+      # - key: SMTP_FROM
+      #   sync: false
