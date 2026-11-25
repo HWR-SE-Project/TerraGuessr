@@ -98,6 +98,10 @@ export async function signUp(input: {
 
 export async function signOut(): Promise<void> {
   await api.auth.logout()
+  clearSession()
+}
+
+export function clearSession(): void {
   store.set({ status: 'guest', user: null, preferences: null })
 }
 

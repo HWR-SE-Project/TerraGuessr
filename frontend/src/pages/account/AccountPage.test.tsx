@@ -14,6 +14,7 @@ vi.mock('../../state/session', () => ({
   useSession: () => mockSession,
   signOut: vi.fn(),
   setUser: vi.fn(),
+  clearSession: vi.fn(),
 }))
 
 afterEach(() => {

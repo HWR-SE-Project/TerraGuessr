@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Field, Input } from '../../components/ui/Form'
 import { Dialog } from '../../components/ui/Dialog'
 import { SettingRow, SettingSection } from '../../components/ui/SettingsCard'
-import { useSession, signOut, setUser } from '../../state/session'
+import { useSession, signOut, setUser, clearSession } from '../../state/session'
 import { api } from '../../services'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { PublicUser } from '../../lib/contracts'
@@ -208,6 +209,7 @@ function ChangeEmail({ user }: { user: PublicUser }) {
 }
 
 function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState('')
   const [password, setPassword] = useState('')
@@ -219,8 +221,9 @@ function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
     setError(null)
     try {
       await api.auth.deleteAccount('DELETE', hasPassword ? (password || undefined) : undefined)
+      clearSession()
       setOpen(false)
-      window.location.href = '/'
+      navigate('/', { replace: true })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not delete the account.')
       setLoading(false)
