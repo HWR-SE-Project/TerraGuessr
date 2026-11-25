@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Field, Input } from '../../components/ui/Form'
@@ -11,19 +11,33 @@ import googleLogo from '../../assets/brand/google-logo.svg'
 
 type Mode = 'signin' | 'register'
 
+const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
+  google_cancelled: 'Google sign-in was cancelled.',
+  google_email_exists:
+    'An account with this email already exists. Please sign in with your email and password.',
+  google_unavailable: 'Google sign-in is temporarily unavailable. Please try again in a moment.',
+  google_failed: 'Google sign-in could not be verified. Please try again.',
+}
+
 export function AuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() => {
+    const code = searchParams.get('authError')
+    return code ? (GOOGLE_AUTH_ERROR_MESSAGES[code] ?? null) : null
+  })
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
   const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [googleAvailable, setGoogleAvailable] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const session = useSession()
   const from = (location.state as { from?: string } | null)?.from ?? '/'
@@ -33,6 +47,35 @@ export function AuthPage() {
       navigate('/', { replace: true })
     }
   }, [navigate, session.status])
+
+  useEffect(() => {
+    if (!searchParams.has('authError')) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('authError')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  useEffect(() => {
+    let active = true
+    api.auth
+      .getConfig()
+      .then((config) => {
+        if (active) setGoogleAvailable(config.googleAvailable)
+      })
+      .catch(() => {
+        if (active) setGoogleAvailable(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  function handleGoogleSignIn() {
+    if (!googleAvailable || googleLoading) return
+    setError(null)
+    setGoogleLoading(true)
+    window.location.assign(api.auth.getGoogleAuthUrl())
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -216,7 +259,15 @@ export function AuthPage() {
           <span className="h-px flex-1 bg-white/10" />
         </div>
 
-        <Button variant="secondary" fullWidth disabled icon="globe" title="Google sign-in is not configured in the mock">
+        <Button
+          type="button"
+          variant="secondary"
+          fullWidth
+          disabled={!googleAvailable}
+          loading={googleLoading}
+          onClick={handleGoogleSignIn}
+          title={googleAvailable ? undefined : 'Google sign-in is not configured'}
+        >
           <img src={googleLogo} alt="" className="size-4" />
           Continue with Google
         </Button>

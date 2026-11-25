@@ -257,6 +257,13 @@ export async function requestEmailChange(
   user: User,
   input: { newEmail: string; currentPassword?: string },
 ): Promise<EmailChangeRequestTokens> {
+  if (user.googleSub && !user.passwordHash) {
+    throw new AuthError(
+      400,
+      'Email address is managed by Google and cannot be changed here',
+      'GOOGLE_MANAGED_EMAIL',
+    );
+  }
   const newEmail = normalizeEmail(input.newEmail);
   if (newEmail === user.email) {
     throw new AuthError(400, 'Choose a different email address', 'EMAIL_UNCHANGED');

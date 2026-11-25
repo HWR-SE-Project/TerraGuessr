@@ -179,6 +179,31 @@ function mapGoogleOAuthError(error: unknown): AuthError {
   return new AuthError(401, 'Google sign-in could not be verified', 'GOOGLE_AUTH_FAILED');
 }
 
+function prefersHtmlRedirect(request: FastifyRequest, config: Env): boolean {
+  if (!config.appBaseUrl) return false;
+  const accept = request.headers.accept ?? '';
+  return accept.includes('text/html');
+}
+
+function googleErrorRedirectCode(error: AuthError): string {
+  switch (error.code) {
+    case 'GOOGLE_CANCELLED':
+      return 'google_cancelled';
+    case 'GOOGLE_EMAIL_EXISTS':
+      return 'google_email_exists';
+    case 'GOOGLE_AUTH_UNAVAILABLE':
+      return 'google_unavailable';
+    default:
+      return 'google_failed';
+  }
+}
+
+function redirectToAuthError(reply: FastifyReply, appBaseUrl: string, error: AuthError) {
+  const url = new URL('/auth', appBaseUrl);
+  url.searchParams.set('authError', googleErrorRedirectCode(error));
+  return reply.redirect(url.toString());
+}
+
 /**
  * Cookie-based account endpoints. Anonymous game tokens remain supported by
  * the existing game API and are intentionally not changed by this module.
@@ -503,61 +528,80 @@ export function registerAuthRoutes(
     '/api/auth/google/callback',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request, reply) => {
-    if (!googleConfigured(config)) throw new AuthError(503, 'Google sign-in is not configured');
-    const flow = verifyGoogleFlowCookie(googleCookie(request), config.googleClientSecret!);
-    clearGoogleFlowCookie(reply, config.sessionCookieSecure);
-    if (!flow || !request.query.state || request.query.state !== flow.state || !request.query.code || request.query.error) {
-      throw new AuthError(400, 'Google sign-in could not be verified');
-    }
-    const client = createGoogleClient(config);
-    let tokens: { id_token?: string | null };
-    try {
-      const response = await withGoogleTimeout(
-        client.getToken({ code: request.query.code, codeVerifier: flow.verifier }),
-        googleTimeoutMs,
-      );
-      tokens = response.tokens;
-    } catch (error) {
-      request.log.warn({ err: error }, 'Google OAuth token exchange failed');
-      throw mapGoogleOAuthError(error);
-    }
-    if (!tokens.id_token) throw new AuthError(401, 'Google did not return an identity token');
-    let ticket: LoginTicket;
-    try {
-      ticket = await withGoogleTimeout(
-        client.verifyIdToken({ idToken: tokens.id_token, audience: config.googleClientId }),
-        googleTimeoutMs,
-      );
-    } catch (error) {
-      request.log.warn({ err: error }, 'Google OAuth ID token verification failed');
-      throw mapGoogleOAuthError(error);
-    }
-    const claims = ticket.getPayload();
-    const issuerValid = claims?.iss === 'https://accounts.google.com' || claims?.iss === 'accounts.google.com';
-    if (!claims || !issuerValid || claims.nonce !== flow.nonce || claims.email_verified !== true || !claims.sub || !claims.email) {
-      throw new AuthError(401, 'Google identity could not be verified');
-    }
-
-    let user = await db.user.findUnique({ where: { googleSub: claims.sub } });
-    if (!user) {
-      const existingEmail = await db.user.findUnique({ where: { email: normalizeEmail(claims.email) } });
-      if (existingEmail) throw new AuthError(409, 'Sign in with email before connecting this Google identity');
       try {
-        user = await db.user.create({ data: {
-          email: normalizeEmail(claims.email),
-          googleSub: claims.sub,
-          displayName: (normalizeDisplayName(claims.name) ?? claims.email.split('@')[0] ?? 'Terra player').slice(0, DISPLAY_NAME_MAX_LENGTH),
-          emailVerifiedAt: new Date(),
-        } });
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) {
-          throw error;
+        if (!googleConfigured(config)) {
+          throw new AuthError(503, 'Google sign-in is not configured', 'GOOGLE_AUTH_UNAVAILABLE');
         }
-        user = await db.user.findUnique({ where: { googleSub: claims.sub } });
-        if (!user) throw new AuthError(409, 'This Google account could not be connected');
+        const flow = verifyGoogleFlowCookie(googleCookie(request), config.googleClientSecret!);
+        clearGoogleFlowCookie(reply, config.sessionCookieSecure);
+        if (request.query.error === 'access_denied') {
+          throw new AuthError(400, 'Google sign-in was cancelled', 'GOOGLE_CANCELLED');
+        }
+        if (!flow || !request.query.state || request.query.state !== flow.state || !request.query.code || request.query.error) {
+          throw new AuthError(400, 'Google sign-in could not be verified', 'GOOGLE_AUTH_FAILED');
+        }
+        const client = createGoogleClient(config);
+        let tokens: { id_token?: string | null };
+        try {
+          const response = await withGoogleTimeout(
+            client.getToken({ code: request.query.code, codeVerifier: flow.verifier }),
+            googleTimeoutMs,
+          );
+          tokens = response.tokens;
+        } catch (error) {
+          request.log.warn({ err: error }, 'Google OAuth token exchange failed');
+          throw mapGoogleOAuthError(error);
+        }
+        if (!tokens.id_token) {
+          throw new AuthError(401, 'Google did not return an identity token', 'GOOGLE_AUTH_FAILED');
+        }
+        let ticket: LoginTicket;
+        try {
+          ticket = await withGoogleTimeout(
+            client.verifyIdToken({ idToken: tokens.id_token, audience: config.googleClientId }),
+            googleTimeoutMs,
+          );
+        } catch (error) {
+          request.log.warn({ err: error }, 'Google OAuth ID token verification failed');
+          throw mapGoogleOAuthError(error);
+        }
+        const claims = ticket.getPayload();
+        const issuerValid = claims?.iss === 'https://accounts.google.com' || claims?.iss === 'accounts.google.com';
+        if (!claims || !issuerValid || claims.nonce !== flow.nonce || claims.email_verified !== true || !claims.sub || !claims.email) {
+          throw new AuthError(401, 'Google identity could not be verified', 'GOOGLE_AUTH_FAILED');
+        }
+
+        let user = await db.user.findUnique({ where: { googleSub: claims.sub } });
+        if (!user) {
+          const existingEmail = await db.user.findUnique({ where: { email: normalizeEmail(claims.email) } });
+          if (existingEmail) {
+            throw new AuthError(409, 'Sign in with email before connecting this Google identity', 'GOOGLE_EMAIL_EXISTS');
+          }
+          try {
+            user = await db.user.create({ data: {
+              email: normalizeEmail(claims.email),
+              googleSub: claims.sub,
+              displayName: (normalizeDisplayName(claims.name) ?? claims.email.split('@')[0] ?? 'Terra player').slice(0, DISPLAY_NAME_MAX_LENGTH),
+              emailVerifiedAt: new Date(),
+            } });
+          } catch (error) {
+            if (!isUniqueConstraintError(error)) {
+              throw error;
+            }
+            user = await db.user.findUnique({ where: { googleSub: claims.sub } });
+            if (!user) {
+              throw new AuthError(409, 'This Google account could not be connected', 'GOOGLE_EMAIL_EXISTS');
+            }
+          }
+        }
+        await rotateSession(request, reply, await createUserSession(db, user.id));
+        return reply.redirect(config.appBaseUrl ?? '/');
+      } catch (error) {
+        if (error instanceof AuthError && prefersHtmlRedirect(request, config)) {
+          return redirectToAuthError(reply, config.appBaseUrl!, error);
+        }
+        throw error;
       }
-    }
-    await rotateSession(request, reply, await createUserSession(db, user.id));
-    return reply.redirect(config.appBaseUrl ?? '/');
-  });
+    },
+  );
 }

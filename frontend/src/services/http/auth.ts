@@ -10,11 +10,15 @@ import type {
   SessionResponse,
   UserPreferences,
 } from '../../lib/contracts'
-import { apiFetch } from './client'
+import { apiFetch, buildApiUrl } from './client'
 
 export const authHttp = {
   getConfig(): Promise<AuthConfig> {
     return apiFetch<AuthConfig>('/auth/config')
+  },
+
+  getGoogleAuthUrl(): string {
+    return buildApiUrl('/auth/google')
   },
 
   getSession(): Promise<SessionResponse> {

@@ -10,6 +10,7 @@ import {
   registerAuthRoutes,
   type GoogleOAuthClientLike,
 } from '../../src/modules/auth/routes.js';
+import { AuthError, requestEmailChange } from '../../src/modules/auth/service.js';
 
 const GOOGLE_SECRET = 'test-google-client-secret';
 
@@ -261,5 +262,128 @@ describe('GET /api/auth/google/callback error handling', () => {
     } finally {
       await appDown.close();
     }
+  });
+
+  it('redirects browser navigations (Accept: text/html) to /auth with mapped authError codes', async () => {
+    const flow = createFlowRequest();
+    const validClient = {
+      generateAuthUrl: vi.fn(),
+      getToken: vi.fn().mockResolvedValue({ tokens: { id_token: 'good.jwt.token' } }),
+      verifyIdToken: vi.fn().mockResolvedValue({
+        getPayload: () => ({
+          iss: 'https://accounts.google.com',
+          nonce: flow.state.nonce,
+          email_verified: true,
+          sub: 'google-sub-2',
+          email: 'existing@example.test',
+          name: 'Existing',
+        }),
+      }),
+    } as unknown as GoogleOAuthClientLike;
+
+    const dbExistingEmail = {
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: 'u-existing', email: 'existing@example.test' }),
+      },
+    } as unknown as PrismaClient;
+
+    const app = buildTestApp({ client: validClient, db: dbExistingEmail });
+    try {
+      const cancelled = await app.inject({
+        method: 'GET',
+        url: `/api/auth/google/callback?state=${encodeURIComponent(flow.state.state)}&error=access_denied`,
+        headers: { cookie: flow.cookie, accept: 'text/html,application/xhtml+xml' },
+      });
+      expect(cancelled.statusCode).toBe(302);
+      expect(cancelled.headers.location).toBe('http://localhost:8080/auth?authError=google_cancelled');
+
+      const conflict = await app.inject({
+        method: 'GET',
+        url: flow.url,
+        headers: { cookie: flow.cookie, accept: 'text/html,application/xhtml+xml' },
+      });
+      expect(conflict.statusCode).toBe(302);
+      expect(conflict.headers.location).toBe('http://localhost:8080/auth?authError=google_email_exists');
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('clears the OAuth flow cookie and sets the session cookie on successful sign-in', async () => {
+    const flow = createFlowRequest();
+    const validClient = {
+      generateAuthUrl: vi.fn(),
+      getToken: vi.fn().mockResolvedValue({ tokens: { id_token: 'good.jwt.token' } }),
+      verifyIdToken: vi.fn().mockResolvedValue({
+        getPayload: () => ({
+          iss: 'https://accounts.google.com',
+          nonce: flow.state.nonce,
+          email_verified: true,
+          sub: 'google-sub-ok',
+          email: 'explorer@example.test',
+          name: 'Explorer',
+        }),
+      }),
+    } as unknown as GoogleOAuthClientLike;
+
+    const dbOk = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u-ok',
+          email: 'explorer@example.test',
+          googleSub: 'google-sub-ok',
+        }),
+      },
+      authSession: {
+        create: vi.fn().mockResolvedValue({ id: 's-1' }),
+      },
+    } as unknown as PrismaClient;
+
+    const app = buildTestApp({ client: validClient, db: dbOk });
+    try {
+      const res = await app.inject({
+        method: 'GET',
+        url: flow.url,
+        headers: { cookie: flow.cookie, accept: 'text/html' },
+      });
+      expect(res.statusCode).toBe(302);
+      expect(res.headers.location).toBe('http://localhost:8080');
+      const setCookies = Array.isArray(res.headers['set-cookie'])
+        ? res.headers['set-cookie']
+        : [String(res.headers['set-cookie'] ?? '')];
+      expect(setCookies.some((c) => c.startsWith('tg_google_flow=;') && c.includes('Max-Age=0'))).toBe(true);
+      expect(setCookies.some((c) => c.startsWith('tg_session=') && c.includes('HttpOnly'))).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('rejects email change requests for Google-only accounts', async () => {
+    const db = {} as unknown as PrismaClient;
+    const googleOnlyUser = {
+      id: 'u-google',
+      email: 'explorer@gmail.com',
+      passwordHash: null,
+      googleSub: 'google-sub-123',
+      displayName: 'Explorer',
+      emailVerifiedAt: new Date(),
+      failedLoginAttempts: 0,
+      lastFailedLoginAt: null,
+      lockedUntil: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await expect(
+      requestEmailChange(db, googleOnlyUser, { newEmail: 'other@example.test' }),
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof AuthError &&
+        err.statusCode === 400 &&
+        err.code === 'GOOGLE_MANAGED_EMAIL',
+    );
   });
 });
