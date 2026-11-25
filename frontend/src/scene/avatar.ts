@@ -81,6 +81,16 @@ interface Prepared {
   dimensions: THREE.Vector3
 }
 
+interface CachedGeometryMetrics {
+  bounds: THREE.Box3
+  dimensions: THREE.Vector3
+}
+
+// Idle animation bounds only depend on the static GLB asset — cache per source
+// scene so navigating to /avatar or starting rounds never repeats 25 skinned-mesh
+// bounding-box passes on the main thread.
+const metricsCache = new WeakMap<THREE.Group, CachedGeometryMetrics>()
+
 function prepareModel(source: THREE.Group, clips: THREE.AnimationClip[]): Prepared {
   const model = clone(source) as THREE.Group
   // Reuse a single cloned skeleton per shared skin so 18 meshes need one bone texture.
@@ -94,6 +104,17 @@ function prepareModel(source: THREE.Group, clips: THREE.AnimationClip[]): Prepar
     else sharedSkeletons.set(original.skeleton, node.skeleton)
   })
   const idle = clips.find((clip) => /^idle$/i.test(clip.name)) ?? null
+
+  const cached = metricsCache.get(source)
+  if (cached) {
+    return {
+      model,
+      idle,
+      bounds: cached.bounds.clone(),
+      dimensions: cached.dimensions.clone(),
+    }
+  }
+
   const bounds = new THREE.Box3()
   const measure = () => {
     model.updateMatrixWorld(true)
@@ -114,11 +135,13 @@ function prepareModel(source: THREE.Group, clips: THREE.AnimationClip[]): Prepar
   } else {
     measure()
   }
+  const dimensions = bounds.getSize(new THREE.Vector3())
+  metricsCache.set(source, { bounds: bounds.clone(), dimensions: dimensions.clone() })
   return {
     model,
     idle,
     bounds,
-    dimensions: bounds.getSize(new THREE.Vector3()),
+    dimensions,
   }
 }
 

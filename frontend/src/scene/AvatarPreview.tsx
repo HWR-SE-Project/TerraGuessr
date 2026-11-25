@@ -50,7 +50,7 @@ function PreviewModel({ config, reducedMotion }: { config: AvatarConfig; reduced
         scale={Math.max(dimensions.x, dimensions.z) * fit * 1.6}
         blur={2.6}
         far={1.6}
-        resolution={512}
+        resolution={256}
         color="#050314"
         frames={reducedMotion ? 1 : Infinity}
       />
@@ -67,6 +67,9 @@ export function AvatarPreview({ config }: { config: AvatarConfig }) {
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
       style={{ background: 'transparent' }}
+      onCreated={({ camera }) => {
+        camera.lookAt(LOOK_TARGET)
+      }}
     >
       <PreviewModel config={config} reducedMotion={reducedMotion} />
     </Canvas>

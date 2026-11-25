@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Button, IconButton, Spinner } from '../../components/ui/Button'
@@ -7,7 +7,7 @@ import type { IconName } from '../../components/ui/Icon'
 import { useSession } from '../../state/session'
 import { useAvatar, saveAvatar, AVATAR_PALETTE } from '../../state/avatar'
 import type { AvatarPart } from '../../lib/contracts'
-import { fadeUp, spring, staggerContainer, staggerItem } from '../../lib/motion'
+import { spring } from '../../lib/motion'
 
 const AvatarPreview = lazy(() =>
   import('../../scene/AvatarPreview').then((m) => ({ default: m.AvatarPreview })),
@@ -39,6 +39,14 @@ export function AvatarPage() {
   const [category, setCategory] = useState<Category>('hair')
   const [saving, setSaving] = useState(false)
   const [savedMessage, setSavedMessage] = useState(false)
+  // Let SiteLayout's 360ms route enter transition finish before mounting WebGL
+  // so shader compilation never stalls the slide animation mid-flight.
+  const [previewReady, setPreviewReady] = useState(false)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewReady(true), 360)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   const active = CATEGORIES.find((c) => c.id === category)!
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved)
@@ -56,22 +64,30 @@ export function AvatarPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pb-12 sm:pt-8">
+    <div className="relative mx-auto flex h-[calc(100dvh-4rem)] max-w-5xl flex-col overflow-hidden px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:block md:h-auto md:overflow-visible md:px-6 md:pt-6 md:pb-12 lg:pt-8">
       {/* Ambient background glow — echoes the cosmic hero without competing with the character. */}
       <div aria-hidden className="pointer-events-none absolute -left-16 top-4 size-64 rounded-full bg-violet-400/10 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -right-12 top-52 size-72 rounded-full bg-lime-400/8 blur-3xl" />
 
-      <motion.div variants={staggerContainer} initial="initial" animate="animate" className="relative flex flex-col gap-5">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3 md:gap-5">
         {/* Header */}
-        <motion.div variants={staggerItem} className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <IconButton name="chevronLeft" label="Back" variant="solid" onClick={() => navigate(-1)} />
-            <div>
-              <p className="eyebrow">Avatar editor</p>
-              <h1 className="font-display text-xl font-semibold text-cream sm:text-3xl">Style your explorer</h1>
+        <div className="flex shrink-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
+            <IconButton name="chevronLeft" label="Back" variant="solid" size="sm" onClick={() => navigate(-1)} className="md:size-11" />
+            <div className="min-w-0">
+              <p className="eyebrow hidden md:block">Avatar editor</p>
+              <h1 className="truncate font-display text-lg font-semibold text-cream md:text-2xl lg:text-3xl">Style your explorer</h1>
             </div>
           </div>
-          <div className="hidden items-center gap-3 sm:flex">
+          <div className="flex items-center gap-2 md:hidden">
+            <AnimatePresence>{savedMessage && <SavedBadge />}</AnimatePresence>
+            {dirty && !savedMessage && (
+              <span className="rounded-full bg-lime-400/15 px-2.5 py-1 text-[11px] font-bold text-lime-300">
+                Unsaved
+              </span>
+            )}
+          </div>
+          <div className="hidden items-center gap-2.5 md:flex">
             <AnimatePresence>{savedMessage && <SavedBadge />}</AnimatePresence>
             <Button variant="secondary" onClick={() => navigate(-1)}>
               Cancel
@@ -80,11 +96,12 @@ export function AvatarPage() {
               Save
             </Button>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Stage */}
-        <motion.div variants={staggerItem} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-start">
-          <div className="surface relative aspect-[4/5] overflow-hidden sm:aspect-[5/6] lg:aspect-auto lg:h-[500px]">
+        {/* Stage + Controls: pinned split-studio on phones, 2-column on tablets/desktop */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-start md:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+          {/* 3D Preview Stage */}
+          <div className="surface relative h-[34dvh] min-h-[190px] max-h-[290px] shrink-0 overflow-hidden md:sticky md:top-24 md:h-[460px] md:max-h-none lg:h-[500px]">
             <div
               className="absolute inset-0"
               style={{ background: 'radial-gradient(85% 70% at 50% 28%, #342a5c 0%, #1a1636 65%, #140f2a 100%)' }}
@@ -95,21 +112,36 @@ export function AvatarPage() {
               className="absolute inset-x-0 bottom-0 h-1/3"
               style={{ background: 'radial-gradient(60% 100% at 50% 100%, rgba(192,246,107,0.1) 0%, transparent 70%)' }}
             />
-            <Icon name="sparkle" size={18} className="animate-twinkle absolute left-6 top-8 text-lime-300/70" />
-            <Icon name="sparkle" size={13} className="animate-float absolute right-10 top-16 text-sky-300/60" />
-            <Icon name="sparkle" size={15} className="animate-float-slow absolute right-16 top-32 text-violet-300/50" />
+            <Icon name="sparkle" size={16} className="animate-twinkle absolute left-5 top-5 text-lime-300/70 md:left-6 md:top-8" />
+            <Icon name="sparkle" size={12} className="animate-float absolute right-8 top-10 text-sky-300/60 md:right-10 md:top-16" />
+            <Icon name="sparkle" size={14} className="animate-float-slow absolute right-12 top-24 text-violet-300/50 md:right-16 md:top-32" />
 
-            <Suspense
-              fallback={
+            <div className="absolute inset-0">
+              {previewReady ? (
+                <Suspense
+                  fallback={
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Spinner className="size-8 text-subtle" />
+                    </div>
+                  }
+                >
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.25 }}
+                    className="h-full w-full"
+                  >
+                    <AvatarPreview config={draft} />
+                  </motion.div>
+                </Suspense>
+              ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Spinner className="size-8 text-subtle" />
                 </div>
-              }
-            >
-              <AvatarPreview config={draft} />
-            </Suspense>
+              )}
+            </div>
 
-            <div className="absolute inset-x-4 bottom-4 flex items-center justify-between gap-2">
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 hidden items-center justify-between gap-2 md:inset-x-4 md:bottom-4 md:flex">
               <span className="rounded-full bg-space-900/70 px-3 py-1.5 text-xs font-bold text-muted backdrop-blur-sm">
                 {authed ? 'Saved to your account' : 'Saved on this device'}
               </span>
@@ -126,8 +158,8 @@ export function AvatarPage() {
           </div>
 
           {/* Controls */}
-          <div className="surface flex flex-col gap-5 p-4 sm:p-6">
-            <div className="relative grid grid-cols-3 gap-1 rounded-2xl bg-space-800 p-1">
+          <div className="surface flex min-h-0 flex-1 flex-col overflow-hidden p-3.5 md:overflow-visible md:p-6">
+            <div className="relative grid shrink-0 grid-cols-3 gap-1 rounded-2xl bg-space-800 p-1">
               {CATEGORIES.map((c) => {
                 const isActive = category === c.id
                 return (
@@ -135,7 +167,7 @@ export function AvatarPage() {
                     key={c.id}
                     type="button"
                     onClick={() => setCategory(c.id)}
-                    className={`relative flex items-center justify-center rounded-xl py-2.5 text-xs font-bold transition-colors sm:py-3 sm:text-sm ${
+                    className={`relative flex items-center justify-center rounded-xl py-2 text-xs font-bold transition-colors md:py-3 md:text-sm ${
                       isActive ? 'text-ink' : 'text-subtle hover:text-cream'
                     }`}
                   >
@@ -146,8 +178,8 @@ export function AvatarPage() {
                         transition={spring.snappy}
                       />
                     )}
-                    <span className="relative z-10 flex items-center gap-1.5 sm:gap-2">
-                      <Icon name={c.icon} size={16} />
+                    <span className="relative z-10 flex items-center gap-1.5 md:gap-2">
+                      <Icon name={c.icon} size={15} />
                       {c.label}
                     </span>
                   </button>
@@ -155,36 +187,33 @@ export function AvatarPage() {
               })}
             </div>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={category}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2 }}
-                className="flex flex-col gap-5"
-              >
-                {active.parts.map((part) => (
-                  <PartEditor key={part} part={part} value={draft[part]} onChange={(value) => setPart(part, value)} />
-                ))}
-              </motion.div>
-            </AnimatePresence>
+            <div className="scroll-thin mt-3.5 min-h-0 flex-1 overflow-y-auto pr-0.5 md:mt-5 md:overflow-visible md:pr-0">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={category}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col gap-4 md:gap-5"
+                >
+                  {active.parts.map((part) => (
+                    <PartEditor key={part} part={part} value={draft[part]} onChange={(value) => setPart(part, value)} />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
-            <p className="hairline-t pt-4 text-xs leading-relaxed text-subtle">
+            <p className="hairline-t mt-5 hidden pt-4 text-xs leading-relaxed text-subtle md:block">
               <Icon name="info" size={13} className="mr-1 inline-block align-text-bottom text-subtle" />
               Colors preview instantly on your explorer — hit <span className="font-bold text-cream">Save</span> to
               keep them.
             </p>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
 
-      {/* Mobile action bar */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-space-900/85 px-4 pb-safe pt-3 backdrop-blur-md sm:hidden">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
-          {savedMessage && (
-            <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-sm font-bold text-lime-300">Saved ✓</span>
-          )}
+        {/* Mobile bottom actions — part of the flex layout so it never overlaps swatches */}
+        <div className="flex shrink-0 items-center gap-2.5 md:hidden">
           <Button variant="secondary" fullWidth onClick={() => navigate(-1)}>
             Cancel
           </Button>
@@ -203,9 +232,9 @@ function SavedBadge() {
       initial={{ opacity: 0, y: 4, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -4, scale: 0.95 }}
-      className="flex items-center gap-1.5 text-sm font-bold text-lime-300"
+      className="flex items-center gap-1.5 text-xs font-bold text-lime-300 md:text-sm"
     >
-      <Icon name="check" size={16} />
+      <Icon name="check" size={15} />
       Saved
     </motion.span>
   )
@@ -222,12 +251,13 @@ function PartEditor({
 }) {
   const customSelected = value != null && !AVATAR_PALETTE.some((c) => c.value === value)
   return (
-    <motion.div variants={fadeUp} initial="initial" animate="animate" className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="font-display text-sm font-semibold text-cream">{PART_LABELS[part]}</span>
         {value && <span className="text-xs font-bold text-subtle">Custom</span>}
       </div>
-      <div className="flex flex-wrap gap-2.5">
+      {/* 14 swatches (reset + 12 palette + custom) = 2 balanced rows of 7 on phones */}
+      <div className="grid grid-cols-7 justify-items-center gap-2 md:flex md:flex-wrap md:gap-2.5">
         <Swatch
           selected={value == null}
           label={`${PART_LABELS[part]} original color`}
@@ -248,7 +278,7 @@ function PartEditor({
 
         <CustomSwatch label={PART_LABELS[part]} value={value} selected={customSelected} onChange={onChange} />
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -275,7 +305,7 @@ function Swatch({
       whileTap={{ scale: 0.9 }}
       whileHover={{ scale: 1.12 }}
       transition={spring.snappy}
-      className={`relative flex size-10 items-center justify-center rounded-full border-2 ${
+      className={`relative flex size-9 items-center justify-center rounded-full border-2 md:size-10 ${
         selected ? 'border-lime-400 shadow-[0_0_0_3px_rgba(192,246,107,0.25)]' : 'border-white/15 hover:border-white/35'
       }`}
       style={background ? { background } : undefined}
@@ -315,7 +345,7 @@ function CustomSwatch({
       whileTap={{ scale: 0.9 }}
       whileHover={{ scale: 1.12 }}
       transition={spring.snappy}
-      className={`relative flex size-10 items-center justify-center rounded-full border-2 ${
+      className={`relative flex size-9 items-center justify-center rounded-full border-2 md:size-10 ${
         selected ? 'border-lime-400 shadow-[0_0_0_3px_rgba(192,246,107,0.25)]' : 'border-white/15 hover:border-white/35'
       }`}
       style={{
