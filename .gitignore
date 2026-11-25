@@ -167,3 +167,6 @@ vite.config.ts.timestamp-*
 
 # Local browser sessions contain authentication cookies.
 *.local.json
+
+# JetBrains IDE project files
+.idea/
