@@ -64,6 +64,11 @@ export function ResetPasswordPage() {
         {message ? (
           <div className="mt-6 flex flex-col items-center gap-4 text-center">
             <p className="rounded-2xl bg-lime-400/12 px-4 py-3 text-sm font-semibold text-lime-300">{message}</p>
+            {!token && (
+              <p className="text-xs text-subtle">
+                Don’t see it? Check your spam or junk folder.
+              </p>
+            )}
             <Button onClick={() => navigate('/auth')}>Back to sign in</Button>
           </div>
         ) : (
