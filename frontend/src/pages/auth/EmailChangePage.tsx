@@ -9,15 +9,15 @@ async function confirmEmailChange(token: string) {
 }
 
 export function EmailChangePage() {
-  const settings = { to: '/settings', label: 'Back to settings' }
+  const account = { to: '/account', label: 'Back to account' }
   return (
     <TokenConfirmation
       title="Confirm email change"
       loadingLabel="Confirming…"
       missingTokenMessage="This confirmation link is missing a token."
       confirm={confirmEmailChange}
-      success={settings}
-      failure={settings}
+      success={account}
+      failure={account}
     />
   )
 }

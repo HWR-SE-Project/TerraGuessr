@@ -10,7 +10,7 @@ test.describe('authentication and account settings', () => {
     const sessionRes = await page.request.get('/api/auth/session');
     expect((await sessionRes.json()).user?.email).toBe(email);
 
-    await page.goto('/settings');
+    await page.goto('/account');
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.locator('main').getByRole('link', { name: 'Sign in' })).toBeVisible();
 
@@ -26,10 +26,10 @@ test.describe('authentication and account settings', () => {
     await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
   });
 
-  test('updates display name and permanently deletes account from settings', async ({ page }) => {
+  test('updates display name and permanently deletes account from account page', async ({ page }) => {
     const { password } = await registerAndSignIn(page, 'Original Name');
 
-    await page.goto('/settings');
+    await page.goto('/account');
     const nameField = page.getByLabel('Display name');
     await expect(nameField).toHaveValue('Original Name');
     await nameField.fill('Updated Name');
