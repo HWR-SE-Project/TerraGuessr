@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 
 import type { Prisma } from '@prisma/client';
 import type {
-  Difficulty,
   Lobby,
   LobbyMember,
   LobbyRound,
@@ -15,9 +14,10 @@ import type {
 import { prisma } from '../../db/prisma.js';
 import {
   LOBBY_CONTINUE_WINDOW_MS,
+  LOBBY_ROUND_REVIEW_MS,
   LOBBY_TTL_MS,
 } from '../../config/constants.js';
-import { haversineKm } from '../../domain/distance.js';
+import type { LatLon } from '../../domain/distance.js';
 import { gameRulesFor } from '../../domain/gameRules.js';
 import type { GameRules } from '../../domain/gameRules.js';
 import {
@@ -25,9 +25,14 @@ import {
   decideAttempt,
   isDeadlinePassed,
 } from '../../domain/roundFlow.js';
-import { scoreForDistance } from '../../domain/scoring.js';
-import { computeScore, extraDataAccess } from '../../domain/roundView.js';
+import { evaluateGuess } from '../../domain/scoring.js';
+import {
+  computeScore,
+  extraDataAccess,
+  formatEvaluatedAttempts,
+} from '../../domain/roundView.js';
 import { archiveGameResult } from '../../domain/archive.js';
+import { buildRoundScene, type RoundScene } from '../../domain/scene.js';
 import { hashPlayerToken } from '../../plugins/auth.js';
 import { AppError } from '../../plugins/errors.js';
 import { isUniqueConstraintError } from '../../db/prismaErrors.js';
@@ -38,13 +43,29 @@ import type {
   LobbyMatchView,
 } from '../../contracts/lobbies.js';
 import type { GeographicIntelligence } from '../intelligence/contract.js';
-import { buildCandidates } from '../singleplayer/candidates.js';
-import type { CandidateOption } from '../singleplayer/candidates.js';
 import {
-  selectValidatedTarget,
+  redactLockedExtraData,
+  withCurrentRoundWeather,
+} from '../intelligence/validate.js';
+import {
+  buildCandidates,
+  findCandidateByPoint,
+  resolveSelectionPoint,
+  toPublicCandidates,
+  type CandidateOption,
+  type GuessOrSelectionInput,
+} from '../singleplayer/candidates.js';
+import {
+  placeNameForTarget,
+  resolveRoundLocation,
+} from '../singleplayer/locations.js';
+import {
+  generateSceneSeed,
+  selectRoundWithWeather,
   type IntelligenceLookup,
+  type PanoramaLocator,
 } from '../singleplayer/locationSelection.js';
-import type { PanoramaProvider } from '../singleplayer/provider.js';
+import type { PanoramaProvider, PanoramaTarget } from '../singleplayer/provider.js';
 import { PanoramaError } from '../singleplayer/providerErrors.js';
 import {
   LobbyConflictError,
@@ -87,14 +108,27 @@ function roundDeadline(round: MatchRound, member: LobbyMember): Date | null {
   return memberState(round, member.id)?.endsAt ?? round.endsAt;
 }
 
+function roundScene(round: MatchRound): RoundScene {
+  if (round.sceneJson && typeof round.sceneJson === 'object') {
+    return round.sceneJson as unknown as RoundScene;
+  }
+  const { biome } = resolveRoundLocation(round);
+  return buildRoundScene({
+    biome,
+    weather: { temperatureC: 15, precipitationMm: 0, windSpeedKmh: 10, condition: null },
+    lon: round.targetLon,
+    seed: generateSceneSeed(),
+  });
+}
+
 function publicRound(round: MatchRound, rules: GameRules, member: LobbyMember) {
-  const candidates = roundCandidates(round);
+  const candidates = toPublicCandidates(roundCandidates(round));
   const state = memberState(round, member.id);
   return {
     id: round.id,
     number: round.number,
-    panoId: round.panoId,
-    ...(candidates && candidates.length ? { candidates } : {}),
+    scene: roundScene(round),
+    ...(candidates ? { candidates } : {}),
     endsAt: round.endsAt?.toISOString() ?? null,
     attemptsUsed: round.attempts.filter(
       (attempt) => attempt.memberId === member.id,
@@ -121,9 +155,7 @@ function answerForGuess(round: MatchRound, result: LobbyRoundResult): string | n
 }
 
 /**
- * Guesses are only attached to a result the caller is allowed to read: their
- * own finalized result, or a completed historical round. Pending players never
- * receive someone else's marker for the active round.
+ * Participant guesses are published together when the shared round closes.
  */
 function participantGuesses(
   lobby: MatchLobby,
@@ -137,6 +169,7 @@ function participantGuesses(
     if (!result) return [];
     return [
       {
+        memberId: member.id,
         displayName: member.displayName,
         isHost: member.playerTokenHash === lobby.hostTokenHash,
         isYou: member.id === viewer.id,
@@ -152,12 +185,29 @@ function participantGuesses(
   });
 }
 
+function resultPoint(round: MatchRound, result: LobbyRoundResult): LatLon {
+  return {
+    lat: result.actualLat ?? round.targetLat,
+    lon: result.actualLon ?? round.targetLon,
+  };
+}
+
+async function roundPoint(round: MatchRound, locate?: PanoramaLocator): Promise<LatLon> {
+  const firstResult = round.results[0];
+  if (firstResult) return resultPoint(round, firstResult);
+  return locate ? locate(round.panoId) : { lat: round.targetLat, lon: round.targetLon };
+}
+
 function resultView(
   lobby: MatchLobby,
   round: MatchRound,
   result: LobbyRoundResult,
   viewer: LobbyMember,
 ) {
+  const viewerAttempts = round.attempts.filter(
+    (attempt) => attempt.memberId === viewer.id,
+  );
+  const actual = resultPoint(round, result);
   return {
     roundNumber: round.number,
     score: result.score,
@@ -166,9 +216,16 @@ function resultView(
       result.guessLat === null || result.guessLon === null
         ? null
         : { lat: result.guessLat, lon: result.guessLon },
-    actual: { lat: round.targetLat, lon: round.targetLon },
+    actual,
+    placeName: resolveRoundLocation({
+      placeName: round.placeName,
+      targetIndex: round.targetIndex,
+      targetLat: actual.lat,
+      targetLon: actual.lon,
+    }).name,
     attemptsUsed: result.attemptsUsed,
     extraDataPointsSpent: result.extraDataPointsSpent,
+    attempts: formatEvaluatedAttempts(viewerAttempts),
     guesses: participantGuesses(lobby, round, viewer),
   };
 }
@@ -217,8 +274,8 @@ async function finalizeMemberRound(
   round: MatchRound,
   member: LobbyMember,
   attempts: LobbyRoundAttempt[],
-  difficulty: Difficulty,
-  matchId: string,
+  actual: LatLon,
+  timedOut = false,
 ): Promise<LobbyRoundResult> {
   // Read the latest per-player state so a concurrent unlock is still charged.
   const state = await db.lobbyRoundMemberState.findUnique({
@@ -227,7 +284,6 @@ async function finalizeMemberRound(
     },
   });
   const extraDataPointsSpent = state?.extraDataPointsSpent ?? 0;
-  const actual = { lat: round.targetLat, lon: round.targetLon };
   const selection =
     member.selectionLat !== null && member.selectionLon !== null
       ? { lat: member.selectionLat, lon: member.selectionLon }
@@ -237,149 +293,300 @@ async function finalizeMemberRound(
     selection,
     actual,
     pointsSpent: extraDataPointsSpent,
+    timedOut,
   });
 
-  return db.$transaction(async (tx) => {
-    const result = await tx.lobbyRoundResult.upsert({
-      where: {
-        roundId_memberId: { roundId: round.id, memberId: member.id },
-      },
-      create: {
-        roundId: round.id,
-        memberId: member.id,
-        guessLat: guess?.lat ?? null,
-        guessLon: guess?.lon ?? null,
-        distanceKm,
-        score,
-        attemptsUsed: attempts.length,
-        extraDataPointsSpent,
-      },
-      update: {},
-    });
+  // R04/R16: do not write to GameResult here — signed-in results are archived
+  // atomically when the shared review opens so account history cannot leak the
+  // target location before all players finish.
+  return db.lobbyRoundResult.upsert({
+    where: {
+      roundId_memberId: { roundId: round.id, memberId: member.id },
+    },
+    create: {
+      roundId: round.id,
+      memberId: member.id,
+      actualLat: actual.lat,
+      actualLon: actual.lon,
+      guessLat: guess?.lat ?? null,
+      guessLon: guess?.lon ?? null,
+      distanceKm,
+      score,
+      attemptsUsed: attempts.length,
+      extraDataPointsSpent,
+    },
+    update: {},
+  });
+}
 
-    if (member.userId !== null) {
-      // R18: archive only signed-in players. The coordinates are the last
-      // submitted attempt (not necessarily the best attempt used for scoring).
-      // Same transaction as the lobby result: no silent missing archive.
-      const last =
-        [...attempts].sort((a, b) => b.attemptNumber - a.attemptNumber)[0] ??
-        null;
-      await archiveGameResult(tx, {
-        prefix: 'lobby',
-        roundId: result.id,
-        userId: member.userId,
-        mode: 'multiplayer',
-        difficulty,
-        sessionId: round.lobbyId,
-        matchId,
-        roundNumber: round.number,
-        actual,
-        lastGuess: last ? { lat: last.guessLat, lon: last.guessLon } : null,
-        distanceKm,
-        score,
-      });
+// The review and the first poll after it share any pending preparation work.
+const nextRoundPreparations = new Map<string, Promise<void>>();
+
+function prepareFollowingRound(
+  lobby: MatchLobby,
+  nextRoundId: string,
+  reviewEndsAt: Date,
+  db: PrismaClient,
+  provider: PanoramaProvider,
+  intelligence: IntelligenceLookup,
+  locate?: PanoramaLocator,
+): Promise<void> {
+  const pending = nextRoundPreparations.get(nextRoundId);
+  if (pending) return pending;
+
+  async function prepare() {
+    const next = await db.lobbyRound.findUnique({ where: { id: nextRoundId } });
+    const validAt = new Date(Math.max(Date.now(), reviewEndsAt.getTime()));
+    if (!next || next.startedAt || (next.weatherValidUntil && next.weatherValidUntil >= validAt)) return;
+    if (next.weatherExhausted) {
+      throw new PanoramaError(
+        'No location with available weather data could be found nearby. Please retry.',
+        'WEATHER_UNAVAILABLE',
+        next.weatherAttemptedIndices,
+      );
     }
 
-    return result;
-  });
+    const used = lobby.rounds
+      .filter((round) => round.id !== nextRoundId)
+      .map((round) => round.targetIndex);
+    const planned = {
+      panoId: next.panoId,
+      targetIndex: next.targetIndex,
+      lat: next.targetLat,
+      lon: next.targetLon,
+    };
+    let prepared: Awaited<ReturnType<typeof selectRoundWithWeather>>;
+    try {
+      prepared = await selectRoundWithWeather(
+        used,
+        provider,
+        intelligence,
+        {
+          prefetched: planned,
+          locate,
+          validAt,
+          alreadyAttempted: next.weatherAttemptedIndices,
+        },
+      );
+    } catch (error) {
+      if (error instanceof PanoramaError && error.code === 'WEATHER_UNAVAILABLE') {
+        await db.lobbyRound.updateMany({
+          where: {
+            id: next.id,
+            startedAt: null,
+            lobby: { matchId: lobby.matchId, status: 'playing', currentRound: lobby.currentRound },
+          },
+          data: {
+            weatherAttemptedIndices: [
+              ...(error.attemptedIndices ?? next.weatherAttemptedIndices),
+            ],
+            weatherExhausted: true,
+          },
+        });
+      }
+      throw error;
+    }
+    const { target, scene, weatherValidUntil, attemptedIndices } = prepared;
+    const rules = gameRulesFor(lobby.difficulty);
+    await db.lobbyRound.updateMany({
+      where: {
+        id: next.id,
+        startedAt: null,
+        lobby: { matchId: lobby.matchId, status: 'playing', currentRound: lobby.currentRound },
+        OR: [{ weatherValidUntil: null }, { weatherValidUntil: { lt: validAt } }],
+      },
+      data: {
+        panoId: target.panoId,
+        targetIndex: target.targetIndex,
+        targetLat: target.lat,
+        targetLon: target.lon,
+        placeName: placeNameForTarget(target),
+        sceneJson: scene as unknown as Prisma.InputJsonValue,
+        weatherValidUntil,
+        weatherAttemptedIndices: attemptedIndices,
+        weatherExhausted: false,
+        ...(target !== planned && rules.selectionMode === 'list'
+          ? { candidatesJson: buildCandidates(target.targetIndex, used) as unknown as Prisma.InputJsonValue }
+          : {}),
+      },
+    });
+  }
+
+  const preparation = prepare().finally(() => { nextRoundPreparations.delete(nextRoundId); });
+  nextRoundPreparations.set(nextRoundId, preparation);
+  return preparation;
 }
 
 async function ensureLobbyProgress(
   lobby: MatchLobby,
   db: PrismaClient,
   now: Date,
-): Promise<void> {
+  provider?: PanoramaProvider,
+  intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
+): Promise<LobbyUnavailableError | undefined> {
   if (lobby.status !== 'playing') return;
 
-  const round = lobby.rounds.find(
-    (candidate) => candidate.number === lobby.currentRound,
-  );
+  const round = lobby.rounds.find((candidate) => candidate.number === lobby.currentRound);
   if (!round) return;
+  const nextRound = lobby.rounds.find((candidate) => candidate.number === round.number + 1);
+  const where = {
+    id: lobby.id,
+    matchId: lobby.matchId,
+    status: 'playing' as const,
+    currentRound: round.number,
+  };
 
-  const completed = new Set(round.results.map((result) => result.memberId));
-  // Each player has their own deadline (a hard-mode unlock shortens only the
-  // unlocking player's timer), so finalize anyone whose own time ran out even
-  // if the round itself stays open for the others.
-  const stillPlaying = lobby.members.filter(
-    (member) =>
-      !completed.has(member.id) &&
-      !isDeadlinePassed(roundDeadline(round, member), now),
-  );
-  for (const member of lobby.members) {
-    if (completed.has(member.id)) continue;
-    if (!isDeadlinePassed(roundDeadline(round, member), now)) continue;
-    await finalizeMemberRound(
-      db,
-      round,
-      member,
-      round.attempts.filter((attempt) => attempt.memberId === member.id),
-      lobby.difficulty,
-      lobby.matchId,
-    );
+  if (!round.reviewEndsAt) {
+    const completed = new Set(round.results.map((result) => result.memberId));
+    const pending = lobby.members.filter((member) => !completed.has(member.id));
+    const timedOut = pending.filter((member) => isDeadlinePassed(roundDeadline(round, member), now));
+    // Hard-mode clue penalties can expire a single player's clock before the shared round.
+    if (timedOut.length > 0) {
+      const actual = await roundPoint(round, locate);
+      for (const member of timedOut) {
+        await finalizeMemberRound(
+          db, round, member, round.attempts.filter((attempt) => attempt.memberId === member.id),
+          actual, true,
+        );
+      }
+    }
+    if (timedOut.length !== pending.length) return;
+
+    const reviewEndsAt = new Date(Date.now() + LOBBY_ROUND_REVIEW_MS);
+    const opened = await db.$transaction(async (tx) => {
+      const claim = await tx.lobbyRound.updateMany({
+        where: { id: round.id, reviewEndsAt: null, lobby: where },
+        data: { reviewEndsAt },
+      });
+      if (!claim.count) return false;
+
+      // R04/R16/R18: archive signed-in players' results atomically with the
+      // shared reveal so account history never leaks the target early.
+      const results = await tx.lobbyRoundResult.findMany({
+        where: { roundId: round.id },
+        include: { member: { select: { userId: true } } },
+      });
+      for (const result of results) {
+        if (result.member.userId === null) continue;
+        await archiveGameResult(tx, {
+          prefix: 'lobby',
+          roundId: result.id,
+          userId: result.member.userId,
+          mode: 'multiplayer',
+          difficulty: lobby.difficulty,
+          sessionId: round.lobbyId,
+          matchId: lobby.matchId,
+          roundNumber: round.number,
+          actual: resultPoint(round, result),
+          evaluatedGuess:
+            result.guessLat !== null && result.guessLon !== null
+              ? { lat: result.guessLat, lon: result.guessLon }
+              : null,
+          distanceKm: result.distanceKm,
+          score: result.score,
+        });
+      }
+      return true;
+    });
+    if (opened && nextRound && provider && intelligence) {
+      // The next poll can retry preparation if this request fails.
+      void prepareFollowingRound(lobby, nextRound.id, reviewEndsAt, db, provider, intelligence, locate)
+        .catch(() => {});
+    }
+    return;
   }
-  if (stillPlaying.length > 0) return;
 
-  const nextRound = lobby.rounds.find(
-    (candidate) => candidate.number === round.number + 1,
-  );
-  const data = nextRound
-    ? { currentRound: nextRound.number, startedAt: now, finishedAt: null }
-    : { status: 'finished' as const, finishedAt: now };
+  if (!isDeadlinePassed(round.reviewEndsAt, now)) return;
+  if (!nextRound) {
+    await db.lobby.updateMany({ where, data: { status: 'finished', finishedAt: now } });
+    return;
+  }
+  if (!provider || !intelligence) {
+    return new LobbyUnavailableError('Geographic data is not configured on this server.');
+  }
 
-  const claimed = await db.lobby.updateMany({
-    where: {
-      id: lobby.id,
-      status: 'playing',
-      currentRound: round.number,
-    },
-    data,
-  });
-  if (!claimed.count || !nextRound) return;
-
-  const rules = gameRulesFor(lobby.difficulty);
-  await db.lobbyRound.update({
-    where: { id: nextRound.id },
-    data: {
-      startedAt: now,
-      endsAt: new Date(now.getTime() + rules.timeLimitSeconds * 1000),
-    },
-  });
-  await db.lobbyMember.updateMany({
-    where: { lobbyId: lobby.id },
-    data: { selectionLat: null, selectionLon: null },
-  });
+  try {
+    await prepareFollowingRound(lobby, nextRound.id, round.reviewEndsAt, db, provider, intelligence, locate);
+    const startedAt = new Date();
+    const rules = gameRulesFor(lobby.difficulty);
+    await db.$transaction(async (tx) => {
+      const claimed = await tx.lobby.updateMany({
+        where,
+        data: { currentRound: nextRound.number, startedAt, finishedAt: null },
+      });
+      if (!claimed.count) return;
+      const started = await tx.lobbyRound.updateMany({
+        where: { id: nextRound.id, startedAt: null, weatherValidUntil: { gte: startedAt } },
+        data: { startedAt, endsAt: new Date(startedAt.getTime() + rules.timeLimitSeconds * 1000) },
+      });
+      if (!started.count) {
+        throw new LobbyUnavailableError('The next round’s weather expired. Preparing a fresh location.', 'WEATHER_UNAVAILABLE');
+      }
+      await tx.lobbyMember.updateMany({
+        where: { lobbyId: lobby.id },
+        data: { selectionLat: null, selectionLon: null },
+      });
+    });
+  } catch (error) {
+    if (error instanceof LobbyUnavailableError) return error;
+    if (error instanceof PanoramaError) return new LobbyUnavailableError(error.reason, error.code);
+    throw error;
+  }
 }
 
-interface PlannedLobbyRound {
+interface PlannedLobbyRound extends PanoramaTarget {
   number: number;
-  panoId: string;
-  targetIndex: number;
-  targetLat: number;
-  targetLon: number;
+  scene: RoundScene | null;
+  weatherValidUntil: Date | null;
+  weatherAttemptedIndices: number[];
   candidates: CandidateOption[] | null;
 }
 
-/** Build all rounds for a fresh match using the lobby's retained settings. */
+/**
+ * Build all rounds for a fresh match using the lobby's retained settings.
+ * R13: only Round 1 fetches weather at match start (once, max 3 locations);
+ * Rounds 2..N plan their initial targets without spending weather budget until
+ * `prepareFollowingRound` prepares each round during the preceding review.
+ */
 async function planLobbyRounds(
   lobby: MatchLobby,
   provider: PanoramaProvider,
   intelligence: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<PlannedLobbyRound[]> {
   const planned: PlannedLobbyRound[] = [];
   const used: number[] = [];
+  const rules = gameRulesFor(lobby.difficulty);
 
   try {
-    for (let number = 1; number <= lobby.roundsTotal; number += 1) {
-      const target = await selectValidatedTarget(used, provider, intelligence);
+    const first = await selectRoundWithWeather(used, provider, intelligence, {
+      locate,
+    });
+    used.push(first.target.targetIndex);
+    planned.push({
+      ...first.target,
+      number: 1,
+      scene: first.scene,
+      weatherValidUntil: first.weatherValidUntil,
+      weatherAttemptedIndices: first.attemptedIndices,
+      candidates:
+        rules.selectionMode === 'list'
+          ? buildCandidates(first.target.targetIndex, used)
+          : null,
+    });
+
+    for (let number = 2; number <= lobby.roundsTotal; number += 1) {
+      const target = await provider([...used]);
       used.push(target.targetIndex);
       planned.push({
+        ...target,
         number,
-        panoId: target.panoId,
-        targetIndex: target.targetIndex,
-        targetLat: target.lat,
-        targetLon: target.lon,
+        scene: null,
+        weatherValidUntil: null,
+        weatherAttemptedIndices: [],
         candidates:
-          lobby.difficulty === 'easy'
+          rules.selectionMode === 'list'
             ? buildCandidates(target.targetIndex, used)
             : null,
       });
@@ -434,8 +641,15 @@ async function beginLobbyMatch(
           number: round.number,
           panoId: round.panoId,
           targetIndex: round.targetIndex,
-          targetLat: round.targetLat,
-          targetLon: round.targetLon,
+          targetLat: round.lat,
+          targetLon: round.lon,
+          placeName: placeNameForTarget(round),
+          ...(round.scene
+            ? { sceneJson: round.scene as unknown as Prisma.InputJsonValue }
+            : {}),
+          weatherValidUntil: round.weatherValidUntil,
+          weatherAttemptedIndices: round.weatherAttemptedIndices,
+          weatherExhausted: false,
           ...(round.candidates
             ? {
                 candidatesJson:
@@ -542,10 +756,28 @@ function memberLabel(member: LobbyMember): string {
 }
 
 /**
- * Resolve a finished lobby's 30-second decision window:
- * - remove players who did not answer by the deadline,
- * - start a rematch once everyone has chosen to continue (or the deadline has
- *   passed), or return a lone continuing player to the waiting room.
+ * Rematch response deadline: null while nobody has requested a rematch so final
+ * standings remain visible indefinitely (R16), and 30s after the first request.
+ */
+function continueWindowDeadline(lobby: MatchLobby): Date | null {
+  let earliestMs: number | null = null;
+  for (const member of lobby.members) {
+    if (member.continueRequestedAt === null) continue;
+    const ms = member.continueRequestedAt.getTime();
+    if (earliestMs === null || ms < earliestMs) earliestMs = ms;
+  }
+  return earliestMs === null
+    ? null
+    : new Date(earliestMs + LOBBY_CONTINUE_WINDOW_MS);
+}
+
+/**
+ * Resolve a finished lobby once at least one player opts into a rematch:
+ * - while nobody has requested a rematch, keep the finished lobby intact so
+ *   final standings remain visible on the match-complete screen (R16);
+ * - once a rematch is requested, start it immediately when everyone is ready,
+ *   or remove non-responders after the 30-second response window so continuing
+ *   players are never blocked indefinitely.
  */
 async function resolveFinishedLobby(
   lobby: MatchLobby,
@@ -553,6 +785,7 @@ async function resolveFinishedLobby(
   now: Date,
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<void> {
   if (lobby.status !== 'finished') return;
 
@@ -564,9 +797,9 @@ async function resolveFinishedLobby(
     lobby.finishedAt = now;
   }
 
-  const deadline = new Date(
-    lobby.finishedAt.getTime() + LOBBY_CONTINUE_WINDOW_MS,
-  );
+  const deadline = continueWindowDeadline(lobby);
+  if (deadline === null) return;
+
   const expired = now.getTime() >= deadline.getTime();
 
   if (expired) {
@@ -600,7 +833,7 @@ async function resolveFinishedLobby(
 
   let planned: PlannedLobbyRound[];
   try {
-    planned = await planLobbyRounds(current, provider, intelligence);
+    planned = await planLobbyRounds(current, provider, intelligence, locate);
   } catch {
     // Do not trap players in a finished lobby if fresh rounds cannot load.
     await resetLobbyForNewGame(current, db, now);
@@ -615,11 +848,9 @@ function continuePromptView(
   member: LobbyMember,
 ): LobbyMatchView['continuePrompt'] {
   if (lobby.status !== 'finished' || lobby.finishedAt === null) return null;
-  const deadline = new Date(
-    lobby.finishedAt.getTime() + LOBBY_CONTINUE_WINDOW_MS,
-  );
+  const deadline = continueWindowDeadline(lobby);
   return {
-    deadline: deadline.toISOString(),
+    deadline: deadline?.toISOString() ?? null,
     readyPlayers: lobby.members
       .filter((candidate) => candidate.continueRequestedAt !== null)
       .map(memberLabel),
@@ -654,11 +885,19 @@ function buildMatchView(
         )
         .map((candidate) => candidate.displayName?.trim() || 'Guest explorer')
     : [];
-  const attemptsUsed =
-    currentRound?.attempts.filter((attempt) => attempt.memberId === member.id)
-      .length ?? 0;
+  const viewerAttempts = currentRound
+    ? [...currentRound.attempts]
+        .filter((attempt) => attempt.memberId === member.id)
+        .sort((a, b) => a.attemptNumber - b.attemptNumber)
+    : [];
+  const attemptsUsed = viewerAttempts.length;
+  const currentCandidates = currentRound ? roundCandidates(currentRound) : null;
+  const isList = rules.selectionMode === 'list';
 
-  const yourResults = lobby.rounds
+  const revealedRounds = lobby.rounds.filter(
+    (round) => round.number < lobby.currentRound || round.reviewEndsAt !== null || lobby.status === 'finished',
+  );
+  const yourResults = revealedRounds
     .map((round) => ({
       round,
       result: round.results.find(
@@ -676,12 +915,13 @@ function buildMatchView(
 
   const leaderboard = lobby.members
     .map((candidate) => {
-      const results = lobby.rounds
+      const results = revealedRounds
         .map((round) =>
           round.results.find((result) => result.memberId === candidate.id),
         )
         .filter((result): result is LobbyRoundResult => result !== undefined);
       return {
+        memberId: candidate.id,
         displayName: candidate.displayName,
         isHost: candidate.playerTokenHash === lobby.hostTokenHash,
         isYou: candidate.id === member.id,
@@ -698,6 +938,7 @@ function buildMatchView(
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
 
   return {
+    matchId: lobby.matchId,
     status: lobby.status,
     currentRound: currentRound?.number ?? null,
     roundsTotal: lobby.roundsTotal,
@@ -705,27 +946,48 @@ function buildMatchView(
     rules,
     startedAt: lobby.startedAt?.toISOString() ?? null,
     // The caller's own deadline (hard-mode unlock shortens only their timer).
-    endsAt: currentRound
+    endsAt: currentRound && !currentRound.reviewEndsAt
       ? (roundDeadline(currentRound, member)?.toISOString() ?? null)
       : null,
     round: currentRound ? publicRound(currentRound, rules, member) : null,
-    roundComplete:
-      currentRound !== null
-        ? pendingPlayers.length === 0
-        : lobby.status === 'finished',
+    roundComplete: Boolean(currentRound?.reviewEndsAt) || lobby.status === 'finished',
+    reviewEndsAt: currentRound?.reviewEndsAt?.toISOString() ?? null,
     pendingPlayers,
     you: {
       attemptsUsed,
       attemptsTotal: rules.attemptsPerRound,
       selection:
-        member.selectionLat === null || member.selectionLon === null
+        isList ||
+        member.selectionLat === null ||
+        member.selectionLon === null
           ? null
           : { lat: member.selectionLat, lon: member.selectionLon },
-      finalized: youResult !== null,
-      result:
-        youResult && currentRound
-          ? resultView(lobby, currentRound, youResult, member)
+      selectedCandidateId:
+        isList && currentRound
+          ? (findCandidateByPoint(
+              currentCandidates,
+              member.selectionLat,
+              member.selectionLon,
+            )?.id ?? null)
           : null,
+      submittedGuesses: isList
+        ? []
+        : viewerAttempts.map((attempt) => ({
+            lat: attempt.guessLat,
+            lon: attempt.guessLon,
+          })),
+      submittedCandidateIds: isList
+        ? viewerAttempts.flatMap((attempt) => {
+            const match = findCandidateByPoint(
+              currentCandidates,
+              attempt.guessLat,
+              attempt.guessLon,
+            );
+            return match ? [match.id] : [];
+          })
+        : [],
+      finalized: youResult !== null,
+      result: yourResults.find((result) => result.roundNumber === currentRound?.number) ?? null,
     },
     leaderboard,
     results: yourResults,
@@ -739,12 +1001,20 @@ async function matchResponse(
   db: PrismaClient,
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<LobbyMatchResponse> {
   const lobby = await loadMatchLobby(code, db);
   memberForToken(lobby, rawToken);
-  await ensureLobbyProgress(lobby, db, new Date());
+  const unavailable = await ensureLobbyProgress(
+    lobby, db, new Date(), provider, intelligence, locate,
+  );
 
   let refreshed = await loadMatchLobby(code, db);
+  if (
+    unavailable && refreshed.matchId === lobby.matchId && refreshed.currentRound === lobby.currentRound
+  ) {
+    throw unavailable;
+  }
   if (refreshed.status === 'finished') {
     await resolveFinishedLobby(
       refreshed,
@@ -752,6 +1022,7 @@ async function matchResponse(
       new Date(),
       provider,
       intelligence,
+      locate,
     );
     refreshed = await loadMatchLobby(code, db);
   }
@@ -769,12 +1040,13 @@ export async function startLobbyMatch(
   db: PrismaClient = prisma,
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<LobbyMatchResponse> {
   const lobby = await loadMatchLobby(code, db);
   assertHost(lobby, memberForToken(lobby, rawToken));
 
   if (lobby.status === 'playing') {
-    return matchResponse(code, rawToken, db, provider, intelligence);
+    return matchResponse(code, rawToken, db, provider, intelligence, locate);
   }
   if (lobby.status !== 'waiting') {
     throw new LobbyConflictError('This lobby has already finished');
@@ -790,10 +1062,10 @@ export async function startLobbyMatch(
     );
   }
 
-  const planned = await planLobbyRounds(lobby, provider, intelligence);
+  const planned = await planLobbyRounds(lobby, provider, intelligence, locate);
   await beginLobbyMatch(lobby, planned, 'waiting', db);
 
-  return matchResponse(code, rawToken, db, provider, intelligence);
+  return matchResponse(code, rawToken, db, provider, intelligence, locate);
 }
 
 export async function getLobbyMatch(
@@ -802,8 +1074,9 @@ export async function getLobbyMatch(
   db: PrismaClient = prisma,
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<LobbyMatchResponse> {
-  return matchResponse(code, rawToken, db, provider, intelligence);
+  return matchResponse(code, rawToken, db, provider, intelligence, locate);
 }
 
 /**
@@ -817,18 +1090,19 @@ export async function requestLobbyContinue(
   db: PrismaClient = prisma,
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<LobbyMatchResponse> {
   let lobby = await loadMatchLobby(code, db);
   memberForToken(lobby, rawToken);
-  await ensureLobbyProgress(lobby, db, new Date());
+  await ensureLobbyProgress(lobby, db, new Date(), provider, intelligence, locate);
 
   lobby = await loadMatchLobby(code, db);
-  await resolveFinishedLobby(lobby, db, new Date(), provider, intelligence);
+  await resolveFinishedLobby(lobby, db, new Date(), provider, intelligence, locate);
   lobby = await loadMatchLobby(code, db);
   const member = memberForToken(lobby, rawToken);
 
   if (lobby.status === 'playing') {
-    return matchResponse(code, rawToken, db, provider, intelligence);
+    return matchResponse(code, rawToken, db, provider, intelligence, locate);
   }
   if (lobby.status !== 'finished') {
     throw new LobbyConflictError(
@@ -850,16 +1124,18 @@ export async function requestLobbyContinue(
     new Date(),
     provider,
     intelligence,
+    locate,
   );
 
-  return matchResponse(code, rawToken, db, provider, intelligence);
+  return matchResponse(code, rawToken, db, provider, intelligence, locate);
 }
 
 export async function saveLobbySelection(
   code: string,
   rawToken: string,
-  selection: { lat: number; lon: number },
+  selection: GuessOrSelectionInput,
   db: PrismaClient = prisma,
+  roundId?: string,
 ): Promise<void> {
   const lobby = await loadMatchLobby(code, db);
   const member = memberForToken(lobby, rawToken);
@@ -869,7 +1145,7 @@ export async function saveLobbySelection(
   const round = lobby.rounds.find(
     (candidate) => candidate.number === lobby.currentRound,
   );
-  if (!round || isDeadlinePassed(roundDeadline(round, member), new Date())) {
+  if (!round || (roundId !== undefined && round.id !== roundId) || isDeadlinePassed(roundDeadline(round, member), new Date())) {
     throw new LobbyConflictError('This round is no longer accepting guesses');
   }
   const completed = round.results.some(
@@ -878,11 +1154,22 @@ export async function saveLobbySelection(
   if (completed) {
     throw new LobbyConflictError('Your guess for this round is already final');
   }
+  const rules = gameRulesFor(lobby.difficulty);
+  const point = resolveSelectionPoint(
+    rules.selectionMode,
+    selection,
+    roundCandidates(round),
+  );
 
-  await db.lobbyMember.update({
-    where: { id: member.id },
-    data: { selectionLat: selection.lat, selectionLon: selection.lon },
+  const updated = await db.lobbyMember.updateMany({
+    where: {
+      id: member.id,
+      lobby: { matchId: lobby.matchId, currentRound: round.number, status: 'playing' },
+      results: { none: { roundId: round.id } },
+    },
+    data: { selectionLat: point.lat, selectionLon: point.lon },
   });
+  if (!updated.count) throw new LobbyConflictError('This round is no longer accepting guesses');
 }
 
 export async function unlockLobbyExtraData(
@@ -892,6 +1179,7 @@ export async function unlockLobbyExtraData(
   db: PrismaClient = prisma,
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<LobbyMatchResponse> {
   const lobby = await loadMatchLobby(code, db);
   const member = memberForToken(lobby, rawToken);
@@ -906,7 +1194,7 @@ export async function unlockLobbyExtraData(
   }
   const now = new Date();
   if (isDeadlinePassed(roundDeadline(round, member), now)) {
-    await ensureLobbyProgress(lobby, db, now);
+    await ensureLobbyProgress(lobby, db, now, provider, intelligence, locate);
     throw new LobbyConflictError('The time limit for this round has expired');
   }
   const completed = round.results.some(
@@ -943,9 +1231,7 @@ export async function unlockLobbyExtraData(
     }
   }
 
-  const refreshed = await loadMatchLobby(code, db);
-  await ensureLobbyProgress(refreshed, db, now);
-  return matchResponse(code, rawToken, db, provider, intelligence);
+  return matchResponse(code, rawToken, db, provider, intelligence, locate);
 }
 
 export async function submitLobbyGuess(
@@ -954,6 +1240,9 @@ export async function submitLobbyGuess(
   rawToken: string,
   body: LobbyGuessBody,
   db: PrismaClient = prisma,
+  provider?: PanoramaProvider,
+  intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<LobbyGuessResponse> {
   const lobby = await loadMatchLobby(code, db);
   const member = memberForToken(lobby, rawToken);
@@ -979,7 +1268,7 @@ export async function submitLobbyGuess(
   });
   if (!decision.allowed) {
     if (decision.reason === 'deadline') {
-      await ensureLobbyProgress(lobby, db, new Date());
+      await ensureLobbyProgress(lobby, db, new Date(), provider, intelligence, locate);
       throw new LobbyConflictError('The time limit for this round has expired');
     }
     if (decision.reason === 'exhausted') {
@@ -988,9 +1277,17 @@ export async function submitLobbyGuess(
     throw new LobbyConflictError('Your guess for this round is already final');
   }
 
-  const actual = { lat: round.targetLat, lon: round.targetLon };
-  const distanceKm = haversineKm(body, actual);
-  const score = scoreForDistance(distanceKm);
+  const point = resolveSelectionPoint(
+    rules.selectionMode,
+    body,
+    roundCandidates(round),
+  );
+  const actual = await roundPoint(round, locate);
+  if (isDeadlinePassed(roundDeadline(round, member), new Date())) {
+    await ensureLobbyProgress(lobby, db, new Date(), provider, intelligence, locate);
+    throw new LobbyConflictError('The time limit for this round has expired');
+  }
+  const { distanceKm, score } = evaluateGuess(point, actual);
   const attemptNumber = decision.attemptNumber;
 
   let created: LobbyRoundAttempt;
@@ -1000,8 +1297,8 @@ export async function submitLobbyGuess(
         roundId: round.id,
         memberId: member.id,
         attemptNumber,
-        guessLat: body.lat,
-        guessLon: body.lon,
+        guessLat: point.lat,
+        guessLon: point.lon,
         distanceKm,
         score,
       },
@@ -1017,13 +1314,14 @@ export async function submitLobbyGuess(
 
   await db.lobbyMember.update({
     where: { id: member.id },
-    data: { selectionLat: body.lat, selectionLon: body.lon },
+    data: { selectionLat: point.lat, selectionLon: point.lon },
   });
 
   if (!decision.finalizes) {
     return {
       finalized: false,
       attemptsRemaining: decision.attemptsRemaining,
+      attemptsUsed: attemptNumber,
     };
   }
 
@@ -1032,21 +1330,15 @@ export async function submitLobbyGuess(
     round,
     member,
     [...attempts, created],
-    lobby.difficulty,
-    lobby.matchId,
+    actual,
   );
   const afterGuess = await loadMatchLobby(code, db);
-  await ensureLobbyProgress(afterGuess, db, new Date());
+  await ensureLobbyProgress(afterGuess, db, new Date(), provider, intelligence, locate);
 
   return {
     finalized: true,
     attemptsRemaining: 0,
-    result: resultView(
-      lobby,
-      { ...round, results: [...round.results, result] },
-      result,
-      member,
-    ),
+    attemptsUsed: result.attemptsUsed,
   };
 }
 
@@ -1055,6 +1347,9 @@ export async function finishLobbyRound(
   roundNumber: number,
   rawToken: string,
   db: PrismaClient = prisma,
+  provider?: PanoramaProvider,
+  intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<LobbyGuessResponse> {
   const lobby = await loadMatchLobby(code, db);
   const member = memberForToken(lobby, rawToken);
@@ -1068,7 +1363,7 @@ export async function finishLobbyRound(
     throw new LobbyConflictError('This round is not the active round');
   }
   if (isDeadlinePassed(roundDeadline(round, member), new Date())) {
-    await ensureLobbyProgress(lobby, db, new Date());
+    await ensureLobbyProgress(lobby, db, new Date(), provider, intelligence, locate);
     throw new LobbyConflictError('The time limit for this round has expired');
   }
   const alreadyFinal = round.results.some(
@@ -1091,20 +1386,14 @@ export async function finishLobbyRound(
     round,
     member,
     attempts,
-    lobby.difficulty,
-    lobby.matchId,
+    await roundPoint(round, locate),
   );
   const afterFinish = await loadMatchLobby(code, db);
-  await ensureLobbyProgress(afterFinish, db, new Date());
+  await ensureLobbyProgress(afterFinish, db, new Date(), provider, intelligence, locate);
   return {
     finalized: true,
     attemptsRemaining: 0,
-    result: resultView(
-      lobby,
-      { ...round, results: [...round.results, result] },
-      result,
-      member,
-    ),
+    attemptsUsed: result.attemptsUsed,
   };
 }
 
@@ -1114,9 +1403,10 @@ export async function getLobbyRoundIntelligence(
   rawToken: string,
   db: PrismaClient = prisma,
   intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
 ): Promise<GeographicIntelligence> {
   const lobby = await loadMatchLobby(code, db);
-  memberForToken(lobby, rawToken);
+  const member = memberForToken(lobby, rawToken);
   if (lobby.status !== 'playing' || lobby.currentRound !== roundNumber) {
     throw new LobbyConflictError(
       'Environmental clues are only available for the active round.',
@@ -1133,5 +1423,18 @@ export async function getLobbyRoundIntelligence(
       'Environmental data is not configured on this server.',
     );
   }
-  return intelligence(round.targetLat, round.targetLon);
+  const point = await roundPoint(round, locate);
+  const rules = gameRulesFor(lobby.difficulty);
+  const state = memberState(round, member.id);
+  const { unlocked } = extraDataAccess(
+    {
+      unlockedAt: state?.extraDataUnlockedAt ?? null,
+      pointsSpent: state?.extraDataPointsSpent ?? 0,
+    },
+    rules,
+  );
+  return redactLockedExtraData(
+    withCurrentRoundWeather(await intelligence(point.lat, point.lon)),
+    unlocked,
+  );
 }

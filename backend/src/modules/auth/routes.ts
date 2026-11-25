@@ -1,11 +1,13 @@
 import { registerAvatarRoutes } from './avatar.js';
 import { createHash } from 'node:crypto';
 import { CodeChallengeMethod, OAuth2Client } from 'google-auth-library';
+import type { LoginTicket } from 'google-auth-library';
 import { Type } from '@sinclair/typebox';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import type { Env } from '../../config/env.js';
 import { prisma } from '../../db/prisma.js';
+import { isUniqueConstraintError } from '../../db/prismaErrors.js';
 import {
   confirmEmailChange,
   consumeEmailVerification,
@@ -86,17 +88,119 @@ function recoveryConfigured(config: Env): boolean {
   return Boolean(config.smtpUrl && config.smtpFrom && config.appBaseUrl);
 }
 
+export const GOOGLE_OAUTH_TIMEOUT_MS = 10_000;
+
+export interface GoogleOAuthClientLike {
+  generateAuthUrl: OAuth2Client['generateAuthUrl'];
+  getToken(options: { code: string; codeVerifier?: string }): Promise<{
+    tokens: { id_token?: string | null };
+  }>;
+  verifyIdToken(options: {
+    idToken: string;
+    audience?: string | string[];
+  }): Promise<LoginTicket>;
+}
+
+class GoogleOAuthTimeoutError extends Error {
+  public readonly code = 'ETIMEDOUT';
+  public constructor(ms: number) {
+    super(`Google OAuth request timed out after ${ms}ms`);
+    this.name = 'GoogleOAuthTimeoutError';
+  }
+}
+
+async function withGoogleTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new GoogleOAuthTimeoutError(timeoutMs));
+        }, timeoutMs);
+        timer.unref();
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+const UPSTREAM_NETWORK_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'EPIPE',
+  'ABORT_ERR',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_SOCKET',
+]);
+
+function isGoogleUpstreamFailure(error: unknown): boolean {
+  if (error instanceof GoogleOAuthTimeoutError) return true;
+  if (!error || typeof error !== 'object') return false;
+  const err = error as {
+    name?: unknown;
+    code?: unknown;
+    status?: unknown;
+    statusCode?: unknown;
+    response?: { status?: unknown };
+    cause?: { code?: unknown; name?: unknown };
+  };
+  if (err.name === 'AbortError' || err.name === 'TimeoutError') return true;
+  if (typeof err.code === 'string' && UPSTREAM_NETWORK_CODES.has(err.code)) return true;
+  if (typeof err.cause?.code === 'string' && UPSTREAM_NETWORK_CODES.has(err.cause.code)) return true;
+  if (err.cause?.name === 'AbortError' || err.cause?.name === 'TimeoutError') return true;
+  const status =
+    typeof err.response?.status === 'number'
+      ? err.response.status
+      : typeof err.status === 'number'
+        ? err.status
+        : typeof err.statusCode === 'number'
+          ? err.statusCode
+          : undefined;
+  return status !== undefined && (status >= 500 || status === 429);
+}
+
+function mapGoogleOAuthError(error: unknown): AuthError {
+  if (isGoogleUpstreamFailure(error)) {
+    return new AuthError(503, 'Google sign-in is temporarily unavailable', 'GOOGLE_AUTH_UNAVAILABLE');
+  }
+  return new AuthError(401, 'Google sign-in could not be verified', 'GOOGLE_AUTH_FAILED');
+}
+
 /**
  * Cookie-based account endpoints. Anonymous game tokens remain supported by
  * the existing game API and are intentionally not changed by this module.
  */
 export function registerAuthRoutes(
   app: FastifyInstance,
-  options: { config: Env; db?: PrismaClient; mailer?: AuthMailer },
+  options: {
+    config: Env;
+    db?: PrismaClient;
+    mailer?: AuthMailer;
+    googleClientFactory?: (config: Env) => GoogleOAuthClientLike;
+    googleTimeoutMs?: number;
+  },
 ): void {
   const { config } = options;
   const db = options.db ?? prisma;
   const mailer = options.mailer ?? createAuthMailer(config);
+  const createGoogleClient =
+    options.googleClientFactory ??
+    ((cfg: Env) => new OAuth2Client(cfg.googleClientId, cfg.googleClientSecret, cfg.googleRedirectUri));
+  const googleTimeoutMs = options.googleTimeoutMs ?? GOOGLE_OAUTH_TIMEOUT_MS;
+  if (mailer?.close) {
+    app.addHook('onClose', async () => {
+      await mailer.close?.();
+    });
+  }
   registerAvatarRoutes(app, db, config);
   const sameSiteMutation = (request: FastifyRequest) => assertSameSiteMutation(request, config);
 
@@ -366,7 +470,7 @@ export function registerAuthRoutes(
 
   app.get<{ Querystring: GoogleQuery }>('/api/auth/google', async (_request, reply) => {
     if (!googleConfigured(config)) throw new AuthError(503, 'Google sign-in is not configured');
-    const client = new OAuth2Client(config.googleClientId, config.googleClientSecret, config.googleRedirectUri);
+    const client = createGoogleClient(config);
     const flow = createGoogleFlowState(config.googleClientSecret!);
     const challenge = createHash('sha256').update(flow.state.verifier).digest('base64url');
     setGoogleFlowCookie(reply, flow.cookieValue, config.sessionCookieSecure);
@@ -389,10 +493,29 @@ export function registerAuthRoutes(
     if (!flow || !request.query.state || request.query.state !== flow.state || !request.query.code || request.query.error) {
       throw new AuthError(400, 'Google sign-in could not be verified');
     }
-    const client = new OAuth2Client(config.googleClientId, config.googleClientSecret, config.googleRedirectUri);
-    const { tokens } = await client.getToken({ code: request.query.code, codeVerifier: flow.verifier });
+    const client = createGoogleClient(config);
+    let tokens: { id_token?: string | null };
+    try {
+      const response = await withGoogleTimeout(
+        client.getToken({ code: request.query.code, codeVerifier: flow.verifier }),
+        googleTimeoutMs,
+      );
+      tokens = response.tokens;
+    } catch (error) {
+      request.log.warn({ err: error }, 'Google OAuth token exchange failed');
+      throw mapGoogleOAuthError(error);
+    }
     if (!tokens.id_token) throw new AuthError(401, 'Google did not return an identity token');
-    const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: config.googleClientId });
+    let ticket: LoginTicket;
+    try {
+      ticket = await withGoogleTimeout(
+        client.verifyIdToken({ idToken: tokens.id_token, audience: config.googleClientId }),
+        googleTimeoutMs,
+      );
+    } catch (error) {
+      request.log.warn({ err: error }, 'Google OAuth ID token verification failed');
+      throw mapGoogleOAuthError(error);
+    }
     const claims = ticket.getPayload();
     const issuerValid = claims?.iss === 'https://accounts.google.com' || claims?.iss === 'accounts.google.com';
     if (!claims || !issuerValid || claims.nonce !== flow.nonce || claims.email_verified !== true || !claims.sub || !claims.email) {
@@ -410,7 +533,10 @@ export function registerAuthRoutes(
           displayName: (normalizeDisplayName(claims.name) ?? claims.email.split('@')[0] ?? 'Terra player').slice(0, DISPLAY_NAME_MAX_LENGTH),
           emailVerifiedAt: new Date(),
         } });
-      } catch {
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
         user = await db.user.findUnique({ where: { googleSub: claims.sub } });
         if (!user) throw new AuthError(409, 'This Google account could not be connected');
       }

@@ -48,7 +48,7 @@ export function startScheduler(
             log.info(
               {
                 deletedResults: summary.deletedResults,
-                cutoff: summary.cutoff.toISOString(),
+                checkedAt: summary.checkedAt.toISOString(),
               },
               'game result retention purge completed',
             );
@@ -80,4 +80,11 @@ export function startScheduler(
     },
     { timezone: PURGE_CRON_TIMEZONE },
   );
+}
+
+/** Stops and destroys a scheduled task during graceful shutdown. */
+export async function stopScheduler(task: ScheduledTask | undefined): Promise<void> {
+  if (!task) return;
+  await task.stop();
+  await task.destroy();
 }

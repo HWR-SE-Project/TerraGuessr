@@ -10,7 +10,10 @@ import {
   Candidate,
   Coordinates,
   Difficulty,
+  EvaluatedAttempt,
   ExtraDataAccess,
+  GameRulesView,
+  RoundSceneView,
 } from './shared.js';
 
 const LobbyStatus = Type.Union([
@@ -18,33 +21,6 @@ const LobbyStatus = Type.Union([
   Type.Literal('playing'),
   Type.Literal('finished'),
 ]);
-
-const SelectionMode = Type.Union([
-  Type.Literal('map'),
-  Type.Literal('list'),
-]);
-
-/** R5 shared extra-data policy for the selected difficulty. */
-const ExtraDataPolicyView = Type.Union([
-  Type.Object({ mode: Type.Literal('free') }, { additionalProperties: false }),
-  Type.Object(
-    { mode: Type.Literal('points'), cost: Type.Integer({ minimum: 0 }) },
-    { additionalProperties: false },
-  ),
-  Type.Object(
-    { mode: Type.Literal('time'), cost: Type.Integer({ minimum: 0 }) },
-    { additionalProperties: false },
-  ),
-]);
-
-/** R5 rules derived from the host's difficulty (informational until play starts). */
-export const LobbyRulesView = Type.Object({
-  timeLimitSeconds: Type.Integer({ minimum: 1 }),
-  attemptsPerRound: Type.Integer({ minimum: 1 }),
-  selectionMode: SelectionMode,
-  countryBorders: Type.Boolean(),
-  extraData: ExtraDataPolicyView,
-});
 
 /** Public member summary — never exposes player tokens. */
 export const LobbyMemberView = Type.Object({
@@ -60,7 +36,7 @@ export const LobbyView = Type.Object({
   difficulty: Difficulty,
   status: LobbyStatus,
   roundsTotal: Type.Integer({ minimum: 1 }),
-  rules: LobbyRulesView,
+  rules: GameRulesView,
   createdAt: Type.String(),
   expiresAt: Type.String(),
   members: Type.Array(LobbyMemberView),
@@ -108,7 +84,7 @@ const ExtraDataAccessView = ExtraDataAccess;
 const MatchRound = Type.Object({
   id: Type.String(),
   number: Type.Integer(),
-  panoId: Type.String(),
+  scene: RoundSceneView,
   candidates: Type.Optional(Type.Array(MatchCandidate)),
   endsAt: Type.Union([Type.String(), Type.Null()]),
   attemptsUsed: Type.Integer(),
@@ -117,6 +93,7 @@ const MatchRound = Type.Object({
 });
 
 const MatchParticipantGuess = Type.Object({
+  memberId: Type.String(),
   displayName: Type.Union([Type.String(), Type.Null()]),
   isHost: Type.Boolean(),
   isYou: Type.Boolean(),
@@ -133,13 +110,16 @@ const MatchResult = Type.Object({
   distanceKm: Type.Union([Type.Number(), Type.Null()]),
   guess: Type.Union([LobbyCoordinates, Type.Null()]),
   actual: LobbyCoordinates,
+  placeName: Type.Optional(Type.Union([Type.String(), Type.Null()])),
   attemptsUsed: Type.Integer(),
   extraDataPointsSpent: Type.Integer(),
+  attempts: Type.Array(EvaluatedAttempt),
   /** Every participant who has submitted this round, including the caller. */
   guesses: Type.Array(MatchParticipantGuess),
 });
 
 const MatchLeaderboardEntry = Type.Object({
+  memberId: Type.String(),
   rank: Type.Integer(),
   displayName: Type.Union([Type.String(), Type.Null()]),
   isHost: Type.Boolean(),
@@ -152,31 +132,37 @@ const MatchYou = Type.Object({
   attemptsUsed: Type.Integer(),
   attemptsTotal: Type.Integer(),
   selection: Type.Union([LobbyCoordinates, Type.Null()]),
+  selectedCandidateId: Type.Union([Type.String(), Type.Null()]),
+  submittedGuesses: Type.Array(LobbyCoordinates),
+  submittedCandidateIds: Type.Array(Type.String()),
   finalized: Type.Boolean(),
   result: Type.Union([MatchResult, Type.Null()]),
 });
 
 /**
- * Present only while a finished lobby waits for every player to choose whether
- * to continue. `deadline` is when unresponsive players are removed.
+ * Present on a finished match so players can see rematch readiness. `deadline`
+ * stays null while players view final standings (R16), and starts once at least
+ * one player requests a rematch so silent players never block them forever.
  */
 const MatchContinuePrompt = Type.Object({
-  deadline: Type.String(),
+  deadline: Type.Union([Type.String(), Type.Null()]),
   readyPlayers: Type.Array(Type.String()),
   pendingPlayers: Type.Array(Type.String()),
   youRequested: Type.Boolean(),
 });
 
 export const LobbyMatchView = Type.Object({
+  matchId: Type.String(),
   status: LobbyStatus,
   currentRound: Type.Union([Type.Integer(), Type.Null()]),
   roundsTotal: Type.Integer(),
   difficulty: Difficulty,
-  rules: LobbyRulesView,
+  rules: GameRulesView,
   startedAt: Type.Union([Type.String(), Type.Null()]),
   endsAt: Type.Union([Type.String(), Type.Null()]),
   round: Type.Union([MatchRound, Type.Null()]),
   roundComplete: Type.Boolean(),
+  reviewEndsAt: Type.Union([Type.String(), Type.Null()]),
   pendingPlayers: Type.Array(Type.String()),
   you: MatchYou,
   leaderboard: Type.Array(MatchLeaderboardEntry),
@@ -194,16 +180,45 @@ export const LobbyRoundParams = Type.Object({
   roundNumber: Type.Integer({ minimum: 1, maximum: 100 }),
 });
 
-export const LobbyGuessBody = Type.Object({
-  lat: Type.Number({ minimum: -90, maximum: 90 }),
-  lon: Type.Number({ minimum: -180, maximum: 180 }),
-  final: Type.Optional(Type.Boolean()),
-}, { additionalProperties: false });
+export const LobbySelectionBody = Type.Union([
+  Type.Object(
+    {
+      ...LobbyCoordinates.properties,
+      roundId: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      candidateId: Type.String({ minLength: 1, maxLength: 100 }),
+      roundId: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
+    },
+    { additionalProperties: false },
+  ),
+]);
+
+export const LobbyGuessBody = Type.Union([
+  Type.Object(
+    {
+      lat: Type.Number({ minimum: -90, maximum: 90 }),
+      lon: Type.Number({ minimum: -180, maximum: 180 }),
+      final: Type.Optional(Type.Boolean()),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      candidateId: Type.String({ minLength: 1, maxLength: 100 }),
+      final: Type.Optional(Type.Boolean()),
+    },
+    { additionalProperties: false },
+  ),
+]);
 
 export const LobbyGuessResponse = Type.Object({
   finalized: Type.Boolean(),
   attemptsRemaining: Type.Integer(),
-  result: Type.Optional(MatchResult),
+  attemptsUsed: Type.Integer(),
 });
 
 export type CreateLobbyBody = Static<typeof CreateLobbyBody>;
@@ -212,7 +227,7 @@ export type LobbyCodeParams = Static<typeof LobbyCodeParams>;
 export type JoinLobbyBody = Static<typeof JoinLobbyBody>;
 export type JoinLobbyResponse = Static<typeof JoinLobbyResponse>;
 export type LobbyMemberView = Static<typeof LobbyMemberView>;
-export type LobbyRulesView = Static<typeof LobbyRulesView>;
+export type LobbyRulesView = Static<typeof GameRulesView>;
 export type LobbyView = Static<typeof LobbyView>;
 export type LobbyStatus = Static<typeof LobbyStatus>;
 export type LobbyDifficulty = Static<typeof Difficulty>;
@@ -220,5 +235,6 @@ export type LobbyCoordinates = Static<typeof LobbyCoordinates>;
 export type LobbyMatchView = Static<typeof LobbyMatchView>;
 export type LobbyMatchResponse = Static<typeof LobbyMatchResponse>;
 export type LobbyRoundParams = Static<typeof LobbyRoundParams>;
+export type LobbySelectionBody = Static<typeof LobbySelectionBody>;
 export type LobbyGuessBody = Static<typeof LobbyGuessBody>;
 export type LobbyGuessResponse = Static<typeof LobbyGuessResponse>;

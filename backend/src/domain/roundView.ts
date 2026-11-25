@@ -12,8 +12,7 @@
 
 import type { GameRules } from './gameRules.js';
 import type { LatLon } from './distance.js';
-import { haversineKm } from './distance.js';
-import { scoreForDistance } from './scoring.js';
+import { evaluateGuess } from './scoring.js';
 import { applyPointPenalty } from './roundFlow.js';
 
 /** The minimal attempt shape both StreetRoundAttempt and LobbyRoundAttempt satisfy. */
@@ -24,6 +23,7 @@ export interface AttemptLike {
   id: string;
   guessLat: number;
   guessLon: number;
+  attemptNumber: number;
 }
 
 /** The best submitted attempt: highest score, then smallest distance, then earliest. */
@@ -70,6 +70,7 @@ export interface ScoreInput {
   selection: LatLon | null;
   actual: LatLon;
   pointsSpent: number;
+  timedOut?: boolean;
 }
 
 export interface ScoreResult {
@@ -78,18 +79,43 @@ export interface ScoreResult {
   score: number;
 }
 
+export interface EvaluatedAttemptView {
+  attemptNumber: number;
+  guess: LatLon;
+  distanceKm: number;
+  score: number;
+  isBest: boolean;
+}
+
 /**
- * R09/R10 scoring for a finalized round: the best attempt wins, otherwise the
- * latest selection is used, then distance → raw score → point penalty.
+ * Project all submitted attempts for the post-round reveal (R11), marking the
+ * winning Best-of-N attempt so the UI can highlight it alongside other bets.
+ */
+export function formatEvaluatedAttempts(
+  attempts: readonly AttemptLike[],
+): EvaluatedAttemptView[] {
+  const winner = bestAttempt(attempts);
+  return [...attempts]
+    .sort((a, b) => a.attemptNumber - b.attemptNumber)
+    .map((attempt) => ({
+      attemptNumber: attempt.attemptNumber,
+      guess: { lat: attempt.guessLat, lon: attempt.guessLon },
+      distanceKm: attempt.distanceKm,
+      score: attempt.score,
+      isBest: winner !== null && attempt.id === winner.id,
+    }));
+}
+
+/**
+ * Unified Best-of-N scoring (R02/R08/R09/R10): whenever at least one attempt
+ * was submitted, evaluate the closest submitted attempt — whether the round
+ * ended by Final Submit, attempt exhaustion, or timeout. If no attempt was
+ * submitted (e.g. a zero-attempt timeout), fall back to the saved selection.
  */
 export function computeScore(input: ScoreInput): ScoreResult {
-  const best = bestAttempt(input.attempts);
-  const guess =
-    best !== null
-      ? { lat: best.guessLat, lon: best.guessLon }
-      : input.selection;
-  const distanceKm = guess === null ? null : haversineKm(guess, input.actual);
-  const rawScore = distanceKm === null ? 0 : scoreForDistance(distanceKm);
-  const score = applyPointPenalty(rawScore, input.pointsSpent);
-  return { guess, distanceKm, score };
+  const attempt = bestAttempt(input.attempts);
+  const guess = attempt ? { lat: attempt.guessLat, lon: attempt.guessLon } : input.selection;
+  if (guess === null) return { guess, distanceKm: null, score: 0 };
+  const { distanceKm, score } = evaluateGuess(guess, input.actual);
+  return { guess, distanceKm, score: applyPointPenalty(score, input.pointsSpent) };
 }

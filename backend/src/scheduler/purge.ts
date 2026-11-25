@@ -1,33 +1,26 @@
 /**
  * Retention purge (B-09, R18 — architecture.md §7a, decision B.6).
  *
- * Completed rounds for signed-in players are archived in `GameResult`, a flat
- * record with no relations/cascades (schema.prisma note). A single batched
- * delete is therefore sufficient.
+ * Completed rounds for signed-in players are archived in `GameResult`.
  */
 
 import type { PrismaClient } from '@prisma/client';
 
-import { PURGE_RETENTION_MS } from '../config/constants.js';
+import {
+  settleTimedOutLobbyRounds,
+  settleTimedOutStreetRounds,
+  type SettlementClient,
+} from '../domain/settlement.js';
 
-/** Keeps `IN (...)` lists bounded on large backlogs. */
+/** Bounds the number of rows deleted per statement. */
 const PURGE_BATCH_SIZE = 500;
 
-/** Instant before which results are considered expired (now − 6 months). */
-export function purgeCutoff(now: Date): Date {
-  return new Date(now.getTime() - PURGE_RETENTION_MS);
-}
-
-/**
- * Round archive retention purge (R18). `GameResult` is a flat archive with no
- * relations/cascades, so a single batched delete is sufficient.
- */
 export interface GamePurgeSummary {
-  cutoff: Date;
+  checkedAt: Date;
   deletedResults: number;
 }
 
-export type GamePurgeClient = Pick<PrismaClient, 'gameResult'>;
+export type GamePurgeClient = Pick<PrismaClient, '$executeRaw'>;
 
 /**
  * Expired live sessions also contain round results (StreetRound and
@@ -36,61 +29,94 @@ export type GamePurgeClient = Pick<PrismaClient, 'gameResult'>;
  */
 export interface SessionPurgeSummary {
   cutoff: Date;
+  settledStreetRounds: number;
+  settledLobbyResults: number;
   deletedStreetGames: number;
   deletedLobbies: number;
 }
 
-export type SessionPurgeClient = Pick<
-  PrismaClient,
-  'streetGame' | 'lobby'
->;
+export type SessionPurgeClient = Pick<PrismaClient, 'streetGame' | 'lobby'> &
+  SettlementClient;
 
 /**
- * Removes expired singleplayer sessions and lobbies (cascading their rounds,
+ * Settles any timed-out rounds on expired authenticated singleplayer sessions
+ * before deleting expired `StreetGame` rows (R08/R18).
+ */
+export async function purgeExpiredStreetGames(
+  db: Pick<PrismaClient, 'streetGame'> & SettlementClient,
+  now: Date = new Date(),
+): Promise<{ settledStreetRounds: number; deletedStreetGames: number }> {
+  const settledStreetRounds = await settleTimedOutStreetRounds(db, now, {
+    expiredGamesOnly: true,
+  });
+  const streetGames = await db.streetGame.deleteMany({
+    where: { expiresAt: { lt: now } },
+  });
+  return {
+    settledStreetRounds,
+    deletedStreetGames: streetGames.count,
+  };
+}
+
+/**
+ * Settles any unattended timed-out rounds for signed-in accounts before
+ * removing expired singleplayer sessions and lobbies (cascading their rounds,
  * attempts, and results). Runs daily so stale result-bearing rows cannot
- * accumulate indefinitely.
+ * accumulate indefinitely while never dropping timed-out authenticated results.
  */
 export async function purgeExpiredGameSessions(
   db: SessionPurgeClient,
   now: Date = new Date(),
 ): Promise<SessionPurgeSummary> {
+  const [settledStreetRounds, settledLobbyResults] = await Promise.all([
+    settleTimedOutStreetRounds(db, now, { expiredGamesOnly: true }),
+    settleTimedOutLobbyRounds(db, now, { expiredLobbiesOnly: true }),
+  ]);
   const [streetGames, lobbies] = await Promise.all([
     db.streetGame.deleteMany({ where: { expiresAt: { lt: now } } }),
     db.lobby.deleteMany({ where: { expiresAt: { lt: now } } }),
   ]);
   return {
     cutoff: now,
+    settledStreetRounds,
+    settledLobbyResults,
     deletedStreetGames: streetGames.count,
     deletedLobbies: lobbies.count,
   };
 }
 
 /**
- * Purges completed round archives older than the retention window.
- *
- * @param db  Prisma client (or a test stub with the same delegate).
- * @param now Clock injection point; defaults to the current time.
+ * Purges each archive at six calendar months after creation. PostgreSQL
+ * clamps the expiry day to the end of a shorter month.
  */
 export async function purgeExpiredGameResults(
   db: GamePurgeClient,
   now: Date = new Date(),
 ): Promise<GamePurgeSummary> {
-  const cutoff = purgeCutoff(now);
   let deletedResults = 0;
+  let batchSize: number;
+  do {
+    // The first predicate bounds the scan on the createdAt index. The second
+    // checks the exact expiry, including the time of day on a clamped date.
+    batchSize = await db.$executeRaw`
+      WITH retention AS (
+        SELECT ${now.toISOString()}::timestamptz AT TIME ZONE 'UTC' AS "checkedAt",
+               INTERVAL '6 months' AS "duration"
+      ),
+      expired AS (
+        SELECT "GameResult"."id"
+        FROM "GameResult" CROSS JOIN retention
+        WHERE "createdAt" < date_trunc('month', "checkedAt" - "duration") + INTERVAL '1 month'
+          AND "createdAt" + "duration" <= "checkedAt"
+        ORDER BY "createdAt"
+        LIMIT ${PURGE_BATCH_SIZE}
+        FOR UPDATE OF "GameResult" SKIP LOCKED
+      )
+      DELETE FROM "GameResult" USING expired
+      WHERE "GameResult"."id" = expired."id"
+    `;
+    deletedResults += batchSize;
+  } while (batchSize === PURGE_BATCH_SIZE);
 
-  for (;;) {
-    const expired = await db.gameResult.findMany({
-      where: { createdAt: { lt: cutoff } },
-      select: { id: true },
-      take: PURGE_BATCH_SIZE,
-    });
-    if (expired.length === 0) break;
-    const deleted = await db.gameResult.deleteMany({
-      where: { id: { in: expired.map((row) => row.id) } },
-    });
-    deletedResults += deleted.count;
-    if (expired.length < PURGE_BATCH_SIZE) break;
-  }
-
-  return { cutoff, deletedResults };
+  return { checkedAt: now, deletedResults };
 }

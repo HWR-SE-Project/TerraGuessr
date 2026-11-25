@@ -22,13 +22,34 @@ export const Difficulty = Type.Union([
   Type.Literal('hard'),
 ]);
 
-export const Candidate = Type.Object({
-  id: Type.String(),
-  name: Type.String(),
-  region: Type.String(),
-  lat: Type.Number(),
-  lon: Type.Number(),
-});
+export const Candidate = Type.Object(
+  {
+    id: Type.String(),
+    name: Type.String(),
+    region: Type.String(),
+  },
+  { additionalProperties: false },
+);
+
+export const CandidateChoice = Type.Object(
+  {
+    candidateId: Type.String({ minLength: 1, maxLength: 100 }),
+  },
+  { additionalProperties: false },
+);
+
+export const SelectionInput = Type.Union([Coordinates, CandidateChoice]);
+
+export const EvaluatedAttempt = Type.Object(
+  {
+    attemptNumber: Type.Integer(),
+    guess: Coordinates,
+    distanceKm: Type.Number(),
+    score: Type.Integer(),
+    isBest: Type.Boolean(),
+  },
+  { additionalProperties: false },
+);
 
 export const ExtraDataAccess = Type.Object({
   mode: Type.Union([
@@ -41,3 +62,82 @@ export const ExtraDataAccess = Type.Object({
   unlocked: Type.Boolean(),
   pointsSpent: Type.Integer(),
 });
+
+const SelectionMode = Type.Union([
+  Type.Literal('map'),
+  Type.Literal('list'),
+]);
+
+/** R5 shared extra-data policy for the selected difficulty. */
+const ExtraDataPolicyView = Type.Union([
+  Type.Object({ mode: Type.Literal('free') }, { additionalProperties: false }),
+  Type.Object(
+    { mode: Type.Literal('points'), cost: Type.Integer({ minimum: 0 }) },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    { mode: Type.Literal('time'), cost: Type.Integer({ minimum: 0 }) },
+    { additionalProperties: false },
+  ),
+]);
+
+/** Public difficulty rules shared by all game modes. */
+export const GameRulesView = Type.Object({
+  timeLimitSeconds: Type.Integer({ minimum: 1 }),
+  attemptsPerRound: Type.Integer({ minimum: 1 }),
+  selectionMode: SelectionMode,
+  countryBorders: Type.Boolean(),
+  extraData: ExtraDataPolicyView,
+});
+
+export const BiomeSchema = Type.Union([
+  Type.Literal('desert'),
+  Type.Literal('forest'),
+  Type.Literal('mountains'),
+  Type.Literal('tundra'),
+  Type.Literal('coast'),
+  Type.Literal('grasslands'),
+  Type.Literal('urban'),
+]);
+
+export const SceneWeatherSchema = Type.Union([
+  Type.Literal('clear'),
+  Type.Literal('cloudy'),
+  Type.Literal('fog'),
+  Type.Literal('rain'),
+  Type.Literal('storm'),
+  Type.Literal('snow'),
+]);
+
+export const SceneLightingSchema = Type.Union([
+  Type.Literal('day'),
+  Type.Literal('dusk'),
+  Type.Literal('night'),
+]);
+
+export const TemperatureBandSchema = Type.Union([
+  Type.Literal('freezing'),
+  Type.Literal('cold'),
+  Type.Literal('mild'),
+  Type.Literal('warm'),
+  Type.Literal('hot'),
+]);
+
+export const WindBandSchema = Type.Union([
+  Type.Literal('calm'),
+  Type.Literal('breezy'),
+  Type.Literal('windy'),
+]);
+
+/** R04-safe 3D biome diorama parameters sent to the client during an active round. */
+export const RoundSceneView = Type.Object(
+  {
+    biome: BiomeSchema,
+    weather: SceneWeatherSchema,
+    lighting: SceneLightingSchema,
+    temperatureBand: TemperatureBandSchema,
+    windBand: WindBandSchema,
+    seed: Type.Integer({ minimum: 1 }),
+  },
+  { additionalProperties: false },
+);

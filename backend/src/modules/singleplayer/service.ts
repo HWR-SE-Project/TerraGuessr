@@ -20,8 +20,7 @@ import {
 import { AppError } from '../../plugins/errors.js';
 import { isUniqueConstraintError } from '../../db/prismaErrors.js';
 import type { LatLon } from '../../domain/distance.js';
-import { haversineKm } from '../../domain/distance.js';
-import { scoreForDistance } from '../../domain/scoring.js';
+import { evaluateGuess } from '../../domain/scoring.js';
 import { gameRulesFor } from '../../domain/gameRules.js';
 import type { GameRules } from '../../domain/gameRules.js';
 import {
@@ -29,25 +28,60 @@ import {
   decideAttempt,
   isDeadlinePassed,
 } from '../../domain/roundFlow.js';
-import { computeScore, extraDataAccess } from '../../domain/roundView.js';
-import { archiveGameResult } from '../../domain/archive.js';
 import {
-  googlePanoramaProvider,
-  googlePanoramaLocator,
-} from './provider.js';
+  computeScore,
+  extraDataAccess,
+  formatEvaluatedAttempts,
+} from '../../domain/roundView.js';
+import { archiveGameResult } from '../../domain/archive.js';
+import { purgeExpiredStreetGames } from '../../scheduler/purge.js';
+import { buildRoundScene, type RoundScene } from '../../domain/scene.js';
+import { catalogLocationProvider } from './provider.js';
 import type { PanoramaProvider, PanoramaTarget } from './provider.js';
 import {
+  placeNameForTarget,
+  resolveRoundLocation,
+} from './locations.js';
+import {
+  generateSceneSeed,
   nextExclusions,
-  selectValidatedTarget,
+  selectRoundWithWeather,
   type IntelligenceLookup,
+  type PanoramaLocator,
 } from './locationSelection.js';
-import { buildCandidates } from './candidates.js';
-import type { CandidateOption } from './candidates.js';
-import { prefetchNextStreetRound } from './prefetch.js';
+import {
+  buildCandidates,
+  findCandidateByPoint,
+  resolveSelectionPoint,
+  toPublicCandidates,
+  type CandidateOption,
+  type GuessOrSelectionInput,
+} from './candidates.js';
+import {
+  pendingStreetPrefetch,
+  prefetchNextStreetRound,
+} from './prefetch.js';
+import { PanoramaError } from './providerErrors.js';
 import type { GeographicIntelligence } from '../intelligence/contract.js';
 import { createIntelligenceProvider } from '../intelligence/service.js';
+import {
+  redactLockedExtraData,
+  withCurrentRoundWeather,
+} from '../intelligence/validate.js';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+
+const EMPTY_PREPARATION = {
+  nextRoundNumber: null,
+  nextTargetIndex: null,
+  nextPanoId: null,
+  nextTargetLat: null,
+  nextTargetLon: null,
+  nextSceneJson: Prisma.DbNull,
+  nextWeatherValidUntil: null,
+  nextAttemptedIndices: [] as number[],
+  nextExhausted: false,
+};
 
 function parseDifficulty(value: unknown): Difficulty {
   return typeof value === 'string' &&
@@ -63,17 +97,14 @@ export type GameWithRounds = Prisma.StreetGameGetPayload<{
   include: { rounds: { include: { attempts: true } } };
 }>;
 
-export interface GuessBody {
-  lat: number;
-  lon: number;
-  final?: boolean;
-}
+export type GuessBody =
+  | { lat: number; lon: number; final?: boolean }
+  | { candidateId: string; final?: boolean };
 
 export interface SingleplayerServiceOptions {
-  key?: string;
   db?: PrismaClient;
   provider?: PanoramaProvider;
-  locate?: (panoId: string) => Promise<LatLon>;
+  locate?: PanoramaLocator;
   intelligence?: IntelligenceLookup;
 }
 
@@ -81,15 +112,53 @@ export function conflict(message: string): AppError {
   return new AppError(409, message);
 }
 
+function roundScene(
+  round: Pick<StreetRound, 'sceneJson' | 'placeName' | 'targetIndex' | 'targetLat' | 'targetLon'>,
+): RoundScene {
+  if (round.sceneJson && typeof round.sceneJson === 'object') {
+    return round.sceneJson as unknown as RoundScene;
+  }
+  const { biome } = resolveRoundLocation(round);
+  return buildRoundScene({
+    biome,
+    weather: { temperatureC: 15, precipitationMm: 0, windSpeedKmh: 10, condition: null },
+    lon: round.targetLon,
+    seed: generateSceneSeed(),
+  });
+}
+
+function storedCandidates(round: Pick<StreetRound, 'candidatesJson'>): CandidateOption[] | null {
+  return round.candidatesJson as unknown as CandidateOption[] | null;
+}
+
 function publicRound(round: RoundWithAttempts, rules: GameRules) {
-  const candidates = round.candidatesJson as unknown as
-    | CandidateOption[]
-    | null;
+  const candidates = storedCandidates(round);
+  const publicCandidates = toPublicCandidates(candidates);
+  const isList = rules.selectionMode === 'list';
   return {
     id: round.id,
     number: round.number,
-    panoId: round.panoId,
-    ...(candidates && candidates.length ? { candidates } : {}),
+    scene: roundScene(round),
+    ...(publicCandidates ? { candidates: publicCandidates } : {}),
+    rules,
+    selection:
+      isList ||
+      round.selectionLat === null ||
+      round.selectionLon === null
+        ? null
+        : { lat: round.selectionLat, lon: round.selectionLon },
+    selectedCandidateId: isList
+      ? (findCandidateByPoint(candidates, round.selectionLat, round.selectionLon)?.id ?? null)
+      : null,
+    submittedGuesses: isList
+      ? []
+      : round.attempts.map((attempt) => ({ lat: attempt.guessLat, lon: attempt.guessLon })),
+    submittedCandidateIds: isList
+      ? round.attempts.flatMap((attempt) => {
+          const match = findCandidateByPoint(candidates, attempt.guessLat, attempt.guessLon);
+          return match ? [match.id] : [];
+        })
+      : [],
     startedAt: round.startedAt?.toISOString() ?? null,
     endsAt: round.endsAt?.toISOString() ?? null,
     attemptsUsed: round.attempts.length,
@@ -104,11 +173,17 @@ function publicRound(round: RoundWithAttempts, rules: GameRules) {
   };
 }
 
-function result(round: StreetRound, actual: LatLon) {
+function result(round: RoundWithAttempts, actual: LatLon) {
   return {
     roundId: round.id,
     number: round.number,
     actual,
+    placeName: resolveRoundLocation({
+      placeName: round.placeName,
+      targetIndex: round.targetIndex,
+      targetLat: actual.lat,
+      targetLon: actual.lon,
+    }).name,
     guess:
       round.guessLat === null || round.guessLon === null
         ? null
@@ -116,6 +191,7 @@ function result(round: StreetRound, actual: LatLon) {
     distanceKm: round.distanceKm,
     score: round.score!,
     extraDataPointsSpent: round.additionalDataPointsSpent,
+    attempts: formatEvaluatedAttempts(round.attempts),
   };
 }
 
@@ -127,16 +203,24 @@ function roundInclude() {
 
 /**
  * Build the singleplayer service with injectable dependencies. `db`, the
- * panorama provider, the locator and the weather lookup default to production
- * implementations and are overridden by tests and the lobby module.
+ * location provider, optional locator, and weather lookup default to production
+ * implementations and can be overridden by tests.
  */
 export function createSingleplayerService(
   options: SingleplayerServiceOptions = {},
 ) {
   const db = options.db ?? prisma;
-  const provider = options.provider ?? googlePanoramaProvider(options.key);
-  const locate = options.locate ?? googlePanoramaLocator(options.key);
+  const provider = options.provider ?? catalogLocationProvider();
+  const locate = options.locate;
   const intelligence = options.intelligence ?? createIntelligenceProvider();
+
+  async function resolveRoundPoint(
+    round: Pick<StreetRound, 'panoId' | 'targetLat' | 'targetLon'>,
+  ): Promise<LatLon> {
+    return locate
+      ? locate(round.panoId)
+      : { lat: round.targetLat, lon: round.targetLon };
+  }
 
   async function owned(
     gameId: string,
@@ -162,6 +246,7 @@ export function createSingleplayerService(
     game: GameWithRounds,
     round: RoundWithAttempts,
     actual: LatLon,
+    timedOut = false,
   ): Promise<boolean> {
     if (round.score !== null) return false;
     const selection =
@@ -173,6 +258,7 @@ export function createSingleplayerService(
       selection,
       actual,
       pointsSpent: round.additionalDataPointsSpent,
+      timedOut,
     });
     // The archive write is part of the same transaction as the score lock: a
     // failed archive must not leave a completed round permanently unarchived.
@@ -189,9 +275,7 @@ export function createSingleplayerService(
       if (!updated.count) return false;
       if (game.ownerUserId !== null) {
         // R18: durable account-associated archive, decoupled from the 24h
-        // session-expiry cleanup. The coordinates are the *last submitted*
-        // attempt, which can differ from the best attempt used for scoring.
-        const last = round.attempts[round.attempts.length - 1] ?? null;
+        // session-expiry cleanup. Stores the evaluated guess matching score/distance.
         await archiveGameResult(tx, {
           prefix: 'solo',
           roundId: round.id,
@@ -202,7 +286,7 @@ export function createSingleplayerService(
           matchId: game.id,
           roundNumber: round.number,
           actual,
-          lastGuess: last ? { lat: last.guessLat, lon: last.guessLon } : null,
+          evaluatedGuess: guess,
           distanceKm,
           score,
         });
@@ -210,8 +294,16 @@ export function createSingleplayerService(
       return true;
     });
     if (!finalized) return false;
-    // R12: best-effort prefetch of the following round, never awaited.
-    void prefetchNextStreetRound(game.id, db, provider, intelligence);
+    // R12/R13: ensure the next round's single preparation record is warm
+    // (no-op if already prepared with fresh weather while this round was played).
+    void prefetchNextStreetRound(
+      game.id,
+      round.number + 1,
+      db,
+      provider,
+      intelligence,
+      locate,
+    );
     return true;
   }
 
@@ -221,8 +313,8 @@ export function createSingleplayerService(
   ): Promise<boolean> {
     const active = game.rounds.find((round) => round.score === null);
     if (!active || !isDeadlinePassed(active.endsAt, now)) return false;
-    const actual = await locate(active.panoId);
-    return finalizeRound(game, active, actual);
+    const actual = await resolveRoundPoint(active);
+    return finalizeRound(game, active, actual, true);
   }
 
   /** Load the game and resolve an expired active round before serving a view. */
@@ -246,9 +338,7 @@ export function createSingleplayerService(
     difficulty?: unknown;
     ownerUserId: string | null;
   }): Promise<{ id: string; playerToken: string }> {
-    await db.streetGame.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
-    });
+    await purgeExpiredStreetGames(db, new Date());
     const playerToken = generatePlayerToken();
     const game = await db.streetGame.create({
       data: {
@@ -267,7 +357,7 @@ export function createSingleplayerService(
     const results = await Promise.all(
       game.rounds
         .filter((r) => r.score !== null)
-        .map(async (round) => result(round, await locate(round.panoId))),
+        .map(async (round) => result(round, await resolveRoundPoint(round))),
     );
     const active = game.rounds.find((r) => r.score === null);
     return {
@@ -292,20 +382,29 @@ export function createSingleplayerService(
   }
 
   async function startRound(gameId: string, token: string | undefined) {
-    const game = await ownedSettled(gameId, token);
+    let game = await ownedSettled(gameId, token);
     const rules = gameRulesFor(game.difficulty);
     const active = game.rounds.find((r) => r.score === null);
     if (active) return publicRound(active, rules); // Idempotent retry, including response loss.
     // Endless mode: no round cap. Preserve difficulty throughout.
-    const usedIndices = game.rounds.map((r) => r.targetIndex);
     const nextNumber = game.rounds.length + 1;
-    const startedAt = new Date();
-    const endsAt = new Date(
-      startedAt.getTime() + rules.timeLimitSeconds * 1000,
-    );
-    async function persistRound(target: PanoramaTarget) {
+
+    // R12/R13: if background preparation for this round is already in flight,
+    // join it instead of issuing duplicate provider/weather calls.
+    const pending = pendingStreetPrefetch(game.id, nextNumber);
+    if (pending) {
+      await pending;
+      game = await ownedSettled(gameId, token);
+      const activeAfterWait = game.rounds.find((r) => r.score === null);
+      if (activeAfterWait) return publicRound(activeAfterWait, rules);
+    }
+
+    const usedIndices = game.rounds.map((r) => r.targetIndex);
+    async function persistRound(target: PanoramaTarget, scene: RoundScene) {
+      const startedAt = new Date();
+      const endsAt = new Date(startedAt.getTime() + rules.timeLimitSeconds * 1000);
       const candidates =
-        game.difficulty === 'easy'
+        rules.selectionMode === 'list'
           ? buildCandidates(target.targetIndex, usedIndices)
           : null;
       try {
@@ -317,6 +416,8 @@ export function createSingleplayerService(
             targetIndex: target.targetIndex,
             targetLat: target.lat,
             targetLon: target.lon,
+            placeName: placeNameForTarget(target),
+            sceneJson: scene as unknown as Prisma.InputJsonValue,
             startedAt,
             endsAt,
             ...(candidates
@@ -327,6 +428,16 @@ export function createSingleplayerService(
           },
           include: roundInclude(),
         });
+        // R12: start preparing round N+1 while the player plays round N so
+        // clicking Next round returns immediately even with slow upstream forecasts.
+        void prefetchNextStreetRound(
+          game.id,
+          nextNumber + 1,
+          db,
+          provider,
+          intelligence,
+          locate,
+        );
         return publicRound(round, rules);
       } catch (error) {
         if (!isUniqueConstraintError(error)) throw error;
@@ -337,37 +448,82 @@ export function createSingleplayerService(
         return publicRound(existing, rules);
       }
     }
-    // R12 fast path: consume a cached prefetched target if one is ready. The
-    // conditional update both claims it and prevents a concurrent request from
-    // double-consuming the same prefetch.
-    if (game.nextPanoId != null) {
+
+    const matchesNext =
+      game.nextRoundNumber === nextNumber ||
+      (game.nextRoundNumber === null && game.nextPanoId !== null);
+
+    // R13: if prefetch already exhausted all 3 distinct locations for this
+    // upcoming round, report 503 immediately without fetching a 4th location.
+    // Clear the exhausted record after reporting so an explicit manual retry
+    // from the error screen can recover.
+    if (matchesNext && game.nextExhausted) {
+      await db.streetGame.updateMany({
+        where: {
+          id: game.id,
+          nextRoundNumber: game.nextRoundNumber,
+          nextExhausted: true,
+        },
+        data: EMPTY_PREPARATION,
+      });
+      throw new PanoramaError(
+        'No location with available weather data could be found nearby. Please retry.',
+        'WEATHER_UNAVAILABLE',
+        game.nextAttemptedIndices,
+      );
+    }
+
+    // R12 fast path: consume a prepared target if one is ready. The conditional
+    // update claims it atomically so concurrent callers never double-consume it.
+    let prefetched: PanoramaTarget | undefined;
+    let alreadyAttempted: number[] = [];
+    if (
+      matchesNext &&
+      game.nextPanoId != null &&
+      game.nextTargetIndex != null &&
+      game.nextTargetLat != null &&
+      game.nextTargetLon != null
+    ) {
       const claimed = await db.streetGame.updateMany({
         where: { id: game.id, nextPanoId: game.nextPanoId },
-        data: {
-          nextTargetIndex: null,
-          nextPanoId: null,
-          nextTargetLat: null,
-          nextTargetLon: null,
-        },
+        data: EMPTY_PREPARATION,
       });
-      if (claimed.count)
-        return await persistRound({
+      if (claimed.count) {
+        prefetched = {
           panoId: game.nextPanoId,
-          targetIndex: game.nextTargetIndex!,
-          lat: game.nextTargetLat!,
-          lon: game.nextTargetLon!,
-        });
+          targetIndex: game.nextTargetIndex,
+          lat: game.nextTargetLat,
+          lon: game.nextTargetLon,
+        };
+        alreadyAttempted = game.nextAttemptedIndices;
+        if (
+          game.nextSceneJson !== null &&
+          game.nextWeatherValidUntil !== null &&
+          game.nextWeatherValidUntil.getTime() > Date.now()
+        ) {
+          return persistRound(
+            prefetched,
+            game.nextSceneJson as unknown as RoundScene,
+          );
+        }
+      }
+    } else if (matchesNext && game.nextAttemptedIndices.length > 0) {
+      alreadyAttempted = game.nextAttemptedIndices;
+      await db.streetGame.updateMany({
+        where: { id: game.id, nextRoundNumber: game.nextRoundNumber },
+        data: EMPTY_PREPARATION,
+      });
     }
+
     // R03/R13: only accept a location whose mandatory weather data is
-    // available, automatically trying another when it is not. R08: once every
-    // pool location has been used this session, allow repeats rather than
-    // exhausting the pool and failing forever.
-    const target = await selectValidatedTarget(
+    // available, sharing the 3-location cap with any prior preparation attempts.
+    const { target, scene } = await selectRoundWithWeather(
       nextExclusions(usedIndices),
       provider,
       intelligence,
+      { locate, prefetched, alreadyAttempted },
     );
-    return persistRound(target);
+    return persistRound(target, scene);
   }
 
   async function getRoundIntelligence(
@@ -382,33 +538,45 @@ export function createSingleplayerService(
       throw conflict(
         'Environmental clues are only available for the active round.',
       );
-    // Resolve the starting panorama on the server. Street View movement and
-    // client-supplied coordinates never control the environmental lookup.
-    const point = await locate(round.panoId);
+    const point = await resolveRoundPoint(round);
     const data = await intelligence(point.lat, point.lon);
     const current = await db.streetRound.findUnique({
       where: { id: round.id },
     });
     if (!current || current.panoId !== round.panoId || current.score !== null)
       throw conflict('The round changed. Request clues for the current round.');
-    return data;
+    const rules = gameRulesFor(game.difficulty);
+    const { unlocked } = extraDataAccess(
+      {
+        unlockedAt: current.additionalDataUnlockedAt,
+        pointsSpent: current.additionalDataPointsSpent,
+      },
+      rules,
+    );
+    return redactLockedExtraData(withCurrentRoundWeather(data), unlocked);
   }
 
   async function saveSelection(
     gameId: string,
     roundId: string,
     token: string | undefined,
-    body: LatLon,
+    body: GuessOrSelectionInput,
   ): Promise<void> {
     const game = await ownedSettled(gameId, token);
+    const rules = gameRulesFor(game.difficulty);
     const round = game.rounds.find((r) => r.id === roundId);
     if (!round) throw new GameNotFoundError();
     if (round.score !== null) throw conflict('This round has already ended.');
     if (isDeadlinePassed(round.endsAt, new Date()))
       throw conflict('The time limit for this round has expired.');
+    const point = resolveSelectionPoint(
+      rules.selectionMode,
+      body,
+      storedCandidates(round),
+    );
     await db.streetRound.updateMany({
       where: { id: round.id, score: null },
-      data: { selectionLat: body.lat, selectionLon: body.lon },
+      data: { selectionLat: point.lat, selectionLon: point.lon },
     });
   }
 
@@ -481,13 +649,14 @@ export function createSingleplayerService(
     // R03/R13: a retry (whether triggered by missing coverage or missing
     // weather data) only accepts a location with valid weather too. R08: same
     // pool-exhaustion handling as starting a fresh round.
-    const target = await selectValidatedTarget(
+    const { target, scene } = await selectRoundWithWeather(
       nextExclusions(usedIndices),
       provider,
       intelligence,
+      { locate },
     );
     const candidates =
-      game.difficulty === 'easy'
+      rules.selectionMode === 'list'
         ? buildCandidates(target.targetIndex, usedIndices)
         : null;
     const now = new Date();
@@ -498,6 +667,8 @@ export function createSingleplayerService(
         targetIndex: target.targetIndex,
         targetLat: target.lat,
         targetLon: target.lon,
+        placeName: placeNameForTarget(target),
+        sceneJson: scene as unknown as Prisma.InputJsonValue,
         selectionLat: null,
         selectionLon: null,
         additionalDataUnlockedAt: null,
@@ -511,8 +682,30 @@ export function createSingleplayerService(
     });
     if (!changed.count)
       throw conflict(
-        'The round changed while its panorama was loading. Resume the expedition.',
+        'The round changed while its scene was loading. Resume the expedition.',
       );
+    // Invalidate a prepared next round only if it now conflicts with the replacement.
+    const updatedUsed = game.rounds.map((r) =>
+      r.id === current.id ? target.targetIndex : r.targetIndex,
+    );
+    if (
+      game.nextRoundNumber === current.number + 1 &&
+      game.nextTargetIndex !== null &&
+      nextExclusions(updatedUsed).includes(game.nextTargetIndex)
+    ) {
+      await db.streetGame.updateMany({
+        where: { id: game.id, nextRoundNumber: current.number + 1 },
+        data: EMPTY_PREPARATION,
+      });
+      void prefetchNextStreetRound(
+        game.id,
+        current.number + 1,
+        db,
+        provider,
+        intelligence,
+        locate,
+      );
+    }
     return publicRound(await roundWithAttempts(current.id), rules);
   }
 
@@ -526,7 +719,12 @@ export function createSingleplayerService(
     const rules = gameRulesFor(game.difficulty);
     const round = game.rounds.find((r) => r.id === roundId);
     if (!round) throw new GameNotFoundError();
-    const actual = await locate(round.panoId);
+    const point = resolveSelectionPoint(
+      rules.selectionMode,
+      guess,
+      storedCandidates(round),
+    );
+    const actual = await resolveRoundPoint(round);
     const latest = await db.streetRound.findUniqueOrThrow({
       where: { id: round.id },
     });
@@ -535,12 +733,13 @@ export function createSingleplayerService(
         'The panorama changed. Reload the current round before guessing.',
       );
     if (latest.score !== null) {
-      if (latest.guessLat === guess.lat && latest.guessLon === guess.lon)
+      if (latest.guessLat === point.lat && latest.guessLon === point.lon) {
         return {
           finalized: true,
           attemptsRemaining: 0,
-          result: result(latest, actual),
+          result: result(await roundWithAttempts(round.id), actual),
         };
+      }
       throw conflict('This round has already ended.');
     }
     const decision = decideAttempt({
@@ -557,15 +756,14 @@ export function createSingleplayerService(
         throw conflict('No attempts remain for this round.');
       throw conflict('This round has already ended.');
     }
-    const distanceKm = haversineKm(guess, actual);
-    const score = scoreForDistance(distanceKm);
+    const { distanceKm, score } = evaluateGuess(point, actual);
     try {
       await db.streetRoundAttempt.create({
         data: {
           roundId: round.id,
           attemptNumber: decision.attemptNumber,
-          guessLat: guess.lat,
-          guessLon: guess.lon,
+          guessLat: point.lat,
+          guessLon: point.lon,
           distanceKm,
           score,
         },
@@ -579,7 +777,7 @@ export function createSingleplayerService(
     }
     await db.streetRound.updateMany({
       where: { id: round.id, score: null },
-      data: { selectionLat: guess.lat, selectionLon: guess.lon },
+      data: { selectionLat: point.lat, selectionLon: point.lon },
     });
     if (!decision.finalizes) {
       return {
@@ -589,9 +787,7 @@ export function createSingleplayerService(
     }
     const current = await roundWithAttempts(round.id);
     await finalizeRound(game, current, actual);
-    const locked = await db.streetRound.findUniqueOrThrow({
-      where: { id: round.id },
-    });
+    const locked = await roundWithAttempts(round.id);
     return {
       finalized: true,
       attemptsRemaining: 0,
@@ -600,8 +796,8 @@ export function createSingleplayerService(
   }
 
   return {
-    available: Boolean(options.key || options.provider),
-    serverKeyConfigured: Boolean(options.key),
+    available: true,
+    serverKeyConfigured: true,
     createGame,
     getSession,
     deleteGame,

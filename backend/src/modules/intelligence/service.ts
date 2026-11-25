@@ -1,8 +1,6 @@
 import type { GeographicIntelligence } from './contract.js';
-import {
-  WEATHER_MAX_DISPLAY_AGE_MS,
-  WEATHER_FETCH_TIMEOUT_MS,
-} from '../../config/constants.js';
+import { isFreshWeatherTimestamp } from './validate.js';
+import { WEATHER_FETCH_TIMEOUT_MS } from '../../config/constants.js';
 
 type Weather = GeographicIntelligence['weather'];
 type Environment = GeographicIntelligence['environment'];
@@ -39,22 +37,6 @@ function number(value: unknown, min: number, max: number): number | null {
     value <= max
     ? value
     : null;
-}
-/**
- * R03: weather may only be displayed while its model timestamp is no older
- * than 120 minutes. A missing or unparseable timestamp cannot prove that, so
- * it is rejected rather than assumed current.
- */
-function isDisplayableWeather(
-  weather: Weather,
-  now: number,
-): weather is NonNullable<Weather> & { modelTime: string } {
-  if (!weather || weather.modelTime === null) return false;
-  const timestamp = Date.parse(weather.modelTime);
-  return (
-    Number.isFinite(timestamp) &&
-    now - timestamp <= WEATHER_MAX_DISPLAY_AGE_MS
-  );
 }
 interface Entry<T> {
   value: T;
@@ -114,7 +96,7 @@ export function createIntelligenceProvider(
       longitude: String(lon),
       timezone: 'GMT',
       current:
-        'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,precipitation',
+        'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,precipitation,is_day',
       temperature_unit: 'celsius',
       wind_speed_unit: 'kmh',
       precipitation_unit: 'mm',
@@ -137,11 +119,7 @@ export function createIntelligenceProvider(
         : null;
     // R03: a displayed observation must carry a timestamp no older than the
     // 120-minute limit. Reject missing timestamps instead of assuming current.
-    if (
-      modelTime === null ||
-      now() - Date.parse(modelTime) > WEATHER_MAX_DISPLAY_AGE_MS
-    )
-      return null;
+    if (!isFreshWeatherTimestamp(modelTime, now())) return null;
     const result: NonNullable<Weather> = {
       modelTime,
       temperatureC: measured('temperature_2m', '°C', -100, 70),
@@ -155,6 +133,7 @@ export function createIntelligenceProvider(
         number(c.interval, 1, 86400) === null
           ? null
           : (c.interval as number) / 60,
+      ...(c.is_day === 0 || c.is_day === 1 ? { isDay: c.is_day === 1 } : {}),
     };
     // A timestamp alone is not a usable observation: require at least one
     // projected metric.
@@ -224,7 +203,7 @@ export function createIntelligenceProvider(
       const cachedWeather =
         cachedWeatherEntry &&
         (cachedWeatherEntry.weather === null ||
-          isDisplayableWeather(cachedWeatherEntry.weather, time))
+          isFreshWeatherTimestamp(cachedWeatherEntry.weather.modelTime, time))
           ? cachedWeatherEntry
           : undefined;
       const cachedEnvironment = environmentCache.get(key, time);
@@ -264,7 +243,7 @@ export function createIntelligenceProvider(
       // Re-check at display time: a cached observation can cross the
       // 120-minute limit while it is still inside the cache TTL.
       const displayTime = now();
-      const displayedWeather = isDisplayableWeather(w.weather, displayTime)
+      const displayedWeather = w.weather && isFreshWeatherTimestamp(w.weather.modelTime, displayTime)
         ? w.weather
         : null;
       return {

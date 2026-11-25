@@ -17,18 +17,29 @@ import {
   Candidate,
   Coordinates,
   Difficulty as DifficultyLevel,
+  EvaluatedAttempt,
   ExtraDataAccess,
+  GameRulesView,
+  RoundSceneView,
+  SelectionInput,
 } from '../../contracts/shared.js';
+import type { GuessOrSelectionInput } from './candidates.js';
 import {
   createSingleplayerService,
+  type GuessBody,
   type SingleplayerServiceOptions,
 } from './service.js';
 
 const PublicRound = Type.Object({
   id: Type.String(),
   number: Type.Integer(),
-  panoId: Type.String(),
+  scene: RoundSceneView,
   candidates: Type.Optional(Type.Array(Candidate)),
+  rules: GameRulesView,
+  selection: Type.Union([Coordinates, Type.Null()]),
+  selectedCandidateId: Type.Union([Type.String(), Type.Null()]),
+  submittedGuesses: Type.Array(Coordinates),
+  submittedCandidateIds: Type.Array(Type.String()),
   startedAt: Type.Union([Type.String(), Type.Null()]),
   endsAt: Type.Union([Type.String(), Type.Null()]),
   attemptsUsed: Type.Integer(),
@@ -39,10 +50,12 @@ const Result = Type.Object({
   roundId: Type.String(),
   number: Type.Integer(),
   actual: Coordinates,
+  placeName: Type.Optional(Type.Union([Type.String(), Type.Null()])),
   guess: Type.Union([Coordinates, Type.Null()]),
   distanceKm: Type.Union([Type.Number(), Type.Null()]),
   score: Type.Integer(),
   extraDataPointsSpent: Type.Integer(),
+  attempts: Type.Array(EvaluatedAttempt),
 });
 const GuessResponse = Type.Object({
   finalized: Type.Boolean(),
@@ -80,7 +93,7 @@ export function registerSingleplayerRoutes(
         response: {
           200: Type.Object({
             available: Type.Boolean(),
-            provider: Type.Literal('google'),
+            provider: Type.Literal('diorama'),
             serverKeyConfigured: Type.Boolean(),
           }),
         },
@@ -88,7 +101,7 @@ export function registerSingleplayerRoutes(
     },
     async () => ({
       available: service.available,
-      provider: 'google' as const,
+      provider: 'diorama' as const,
       serverKeyConfigured: service.serverKeyConfigured,
     }),
   );
@@ -99,22 +112,11 @@ export function registerSingleplayerRoutes(
       schema: {
         response: {
           201: Type.Object({ id: Type.String(), playerToken: Type.String() }),
-          503: Type.Object({
-            error: Type.Object({ code: Type.String(), message: Type.String() }),
-          }),
         },
       },
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      if (!service.available)
-        return reply.code(503).send({
-          error: {
-            code: 'MISSING_SERVER_KEY',
-            message:
-              'GOOGLE_MAPS_SERVER_API_KEY is missing. Configure the server key and restart the backend.',
-          },
-        });
       const body = request.body as { difficulty?: unknown } | undefined;
       // R18: capture the account once, so archival does not depend on the
       // session cookie still being valid when the final round ends.
@@ -188,10 +190,10 @@ export function registerSingleplayerRoutes(
   app.put<{ Params: { gameId: string; roundId: string } }>(
     '/api/singleplayer/games/:gameId/rounds/:roundId/selection',
     {
-      config: limited,
+      config: { rateLimit: RATE_LIMITS.selection },
       schema: {
         params: Type.Object({ gameId: Type.String(), roundId: Type.String() }),
-        body: Coordinates,
+        body: SelectionInput,
       },
     },
     async (request, reply) => {
@@ -200,7 +202,7 @@ export function registerSingleplayerRoutes(
         request.params.gameId,
         request.params.roundId,
         playerToken(request),
-        request.body as { lat: number; lon: number },
+        request.body as GuessOrSelectionInput,
       );
       reply.code(204);
     },
@@ -243,15 +245,34 @@ export function registerSingleplayerRoutes(
   );
   app.post<{
     Params: { gameId: string; roundId: string };
-    Body: { lat: number; lon: number; final?: boolean };
+    Body: GuessBody;
   }>(
     '/api/singleplayer/games/:gameId/rounds/:roundId/guess',
     {
       // Reject nulls and strings before AJV's default numeric coercion.
       preValidation: async (request) => {
-        const body = request.body;
+        const body = request.body as Record<string, unknown> | undefined;
+        if (!body || typeof body !== 'object') {
+          throw Object.assign(
+            new Error('Guess coordinates must be finite numbers.'),
+            { statusCode: 400 },
+          );
+        }
+        if ('candidateId' in body) {
+          if (
+            typeof body.candidateId !== 'string' ||
+            body.candidateId.trim().length === 0 ||
+            'lat' in body ||
+            'lon' in body
+          ) {
+            throw Object.assign(
+              new Error('Candidate guess must specify a valid candidateId without coordinates.'),
+              { statusCode: 400 },
+            );
+          }
+          return;
+        }
         if (
-          !body ||
           typeof body.lat !== 'number' ||
           typeof body.lon !== 'number' ||
           !Number.isFinite(body.lat) ||
@@ -266,11 +287,17 @@ export function registerSingleplayerRoutes(
       config: limited,
       schema: {
         params: Type.Object({ gameId: Type.String(), roundId: Type.String() }),
-        body: Type.Object({
-          lat: Type.Number({ minimum: -90, maximum: 90 }),
-          lon: Type.Number({ minimum: -180, maximum: 180 }),
-          final: Type.Optional(Type.Boolean()),
-        }),
+        body: Type.Union([
+          Type.Object({
+            candidateId: Type.String({ minLength: 1, maxLength: 100 }),
+            final: Type.Optional(Type.Boolean()),
+          }),
+          Type.Object({
+            lat: Type.Number({ minimum: -90, maximum: 90 }),
+            lon: Type.Number({ minimum: -180, maximum: 180 }),
+            final: Type.Optional(Type.Boolean()),
+          }),
+        ]),
         response: { 200: GuessResponse },
       },
     },

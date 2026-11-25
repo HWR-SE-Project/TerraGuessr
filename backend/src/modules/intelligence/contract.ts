@@ -33,6 +33,7 @@ export const IntelligenceResponse = Type.Object(
           pressureHpa: nullableNumber,
           precipitationMm: nullableNumber,
           precipitationIntervalMinutes: nullableNumber,
+          isDay: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
         },
         { additionalProperties: false },
       ),

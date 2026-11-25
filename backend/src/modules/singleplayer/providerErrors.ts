@@ -16,6 +16,7 @@ export class PanoramaError extends AppError {
   constructor(
     readonly reason: string,
     code: PanoramaErrorCode = 'PANORAMA_UNAVAILABLE',
+    readonly attemptedIndices?: readonly number[],
   ) {
     super(503, reason, code);
   }

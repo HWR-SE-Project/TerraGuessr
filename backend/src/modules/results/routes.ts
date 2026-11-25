@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { prisma } from '../../db/prisma.js';
 import { RATE_LIMITS } from '../../config/constants.js';
+import { settleTimedOutResultsForUser } from '../../domain/settlement.js';
 import { requireSessionUser } from '../auth/session.js';
 import {
   Coordinates,
@@ -77,6 +78,9 @@ export function registerResultsRoutes(
     async (request, reply) => {
       reply.header('Cache-Control', 'private, no-store');
       const user = await requireSessionUser(request, db);
+      // R08/R18: settle any unattended timed-out rounds for this account before
+      // reading history (multiplayer rounds settle only once every member timed out).
+      await settleTimedOutResultsForUser(db, user.id);
       const limit = request.query.limit ?? 20;
       const offset = request.query.offset ?? 0;
 

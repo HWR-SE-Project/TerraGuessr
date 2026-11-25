@@ -15,11 +15,11 @@ import {
   JoinLobbyBody,
   JoinLobbyResponse,
   LobbyCodeParams,
-  LobbyCoordinates,
   LobbyGuessBody,
   LobbyGuessResponse,
   LobbyMatchResponse,
   LobbyRoundParams,
+  LobbySelectionBody,
   LobbyView,
 } from '../../contracts/lobbies.js';
 import {
@@ -42,9 +42,9 @@ import {
 } from './match.js';
 import { IntelligenceResponse } from '../intelligence/contract.js';
 import { optionalSessionUserId } from '../auth/session.js';
-import type { IntelligenceLookup } from '../singleplayer/locationSelection.js';
+import type { IntelligenceLookup, PanoramaLocator } from '../singleplayer/locationSelection.js';
 import {
-  googlePanoramaProvider,
+  catalogLocationProvider,
   type PanoramaProvider,
 } from '../singleplayer/provider.js';
 
@@ -63,9 +63,9 @@ function optionalLobbyToken(request: FastifyRequest): string | undefined {
 }
 
 export interface LobbyRouteOptions {
-  key?: string;
   provider?: PanoramaProvider;
   intelligence?: IntelligenceLookup;
+  locate?: PanoramaLocator;
 }
 
 /** Register the lobby routes. `db` and provider are injectable for tests. */
@@ -74,8 +74,9 @@ export function registerLobbiesRoutes(
   db: PrismaClient = prisma,
   options: LobbyRouteOptions = {},
 ): void {
-  const provider = options.provider ?? googlePanoramaProvider(options.key);
+  const provider = options.provider ?? catalogLocationProvider();
   const intelligence = options.intelligence;
+  const locate = options.locate;
 
   app.post(
     '/api/lobbies',
@@ -177,6 +178,7 @@ export function registerLobbiesRoutes(
         db,
         provider,
         intelligence,
+        locate,
       );
     },
   );
@@ -197,6 +199,7 @@ export function registerLobbiesRoutes(
         db,
         provider,
         intelligence,
+        locate,
       );
     },
   );
@@ -218,6 +221,7 @@ export function registerLobbiesRoutes(
         db,
         provider,
         intelligence,
+        locate,
       );
     },
   );
@@ -225,16 +229,24 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/selection',
     {
-      config: { rateLimit: RATE_LIMITS.write },
-      schema: { params: LobbyCodeParams, body: LobbyCoordinates },
+      config: { rateLimit: RATE_LIMITS.selection },
+      schema: {
+        params: LobbyCodeParams,
+        body: LobbySelectionBody,
+      },
     },
     async (request, reply) => {
       const { code } = request.params as { code: string };
+      const body = request.body as LobbySelectionBody;
+      const selection = 'candidateId' in body
+        ? { candidateId: body.candidateId }
+        : { lat: body.lat, lon: body.lon };
       await saveLobbySelection(
         code,
         requireLobbyToken(request),
-        request.body as { lat: number; lon: number },
+        selection,
         db,
+        body.roundId,
       );
       reply.code(204).send();
     },
@@ -261,6 +273,9 @@ export function registerLobbiesRoutes(
         requireLobbyToken(request),
         request.body as LobbyGuessBody,
         db,
+        provider,
+        intelligence,
+        locate,
       );
     },
   );
@@ -284,8 +299,9 @@ export function registerLobbiesRoutes(
         roundNumber,
         requireLobbyToken(request),
         db,
-        options.provider,
+        provider,
         intelligence,
+        locate,
       );
     },
   );
@@ -309,6 +325,9 @@ export function registerLobbiesRoutes(
         roundNumber,
         requireLobbyToken(request),
         db,
+        provider,
+        intelligence,
+        locate,
       );
     },
   );
@@ -334,6 +353,7 @@ export function registerLobbiesRoutes(
         requireLobbyToken(request),
         db,
         intelligence,
+        locate,
       );
     },
   );

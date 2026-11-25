@@ -175,14 +175,20 @@ model LobbyRound {
   lobbyId        String
   lobby          Lobby               @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
   number         Int
-  panoId         String
-  targetIndex    Int
-  targetLat      Float
-  targetLon      Float
+  panoId                  String
+  targetIndex             Int
+  targetLat               Float
+  targetLon               Float
+  placeName               String?
+  sceneJson               Json?
   candidatesJson Json?
-  startedAt      DateTime?
-  endsAt         DateTime?
-  createdAt      DateTime            @default(now())
+  startedAt               DateTime?
+  endsAt                  DateTime?
+  reviewEndsAt            DateTime?
+  weatherValidUntil       DateTime?
+  weatherAttemptedIndices Int[]               @default([])
+  weatherExhausted        Boolean             @default(false)
+  createdAt               DateTime            @default(now())
   attempts       LobbyRoundAttempt[]
   results        LobbyRoundResult[]
   memberStates   LobbyRoundMemberState[]
@@ -214,6 +220,8 @@ model LobbyRoundResult {
   round        LobbyRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
   memberId     String
   member       LobbyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  actualLat    Float?
+  actualLon    Float?
   guessLat     Float?
   guessLon     Float?
   distanceKm   Float?
@@ -272,13 +280,18 @@ model StreetGame {
   createdAt       DateTime      @default(now())
   rounds          StreetRound[]
 
-  // Prefetched next-round target (R12). Best-effort cache, consumed
-  // atomically by the next POST .../rounds call; never a correctness
-  // dependency (routes.ts falls back to synchronous selection).
-  nextTargetIndex Int?
-  nextPanoId      String?
-  nextTargetLat   Float?
-  nextTargetLon   Float?
+  // Prefetched next-round preparation record (R12/R13). One preparation
+  // record per upcoming round number, sharing the 3-location weather budget
+  // across background prefetch, revalidation, and foreground POST .../rounds.
+  nextRoundNumber       Int?
+  nextTargetIndex       Int?
+  nextPanoId            String?
+  nextTargetLat         Float?
+  nextTargetLon         Float?
+  nextSceneJson         Json?
+  nextWeatherValidUntil DateTime?
+  nextAttemptedIndices  Int[]     @default([])
+  nextExhausted         Boolean   @default(false)
 
   @@index([expiresAt])
   @@index([ownerUserId])
@@ -289,10 +302,12 @@ model StreetRound {
   gameId         String
   game           StreetGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
   number         Int
-  panoId         String
-  targetIndex    Int
-  targetLat      Float
-  targetLon      Float
+  panoId                  String
+  targetIndex             Int
+  targetLat               Float
+  targetLon               Float
+  placeName               String?
+  sceneJson               Json?
   // Easy-mode candidate list shown for this round (R07), persisted so a
   // resumed session redisplays the same options instead of re-rolling them.
   candidatesJson Json?

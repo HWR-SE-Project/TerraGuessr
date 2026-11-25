@@ -4,6 +4,8 @@
  * Pure domain code: no I/O, no clock access, no randomness.
  */
 
+import { haversineKm, type LatLon } from './distance.js';
+
 /** Maximum points awarded for a perfect guess. */
 export const MAX_SCORE = 5000;
 
@@ -36,4 +38,10 @@ export function scoreForDistance(km: number): number {
   // Floor (not round) so the score drops immediately past the 100 km boundary
   // instead of staying at 5000 through the first few kilometres of decay.
   return Math.floor(Math.min(MAX_SCORE, Math.max(0, raw)));
+}
+
+/** Evaluate a guess before any round-level point deductions. */
+export function evaluateGuess(guess: LatLon, actual: LatLon) {
+  const distanceKm = haversineKm(guess, actual);
+  return { distanceKm, score: scoreForDistance(distanceKm) };
 }

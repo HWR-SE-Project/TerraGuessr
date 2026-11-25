@@ -23,8 +23,8 @@ export interface ArchiveRoundInput {
   matchId: string;
   roundNumber: number;
   actual: LatLon;
-  /** The last submitted attempt (may differ from the best attempt used to score). */
-  lastGuess: LatLon | null;
+  /** The evaluated guess (closest submitted attempt, or timeout selection fallback; null if none). */
+  evaluatedGuess: LatLon | null;
   distanceKm: number | null;
   score: number;
 }
@@ -51,8 +51,8 @@ export function archiveGameResult(
       roundNumber: input.roundNumber,
       actualLat: input.actual.lat,
       actualLon: input.actual.lon,
-      guessLat: input.lastGuess?.lat ?? null,
-      guessLon: input.lastGuess?.lon ?? null,
+      guessLat: input.evaluatedGuess?.lat ?? null,
+      guessLon: input.evaluatedGuess?.lon ?? null,
       distanceKm: input.distanceKm,
       score: input.score,
     },
