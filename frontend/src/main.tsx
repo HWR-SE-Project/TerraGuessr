@@ -12,6 +12,7 @@ import { MultiplayerPage } from './pages/multiplayer/MultiplayerPage'
 import { LobbyPage } from './pages/multiplayer/LobbyPage'
 import { MultiplayerGamePage } from './pages/multiplayer/MultiplayerGamePage'
 import { SettingsPage } from './pages/settings/SettingsPage'
+import { AccountPage } from './pages/account/AccountPage'
 import { AvatarPage } from './pages/avatar/AvatarPage'
 import { HowToPlayPage } from './pages/how-to-play/HowToPlayPage'
 import { AuthPage } from './pages/auth/AuthPage'
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
       { path: '/multiplayer', element: <MultiplayerPage /> },
       { path: '/lobby/:code', element: <LobbyPage /> },
       { path: '/settings', element: <SettingsPage /> },
+      { path: '/account', element: <AccountPage /> },
       { path: '/avatar', element: <AvatarPage /> },
       { path: '/how-to-play', element: <HowToPlayPage /> },
       { path: '/auth', element: <AuthPage /> },
