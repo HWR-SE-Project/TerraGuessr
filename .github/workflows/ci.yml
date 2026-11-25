@@ -7,9 +7,167 @@ on:
     branches: [main, integration/phase1]
 
 jobs:
+  changes:
+    name: Detect changed targets
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.detect.outputs.backend }}
+      frontend: ${{ steps.detect.outputs.frontend }}
+      e2e: ${{ steps.detect.outputs.e2e }}
+      deploy_backend: ${{ steps.detect.outputs.deploy_backend }}
+      deploy_frontend: ${{ steps.detect.outputs.deploy_frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: .github
+      - name: Classify changed files
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          run_backend=false
+          run_frontend=false
+          run_e2e=false
+          deploy_backend=false
+          deploy_frontend=false
+
+          diff_ok=false
+          changed_files=()
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if [ -n "$PR_BASE_SHA" ] && [ -n "$PR_HEAD_SHA" ]; then
+              if ! git cat-file -e "${PR_BASE_SHA}^{commit}" 2>/dev/null || ! git cat-file -e "${PR_HEAD_SHA}^{commit}" 2>/dev/null; then
+                git fetch --no-tags --filter=blob:none origin "$PR_BASE_SHA" "$PR_HEAD_SHA" 2>/dev/null || true
+              fi
+              if git cat-file -e "${PR_BASE_SHA}^{commit}" 2>/dev/null && git cat-file -e "${PR_HEAD_SHA}^{commit}" 2>/dev/null; then
+                while IFS= read -r file; do
+                  changed_files+=("$file")
+                done < <(git -c core.quotepath=false diff --name-only --no-renames "$PR_BASE_SHA...$PR_HEAD_SHA")
+                diff_ok=true
+              fi
+            fi
+          elif [ "$EVENT_NAME" = "push" ]; then
+            if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+              if ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+                git fetch --no-tags --filter=blob:none origin "$BEFORE_SHA" 2>/dev/null || true
+              fi
+              if git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null && git cat-file -e "${AFTER_SHA}^{commit}" 2>/dev/null; then
+                while IFS= read -r file; do
+                  changed_files+=("$file")
+                done < <(git -c core.quotepath=false diff --name-only --no-renames "$BEFORE_SHA" "$AFTER_SHA")
+                diff_ok=true
+              fi
+            fi
+          fi
+
+          if [ "$diff_ok" != "true" ]; then
+            echo "Base commit unavailable (initial push, history rewrite, or unsupported event) — enabling all checks and deploy targets."
+            run_backend=true
+            run_frontend=true
+            run_e2e=true
+            deploy_backend=true
+            deploy_frontend=true
+          else
+            if [ "${#changed_files[@]}" -eq 0 ]; then
+              echo "No changed files detected."
+            fi
+
+            for file in ${changed_files[@]+"${changed_files[@]}"}; do
+              [ -z "$file" ] && continue
+              case "$file" in
+                *.md|docs/*|scripts/*|LICENSE|.gitignore|.dockerignore|.env.example|docker-compose.yml|docker-compose.prod.yml|Caddyfile)
+                  echo "Ignoring non-CI/non-deploy file: $file"
+                  ;;
+                .github/*)
+                  echo "CI workflow/config changed ($file) — running all checks (no deploy)."
+                  run_backend=true
+                  run_frontend=true
+                  run_e2e=true
+                  ;;
+                render.yaml)
+                  echo "Render config changed ($file) — enabling backend deploy."
+                  deploy_backend=true
+                  ;;
+                frontend/vercel.json)
+                  echo "Vercel config changed ($file) — enabling frontend deploy."
+                  deploy_frontend=true
+                  ;;
+                backend/test/fake-open-meteo/*)
+                  echo "E2E weather mock changed ($file) — running backend checks and e2e (no deploy)."
+                  run_backend=true
+                  run_e2e=true
+                  ;;
+                backend/test/*)
+                  echo "Backend test file changed ($file) — running backend checks only."
+                  run_backend=true
+                  ;;
+                backend/*)
+                  echo "Backend runtime/config changed ($file) — running backend + e2e and enabling backend deploy."
+                  run_backend=true
+                  run_e2e=true
+                  deploy_backend=true
+                  ;;
+                frontend/src/test/*|frontend/src/*.test.ts|frontend/src/*.test.tsx|frontend/src/*.spec.ts|frontend/src/*.spec.tsx)
+                  echo "Frontend test file changed ($file) — running frontend checks only."
+                  run_frontend=true
+                  ;;
+                frontend/*)
+                  echo "Frontend runtime/config changed ($file) — running frontend + e2e and enabling frontend deploy."
+                  run_frontend=true
+                  run_e2e=true
+                  deploy_frontend=true
+                  ;;
+                e2e/*|playwright.config.ts|docker-compose.test.yml|package.json|package-lock.json)
+                  echo "E2E suite/config changed ($file) — running e2e only."
+                  run_e2e=true
+                  ;;
+                *)
+                  echo "Shared/unclassified file changed ($file) — enabling all checks and deploy targets."
+                  run_backend=true
+                  run_frontend=true
+                  run_e2e=true
+                  deploy_backend=true
+                  deploy_frontend=true
+                  ;;
+              esac
+            done
+          fi
+
+          {
+            echo "backend=$run_backend"
+            echo "frontend=$run_frontend"
+            echo "e2e=$run_e2e"
+            echo "deploy_backend=$deploy_backend"
+            echo "deploy_frontend=$deploy_frontend"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Targets: backend=$run_backend, frontend=$run_frontend, e2e=$run_e2e, deploy_backend=$deploy_backend, deploy_frontend=$deploy_frontend"
+
+          {
+            echo "### Changed targets"
+            echo ""
+            echo "| Job / Target | Run |"
+            echo "| --- | --- |"
+            echo "| Backend checks | \`$run_backend\` |"
+            echo "| Frontend checks | \`$run_frontend\` |"
+            echo "| E2E (Playwright) | \`$run_e2e\` |"
+            echo "| Deploy backend (Render) | \`$deploy_backend\` |"
+            echo "| Deploy frontend (Vercel) | \`$deploy_frontend\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   backend:
     name: Backend (lint + Vitest)
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.backend == 'true'
     services:
       postgres:
         image: postgres:16
@@ -77,6 +235,8 @@ jobs:
   frontend:
     name: Frontend (lint + Vitest)
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Check frontend exists
@@ -111,7 +271,14 @@ jobs:
   e2e:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [changes, backend, frontend]
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.e2e == 'true' &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
+      (needs.frontend.result == 'success' || needs.frontend.result == 'skipped')
     env:
       PLAYWRIGHT_BASE_URL: http://localhost:8080
     steps:
@@ -167,20 +334,31 @@ jobs:
   deploy:
     name: Deploy (Render + Vercel)
     runs-on: ubuntu-latest
-    needs: [backend, frontend, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [changes, backend, frontend, e2e]
+    if: |
+      always() &&
+      !cancelled() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.result == 'success' &&
+      (needs.changes.outputs.deploy_backend == 'true' || needs.changes.outputs.deploy_frontend == 'true') &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
+      (needs.frontend.result == 'success' || needs.frontend.result == 'skipped') &&
+      (needs.e2e.result == 'success' || needs.e2e.result == 'skipped')
     steps:
       - name: Validate deploy hook secrets
         env:
+          DEPLOY_BACKEND: ${{ needs.changes.outputs.deploy_backend }}
+          DEPLOY_FRONTEND: ${{ needs.changes.outputs.deploy_frontend }}
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           missing=0
-          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+          if [ "$DEPLOY_BACKEND" = "true" ] && [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "::error::Missing required GitHub Actions secret: RENDER_DEPLOY_HOOK_URL"
             missing=1
           fi
-          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+          if [ "$DEPLOY_FRONTEND" = "true" ] && [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
             echo "::error::Missing required GitHub Actions secret: VERCEL_DEPLOY_HOOK_URL"
             missing=1
           fi
@@ -189,61 +367,8 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed targets
-        id: changes
-        env:
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
-        run: |
-          deploy_backend=false
-          deploy_frontend=false
-
-          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
-            echo "Base commit unavailable (initial push or history rewrite) — deploying both backend and frontend."
-            deploy_backend=true
-            deploy_frontend=true
-          else
-            mapfile -t changed_files < <(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")
-            if [ "${#changed_files[@]}" -eq 0 ]; then
-              echo "No changed files detected between $BEFORE_SHA and $AFTER_SHA."
-            fi
-
-            for file in "${changed_files[@]}"; do
-              case "$file" in
-                backend/test/*|backend/*.md)
-                  echo "Ignoring non-runtime backend file: $file"
-                  ;;
-                backend/*|render.yaml)
-                  deploy_backend=true
-                  ;;
-                frontend/*.md)
-                  echo "Ignoring frontend documentation file: $file"
-                  ;;
-                frontend/*)
-                  deploy_frontend=true
-                  ;;
-                docs/*|e2e/*|scripts/*|*.md|LICENSE|.gitignore|.dockerignore|playwright.config.ts)
-                  echo "Ignoring non-deployment file: $file"
-                  ;;
-                *)
-                  echo "Root/shared file changed ($file) — triggering both backend and frontend."
-                  deploy_backend=true
-                  deploy_frontend=true
-                  ;;
-              esac
-            done
-          fi
-
-          echo "backend=$deploy_backend" >> "$GITHUB_OUTPUT"
-          echo "frontend=$deploy_frontend" >> "$GITHUB_OUTPUT"
-          echo "Deploy targets: backend=$deploy_backend, frontend=$deploy_frontend"
-
       - name: Trigger Render deploy (backend)
-        if: steps.changes.outputs.backend == 'true'
+        if: needs.changes.outputs.deploy_backend == 'true'
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
@@ -252,14 +377,10 @@ jobs:
           echo ""
 
       - name: Trigger Vercel deploy (frontend)
-        if: steps.changes.outputs.frontend == 'true'
+        if: needs.changes.outputs.deploy_frontend == 'true'
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           echo "Triggering Vercel frontend deployment..."
           curl --fail --silent --show-error -X POST "$VERCEL_DEPLOY_HOOK_URL"
           echo ""
-
-      - name: Skip deploy (no deployable changes)
-        if: steps.changes.outputs.backend != 'true' && steps.changes.outputs.frontend != 'true'
-        run: echo "Only non-deployment files changed (docs/tests/scripts) — skipping Render and Vercel deploys."
