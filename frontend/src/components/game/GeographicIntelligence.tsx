@@ -28,6 +28,11 @@ function windMeasurement(speedKmh: number | null, directionDeg: number | null): 
   return heading ? `${speed} ${heading}` : speed
 }
 
+function defaultIntelligenceExpanded(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true
+  return window.matchMedia('(min-width: 1024px)').matches
+}
+
 /** Collapsible geographic intelligence (weather + environment clues). */
 export function GeographicIntelligence({
   load,
@@ -37,7 +42,7 @@ export function GeographicIntelligence({
   onUnlock,
   unlocking = false,
   unlockDisabled = false,
-  defaultExpanded = true,
+  defaultExpanded,
 }: {
   load: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
   roundId: string
@@ -49,7 +54,7 @@ export function GeographicIntelligence({
   unlockDisabled?: boolean
   defaultExpanded?: boolean
 }) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+  const [expanded, setExpanded] = useState(() => defaultExpanded ?? defaultIntelligenceExpanded())
   const [response, setResponse] = useState<WeatherResponse | null>(null)
   const [retry, setRetry] = useState(0)
   const unlocked = access.unlocked
@@ -111,7 +116,7 @@ export function GeographicIntelligence({
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left lg:px-4 lg:py-3"
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-lime-400/15 text-lime-300">
           <Icon name="scan" size={18} />
@@ -142,7 +147,7 @@ export function GeographicIntelligence({
             transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="border-t border-white/8 px-4 py-3">
+            <div className="border-t border-white/8 px-3 py-2.5 lg:px-4 lg:py-3">
               {data && canUnlock && (
                 <div className="mb-3 rounded-2xl bg-space-800 p-3">
                   <p className="text-sm text-muted">Extra clues are locked for this difficulty.</p>
@@ -186,7 +191,7 @@ export function GeographicIntelligence({
                     </div>
                   </div>
 
-                  <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <dl className="mt-2 grid grid-cols-2 gap-1.5 text-sm lg:mt-3 lg:gap-2">
                     <Metric icon="rain" label="Precipitation" value={measurement(weather.precipitationMm, ' mm', 1)} />
                     <Metric icon="drop" label="Humidity" value={formatPercent(weather.humidityPct)} />
                     <Metric icon="wind" label="Wind speed" value={windMeasurement(weather.windSpeedKmh, weather.windDirectionDeg)} />
@@ -196,7 +201,7 @@ export function GeographicIntelligence({
               )}
 
               {unlocked && environment?.elevationM != null && (
-                <div className="mt-3 flex items-center gap-3 rounded-2xl bg-space-800 p-3">
+                <div className="mt-2 flex items-center gap-3 rounded-2xl bg-space-800 px-3 py-2 lg:mt-3 lg:p-3">
                   <span className="text-lime-300">
                     <Icon name="mountain" size={20} />
                   </span>
@@ -219,7 +224,7 @@ export function GeographicIntelligence({
 
 function Metric({ icon, label, value }: { icon: IconName; label: string; value: string }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-xl bg-space-800 px-3 py-2">
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-xl bg-space-800 px-2.5 py-1.5 lg:px-3 lg:py-2">
       <dt className="flex min-w-0 items-center gap-1.5 text-xs text-subtle">
         <Icon name={icon} size={14} className="shrink-0" />
         <span className="min-w-0 wrap-anywhere">{label}</span>

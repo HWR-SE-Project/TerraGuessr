@@ -1,7 +1,7 @@
 import { lazy, Suspense, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { GeographicIntelligence as Intelligence, GuessInput, StreetRound } from '../../lib/contracts'
-import { DioramaFallback } from '../../scene/diorama/DioramaFallback'
+import { DioramaLoading } from '../../scene/diorama/DioramaFallback'
 import { GeographicIntelligence } from './GeographicIntelligence'
 import { GuessPanel } from './GuessPanel'
 import { Timer } from './Timer'
@@ -79,7 +79,7 @@ function RoundSurface({ round, hud, controls, error }: {
   return (
     <>
       <div className="absolute inset-0">
-        <Suspense fallback={<DioramaFallback scene={round.scene} />}>
+        <Suspense fallback={<DioramaLoading scene={round.scene} />}>
           <BiomeDiorama scene={round.scene} />
         </Suspense>
       </div>
@@ -100,9 +100,9 @@ function RoundSurface({ round, hud, controls, error }: {
           <section
             aria-label="Round controls"
             tabIndex={0}
-            className="pointer-events-auto mt-auto flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:pointer-events-none lg:mt-0.5 lg:flex-1 lg:flex-row lg:items-start lg:justify-between lg:overflow-visible lg:px-4 lg:pb-4 lg:pt-0 [&>*]:shrink-0"
+            className="pointer-events-none flex min-h-0 flex-1 flex-col justify-between gap-3 overflow-y-auto overscroll-y-contain px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-0.5 sm:px-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:mt-0.5 lg:flex-row lg:items-start lg:justify-between lg:overflow-visible lg:px-4 lg:pb-4 lg:pt-0 [&>*]:shrink-0"
           >
-            <div className="lg:pointer-events-auto lg:w-[370px]">
+            <div className="pointer-events-auto lg:w-[370px]">
               <GeographicIntelligence
                 roundId={round.id}
                 roundKey={`${round.id}-${round.scene.seed}`}
@@ -113,7 +113,7 @@ function RoundSurface({ round, hud, controls, error }: {
                 unlockDisabled={controls.disabled || pending === 'guess'}
               />
             </div>
-            <div className="lg:pointer-events-auto lg:mt-auto lg:w-[390px]">
+            <div className="pointer-events-auto mt-auto lg:w-[390px]">
               <GuessPanel
                 rules={round.rules}
                 candidates={round.candidates}

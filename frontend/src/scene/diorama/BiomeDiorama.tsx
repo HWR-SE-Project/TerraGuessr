@@ -1,8 +1,9 @@
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
+import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import type { RoundScene } from '../../lib/contracts'
 import { usePrefersReducedMotion, useWebGLSupport } from '../hooks'
@@ -12,11 +13,16 @@ import { BiomeProps } from './BiomeProps'
 import { WeatherEffects } from './WeatherEffects'
 import { DioramaExplorer } from './DioramaExplorer'
 import { DioramaFallback } from './DioramaFallback'
+import { dioramaCameraFraming } from './cameraFraming'
 import { LIGHTING_PALETTES, skyForWeather } from './palettes'
 import { quipsForScene } from './quips'
 
-const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5.2, 12.2]
 const NOTE_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
+
+function initialViewportAspect(): number {
+  if (typeof window === 'undefined' || window.innerHeight <= 0) return 16 / 9
+  return window.innerWidth / window.innerHeight
+}
 
 class DioramaErrorBoundary extends Component<
   { fallback: ReactNode; children: ReactNode },
@@ -69,10 +75,54 @@ function DioramaCanvasContent({
 }) {
   const lighting = LIGHTING_PALETTES[scene.lighting]
   const sky = skyForWeather(scene.lighting, scene.weather)
+  const size = useThree((state) => state.size)
+  const getThree = useThree((state) => state.get)
+  const framing = useMemo(
+    () => dioramaCameraFraming(size.width / Math.max(1, size.height)),
+    [size.width, size.height],
+  )
+  const prevDistanceRef = useRef<number | null>(null)
+  const offsetRef = useRef(new THREE.Vector3())
+
+  useEffect(() => {
+    const { camera } = getThree()
+    if (camera instanceof THREE.PerspectiveCamera && Math.abs(camera.fov - framing.fov) > 0.05) {
+      camera.fov = framing.fov
+      camera.updateProjectionMatrix()
+    }
+
+    const controls = controlsRef.current
+    const prevDistance = prevDistanceRef.current
+    prevDistanceRef.current = framing.distance
+
+    if (!controls) {
+      camera.position.set(...framing.position)
+      camera.lookAt(...framing.target)
+      return
+    }
+
+    if (prevDistance === null) {
+      controls.target.set(...framing.target)
+      camera.position.set(...framing.position)
+      controls.update()
+      controls.saveState()
+      return
+    }
+
+    const ratio = framing.distance / prevDistance
+    offsetRef.current.copy(camera.position).sub(controls.target).multiplyScalar(ratio)
+    controls.target.set(...framing.target)
+    camera.position.copy(controls.target).add(offsetRef.current)
+    controls.update()
+    controls.saveState()
+  }, [controlsRef, framing, getThree])
 
   return (
     <>
-      <fog attach="fog" args={[sky.fogColor, sky.fogNear, sky.fogFar]} />
+      <fog
+        attach="fog"
+        args={[sky.fogColor, sky.fogNear + framing.fogOffset, sky.fogFar + framing.fogOffset]}
+      />
       <ambientLight intensity={0.32} color={lighting.hemiSky} />
       <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, lighting.hemiIntensity]} />
       <directionalLight
@@ -100,12 +150,12 @@ function DioramaCanvasContent({
       </Suspense>
       <OrbitControls
         ref={controlsRef}
-        target={[0, 0.75, 0]}
+        target={framing.target}
         enablePan={false}
         enableDamping={!reducedMotion}
         dampingFactor={0.07}
         minDistance={5.8}
-        maxDistance={17}
+        maxDistance={framing.maxDistance}
         minPolarAngle={0.42}
         maxPolarAngle={Math.PI / 2 - 0.08}
       />
@@ -123,6 +173,7 @@ export function BiomeDiorama({ scene }: { scene: RoundScene }) {
   const webglSupported = useWebGLSupport()
   const reducedMotion = usePrefersReducedMotion()
   const [contextLost, setContextLost] = useState(false)
+  const [canvasKey, setCanvasKey] = useState(0)
   const [quipIndex, setQuipIndex] = useState<number | null>(null)
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const needleRef = useRef<HTMLSpanElement | null>(null)
@@ -148,9 +199,21 @@ export function BiomeDiorama({ scene }: { scene: RoundScene }) {
     controlsRef.current?.reset()
   }, [])
 
-  const fallback = <DioramaFallback scene={scene} onAskExplorer={cycleQuip} />
+  const retry3D = useCallback(() => {
+    setContextLost(false)
+    setCanvasKey((key) => key + 1)
+  }, [])
+
+  const fallback = (
+    <DioramaFallback
+      scene={scene}
+      onAskExplorer={cycleQuip}
+      onRetry3D={contextLost ? retry3D : undefined}
+    />
+  )
   const activeQuip = quipIndex !== null ? quips[quipIndex] ?? null : null
   const useWebGL = webglSupported && !contextLost
+  const initialFraming = useMemo(() => dioramaCameraFraming(initialViewportAspect()), [])
 
   return (
     <div
@@ -158,10 +221,11 @@ export function BiomeDiorama({ scene }: { scene: RoundScene }) {
       style={{ background: sky.gradient }}
     >
       {useWebGL ? (
-        <DioramaErrorBoundary fallback={fallback}>
+        <DioramaErrorBoundary key={canvasKey} fallback={fallback}>
           <Canvas
+            key={canvasKey}
             className="h-full w-full"
-            camera={{ position: DEFAULT_CAMERA_POSITION, fov: 38, near: 0.1, far: 120 }}
+            camera={{ position: initialFraming.position, fov: initialFraming.fov, near: 0.1, far: 120 }}
             dpr={[1, 1.5]}
             gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
             onCreated={({ gl }) => {
