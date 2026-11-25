@@ -19,6 +19,7 @@ export function SingleplayerGamePage() {
 
   const [phase, setPhase] = useState<Phase>('loading')
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [roundsTotal, setRoundsTotal] = useState<number | null>(null)
   const [round, setRound] = useState<StreetRound | null>(null)
   const [results, setResults] = useState<StreetResult[]>([])
   const [expiredRoundId, setExpiredRoundId] = useState<string | null>(null)
@@ -27,6 +28,7 @@ export function SingleplayerGamePage() {
   const [exitOpen, setExitOpen] = useState(false)
   const ended = useRef(false)
   const totalScore = results.reduce((sum, result) => sum + result.score, 0)
+  const isSessionComplete = roundsTotal !== null && results.length >= roundsTotal
 
   const loadIntelligence = useCallback((id: string, signal?: AbortSignal) => {
     if (!credentials) return Promise.reject(new Error('The game session has ended.'))
@@ -60,11 +62,25 @@ export function SingleplayerGamePage() {
       try {
         const session = await api.singleplayer.session(credentials)
         if (!active) return
+        const sessionRoundsTotal = session.roundsTotal ?? null
+        const sessionCompleted =
+          session.completed ?? (sessionRoundsTotal !== null && session.results.length >= sessionRoundsTotal)
         setDifficulty(session.difficulty)
+        setRoundsTotal(sessionRoundsTotal)
         setResults(session.results)
         if (session.activeRound) {
           setRound(session.activeRound)
           setPhase('playing')
+        } else if (sessionCompleted) {
+          try {
+            await api.singleplayer.end(credentials)
+          } catch {
+            /* best-effort */
+          }
+          if (!active) return
+          ended.current = true
+          setPhase('summary')
+          setGameCredentials(null)
         } else {
           await startRound()
         }
@@ -138,12 +154,15 @@ export function SingleplayerGamePage() {
   }
 
   async function endSession() {
-    if (!credentials) return
+    if (!credentials || ended.current) return
     setExitOpen(false)
+    setSubmitting(true)
     try {
       await api.singleplayer.end(credentials)
     } catch {
       /* best-effort */
+    } finally {
+      setSubmitting(false)
     }
     ended.current = true
     setPhase('summary')
@@ -154,7 +173,7 @@ export function SingleplayerGamePage() {
     setSubmitting(true)
     setError(null)
     try {
-      const created = await api.singleplayer.create(difficulty)
+      const created = await api.singleplayer.create(difficulty, roundsTotal)
       ended.current = false
       setResults([])
       setRound(null)
@@ -187,8 +206,9 @@ export function SingleplayerGamePage() {
       round={phase === 'summary' || phase === 'error' ? null : round}
       hud={phase === 'playing' && round ? {
         score: totalScore,
+        roundsTotal: roundsTotal ?? undefined,
         onExpired: () => setExpiredRoundId(round.id),
-        onMenu: () => setExitOpen(true),
+        onLeave: () => setExitOpen(true),
       } : undefined}
       controls={phase === 'playing' && round && credentials ? {
         disabled: expiredRoundId === round.id,
@@ -224,8 +244,11 @@ export function SingleplayerGamePage() {
         open={phase === 'result'}
         result={results.at(-1) ?? null}
         totalScore={totalScore}
-        roundNumber={round?.number ?? 0}
+        roundNumber={round?.number ?? results.at(-1)?.number ?? 0}
+        roundsTotal={roundsTotal}
+        isFinalRound={isSessionComplete}
         onNext={startRound}
+        onFinish={endSession}
         starting={submitting}
       />
 
@@ -233,6 +256,7 @@ export function SingleplayerGamePage() {
         <SessionSummary
           totalScore={totalScore}
           results={results}
+          roundsTotal={roundsTotal}
           restarting={submitting}
           onPlayAgain={playAgain}
           onHome={() => navigate('/')}
@@ -256,7 +280,10 @@ export function SingleplayerGamePage() {
       >
         <p className="text-sm text-muted">
           Your score so far — <span className="font-bold text-cream">{formatScore(totalScore)} points</span> across{' '}
-          {results.length} round{results.length === 1 ? '' : 's'} — will be saved. Ready to call it a day?
+          {roundsTotal !== null
+            ? `${results.length} of ${roundsTotal} rounds`
+            : `${results.length} round${results.length === 1 ? '' : 's'}`} — will be saved. Ready to{' '}
+          {roundsTotal !== null ? 'end early?' : 'call it a day?'}
         </p>
       </Dialog>
     </RoundStage>
@@ -268,14 +295,20 @@ function RoundResult({
   result,
   totalScore,
   roundNumber,
+  roundsTotal,
+  isFinalRound,
   onNext,
+  onFinish,
   starting,
 }: {
   open: boolean
   result: StreetResult | null
   totalScore: number
   roundNumber: number
+  roundsTotal: number | null
+  isFinalRound: boolean
   onNext: () => void
+  onFinish: () => void
   starting: boolean
 }) {
   return (
@@ -285,13 +318,26 @@ function RoundResult({
           <RoundResultDetails result={result} />
 
           <div className="flex items-center justify-between rounded-2xl bg-space-800 px-4 py-3">
-            <span className="text-sm font-semibold text-muted">Total score</span>
+            <div>
+              <span className="text-sm font-semibold text-muted">Total score</span>
+              {roundsTotal !== null && (
+                <p className="text-xs font-bold text-subtle">
+                  {isFinalRound ? `Final round · ${roundNumber} of ${roundsTotal}` : `Round ${roundNumber} of ${roundsTotal}`}
+                </p>
+              )}
+            </div>
             <span className="font-display text-xl font-semibold text-lime-300">{formatScore(totalScore)}</span>
           </div>
 
-          <Button fullWidth size="lg" icon="chevronRight" onClick={onNext} loading={starting}>
-            Next round
-          </Button>
+          {isFinalRound ? (
+            <Button fullWidth size="lg" icon="trophy" onClick={onFinish} loading={starting}>
+              View summary
+            </Button>
+          ) : (
+            <Button fullWidth size="lg" icon="chevronRight" onClick={onNext} loading={starting}>
+              Next round
+            </Button>
+          )}
         </div>
       )}
     </Dialog>
@@ -301,18 +347,21 @@ function RoundResult({
 function SessionSummary({
   totalScore,
   results,
+  roundsTotal,
   restarting,
   onPlayAgain,
   onHome,
 }: {
   totalScore: number
   results: StreetResult[]
+  roundsTotal: number | null
   restarting: boolean
   onPlayAgain: () => void
   onHome: () => void
 }) {
   const best = useMemo(() => results.reduce((max, r) => Math.max(max, r.score), 0), [results])
   const average = results.length ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length) : 0
+  const finishedAllRounds = roundsTotal !== null && results.length >= roundsTotal
 
   return (
     <div className="scroll-thin absolute inset-0 z-30 overflow-y-auto bg-space-900/95 backdrop-blur-sm">
@@ -322,11 +371,15 @@ function SessionSummary({
             <Icon name="trophy" size={32} />
           </span>
           <h1 className="mt-4 font-display text-4xl font-semibold text-cream">Well explored!</h1>
-          <p className="mt-1 text-muted">Here's how your journey went.</p>
+          <p className="mt-1 text-muted">
+            {finishedAllRounds
+              ? `You completed all ${roundsTotal} rounds.`
+              : "Here's how your journey went."}
+          </p>
 
           <div className="mt-6 grid grid-cols-3 gap-3">
             <Stat label="Total score" value={formatScore(totalScore)} accent />
-            <Stat label="Rounds" value={String(results.length)} />
+            <Stat label="Rounds" value={roundsTotal !== null ? `${results.length} / ${roundsTotal}` : String(results.length)} />
             <Stat label="Best round" value={formatScore(best)} />
           </div>
 

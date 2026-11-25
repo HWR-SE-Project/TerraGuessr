@@ -126,7 +126,8 @@ export function MultiplayerGamePage() {
         score: m.leaderboard.find((entry) => entry.isYou)?.totalScore ?? 0,
         pauseExpiry: m.you.finalized,
         onExpired,
-        onMenu: () => setExitOpen(true),
+        onLeave: () => setExitOpen(true),
+        leaveLabel: 'Leave match',
       } : undefined}
       controls={activeRound && !m.you.finalized && !m.roundComplete ? {
         disabled: leaving || expiredRoundId === activeRound.id,

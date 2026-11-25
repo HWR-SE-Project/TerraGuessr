@@ -21,9 +21,14 @@ export const MIN_TARGET_SEPARATION_FROM_RECENT_KM = 400;
 /** Street View session TTL: a game expires 24h after creation (endless mode). */
 export const STREET_GAME_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Shared finite round-count bounds used by both multiplayer lobbies and singleplayer games. */
+export const MIN_ROUNDS_TOTAL = 3;
+export const MAX_ROUNDS_TOTAL = 10;
+export const DEFAULT_ROUNDS_TOTAL = 5;
+
 /** Lobby (R16) defaults. Difficulty controls rules; the host sets the round count. */
 export const LOBBY_CODE_LENGTH = 6;
-export const LOBBY_ROUNDS_TOTAL = 5;
+export const LOBBY_ROUNDS_TOTAL = DEFAULT_ROUNDS_TOTAL;
 export const MAX_LOBBY_MEMBERS = 16;
 export const LOBBY_TTL_MS = 2 * 60 * 60 * 1000;
 export const LOBBY_ROUND_REVIEW_MS = 5_000;

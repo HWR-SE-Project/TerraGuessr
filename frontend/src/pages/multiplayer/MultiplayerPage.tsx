@@ -5,11 +5,12 @@ import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Field, Input } from '../../components/ui/Form'
 import { DifficultyPicker, DifficultySummary } from '../../components/game/DifficultyPicker'
-import { Icon } from '../../components/ui/Icon'
+import { RoundCountStepper } from '../../components/game/RoundCountStepper'
 import { api } from '../../services'
 import { setLobbySession } from '../../state/lobby'
 import { useSession } from '../../state/session'
 import { readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
+import { clampRounds, DEFAULT_ROUNDS_TOTAL, resolveRoundBounds } from '../../lib/rounds'
 import { readOrCreateGuestName, storeGuestName } from '../../lib/playerName'
 import { useGameRules } from '../../state/gameRules'
 import type { Difficulty, LobbySession } from '../../lib/contracts'
@@ -102,11 +103,13 @@ function CreateLobby({
   onEntered: (session: LobbySession) => void
 }) {
   const [difficulty, setDifficulty] = useState<Difficulty>(readStoredDifficulty())
-  const [rounds, setRounds] = useState(5)
+  const [rounds, setRounds] = useState(DEFAULT_ROUNDS_TOTAL)
   const rules = useGameRules()
+  const roundBounds = resolveRoundBounds(rules?.rounds)
+  const selectedRounds = clampRounds(rounds, roundBounds)
 
   async function create(submittedName?: string) {
-    const session = await api.lobby.create({ difficulty, roundsTotal: rounds, displayName: submittedName })
+    const session = await api.lobby.create({ difficulty, roundsTotal: selectedRounds, displayName: submittedName })
     storeDifficulty(difficulty)
     return session
   }
@@ -130,11 +133,12 @@ function CreateLobby({
       </div>
 
       <Field label="Rounds" htmlFor="mp-rounds">
-        <div className="flex items-center gap-3">
-          <StepButton onClick={() => setRounds((r) => Math.max(3, r - 1))} label="Fewer rounds" icon="minus" />
-          <span className="font-display text-2xl font-semibold text-cream">{rounds}</span>
-          <StepButton onClick={() => setRounds((r) => Math.min(10, r + 1))} label="More rounds" icon="plus" />
-        </div>
+        <RoundCountStepper
+          value={selectedRounds}
+          min={roundBounds.min}
+          max={roundBounds.max}
+          onChange={setRounds}
+        />
       </Field>
 
       <DifficultySummary difficulty={difficulty} rules={rules?.difficulties[difficulty]} className="bg-space-800" />
@@ -247,18 +251,5 @@ function LobbyEntryForm({
       )}
       <Button type="submit" size="lg" icon={icon} loading={loading} disabled={disabled}>{label}</Button>
     </form>
-  )
-}
-
-function StepButton({ onClick, label, icon }: { onClick: () => void; label: string; icon: 'plus' | 'minus' }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className="flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-space-600 text-cream transition-colors hover:bg-space-500"
-    >
-      <Icon name={icon} size={20} />
-    </button>
   )
 }

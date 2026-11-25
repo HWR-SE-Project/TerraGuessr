@@ -10,7 +10,8 @@ export function TopHud({
   attemptsUsed,
   attemptsTotal,
   timer,
-  onMenu,
+  onLeave,
+  leaveLabel = 'Leave game',
 }: {
   round: number
   roundsTotal?: number
@@ -18,7 +19,8 @@ export function TopHud({
   attemptsUsed?: number
   attemptsTotal?: number
   timer?: React.ReactNode
-  onMenu?: () => void
+  onLeave?: () => void
+  leaveLabel?: string
 }) {
   const attempts = attemptsTotal != null ? Array.from({ length: attemptsTotal }, (_, i) => i < (attemptsUsed ?? 0)) : null
   return (
@@ -54,30 +56,17 @@ export function TopHud({
         </div>
         {timer}
       </div>
-      {onMenu && (
+      {onLeave && (
         <div className="pointer-events-auto">
           <IconButton
-            name="menu"
-            label="Game menu"
-            onClick={onMenu}
+            name="exit"
+            label={leaveLabel}
+            onClick={onLeave}
             variant="solid"
             className="border-white/8 bg-space-700 shadow-card hover:bg-space-600"
           />
         </div>
       )}
     </motion.div>
-  )
-}
-
-/** Floating "menu" affordance when no explicit onMenu is wired (placeholder). */
-export function MenuDots({ onClick }: { onClick: () => void }) {
-  return (
-    <IconButton
-      name="menu"
-      label="Game menu"
-      onClick={onClick}
-      variant="solid"
-      className="border-white/8 bg-space-700 shadow-card hover:bg-space-600"
-    />
   )
 }

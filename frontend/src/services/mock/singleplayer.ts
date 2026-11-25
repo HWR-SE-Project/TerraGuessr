@@ -17,6 +17,7 @@ import type {
 } from '../../lib/contracts'
 import { LOCATIONS, locationById, mockWeather, randomLocation } from './data'
 import { haversineKm, mockGameRules, scoreForDistance } from './gameRules'
+import { MAX_ROUNDS_TOTAL, MIN_ROUNDS_TOTAL } from '../../lib/rounds'
 import { games } from './db'
 import type { MockGame, MockRound, MockStreetResult } from './db'
 
@@ -122,12 +123,22 @@ export const singleplayerMock = {
     return delay({ available: true, provider: 'google', serverKeyConfigured: true })
   },
 
-  async create(difficulty: Difficulty = 'medium'): Promise<StreetCredentials> {
+  async create(difficulty: Difficulty = 'medium', roundsTotal: number | null = null): Promise<StreetCredentials> {
+    if (
+      roundsTotal !== null &&
+      (!Number.isInteger(roundsTotal) || roundsTotal < MIN_ROUNDS_TOTAL || roundsTotal > MAX_ROUNDS_TOTAL)
+    ) {
+      throw Object.assign(
+        new Error(`roundsTotal must be between ${MIN_ROUNDS_TOTAL} and ${MAX_ROUNDS_TOTAL}, or null for endless mode.`),
+        { code: 'VALIDATION_ERROR', status: 400 },
+      )
+    }
     const id = `game_${Math.random().toString(36).slice(2, 10)}`
     const game: MockGame = {
       id,
       playerToken: `pt_${Math.random().toString(36).slice(2, 16)}`,
       difficulty,
+      roundsTotal,
       totalScore: 0,
       activeRound: null,
       results: [],
@@ -140,9 +151,13 @@ export const singleplayerMock = {
 
   async session(credentials: StreetCredentials): Promise<StreetSession> {
     const game = requireGame(credentials.id)
+    const completed =
+      game.roundsTotal !== null && game.activeRound === null && game.results.length >= game.roundsTotal
     return delay({
       id: game.id,
       difficulty: game.difficulty,
+      roundsTotal: game.roundsTotal,
+      completed,
       totalScore: game.totalScore,
       activeRound: game.activeRound ? toRound(game, game.activeRound) : null,
       results: game.results.map(toResult),
@@ -152,6 +167,12 @@ export const singleplayerMock = {
   async next(credentials: StreetCredentials): Promise<StreetRound> {
     const game = requireGame(credentials.id)
     if (game.activeRound) return delay(toRound(game, game.activeRound))
+    if (game.roundsTotal !== null && game.roundsPlayed >= game.roundsTotal) {
+      throw Object.assign(new Error('All rounds in this game have been completed.'), {
+        code: 'CONFLICT',
+        status: 409,
+      })
+    }
     const location = randomLocation(game.locationHistory)
     game.locationHistory.push(location.id)
     game.roundsPlayed += 1

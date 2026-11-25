@@ -255,19 +255,15 @@ model LobbyRoundMemberState {
 
 // Street View is isolated from the existing weather game contracts.
 //
-// Session lifecycle (endless mode): a row is Created at POST .../games, then
-// Active for as long as it exists with no fixed round limit — each round
-// transitions briefly through "round completed" (score set, no activeRound
-// yet) before the next POST .../rounds starts the next one. A row is Ended
-// the moment the player explicitly finalizes it (DELETE .../games/:id,
-// triggered by the "End Game" confirmation) — already-scored rounds survive
-// independently in GameResult for signed-in players (R18), but the StreetGame row itself is gone,
-// so `owned()` 404s forever after and the session can never be reactivated.
-// Abandoned covers the same DELETE outcome reached a different way: the 24h
-// expiry sweep (`expiresAt`-driven) removing a row nobody explicitly ended —
-// e.g. a refresh, tab close, or crash mid-game. Both are a hard delete; there
-// is deliberately no soft "ended" flag to resurrect, and the frontend never
-// persists credentials across a reload, so neither path is ever resumable.
+// Session lifecycle: a row is Created at POST .../games with either a finite
+// `roundsTotal` (3..10, matching multiplayer) or `roundsTotal = null` for
+// endless mode. Each round transitions briefly through "round completed"
+// (score set, no activeRound yet) before the next POST .../rounds starts the
+// next one, until either `roundsTotal` rounds are completed (finite mode) or
+// the player explicitly finalizes it (DELETE .../games/:id). Already-scored
+// rounds survive independently in GameResult for signed-in players (R18), while
+// DELETE removes the StreetGame row so `owned()` 404s forever after.
+// Abandoned covers the same DELETE outcome via the 24h expiry sweep.
 model StreetGame {
   id              String        @id @default(cuid())
   playerTokenHash String
@@ -275,6 +271,8 @@ model StreetGame {
   ownerUserId     String?
   owner           User?         @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
   difficulty      Difficulty    @default(medium) // R05
+  // Null = endless mode (no round cap); 3..10 = fixed-length game matching multiplayer.
+  roundsTotal     Int?
   expiresAt       DateTime
   createdAt       DateTime      @default(now())
   rounds          StreetRound[]

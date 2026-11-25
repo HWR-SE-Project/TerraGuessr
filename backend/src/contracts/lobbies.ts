@@ -14,6 +14,7 @@ import {
   ExtraDataAccess,
   GameRulesView,
   RoundSceneView,
+  RoundsTotal,
 } from './shared.js';
 
 const LobbyStatus = Type.Union([
@@ -49,7 +50,7 @@ export const LobbyView = Type.Object({
 export const CreateLobbyBody = Type.Object({
   difficulty: Difficulty,
   /** Host-selected match length; defaults to the standard five rounds. */
-  roundsTotal: Type.Optional(Type.Integer({ minimum: 3, maximum: 10 })),
+  roundsTotal: Type.Optional(RoundsTotal),
   displayName: Type.Optional(Type.String({ maxLength: 40 })),
 }, { additionalProperties: false });
 

@@ -22,6 +22,7 @@ import {
   ExtraDataAccess,
   GameRulesView,
   RoundSceneView,
+  RoundsTotal,
   SelectionInput,
 } from '../../contracts/shared.js';
 import type { GuessOrSelectionInput } from './candidates.js';
@@ -66,6 +67,8 @@ const GuessResponse = Type.Object({
 const Session = Type.Object({
   id: Type.String(),
   difficulty: DifficultyLevel,
+  roundsTotal: Type.Union([Type.Integer({ minimum: 1 }), Type.Null()]),
+  completed: Type.Boolean(),
   totalScore: Type.Integer(),
   activeRound: Type.Union([PublicRound, Type.Null()]),
   results: Type.Array(Result),
@@ -73,7 +76,11 @@ const Session = Type.Object({
 const CreateGameBody = Type.Union([
   Type.Null(),
   Type.Object(
-    { difficulty: Type.Optional(DifficultyLevel) },
+    {
+      difficulty: Type.Optional(DifficultyLevel),
+      /** Finite round count matching multiplayer (3..10), or null/omitted for endless mode. */
+      roundsTotal: Type.Optional(Type.Union([RoundsTotal, Type.Null()])),
+    },
     { additionalProperties: false },
   ),
 ]);
@@ -126,12 +133,16 @@ export function registerSingleplayerRoutes(
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      const body = request.body as { difficulty?: unknown } | null | undefined;
+      const body = request.body as
+        | { difficulty?: unknown; roundsTotal?: number | null }
+        | null
+        | undefined;
       // R18: capture the account once, so archival does not depend on the
       // session cookie still being valid when the final round ends.
       const ownerUserId = await optionalSessionUserId(request, db);
       const game = await service.createGame({
         difficulty: body?.difficulty,
+        roundsTotal: body?.roundsTotal,
         ownerUserId: ownerUserId ?? null,
       });
       return reply.code(201).send(game);

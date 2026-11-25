@@ -158,8 +158,8 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
       ).json();
       expect(session.activeRound).toEqual(round);
       expect(session.results).toHaveLength(number - 1);
-      expect(session).not.toHaveProperty('roundsTotal');
-      expect(session).not.toHaveProperty('completed');
+      expect(session.roundsTotal).toBeNull();
+      expect(session.completed).toBe(false);
       const url = `${auth.base}/rounds/${round.id}/guess`;
       const payload = { lat: 48.8566, lon: 2.3522, final: true };
       const scored = await app.inject({
@@ -214,6 +214,51 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
     });
     expect(eleventh.statusCode).toBe(200);
     expect(eleventh.json().number).toBe(ROUNDS + 1);
+  });
+  it('supports finite singleplayer games with multiplayer round bounds (3..10) and completes after the final round', async () => {
+    for (const invalidRounds of [2, 11, 4.5]) {
+      const bad = await app.inject({
+        method: 'POST',
+        url: '/api/singleplayer/games',
+        payload: { difficulty: 'medium', roundsTotal: invalidRounds },
+      });
+      expect(bad.statusCode).toBe(400);
+    }
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/singleplayer/games',
+      payload: { difficulty: 'medium', roundsTotal: 3 },
+    });
+    expect(created.statusCode).toBe(201);
+    const { id, playerToken } = created.json() as { id: string; playerToken: string };
+    ids.push(id);
+    const base = `/api/singleplayer/games/${id}`;
+    const headers = { 'x-player-token': playerToken };
+
+    for (let number = 1; number <= 3; number += 1) {
+      const started = await app.inject({ method: 'POST', url: `${base}/rounds`, headers });
+      expect(started.statusCode).toBe(200);
+      const round = started.json();
+      expect(round.number).toBe(number);
+
+      const scored = await app.inject({
+        method: 'POST',
+        url: `${base}/rounds/${round.id}/guess`,
+        headers,
+        payload: { lat: 50, lon: 10, final: true },
+      });
+      expect(scored.statusCode).toBe(200);
+    }
+
+    const session = (await app.inject({ url: base, headers })).json();
+    expect(session.roundsTotal).toBe(3);
+    expect(session.completed).toBe(true);
+    expect(session.activeRound).toBeNull();
+    expect(session.results).toHaveLength(3);
+
+    const extraRound = await app.inject({ method: 'POST', url: `${base}/rounds`, headers });
+    expect(extraRound.statusCode).toBe(409);
   });
   it('rejects missing/wrong ownership and invalid coordinates and client-submitted scores', async () => {
     const auth = await create();

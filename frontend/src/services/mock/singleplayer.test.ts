@@ -39,4 +39,23 @@ describe('singleplayer mock flow', () => {
     // The round is no longer active — this must reject, not throw.
     await expect(singleplayerMock.intelligence(credentials, round.id)).rejects.toThrow()
   })
+
+  it('enforces finite round limits and reports completion once all rounds are scored', async () => {
+    await expect(singleplayerMock.create('medium', 2)).rejects.toThrow()
+    await expect(singleplayerMock.create('medium', 11)).rejects.toThrow()
+
+    const credentials = await singleplayerMock.create('hard', 3)
+    for (let i = 1; i <= 3; i++) {
+      const round = await singleplayerMock.next(credentials)
+      expect(round.number).toBe(i)
+      await singleplayerMock.guess(credentials, round.id, { lat: 0, lon: 0 }, true)
+    }
+
+    const session = await singleplayerMock.session(credentials)
+    expect(session.roundsTotal).toBe(3)
+    expect(session.completed).toBe(true)
+    expect(session.results).toHaveLength(3)
+
+    await expect(singleplayerMock.next(credentials)).rejects.toThrow(/completed/i)
+  })
 })

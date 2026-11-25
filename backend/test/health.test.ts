@@ -79,6 +79,7 @@ describe('GET /api/health', () => {
       expect(exampleScores[2000 / exampleDistanceStepKm]).toBe(scoreForDistance(2000));
       expect(exampleScores.at(-1)).toBe(0);
       expect(catalog.scoring.londonParisKm).toBeCloseTo(343.56, 1);
+      expect(catalog.rounds).toEqual({ min: 3, max: 10, default: 5 });
     } finally {
       await app.close();
     }
