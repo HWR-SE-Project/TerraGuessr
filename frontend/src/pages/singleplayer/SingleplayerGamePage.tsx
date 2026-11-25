@@ -230,7 +230,13 @@ export function SingleplayerGamePage() {
       />
 
       {phase === 'summary' && (
-        <SessionSummary totalScore={totalScore} results={results} onPlayAgain={playAgain} onHome={() => navigate('/')} />
+        <SessionSummary
+          totalScore={totalScore}
+          results={results}
+          restarting={submitting}
+          onPlayAgain={playAgain}
+          onHome={() => navigate('/')}
+        />
       )}
 
       <Dialog
@@ -295,11 +301,13 @@ function RoundResult({
 function SessionSummary({
   totalScore,
   results,
+  restarting,
   onPlayAgain,
   onHome,
 }: {
   totalScore: number
   results: StreetResult[]
+  restarting: boolean
   onPlayAgain: () => void
   onHome: () => void
 }) {
@@ -307,46 +315,54 @@ function SessionSummary({
   const average = results.length ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length) : 0
 
   return (
-    <div className="absolute inset-0 z-30 overflow-y-auto bg-space-900/95 backdrop-blur-sm">
-      <div className="mx-auto flex min-h-full max-w-2xl flex-col items-center justify-center px-4 py-12 text-center">
+    <div className="scroll-thin absolute inset-0 z-30 overflow-y-auto bg-space-900/95 backdrop-blur-sm">
+      <div className="mx-auto flex min-h-full max-w-2xl flex-col items-center justify-center px-4 py-8 text-center sm:py-10">
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full">
           <span className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-lime-400 text-ink">
             <Icon name="trophy" size={32} />
           </span>
-          <h1 className="mt-5 font-display text-4xl font-semibold text-cream">Well explored!</h1>
+          <h1 className="mt-4 font-display text-4xl font-semibold text-cream">Well explored!</h1>
           <p className="mt-1 text-muted">Here's how your journey went.</p>
 
-          <div className="mt-8 grid grid-cols-3 gap-3">
+          <div className="mt-6 grid grid-cols-3 gap-3">
             <Stat label="Total score" value={formatScore(totalScore)} accent />
             <Stat label="Rounds" value={String(results.length)} />
             <Stat label="Best round" value={formatScore(best)} />
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-1.5 text-sm text-subtle">
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-sm text-subtle">
             <Icon name="star" size={16} className="text-amber-300" />
             Average {formatScore(average)} points per round
           </div>
 
-          {results.length > 0 && (
-            <div className="mt-8 flex flex-col gap-2 text-left">
-              {results.map((result) => (
-                <div key={result.roundId} className="surface-flat flex items-center justify-between px-4 py-3">
-                  <span className="text-sm font-semibold text-cream">Round {result.number}</span>
-                  <span className="text-sm text-muted">{formatDistance(result.distanceKm)}</span>
-                  <span className="font-display font-semibold text-lime-300">+{formatScore(result.score)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-8 flex flex-col gap-2 sm:flex-row">
-            <Button size="lg" icon="play" fullWidth onClick={onPlayAgain}>
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <Button size="lg" icon="play" fullWidth loading={restarting} onClick={onPlayAgain}>
               Play again
             </Button>
-            <Button size="lg" variant="secondary" fullWidth onClick={onHome}>
+            <Button size="lg" variant="secondary" fullWidth disabled={restarting} onClick={onHome}>
               Back home
             </Button>
           </div>
+
+          {results.length > 0 && (
+            <section aria-label="Round breakdown" className="mt-6 text-left">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-subtle">Round breakdown</h2>
+                <span className="text-xs font-bold text-subtle">
+                  {results.length} {results.length === 1 ? 'round' : 'rounds'}
+                </span>
+              </div>
+              <div className="scroll-thin flex max-h-72 flex-col gap-2 overflow-y-auto pr-1 sm:max-h-80">
+                {results.map((result) => (
+                  <div key={result.roundId} className="surface-flat grid grid-cols-3 items-center px-4 py-3">
+                    <span className="text-sm font-semibold text-cream">Round {result.number}</span>
+                    <span className="text-center text-sm tabular-nums text-muted">{formatDistance(result.distanceKm)}</span>
+                    <span className="text-right font-display font-semibold tabular-nums text-lime-300">+{formatScore(result.score)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </motion.div>
       </div>
     </div>

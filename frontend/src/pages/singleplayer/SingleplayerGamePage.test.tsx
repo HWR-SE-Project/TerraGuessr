@@ -86,4 +86,52 @@ describe('SingleplayerGamePage start failures', () => {
     expect(await screen.findByRole('button', { name: 'Submit guess' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Could not start the game' })).not.toBeInTheDocument()
   })
+
+  it('places Play again and Back home above the scrollable round breakdown on the summary screen', async () => {
+    const user = userEvent.setup()
+    setGameCredentials({ id: 'game-2', playerToken: 'token-2' })
+
+    vi.spyOn(api.singleplayer, 'session').mockResolvedValue({
+      id: 'game-2',
+      difficulty: 'easy',
+      totalScore: 7480,
+      activeRound: null,
+      results: [
+        {
+          roundId: 'round-1',
+          number: 1,
+          guess: { lat: 48.85, lon: 2.35 },
+          actual: { lat: 51.5, lon: -0.12 },
+          distanceKm: 343.5,
+          score: 2480,
+        },
+        {
+          roundId: 'round-2',
+          number: 2,
+          guess: { lat: 35.68, lon: 139.76 },
+          actual: { lat: 35.68, lon: 139.76 },
+          distanceKm: 0,
+          score: 5000,
+        },
+      ],
+    })
+    vi.spyOn(api.singleplayer, 'next').mockRejectedValueOnce(new Error('Temporary error'))
+
+    render(
+      <MemoryRouter>
+        <SingleplayerGamePage />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'View summary' }))
+
+    const playAgain = await screen.findByRole('button', { name: 'Play again' })
+    const backHome = screen.getByRole('button', { name: 'Back home' })
+    const breakdown = screen.getByRole('region', { name: 'Round breakdown' })
+
+    expect(playAgain.compareDocumentPosition(breakdown) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(backHome.compareDocumentPosition(breakdown) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(breakdown).toHaveTextContent('Round 1')
+    expect(breakdown).toHaveTextContent('Round 2')
+  })
 })
