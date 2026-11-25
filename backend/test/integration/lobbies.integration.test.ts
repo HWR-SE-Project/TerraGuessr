@@ -875,13 +875,13 @@ describe('lobby lifecycle (integration)', () => {
     const startedBody = started.json() as {
       match: {
         round: {
-          candidates: Array<{ id: string; name: string; region: string }>;
+          candidates: Array<{ id: string; name: string; region: string; lat: number; lon: number }>;
         };
       };
     };
     expect(startedBody.match.round.candidates).toHaveLength(6);
     for (const candidate of startedBody.match.round.candidates) {
-      expect(Object.keys(candidate).sort()).toEqual(['id', 'name', 'region']);
+      expect(Object.keys(candidate).sort()).toEqual(['id', 'lat', 'lon', 'name', 'region']);
     }
     const [hostGuess, guestGuess] = startedBody.match.round.candidates;
 

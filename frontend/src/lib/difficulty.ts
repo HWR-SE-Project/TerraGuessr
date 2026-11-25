@@ -8,7 +8,7 @@ interface DifficultyInfo {
 }
 
 const selectionCopy = {
-  list: 'Pick a city',
+  list: 'Pick a marked city on the map',
   map: 'Drop a pin on the world map',
 }
 
@@ -55,7 +55,7 @@ export function difficultyInfo(difficulty: Difficulty, rules?: GameRules): Diffi
 export function difficultyDetails(rules: GameRules): string[] {
   const { timeLimitSeconds, attemptsPerRound, selectionMode, extraData } = rules
   const time = timeLimitSeconds % 60 === 0 ? `${timeLimitSeconds / 60} min` : `${timeLimitSeconds} s`
-  const selection = selectionMode === 'list' ? 'Pick from a city list' : 'World map'
+  const selection = selectionMode === 'list' ? '6 cities on the map' : 'World map'
   const cost = extraData.mode === 'free' ? 'Free clues' : `Clues cost ${extraData.cost} ${extraData.mode === 'points' ? 'pts' : 's'}`
   return [time, `${attemptsPerRound} ${attemptsPerRound === 1 ? 'attempt' : 'attempts'}`, selection, cost]
 }

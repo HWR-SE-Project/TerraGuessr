@@ -285,6 +285,109 @@
     text-transform: uppercase;
     color: var(--color-lime-400);
   }
+
+  /* Easy-mode candidate markers plotted directly on Leaflet GuessMap. */
+  .tg-candidate-marker {
+    overflow: visible !important;
+    background: transparent;
+    border: 0;
+  }
+  .tg-candidate-marker:hover,
+  .tg-candidate-marker:focus-within {
+    z-index: 1000 !important;
+  }
+
+  .tg-candidate-pin {
+    position: relative;
+    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 140ms var(--ease-out);
+  }
+  .tg-candidate-pin:hover:not(:disabled) {
+    transform: translate(-50%, -50%) scale(1.14);
+  }
+  .tg-candidate-pin:disabled {
+    cursor: default;
+  }
+  .tg-candidate-pin:focus-visible {
+    outline: none;
+  }
+
+  .tg-candidate-dot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: var(--color-space-800);
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(5, 3, 20, 0.55);
+    transition:
+      background-color 140ms var(--ease-out),
+      border-color 140ms var(--ease-out),
+      box-shadow 140ms var(--ease-out);
+  }
+  .tg-candidate-dot::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    background: var(--color-amber-400);
+  }
+
+  .tg-candidate-pin[data-state='available']:hover:not(:disabled) .tg-candidate-dot {
+    border-color: var(--color-lime-300);
+  }
+
+  .tg-candidate-pin[data-state='selected'] .tg-candidate-dot {
+    background: var(--color-lime-400);
+    border-color: #ffffff;
+    box-shadow:
+      0 0 0 4px rgba(192, 246, 107, 0.42),
+      0 3px 10px rgba(5, 3, 20, 0.55);
+  }
+  .tg-candidate-pin[data-state='selected'] .tg-candidate-dot::after {
+    content: '✓';
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--color-ink);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .tg-candidate-pin[data-state='submitted'] {
+    opacity: 0.9;
+  }
+  .tg-candidate-pin[data-state='submitted'] .tg-candidate-dot {
+    background: var(--color-sky-400);
+    border-color: #ffffff;
+  }
+  .tg-candidate-pin[data-state='submitted'] .tg-candidate-dot::after {
+    content: '✓';
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--color-space-950);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .tg-candidate-pin:focus-visible .tg-candidate-dot {
+    box-shadow:
+      0 0 0 3px var(--color-lime-400),
+      0 2px 8px rgba(5, 3, 20, 0.55);
+  }
 }
 
 /* -------------------------------------------------------------------------- */

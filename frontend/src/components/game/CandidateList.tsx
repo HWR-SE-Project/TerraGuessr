@@ -1,19 +1,9 @@
 import { motion } from 'framer-motion'
 import type { Candidate } from '../../lib/contracts'
+import { formatRegion } from '../../lib/format'
 import { Icon } from '../ui/Icon'
 
-function formatRegion(region: string): string {
-  if (!region) return ''
-  if (/^[A-Z0-9_]+$/.test(region)) {
-    return region
-      .split('_')
-      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-      .join(' ')
-  }
-  return region.replaceAll('_', ' ')
-}
-
-/** Easy-mode city shortlist. Selecting a city is choosing your guess. */
+/** Easy-mode city shortlist fallback when candidate coordinates are unavailable. */
 export function CandidateList({
   candidates,
   selected,

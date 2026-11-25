@@ -14,10 +14,14 @@ describe('singleplayer mock flow', () => {
     expect(round.endsAt).toBeTruthy()
   })
 
-  it('easy mode returns six candidate cities', async () => {
+  it('easy mode returns six candidate cities with map coordinates', async () => {
     const credentials = await singleplayerMock.create('easy')
     const round = await singleplayerMock.next(credentials)
     expect(round.candidates).toHaveLength(6)
+    for (const candidate of round.candidates!) {
+      expect(typeof candidate.lat).toBe('number')
+      expect(typeof candidate.lon).toBe('number')
+    }
   })
 
   it('finalizes on the last attempt and returns a result', async () => {

@@ -66,6 +66,8 @@ export interface Candidate {
   id: string
   name: string | null
   region: string
+  lat?: number
+  lon?: number
 }
 
 export type GuessInput = LatLon | { candidateId: string }
