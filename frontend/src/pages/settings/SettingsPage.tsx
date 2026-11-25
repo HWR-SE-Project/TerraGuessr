@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
-import { Field, Input, Slider, Switch } from '../../components/ui/Form'
+import { Field, Input, Switch } from '../../components/ui/Form'
 import { Dialog } from '../../components/ui/Dialog'
 import { Icon } from '../../components/ui/Icon'
 import { useSession, signOut, setUser } from '../../state/session'
-import { usePreferences, updatePreference, toggleFullscreen } from '../../state/preferences'
+import { usePreferences, toggleFullscreen } from '../../state/preferences'
 import { api } from '../../services'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { PublicUser } from '../../lib/contracts'
@@ -26,49 +26,12 @@ export function SettingsPage() {
 
         {/* Preferences */}
         <SettingSection title="Preferences">
-          <SettingRow icon="language" title="Language" hint="Interface language">
-            <div className="flex gap-1 rounded-2xl bg-space-800 p-1">
-              {(['en', 'de'] as const).map((lang) => (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => void updatePreference({ language: lang })}
-                  className={`rounded-xl px-4 py-1.5 text-sm font-bold transition-colors ${
-                    prefs.language === lang ? 'bg-lime-400 text-ink' : 'text-muted hover:text-cream'
-                  }`}
-                >
-                  {lang === 'en' ? 'English' : 'Deutsch'}
-                </button>
-              ))}
-            </div>
-          </SettingRow>
-
           <SettingRow icon="fullscreen" title="Fullscreen" hint="Expand the game to fill your screen">
             <Switch
               checked={prefs.fullscreen}
               onChange={() => void toggleFullscreen()}
               label="Fullscreen"
             />
-          </SettingRow>
-
-          <SettingRow icon="volume" title="Sound effects" hint="Feedback for guesses and actions">
-            <div className="w-44">
-              <Slider
-                value={prefs.soundFxVolume}
-                onChange={(value) => void updatePreference({ soundFxVolume: value })}
-                label="Sound effects volume"
-              />
-            </div>
-          </SettingRow>
-
-          <SettingRow icon="volume" title="Music" hint="Ambient background music">
-            <div className="w-44">
-              <Slider
-                value={prefs.musicVolume}
-                onChange={(value) => void updatePreference({ musicVolume: value })}
-                label="Music volume"
-              />
-            </div>
           </SettingRow>
         </SettingSection>
 
@@ -77,11 +40,7 @@ export function SettingsPage() {
           {authed && user ? (
             <>
               <AccountProfile user={user} onUpdate={(updated) => setUser(updated)} />
-              <SettingRow icon="mail" title="Email" hint={user.email}>
-                <Button variant="secondary" size="sm" disabled title="Email change requires backend delivery — available in Phase 2.">
-                  Change
-                </Button>
-              </SettingRow>
+              <ChangeEmail user={user} />
               <SettingRow icon="exit" title="Sign out" hint="Leave this device">
                 <Button variant="secondary" size="sm" onClick={() => void signOut()}>
                   Sign out
@@ -128,7 +87,7 @@ function AccountProfile({ user, onUpdate }: { user: PublicUser; onUpdate: (user:
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 px-5 py-4">
       <Field label="Display name" htmlFor="profile-name">
         <Input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} icon="person" />
       </Field>
@@ -139,6 +98,117 @@ function AccountProfile({ user, onUpdate }: { user: PublicUser; onUpdate: (user:
         {message && <span className="text-sm font-semibold text-lime-300">{message}</span>}
       </div>
     </div>
+  )
+}
+
+function ChangeEmail({ user }: { user: PublicUser }) {
+  const [open, setOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  function openDialog() {
+    setNewEmail('')
+    setPassword('')
+    setError(null)
+    setSuccess(null)
+    setOpen(true)
+  }
+
+  function closeDialog() {
+    if (loading) return
+    setOpen(false)
+  }
+
+  async function submit() {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await api.auth.requestEmailChange(newEmail.trim(), password || undefined)
+      setSuccess(result.message)
+      setPassword('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not request email change.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const trimmed = newEmail.trim()
+  const needsPassword = user.hasPassword !== false
+  const canSubmit =
+    trimmed.length >= 3 &&
+    trimmed.toLowerCase() !== user.email.toLowerCase() &&
+    (!needsPassword || password.length > 0)
+
+  return (
+    <>
+      <SettingRow icon="mail" title="Email" hint={user.email}>
+        <Button variant="secondary" size="sm" onClick={openDialog}>
+          Change
+        </Button>
+      </SettingRow>
+      <Dialog
+        open={open}
+        onClose={closeDialog}
+        title="Change email address"
+        footer={
+          success ? (
+            <Button fullWidth onClick={closeDialog}>
+              Done
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="secondary" fullWidth onClick={closeDialog} disabled={loading}>
+                Cancel
+              </Button>
+              <Button fullWidth loading={loading} disabled={!canSubmit} onClick={submit}>
+                Send confirmation
+              </Button>
+            </div>
+          )
+        }
+      >
+        {success ? (
+          <p role="status" className="rounded-2xl bg-lime-400/12 px-4 py-3 text-sm font-semibold text-lime-300">
+            {success}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted">
+              We’ll send confirmation links to both <span className="font-semibold text-cream">{user.email}</span> and your new address. Both must be confirmed to complete the change.
+            </p>
+            <Field label="New email address" htmlFor="change-email-new">
+              <Input
+                id="change-email-new"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                icon="mail"
+              />
+            </Field>
+            {needsPassword && (
+              <Field label="Current password" htmlFor="change-email-password">
+                <Input
+                  id="change-email-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  autoComplete="current-password"
+                  icon="lock"
+                />
+              </Field>
+            )}
+            {error && <p role="alert" className="text-sm font-semibold text-rose-300">{error}</p>}
+          </div>
+        )}
+      </Dialog>
+    </>
   )
 }
 

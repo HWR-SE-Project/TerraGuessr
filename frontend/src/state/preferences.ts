@@ -36,6 +36,15 @@ function readGuest(): PreferenceState {
 
 const store = createStore<PreferenceState>({ ...defaults, ready: false })
 
+if (typeof document !== 'undefined') {
+  document.addEventListener('fullscreenchange', () => {
+    const active = Boolean(document.fullscreenElement)
+    if (store.get().fullscreen !== active) {
+      store.set({ ...store.get(), fullscreen: active })
+    }
+  })
+}
+
 export function usePreferences(): PreferenceState {
   return useStore(store)
 }
