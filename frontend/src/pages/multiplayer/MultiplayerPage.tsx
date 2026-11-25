@@ -4,11 +4,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Field, Input } from '../../components/ui/Form'
-import { DifficultyPicker } from '../../components/game/DifficultyPicker'
+import { DifficultyPicker, DifficultySummary } from '../../components/game/DifficultyPicker'
 import { Icon } from '../../components/ui/Icon'
 import { api } from '../../services'
 import { setLobbySession } from '../../state/lobby'
-import { difficultyDetails, difficultyInfo, readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
+import { readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
 import { useGameRules } from '../../state/gameRules'
 import type { Difficulty, LobbySession } from '../../lib/contracts'
 import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
@@ -63,7 +63,6 @@ export function MultiplayerPage() {
 function CreateLobby({ onEntered }: { onEntered: (session: LobbySession) => void }) {
   const [difficulty, setDifficulty] = useState<Difficulty>(readStoredDifficulty())
   const [rounds, setRounds] = useState(5)
-  const info = difficultyInfo(difficulty)
   const rules = useGameRules()
 
   async function create(displayName?: string) {
@@ -89,10 +88,7 @@ function CreateLobby({ onEntered }: { onEntered: (session: LobbySession) => void
         </div>
       </Field>
 
-      {rules && <div className="rounded-2xl bg-space-800 px-4 py-2.5 text-sm text-muted">
-        <Icon name="info" size={16} className="mr-1.5 inline text-sky-300" />
-        {info.label} · {difficultyDetails(rules.difficulties[difficulty]).join(' · ')}
-      </div>}
+      <DifficultySummary difficulty={difficulty} rules={rules?.difficulties[difficulty]} className="bg-space-800" />
 
     </LobbyEntryForm>
   )

@@ -61,3 +61,21 @@ export function DifficultyPicker({
     </div>
   )
 }
+
+export function DifficultySummary({
+  difficulty,
+  rules,
+  className = 'bg-space-700',
+}: {
+  difficulty: Difficulty
+  rules?: GameRules
+  className?: string
+}) {
+  const info = difficultyInfo(difficulty, rules)
+  return (
+    <div className={`flex items-center gap-3 rounded-2xl p-4 ${className}`}>
+      <Icon name="info" size={20} className="shrink-0 text-sky-300" />
+      <p className="text-sm text-muted">{info.description}</p>
+    </div>
+  )
+}
