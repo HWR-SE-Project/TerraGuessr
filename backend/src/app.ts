@@ -7,7 +7,12 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
 import { prisma } from './db/prisma.js';
-import { RATE_LIMITS } from './config/constants.js';
+import {
+  DEFAULT_ROUNDS_TOTAL,
+  MAX_ROUNDS_TOTAL,
+  MIN_ROUNDS_TOTAL,
+  RATE_LIMITS,
+} from './config/constants.js';
 import { registerSingleplayerRoutes } from './modules/singleplayer/routes.js';
 import { loadEnv } from './config/env.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
@@ -38,6 +43,11 @@ const gameRulesCatalog = {
       (_, step) => scoreForDistance(step * exampleDistanceStepKm),
     ),
     londonParisKm: haversineKm({ lat: 51.5074, lon: -0.1278 }, { lat: 48.8566, lon: 2.3522 }),
+  },
+  rounds: {
+    min: MIN_ROUNDS_TOTAL,
+    max: MAX_ROUNDS_TOTAL,
+    default: DEFAULT_ROUNDS_TOTAL,
   },
 };
 
@@ -149,6 +159,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             exampleDistanceStepKm: Type.Integer(),
             exampleScores: Type.Array(Type.Integer()),
             londonParisKm: Type.Number(),
+          }),
+          rounds: Type.Object({
+            min: Type.Integer(),
+            max: Type.Integer(),
+            default: Type.Integer(),
           }),
         }),
       },

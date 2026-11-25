@@ -33,7 +33,7 @@ async function go(p, path) {
   await p.waitForTimeout(2500)
   await shot(p, 'sp-round2-desktop')
   // End session → summary
-  await p.getByRole('button', { name: 'Game menu' }).click()
+  await p.getByRole('button', { name: 'Leave game' }).click()
   await p.waitForTimeout(400)
   await p.getByRole('button', { name: 'End session' }).click()
   await p.waitForTimeout(1200)

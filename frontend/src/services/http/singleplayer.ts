@@ -19,10 +19,10 @@ export const singleplayerHttp = {
     return apiFetch('/singleplayer/config')
   },
 
-  create(difficulty: Difficulty = 'medium'): Promise<StreetCredentials> {
+  create(difficulty: Difficulty = 'medium', roundsTotal?: number | null): Promise<StreetCredentials> {
     return apiFetch<StreetCredentials>('/singleplayer/games', {
       method: 'POST',
-      body: { difficulty },
+      body: roundsTotal === undefined ? { difficulty } : { difficulty, roundsTotal },
     })
   },
 

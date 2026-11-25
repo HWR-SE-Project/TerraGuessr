@@ -65,6 +65,16 @@ const PATHS: Record<string, ReactNode> = {
   star: <path d="M12 3.5 14.7 9l6 .9-4.4 4.2 1 6L12 17.3 6.7 20l1-6-4.4-4.2 6-.9Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />,
   plus: <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />,
   minus: <path d="M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />,
+  infinity: (
+    <path
+      d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
   refresh: <path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
   search: <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />,
   copy: (

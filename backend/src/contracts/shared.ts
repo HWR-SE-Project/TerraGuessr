@@ -7,6 +7,12 @@
  */
 
 import { Type } from '@sinclair/typebox';
+import { MAX_ROUNDS_TOTAL, MIN_ROUNDS_TOTAL } from '../config/constants.js';
+
+export const RoundsTotal = Type.Integer({
+  minimum: MIN_ROUNDS_TOTAL,
+  maximum: MAX_ROUNDS_TOTAL,
+});
 
 export const Coordinates = Type.Object(
   {

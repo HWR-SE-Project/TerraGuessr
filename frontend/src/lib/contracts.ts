@@ -142,6 +142,8 @@ export interface StreetGuessResponse {
 export interface StreetSession {
   id: string
   difficulty: Difficulty
+  roundsTotal?: number | null
+  completed?: boolean
   totalScore: number
   activeRound: StreetRound | null
   results: StreetResult[]
@@ -169,6 +171,12 @@ export interface GameRules {
 
 export type LobbyRules = GameRules
 
+export interface RoundBounds {
+  min: number
+  max: number
+  default: number
+}
+
 export interface GameRulesCatalog {
   difficulties: Record<Difficulty, GameRules>
   scoring: {
@@ -179,6 +187,7 @@ export interface GameRulesCatalog {
     exampleScores: number[]
     londonParisKm: number
   }
+  rounds?: RoundBounds
 }
 
 export interface LobbyMember {

@@ -102,4 +102,103 @@ describe('singleplayer hot-path database queries', () => {
       data: { selectionLat: 48.8, selectionLon: 2.3 },
     });
   });
+
+  it('persists finite roundsTotal (matching multiplayer 3..10), defaults omitted/null to endless, and rejects out-of-range counts', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'game-finite-1' });
+    const db = {
+      streetGame: { create },
+    } as unknown as PrismaClient;
+
+    const service = createSingleplayerService({ db });
+
+    await service.createGame({ difficulty: 'medium', roundsTotal: 5, ownerUserId: null });
+    expect(create).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ difficulty: 'medium', roundsTotal: 5 }),
+    });
+
+    await service.createGame({ difficulty: 'hard', roundsTotal: null, ownerUserId: null });
+    expect(create).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ difficulty: 'hard', roundsTotal: null }),
+    });
+
+    for (const invalid of [0, 2, 11, 4.5, '5']) {
+      await expect(
+        service.createGame({ difficulty: 'easy', roundsTotal: invalid, ownerUserId: null }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    }
+  });
+
+  it('stops finite singleplayer sessions once roundsTotal is reached and skips prefetching beyond the final round', async () => {
+    const token = 'tok-finite';
+    const baseRound = (number: number, score: number | null) => ({
+      id: `round-${number}`,
+      gameId: 'game-finite',
+      number,
+      panoId: `loc:${number}`,
+      targetIndex: number,
+      targetLat: 51.5,
+      targetLon: -0.1,
+      placeName: 'London',
+      sceneJson: {
+        biome: 'urban',
+        weather: 'clear',
+        lighting: 'day',
+        temperatureBand: 'mild',
+        windBand: 'calm',
+        seed: number + 1,
+      },
+      candidatesJson: null,
+      startedAt: new Date(),
+      endsAt: new Date('2100-01-01T00:00:00.000Z'),
+      selectionLat: null,
+      selectionLon: null,
+      additionalDataUnlockedAt: null,
+      additionalDataPointsSpent: 0,
+      guessLat: score === null ? null : 51.5,
+      guessLon: score === null ? null : -0.1,
+      distanceKm: score === null ? null : 0,
+      score,
+      createdAt: new Date(),
+      attempts: [],
+    });
+
+    const completedGame = {
+      id: 'game-finite',
+      playerTokenHash: hashPlayerToken(token),
+      ownerUserId: null,
+      difficulty: 'medium' as const,
+      roundsTotal: 3,
+      expiresAt: new Date('2100-01-01T00:00:00.000Z'),
+      nextRoundNumber: null,
+      nextTargetIndex: null,
+      nextPanoId: null,
+      nextTargetLat: null,
+      nextTargetLon: null,
+      nextSceneJson: null,
+      nextWeatherValidUntil: null,
+      nextAttemptedIndices: [],
+      nextExhausted: false,
+      rounds: [baseRound(1, 5000), baseRound(2, 4000), baseRound(3, 3000)],
+    };
+
+    const provider = vi.fn();
+    const db = {
+      streetGame: {
+        findUnique: vi.fn().mockResolvedValue(completedGame),
+      },
+    } as unknown as PrismaClient;
+
+    const service = createSingleplayerService({ db, provider });
+    const session = await service.getSession('game-finite', token);
+    expect(session.roundsTotal).toBe(3);
+    expect(session.completed).toBe(true);
+    expect(session.totalScore).toBe(12000);
+    expect(session.activeRound).toBeNull();
+
+    await expect(service.startRound('game-finite', token)).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'All rounds in this game have been completed.',
+    });
+    expect(provider).not.toHaveBeenCalled();
+  });
 });

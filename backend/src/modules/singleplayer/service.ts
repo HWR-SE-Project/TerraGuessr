@@ -11,7 +11,11 @@ import { Prisma } from '@prisma/client';
 import type { Difficulty, PrismaClient, StreetRound } from '@prisma/client';
 
 import { prisma } from '../../db/prisma.js';
-import { STREET_GAME_TTL_MS } from '../../config/constants.js';
+import {
+  MAX_ROUNDS_TOTAL,
+  MIN_ROUNDS_TOTAL,
+  STREET_GAME_TTL_MS,
+} from '../../config/constants.js';
 import {
   generatePlayerToken,
   hashPlayerToken,
@@ -87,6 +91,26 @@ function parseDifficulty(value: unknown): Difficulty {
     (DIFFICULTIES as readonly string[]).includes(value)
     ? (value as Difficulty)
     : 'medium';
+}
+
+function parseRoundsTotal(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  if (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_ROUNDS_TOTAL &&
+    value <= MAX_ROUNDS_TOTAL
+  ) {
+    return value;
+  }
+  throw new AppError(
+    400,
+    `roundsTotal must be an integer between ${MIN_ROUNDS_TOTAL} and ${MAX_ROUNDS_TOTAL}, or null for endless mode.`,
+  );
+}
+
+function hasMoreRounds(roundsTotal: number | null | undefined, roundNumber: number): boolean {
+  return roundsTotal == null || roundNumber < roundsTotal;
 }
 
 export type RoundWithAttempts = Prisma.StreetRoundGetPayload<{
@@ -226,6 +250,7 @@ export function createSingleplayerService(
     playerTokenHash: string;
     ownerUserId: string | null;
     difficulty: Difficulty;
+    roundsTotal?: number | null;
     expiresAt: Date;
   };
 
@@ -241,6 +266,7 @@ export function createSingleplayerService(
         playerTokenHash: true,
         ownerUserId: true,
         difficulty: true,
+        roundsTotal: true,
         expiresAt: true,
       },
     });
@@ -319,7 +345,7 @@ export function createSingleplayerService(
   }
 
   async function finalizeRound(
-    game: Pick<GameHeader, 'id' | 'ownerUserId' | 'difficulty'>,
+    game: Pick<GameHeader, 'id' | 'ownerUserId' | 'difficulty' | 'roundsTotal'>,
     round: RoundWithAttempts,
     actual: LatLon,
     timedOut = false,
@@ -371,15 +397,18 @@ export function createSingleplayerService(
     });
     if (!finalized) return false;
     // R12/R13: ensure the next round's single preparation record is warm
-    // (no-op if already prepared with fresh weather while this round was played).
-    void prefetchNextStreetRound(
-      game.id,
-      round.number + 1,
-      db,
-      provider,
-      intelligence,
-      locate,
-    );
+    // (no-op if already prepared with fresh weather while this round was played),
+    // unless this was the final round of a finite-length session.
+    if (hasMoreRounds(game.roundsTotal, round.number)) {
+      void prefetchNextStreetRound(
+        game.id,
+        round.number + 1,
+        db,
+        provider,
+        intelligence,
+        locate,
+      );
+    }
     return true;
   }
 
@@ -412,14 +441,17 @@ export function createSingleplayerService(
 
   async function createGame(input: {
     difficulty?: unknown;
+    roundsTotal?: unknown;
     ownerUserId: string | null;
   }): Promise<{ id: string; playerToken: string }> {
     const playerToken = generatePlayerToken();
+    const roundsTotal = parseRoundsTotal(input.roundsTotal);
     const game = await db.streetGame.create({
       data: {
         playerTokenHash: hashPlayerToken(playerToken),
         ownerUserId: input.ownerUserId,
         difficulty: parseDifficulty(input.difficulty),
+        roundsTotal,
         expiresAt: new Date(Date.now() + STREET_GAME_TTL_MS),
       },
     });
@@ -435,9 +467,14 @@ export function createSingleplayerService(
         .map(async (round) => result(round, await resolveRoundPoint(round))),
     );
     const active = game.rounds.find((r) => r.score === null);
+    const roundsTotal = game.roundsTotal ?? null;
+    const completed =
+      roundsTotal !== null && active === undefined && results.length >= roundsTotal;
     return {
       id: game.id,
       difficulty: game.difficulty,
+      roundsTotal,
+      completed,
       totalScore: results.reduce((sum, r) => sum + r.score, 0),
       activeRound: active ? publicRound(active, rules) : null,
       results,
@@ -461,7 +498,10 @@ export function createSingleplayerService(
     const rules = gameRulesFor(game.difficulty);
     const active = game.rounds.find((r) => r.score === null);
     if (active) return publicRound(active, rules); // Idempotent retry, including response loss.
-    // Endless mode: no round cap. Preserve difficulty throughout.
+    // Finite sessions stop once all requested rounds have been completed.
+    if (game.roundsTotal != null && game.rounds.length >= game.roundsTotal) {
+      throw conflict('All rounds in this game have been completed.');
+    }
     const nextNumber = game.rounds.length + 1;
 
     // R12/R13: if background preparation for this round is already in flight,
@@ -504,15 +544,18 @@ export function createSingleplayerService(
           include: roundInclude(),
         });
         // R12: start preparing round N+1 while the player plays round N so
-        // clicking Next round returns immediately even with slow upstream forecasts.
-        void prefetchNextStreetRound(
-          game.id,
-          nextNumber + 1,
-          db,
-          provider,
-          intelligence,
-          locate,
-        );
+        // clicking Next round returns immediately even with slow upstream forecasts,
+        // unless this is the final round of a finite session.
+        if (hasMoreRounds(game.roundsTotal, nextNumber)) {
+          void prefetchNextStreetRound(
+            game.id,
+            nextNumber + 1,
+            db,
+            provider,
+            intelligence,
+            locate,
+          );
+        }
         return publicRound(round, rules);
       } catch (error) {
         if (!isUniqueConstraintError(error)) throw error;
@@ -787,14 +830,16 @@ export function createSingleplayerService(
         where: { id: game.id, nextRoundNumber: current.number + 1 },
         data: EMPTY_PREPARATION,
       });
-      void prefetchNextStreetRound(
-        game.id,
-        current.number + 1,
-        db,
-        provider,
-        intelligence,
-        locate,
-      );
+      if (hasMoreRounds(game.roundsTotal, current.number)) {
+        void prefetchNextStreetRound(
+          game.id,
+          current.number + 1,
+          db,
+          provider,
+          intelligence,
+          locate,
+        );
+      }
     }
     return publicRound(await roundWithAttempts(current.id), rules);
   }
@@ -938,7 +983,7 @@ export function createSingleplayerService(
       };
     });
 
-    if (outcome.shouldPrefetch) {
+    if (outcome.shouldPrefetch && hasMoreRounds(game.roundsTotal, round.number)) {
       void prefetchNextStreetRound(
         game.id,
         round.number + 1,

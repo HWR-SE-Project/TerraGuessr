@@ -18,7 +18,8 @@ interface RoundHud {
   roundsTotal?: number
   pauseExpiry?: boolean
   onExpired: () => void
-  onMenu: () => void
+  onLeave: () => void
+  leaveLabel?: string
 }
 
 interface RoundControls {
@@ -91,7 +92,8 @@ function RoundSurface({ round, hud, controls, error }: {
             attemptsUsed={round.attemptsUsed}
             attemptsTotal={round.attemptsTotal}
             timer={<Timer endsAt={round.endsAt} paused={pending !== null || hud.pauseExpiry} onExpired={hud.onExpired} />}
-            onMenu={hud.onMenu}
+            onLeave={hud.onLeave}
+            leaveLabel={hud.leaveLabel}
           />
         )}
         {controls && (

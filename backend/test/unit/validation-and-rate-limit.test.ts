@@ -204,6 +204,30 @@ describe('Strict JSON body validation (coerceTypes: false on body, kept on param
       });
       expect(validDiff.statusCode).toBe(201);
 
+      const validFinite = await app.inject({
+        method: 'POST',
+        url: '/api/singleplayer/games',
+        payload: { difficulty: 'easy', roundsTotal: 5 },
+      });
+      expect(validFinite.statusCode).toBe(201);
+
+      const validEndless = await app.inject({
+        method: 'POST',
+        url: '/api/singleplayer/games',
+        payload: { difficulty: 'easy', roundsTotal: null },
+      });
+      expect(validEndless.statusCode).toBe(201);
+
+      for (const roundsTotal of [2, 11, 4.5]) {
+        const invalidRounds = await app.inject({
+          method: 'POST',
+          url: '/api/singleplayer/games',
+          payload: { difficulty: 'medium', roundsTotal },
+        });
+        expect(invalidRounds.statusCode).toBe(400);
+        expect(invalidRounds.json()).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+      }
+
       const nullSel = await app.inject({
         method: 'PUT',
         url: '/api/singleplayer/games/game-1/rounds/round-1/selection',

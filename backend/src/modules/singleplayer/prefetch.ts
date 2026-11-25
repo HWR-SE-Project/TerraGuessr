@@ -52,6 +52,7 @@ export function prefetchNextStreetRound(
         },
       });
       if (!game) return;
+      if (game.roundsTotal != null && roundNumber > game.roundsTotal) return;
       if (game.rounds.length + 1 !== roundNumber) return;
 
       const sameRound =

@@ -103,6 +103,7 @@ export interface MockGame {
   id: string
   playerToken: string
   difficulty: Difficulty
+  roundsTotal: number | null
   totalScore: number
   activeRound: MockRound | null
   results: MockStreetResult[]
