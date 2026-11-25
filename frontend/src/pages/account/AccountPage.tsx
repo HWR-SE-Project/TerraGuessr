@@ -251,7 +251,8 @@ function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
       >
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">
-            This permanently deletes your account and personal data. Type <span className="font-bold text-cream">DELETE</span> to confirm.
+            This permanently deletes your account, personal data, and saved statistics. Type{' '}
+            <span className="font-bold text-cream">DELETE</span> to confirm.
           </p>
           <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="DELETE" />
           {hasPassword && (

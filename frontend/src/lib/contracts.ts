@@ -361,3 +361,181 @@ export const AVATAR_PARTS = [
 ] as const
 export type AvatarPart = (typeof AVATAR_PARTS)[number]
 export type AvatarConfig = { version: 1 } & Record<AvatarPart, string | null>
+
+// --- Statistics & Match History ---------------------------------------------
+
+export type GameMode = 'solo' | 'multiplayer'
+export type StatsPeriod = '7d' | '30d' | '90d' | '6m'
+export type StatsModeFilter = 'all' | GameMode
+export type StatsDifficultyFilter = 'all' | Difficulty
+export type AccuracyBand = 'bullseye' | 'close' | 'regional' | 'continent' | 'far' | 'missed'
+export type ConsistencyTier = 'rock_solid' | 'steady' | 'balanced' | 'wildcard'
+export type CalloutTone = 'lime' | 'sky' | 'amber' | 'violet'
+
+export interface CategoryBreakdownItem {
+  key: string
+  rounds: number
+  averageScore: number
+  medianDistanceKm: number | null
+  perfectRate: number
+}
+
+export interface ExplorerCallout {
+  id: string
+  title: string
+  detail: string
+  tone: CalloutTone
+}
+
+export interface PlayerStatistics {
+  period: StatsPeriod
+  mode: StatsModeFilter
+  difficulty: StatsDifficultyFilter
+  windowStart: string
+  windowEnd: string
+  hasPreviousPeriod: boolean
+  totalRetainedRounds: number
+  kpis: {
+    roundsPlayed: number
+    matchesPlayed: number
+    averageScore: number | null
+    medianDistanceKm: number | null
+    averageDistanceKm: number | null
+    perfectCount: number
+    perfectRate: number | null
+    timeoutCount: number
+    timeoutRate: number | null
+    deltas: {
+      roundsPlayed: number | null
+      matchesPlayed: number | null
+      averageScore: number | null
+      medianDistanceKm: number | null
+      averageDistanceKm: number | null
+      perfectRate: number | null
+      timeoutRate: number | null
+    }
+  }
+  personalBests: {
+    bestRound: {
+      score: number
+      distanceKm: number | null
+      placeName: string | null
+      mode: GameMode
+      difficulty: Difficulty
+      createdAt: string
+    } | null
+    bestMatch: {
+      matchId: string
+      totalScore: number
+      averageScore: number
+      rounds: number
+      mode: GameMode
+      difficulty: Difficulty
+      playedAt: string
+    } | null
+  }
+  multiplayer: {
+    finishedMatches: number
+    wins: number
+    podiums: number
+    winRate: number | null
+    podiumRate: number | null
+    averagePlacement: number | null
+  }
+  trend: {
+    granularity: 'day' | 'week'
+    points: Array<{
+      bucketStart: string
+      rounds: number
+      averageScore: number
+      rollingAverageScore: number
+      medianDistanceKm: number | null
+    }>
+  }
+  accuracyDistribution: Array<{
+    band: AccuracyBand
+    count: number
+    percentage: number
+  }>
+  modeDifficultyMatrix: Array<{
+    mode: GameMode
+    difficulty: Difficulty
+    rounds: number
+    matches: number
+    averageScore: number | null
+    medianDistanceKm: number | null
+    perfectRate: number | null
+  }>
+  consistency: {
+    currentPerfectStreak: number
+    bestPerfectStreak: number
+    currentPlayStreakDays: number
+    bestPlayStreakDays: number
+    scoreStdDev: number | null
+    scoreIqr: number | null
+    tier: ConsistencyTier | null
+  }
+  explorerProfile: ExplorerCallout[]
+  environment: {
+    sampleSize: number
+    byBiome: CategoryBreakdownItem[]
+    byWeather: CategoryBreakdownItem[]
+    byTemperatureBand: CategoryBreakdownItem[]
+  }
+  strategy: {
+    elapsedSampleSize: number
+    averageElapsedSeconds: number | null
+    attemptsSampleSize: number
+    averageAttemptsUsed: number | null
+    hintsSampleSize: number
+    hints: {
+      unlockedRounds: number
+      notUnlockedRounds: number
+      usageRate: number | null
+      unlockedAvgScore: number | null
+      notUnlockedAvgScore: number | null
+      unlockedMedianDistanceKm: number | null
+      notUnlockedMedianDistanceKm: number | null
+      totalPointsSpent: number
+    }
+  }
+}
+
+export interface MatchHistoryRound {
+  id: string
+  roundNumber: number
+  actual: LatLon
+  guess: LatLon | null
+  distanceKm: number | null
+  score: number
+  placeName: string | null
+  biome: string | null
+  weather: string | null
+  temperatureBand: string | null
+  attemptsUsed: number | null
+  extraDataUnlocked: boolean | null
+  extraDataPointsSpent: number | null
+  elapsedSeconds: number | null
+  createdAt: string
+}
+
+export interface MatchHistoryEntry {
+  matchId: string
+  sessionId: string
+  mode: GameMode
+  difficulty: Difficulty
+  playedAt: string
+  totalScore: number
+  averageScore: number
+  perfectCount: number
+  matchPlacement: number | null
+  matchPlayerCount: number | null
+  results: MatchHistoryRound[]
+}
+
+export interface MatchHistoryResponse {
+  matches: MatchHistoryEntry[]
+  total: number
+  offset: number
+  limit: number
+}

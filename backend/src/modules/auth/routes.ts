@@ -457,8 +457,8 @@ export function registerAuthRoutes(
     if (user.passwordHash && !(await verifyPassword(currentPassword ?? '', user.passwordHash))) {
       throw new AuthError(401, 'Current password is incorrect');
     }
-    // Cascades identity/session/preferences/reset-token rows. Historical game
-    // and result records survive with ownerUserId set to null (R18).
+    // Cascades identity, sessions, preferences, tokens, and archived GameResult
+    // statistics. Active StreetGame/LobbyMember rows detach via SetNull until expiry.
     await db.user.delete({ where: { id: user.id } });
     clearSessionCookie(reply, config.sessionCookieSecure);
     reply.code(204);

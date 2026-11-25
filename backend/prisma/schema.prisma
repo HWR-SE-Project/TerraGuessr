@@ -348,26 +348,36 @@ model StreetRoundAttempt {
 // to the player's account. `id` is a deterministic dedupe key:
 //   solo:<StreetRound.id> | lobby:<LobbyRoundResult.id>
 // Deliberately has NO relation/cascade to StreetGame, StreetRound, Lobby, or
-// LobbyMember: session/lobby cleanup must never delete retained history. The
-// nullable `userId` exists so account deletion can anonymise a row (SetNull)
-// while the 6-month retention job (scheduler/purge.ts) still removes it.
+// LobbyMember: session/lobby cleanup must never delete retained history.
+// Deleting a user account immediately cascades their GameResult rows, while
+// active accounts' rows are automatically purged after 6 months (scheduler/purge.ts).
 // `sessionId` + `roundNumber` allow archived rounds to be regrouped per game.
 model GameResult {
-  id          String     @id
-  userId      String?
-  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  mode        GameMode
-  difficulty  Difficulty
-  sessionId   String // StreetGame.id or Lobby.id, no FK by design
-  matchId     String // groups rounds of one game; rotates on lobby rematch
-  roundNumber Int
-  actualLat   Float
-  actualLon   Float
-  guessLat    Float? // last submitted attempt; null when the round ended without one
-  guessLon    Float?
-  distanceKm  Float? // R09
-  score       Int // R10
-  createdAt   DateTime   @default(now()) // drives 6-month purge (R18)
+  id                   String     @id
+  userId               String?
+  user                 User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mode                 GameMode
+  difficulty           Difficulty
+  sessionId            String // StreetGame.id or Lobby.id, no FK by design
+  matchId              String // groups rounds of one game; rotates on lobby rematch
+  roundNumber          Int
+  actualLat            Float
+  actualLon            Float
+  guessLat             Float? // last submitted attempt; null when the round ended without one
+  guessLon             Float?
+  distanceKm           Float? // R09
+  score                Int // R10
+  placeName            String?
+  biome                String?
+  weather              String?
+  temperatureBand      String?
+  attemptsUsed         Int?
+  extraDataUnlocked    Boolean?
+  extraDataPointsSpent Int?
+  elapsedSeconds       Int?
+  matchPlacement       Int? // 1-based final rank in completed multiplayer matches
+  matchPlayerCount     Int? // total players in completed multiplayer matches
+  createdAt            DateTime   @default(now()) // drives 6-month purge (R18)
 
   @@index([createdAt])
   @@index([userId, createdAt])

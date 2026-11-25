@@ -1467,7 +1467,7 @@ describe('durable result archive', () => {
     expect(archived.score).toBe(second.result.score);
     expect(archived.distanceKm).toBe(second.result.distanceKm);
   });
-  it('survives deletion of the 24h-expired session and account deletion', async () => {
+  it('survives deletion of the 24h-expired session and cascades on account deletion', async () => {
     const account = await signIn(db, 'Archive Survivor');
     const auth = await createGame('hard', account.cookie);
     const round = (
@@ -1482,12 +1482,13 @@ describe('durable result archive', () => {
     // Simulate the 24h session-expiry cleanup, which cascades StreetRound.
     await db.streetGame.delete({ where: { id: auth.id } });
     expect(await db.streetRound.count({ where: { id: round.id } })).toBe(0);
-    // Account deletion anonymises the archive but must not delete it.
-    await db.user.delete({ where: { id: account.user.id } });
     expect(await db.gameResult.findUnique({ where: { id: `solo:${round.id}` } })).toMatchObject({
-      userId: null,
+      userId: account.user.id,
       sessionId: auth.id,
     });
+    // Account deletion immediately removes the user's archived statistics.
+    await db.user.delete({ where: { id: account.user.id } });
+    expect(await db.gameResult.findUnique({ where: { id: `solo:${round.id}` } })).toBeNull();
   });
   it('preserves placeName on pre-diorama legacy results (index 2 Rome) instead of showing Berlin', async () => {
     const auth = await createGame('medium');

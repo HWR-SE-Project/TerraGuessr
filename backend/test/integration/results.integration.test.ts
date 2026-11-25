@@ -6,6 +6,7 @@ import type { PrismaClient } from '@prisma/client';
 
 import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
 import { registerResultsRoutes } from '../../src/modules/results/routes.js';
+import { registerStatisticsRoutes } from '../../src/modules/statistics/routes.js';
 import { createUserSession } from '../../src/modules/auth/service.js';
 import {
   purgeExpiredGameResults,
@@ -40,6 +41,7 @@ describe('authenticated result history', () => {
     app = Fastify({ logger: { level: 'silent' } });
     registerErrorHandler(app);
     registerResultsRoutes(app, db);
+    registerStatisticsRoutes(app, db);
   });
 
   afterAll(async () => {
@@ -347,5 +349,78 @@ describe('authenticated result history', () => {
       await db.streetGame.deleteMany({ where: { id: soloGame.id } });
       await db.lobby.deleteMany({ where: { id: { in: [activeLobby.id, expiredLobby.id] } } });
     }
+  });
+
+  it('serves /api/me/statistics and mode/difficulty-filtered /api/me/results with enriched fields', async () => {
+    const unauth = await app.inject({ url: '/api/me/statistics' });
+    expect(unauth.statusCode).toBe(401);
+
+    const { user, cookie } = await signIn('Stats Explorer');
+    const now = new Date();
+    const recent = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    await db.gameResult.createMany({
+      data: [
+        {
+          ...row(`st-1-${user.id}`, user.id, `m-solo-${user.id}`, 1, recent.toISOString(), 5000),
+          distanceKm: 42,
+          placeName: 'Reykjavik',
+          biome: 'tundra',
+          weather: 'snow',
+          temperatureBand: 'freezing',
+          attemptsUsed: 1,
+          extraDataUnlocked: true,
+          extraDataPointsSpent: 100,
+          elapsedSeconds: 52,
+        },
+        {
+          ...row(`st-2-${user.id}`, user.id, `m-mp-${user.id}`, 1, now.toISOString(), 4200),
+          mode: 'multiplayer',
+          difficulty: 'hard',
+          distanceKm: 650,
+          placeName: 'Lisbon',
+          biome: 'coast',
+          weather: 'clear',
+          temperatureBand: 'warm',
+          attemptsUsed: 1,
+          extraDataUnlocked: false,
+          extraDataPointsSpent: 0,
+          elapsedSeconds: 70,
+          matchPlacement: 1,
+          matchPlayerCount: 3,
+        },
+      ],
+    });
+
+    const statsRes = await app.inject({
+      url: '/api/me/statistics?period=30d&mode=all&difficulty=all',
+      headers: { cookie },
+    });
+    expect(statsRes.statusCode).toBe(200);
+    expect(statsRes.headers['cache-control']).toBe('private, no-store');
+    const stats = statsRes.json() as {
+      kpis: { roundsPlayed: number; matchesPlayed: number; perfectCount: number };
+      multiplayer: { finishedMatches: number; wins: number; winRate: number | null };
+      environment: { sampleSize: number };
+      personalBests: { bestRound: { placeName: string | null } | null };
+    };
+    expect(stats.kpis.roundsPlayed).toBe(2);
+    expect(stats.kpis.matchesPlayed).toBe(2);
+    expect(stats.kpis.perfectCount).toBe(1);
+    expect(stats.multiplayer).toMatchObject({ finishedMatches: 1, wins: 1, winRate: 100 });
+    expect(stats.environment.sampleSize).toBe(2);
+    expect(stats.personalBests.bestRound?.placeName).toBe('Reykjavik');
+
+    const filtered = await app.inject({
+      url: '/api/me/results?mode=multiplayer&difficulty=hard',
+      headers: { cookie },
+    });
+    expect(filtered.statusCode).toBe(200);
+    const filteredBody = filtered.json() as {
+      total: number;
+      matches: Array<ResultMatch & { matchPlacement: number | null; matchPlayerCount: number | null }>;
+    };
+    expect(filteredBody.total).toBe(1);
+    expect(filteredBody.matches[0]?.matchPlacement).toBe(1);
+    expect(filteredBody.matches[0]?.matchPlayerCount).toBe(3);
   });
 });

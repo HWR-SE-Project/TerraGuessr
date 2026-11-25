@@ -37,7 +37,11 @@ import {
   extraDataAccess,
   formatEvaluatedAttempts,
 } from '../../domain/roundView.js';
-import { archiveGameResult } from '../../domain/archive.js';
+import {
+  archiveGameResult,
+  computeElapsedSeconds,
+  extractSceneMetadata,
+} from '../../domain/archive.js';
 import { buildRoundScene, type RoundScene } from '../../domain/scene.js';
 import { catalogLocationProvider } from './provider.js';
 import type { PanoramaProvider, PanoramaTarget } from './provider.js';
@@ -378,6 +382,8 @@ export function createSingleplayerService(
       if (game.ownerUserId !== null) {
         // R18: durable account-associated archive, decoupled from the 24h
         // session-expiry cleanup. Stores the evaluated guess matching score/distance.
+        const sceneMeta = extractSceneMetadata(round.sceneJson);
+        const rules = gameRulesFor(game.difficulty);
         await archiveGameResult(tx, {
           prefix: 'solo',
           roundId: round.id,
@@ -391,6 +397,19 @@ export function createSingleplayerService(
           evaluatedGuess: guess,
           distanceKm,
           score,
+          placeName: round.placeName,
+          biome: sceneMeta.biome,
+          weather: sceneMeta.weather,
+          temperatureBand: sceneMeta.temperatureBand,
+          attemptsUsed: round.attempts.length,
+          extraDataUnlocked: round.additionalDataUnlockedAt !== null,
+          extraDataPointsSpent: round.additionalDataPointsSpent,
+          elapsedSeconds: computeElapsedSeconds(
+            round.startedAt,
+            new Date(),
+            rules.timeLimitSeconds,
+            timedOut,
+          ),
         });
       }
       return true;
@@ -957,6 +976,7 @@ export function createSingleplayerService(
       });
 
       if (game.ownerUserId !== null) {
+        const sceneMeta = extractSceneMetadata(locked.sceneJson);
         await archiveGameResult(tx, {
           prefix: 'solo',
           roundId: round.id,
@@ -970,6 +990,19 @@ export function createSingleplayerService(
           evaluatedGuess: evaluated.guess,
           distanceKm: evaluated.distanceKm,
           score: evaluated.score,
+          placeName: locked.placeName,
+          biome: sceneMeta.biome,
+          weather: sceneMeta.weather,
+          temperatureBand: sceneMeta.temperatureBand,
+          attemptsUsed: allAttempts.length,
+          extraDataUnlocked: locked.additionalDataUnlockedAt !== null,
+          extraDataPointsSpent: locked.additionalDataPointsSpent,
+          elapsedSeconds: computeElapsedSeconds(
+            locked.startedAt,
+            new Date(),
+            rules.timeLimitSeconds,
+            false,
+          ),
         });
       }
 
