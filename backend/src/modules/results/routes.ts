@@ -1,9 +1,10 @@
 import { Type } from '@sinclair/typebox';
-import type { PrismaClient } from '@prisma/client';
+import type { Difficulty, GameMode as PrismaGameMode, PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 
 import { prisma } from '../../db/prisma.js';
 import { RATE_LIMITS } from '../../config/constants.js';
+import { FULL_SCORE_KM, MAX_SCORE } from '../../domain/scoring.js';
 import { settleTimedOutResultsForUser } from '../../domain/settlement.js';
 import { requireSessionUser } from '../auth/session.js';
 import {
@@ -20,6 +21,14 @@ const ResultRow = Type.Object(
     guess: Type.Union([Coordinates, Type.Null()]),
     distanceKm: Type.Union([Type.Number(), Type.Null()]),
     score: Type.Integer(),
+    placeName: Type.Union([Type.String(), Type.Null()]),
+    biome: Type.Union([Type.String(), Type.Null()]),
+    weather: Type.Union([Type.String(), Type.Null()]),
+    temperatureBand: Type.Union([Type.String(), Type.Null()]),
+    attemptsUsed: Type.Union([Type.Integer(), Type.Null()]),
+    extraDataUnlocked: Type.Union([Type.Boolean(), Type.Null()]),
+    extraDataPointsSpent: Type.Union([Type.Integer(), Type.Null()]),
+    elapsedSeconds: Type.Union([Type.Integer(), Type.Null()]),
     createdAt: Type.String(),
   },
   { additionalProperties: false },
@@ -30,7 +39,12 @@ const Match = Type.Object(
     sessionId: Type.String(),
     mode: GameMode,
     difficulty: DifficultyLevel,
+    playedAt: Type.String(),
     totalScore: Type.Integer(),
+    averageScore: Type.Integer(),
+    perfectCount: Type.Integer(),
+    matchPlacement: Type.Union([Type.Integer(), Type.Null()]),
+    matchPlayerCount: Type.Union([Type.Integer(), Type.Null()]),
     results: Type.Array(ResultRow),
   },
   { additionalProperties: false },
@@ -48,6 +62,8 @@ const Query = Type.Object(
   {
     limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
     offset: Type.Optional(Type.Integer({ minimum: 0 })),
+    mode: Type.Optional(GameMode),
+    difficulty: Type.Optional(DifficultyLevel),
   },
   { additionalProperties: false },
 );
@@ -55,6 +71,8 @@ const Query = Type.Object(
 interface ResultQuery {
   limit?: number;
   offset?: number;
+  mode?: PrismaGameMode;
+  difficulty?: Difficulty;
 }
 
 /**
@@ -83,28 +101,35 @@ export function registerResultsRoutes(
       await settleTimedOutResultsForUser(db, user.id);
       const limit = request.query.limit ?? 20;
       const offset = request.query.offset ?? 0;
+      const modeFilter = request.query.mode;
+      const difficultyFilter = request.query.difficulty;
 
-      const [groups, counted] = await Promise.all([
+      const where = {
+        userId: user.id,
+        ...(modeFilter ? { mode: modeFilter } : {}),
+        ...(difficultyFilter ? { difficulty: difficultyFilter } : {}),
+      };
+
+      const [groups, distinctMatchGroups] = await Promise.all([
         db.gameResult.groupBy({
           by: ['matchId'],
-          where: { userId: user.id },
+          where,
           _max: { createdAt: true },
           orderBy: { _max: { createdAt: 'desc' } },
           take: limit,
           skip: offset,
         }),
-        db.$queryRaw<Array<{ count: number }>>`
-          SELECT COUNT(DISTINCT "matchId")::int AS count
-          FROM "GameResult"
-          WHERE "userId" = ${user.id}
-        `,
+        db.gameResult.groupBy({
+          by: ['matchId'],
+          where,
+        }),
       ]);
       const matchIds = groups.map((group) => group.matchId);
       const rows =
         matchIds.length === 0
           ? []
           : await db.gameResult.findMany({
-              where: { userId: user.id, matchId: { in: matchIds } },
+              where: { ...where, matchId: { in: matchIds } },
               orderBy: [{ roundNumber: 'asc' }, { createdAt: 'asc' }],
             });
       const byMatch = new Map<string, typeof rows>();
@@ -117,13 +142,32 @@ export function registerResultsRoutes(
         const results = byMatch.get(matchId);
         const first = results?.[0];
         if (!results || !first) return [];
+        const totalScore = results.reduce((sum, result) => sum + result.score, 0);
+        const averageScore = Math.round(totalScore / results.length);
+        const perfectCount = results.filter(
+          (r) =>
+            r.score >= MAX_SCORE ||
+            (r.distanceKm !== null && Math.round(r.distanceKm * 10) / 10 <= FULL_SCORE_KM),
+        ).length;
+        const playedAt = results.reduce(
+          (latest, result) => (result.createdAt > latest ? result.createdAt : latest),
+          first.createdAt,
+        );
+        const placedRow = results.find(
+          (r) => r.matchPlacement !== null && r.matchPlayerCount !== null,
+        );
         return [
           {
             matchId,
             sessionId: first.sessionId,
             mode: first.mode,
             difficulty: first.difficulty,
-            totalScore: results.reduce((sum, result) => sum + result.score, 0),
+            playedAt: playedAt.toISOString(),
+            totalScore,
+            averageScore,
+            perfectCount,
+            matchPlacement: placedRow?.matchPlacement ?? null,
+            matchPlayerCount: placedRow?.matchPlayerCount ?? null,
             results: results.map((result) => ({
               id: result.id,
               roundNumber: result.roundNumber,
@@ -134,6 +178,14 @@ export function registerResultsRoutes(
                   : { lat: result.guessLat, lon: result.guessLon },
               distanceKm: result.distanceKm,
               score: result.score,
+              placeName: result.placeName,
+              biome: result.biome,
+              weather: result.weather,
+              temperatureBand: result.temperatureBand,
+              attemptsUsed: result.attemptsUsed,
+              extraDataUnlocked: result.extraDataUnlocked,
+              extraDataPointsSpent: result.extraDataPointsSpent,
+              elapsedSeconds: result.elapsedSeconds,
               createdAt: result.createdAt.toISOString(),
             })),
           },
@@ -142,7 +194,7 @@ export function registerResultsRoutes(
 
       return {
         matches,
-        total: counted[0]?.count ?? 0,
+        total: distinctMatchGroups.length,
         offset,
         limit,
       };

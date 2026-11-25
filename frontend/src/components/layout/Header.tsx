@@ -13,6 +13,7 @@ const NAV = [
   { to: '/', label: 'Home', end: true },
   { to: '/singleplayer', label: 'Singleplayer' },
   { to: '/multiplayer', label: 'Multiplayer' },
+  { to: '/stats', label: 'Stats' },
   { to: '/how-to-play', label: 'How to play' },
 ]
 

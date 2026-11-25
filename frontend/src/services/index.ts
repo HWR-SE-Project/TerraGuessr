@@ -12,6 +12,7 @@
 import { authHttp } from './http/auth'
 import { singleplayerHttp } from './http/singleplayer'
 import { lobbyHttp } from './http/lobbies'
+import { statsHttp } from './http/stats'
 import { apiFetch } from './http/client'
 import type { GameRulesCatalog } from '../lib/contracts'
 
@@ -21,6 +22,7 @@ export const api = {
   auth: authHttp,
   singleplayer: singleplayerHttp,
   lobby: lobbyHttp,
+  stats: statsHttp,
   gameRules: () => apiFetch<GameRulesCatalog>('/game-rules'),
 }
 

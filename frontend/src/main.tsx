@@ -15,6 +15,7 @@ import { SettingsPage } from './pages/settings/SettingsPage'
 import { AccountPage } from './pages/account/AccountPage'
 import { AvatarPage } from './pages/avatar/AvatarPage'
 import { HowToPlayPage } from './pages/how-to-play/HowToPlayPage'
+import { StatsPage } from './pages/stats/StatsPage'
 import { AuthPage } from './pages/auth/AuthPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { VerifyEmailPage } from './pages/auth/VerifyEmailPage'
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: '/settings', element: <SettingsPage /> },
       { path: '/account', element: <AccountPage /> },
       { path: '/avatar', element: <AvatarPage /> },
+      { path: '/stats', element: <StatsPage /> },
       { path: '/how-to-play', element: <HowToPlayPage /> },
       { path: '/auth', element: <AuthPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },

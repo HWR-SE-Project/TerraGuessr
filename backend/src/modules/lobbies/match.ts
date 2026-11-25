@@ -31,7 +31,13 @@ import {
   extraDataAccess,
   formatEvaluatedAttempts,
 } from '../../domain/roundView.js';
-import { archiveGameResult } from '../../domain/archive.js';
+import {
+  archiveGameResult,
+  computeElapsedSeconds,
+  computeMatchPlacements,
+  extractSceneMetadata,
+  stampMultiplayerMatchPlacements,
+} from '../../domain/archive.js';
 import { buildRoundScene, type RoundScene } from '../../domain/scene.js';
 import { hashPlayerToken } from '../../plugins/auth.js';
 import { AppError } from '../../plugins/errors.js';
@@ -474,8 +480,15 @@ async function ensureLobbyProgress(
         where: { roundId: round.id },
         include: { member: { select: { userId: true } } },
       });
+      const memberStateByMemberId = new Map(
+        round.memberStates.map((state) => [state.memberId, state]),
+      );
+      const sceneMeta = extractSceneMetadata(round.sceneJson);
+      const rules = gameRulesFor(lobby.difficulty);
+      const timedOutMemberIds = new Set(timedOut.map((member) => member.id));
       for (const result of results) {
         if (result.member.userId === null) continue;
+        const memberState = memberStateByMemberId.get(result.memberId);
         await archiveGameResult(tx, {
           prefix: 'lobby',
           roundId: result.id,
@@ -492,7 +505,30 @@ async function ensureLobbyProgress(
               : null,
           distanceKm: result.distanceKm,
           score: result.score,
+          placeName: round.placeName,
+          biome: sceneMeta.biome,
+          weather: sceneMeta.weather,
+          temperatureBand: sceneMeta.temperatureBand,
+          attemptsUsed: result.attemptsUsed,
+          extraDataUnlocked:
+            memberState?.extraDataUnlockedAt != null ||
+            result.extraDataPointsSpent > 0,
+          extraDataPointsSpent: result.extraDataPointsSpent,
+          elapsedSeconds: computeElapsedSeconds(
+            round.startedAt,
+            result.createdAt,
+            rules.timeLimitSeconds,
+            timedOutMemberIds.has(result.memberId),
+          ),
         });
+      }
+      if (!nextRound) {
+        const allMatchResults = await tx.lobbyRoundResult.findMany({
+          where: { round: { lobbyId: lobby.id } },
+          select: { memberId: true, score: true },
+        });
+        const placements = computeMatchPlacements(lobby.members, allMatchResults);
+        await stampMultiplayerMatchPlacements(tx, lobby.matchId, placements);
       }
       return true;
     });

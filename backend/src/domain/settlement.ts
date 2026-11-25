@@ -10,7 +10,14 @@
 import type { PrismaClient } from '@prisma/client';
 
 import { LOBBY_ROUND_REVIEW_MS } from '../config/constants.js';
-import { archiveGameResult } from './archive.js';
+import {
+  archiveGameResult,
+  computeElapsedSeconds,
+  computeMatchPlacements,
+  extractSceneMetadata,
+  stampMultiplayerMatchPlacements,
+} from './archive.js';
+import { gameRulesFor } from './gameRules.js';
 import { isDeadlinePassed } from './roundFlow.js';
 import { computeScore } from './roundView.js';
 
@@ -91,6 +98,8 @@ export async function settleTimedOutStreetRounds(
           },
         });
         if (!updated.count) return false;
+        const sceneMeta = extractSceneMetadata(round.sceneJson);
+        const rules = gameRulesFor(round.game.difficulty);
         await archiveGameResult(tx, {
           prefix: 'solo',
           roundId: round.id,
@@ -104,6 +113,19 @@ export async function settleTimedOutStreetRounds(
           evaluatedGuess: guess,
           distanceKm,
           score,
+          placeName: round.placeName,
+          biome: sceneMeta.biome,
+          weather: sceneMeta.weather,
+          temperatureBand: sceneMeta.temperatureBand,
+          attemptsUsed: round.attempts.length,
+          extraDataUnlocked: round.additionalDataUnlockedAt !== null,
+          extraDataPointsSpent: round.additionalDataPointsSpent,
+          elapsedSeconds: computeElapsedSeconds(
+            round.startedAt,
+            now,
+            rules.timeLimitSeconds,
+            true,
+          ),
         });
         return true;
       });
@@ -223,9 +245,16 @@ export async function settleTimedOutLobbyRounds(
           where: { roundId: round.id },
           include: { member: { select: { userId: true } } },
         });
+        const memberStateByMemberId = new Map(
+          round.memberStates.map((state) => [state.memberId, state]),
+        );
+        const sceneMeta = extractSceneMetadata(round.sceneJson);
+        const rules = gameRulesFor(lobby.difficulty);
+        const timedOutMemberIds = new Set(timedOut.map((member) => member.id));
         let count = 0;
         for (const result of results) {
           if (result.member.userId === null) continue;
+          const memberState = memberStateByMemberId.get(result.memberId);
           await archiveGameResult(tx, {
             prefix: 'lobby',
             roundId: result.id,
@@ -245,8 +274,31 @@ export async function settleTimedOutLobbyRounds(
                 : null,
             distanceKm: result.distanceKm,
             score: result.score,
+            placeName: round.placeName,
+            biome: sceneMeta.biome,
+            weather: sceneMeta.weather,
+            temperatureBand: sceneMeta.temperatureBand,
+            attemptsUsed: result.attemptsUsed,
+            extraDataUnlocked:
+              memberState?.extraDataUnlockedAt != null ||
+              result.extraDataPointsSpent > 0,
+            extraDataPointsSpent: result.extraDataPointsSpent,
+            elapsedSeconds: computeElapsedSeconds(
+              round.startedAt,
+              result.createdAt,
+              rules.timeLimitSeconds,
+              timedOutMemberIds.has(result.memberId),
+            ),
           });
           count += 1;
+        }
+        if (round.number >= lobby.roundsTotal) {
+          const allMatchResults = await tx.lobbyRoundResult.findMany({
+            where: { round: { lobbyId: lobby.id } },
+            select: { memberId: true, score: true },
+          });
+          const placements = computeMatchPlacements(lobby.members, allMatchResults);
+          await stampMultiplayerMatchPlacements(tx, lobby.matchId, placements);
         }
         return count;
       });

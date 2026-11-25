@@ -149,6 +149,21 @@ const PATHS: Record<string, ReactNode> = {
       strokeLinejoin="round"
     />
   ),
+  chart: (
+    <>
+      <path d="M4 19h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M7 16v-4M12 16V8M17 16v-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </>
+  ),
+  flame: (
+    <path
+      d="M12.5 3.5c.8 2.7-.2 4.6-1.5 6-.9 1-1.3 2-.9 3.1.4 1 1.4 1.6 2.4 1.4 1.3-.3 2-1.7 1.8-3.4 2.2 1.5 3.2 3.8 2.8 6.1-.4 2.4-2.6 4.1-5.2 4.1-3.1 0-5.4-2.3-5.4-5.4 0-3.1 2-5.4 3.5-7.4 1.1-1.4 2-2.8 2.5-4.5Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinejoin="round"
+    />
+  ),
 }
 
 export type IconName = keyof typeof PATHS
