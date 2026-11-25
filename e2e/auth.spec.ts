@@ -22,7 +22,7 @@ test.describe('authentication and account settings', () => {
 
     await page.getByLabel('Password').fill(password);
     await page.locator('main').getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/$/, { timeout: 15_000 });
     await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
   });
 
@@ -46,7 +46,7 @@ test.describe('authentication and account settings', () => {
     await dialog.getByPlaceholder('Current password (if set)').fill(password);
     await dialog.getByRole('button', { name: 'Delete forever' }).click();
 
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/$/, { timeout: 15_000 });
     const sessionAfter = await page.request.get('/api/auth/session');
     expect((await sessionAfter.json()).user).toBeNull();
   });

@@ -50,7 +50,8 @@ function fitCandidateBounds(instance: L.Map, candidates: MapCandidate[]): boolea
   const points: [number, number][] = candidates.map((candidate) => [candidate.lat, candidate.lon])
   if (points.length >= 2) {
     instance.fitBounds(L.latLngBounds(points), {
-      padding: [36, 36],
+      paddingTopLeft: [50, 44],
+      paddingBottomRight: [50, 32],
       maxZoom: 4,
       animate: false,
     })

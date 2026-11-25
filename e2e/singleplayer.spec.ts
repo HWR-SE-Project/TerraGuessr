@@ -1,4 +1,33 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function selectCandidate(page: Page) {
+  const candidates = page.locator('button[aria-pressed]');
+  await expect(candidates).toHaveCount(6);
+
+  // Easy-mode candidate pins sit on a compact world-zoom Leaflet map, so two
+  // nearby cities (e.g. Berlin & Paris) can overlap. Pick the first pin whose
+  // center is unobstructed so a real pointer click lands cleanly; fall back to
+  // keyboard activation if every pin is overlapped.
+  const clearIndex = await candidates.evaluateAll((buttons) => {
+    for (let i = 0; i < buttons.length; i += 1) {
+      const btn = buttons[i] as HTMLButtonElement;
+      if (btn.disabled) continue;
+      const rect = btn.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      if (hit && (hit === btn || btn.contains(hit))) return i;
+    }
+    return -1;
+  });
+
+  if (clearIndex >= 0) {
+    await candidates.nth(clearIndex).click();
+  } else {
+    const first = candidates.first();
+    await first.focus();
+    await first.press('Enter');
+  }
+}
 
 test.describe('singleplayer gameplay', () => {
   test('starts an easy game, completes a round, and advances to round 2', async ({ page }) => {
@@ -9,10 +38,7 @@ test.describe('singleplayer gameplay', () => {
     await expect(page).toHaveURL(/\/singleplayer\/play$/);
     await expect(page.getByText('Pick a city')).toBeVisible({ timeout: 20_000 });
 
-    const candidates = page.locator('button[aria-pressed]');
-    await expect(candidates).toHaveCount(6);
-
-    await candidates.first().click();
+    await selectCandidate(page);
     await page.getByRole('button', { name: 'Final submit' }).click();
 
     const resultDialog = page.getByRole('dialog', { name: 'Round 1 result' });
@@ -39,9 +65,7 @@ test.describe('singleplayer gameplay', () => {
       await expect(page.getByText(`Round ${round}`)).toBeVisible();
       await expect(page.getByText('/ 3')).toBeVisible();
 
-      const candidates = page.locator('button[aria-pressed]');
-      await expect(candidates).toHaveCount(6);
-      await candidates.first().click();
+      await selectCandidate(page);
       await page.getByRole('button', { name: 'Final submit' }).click();
 
       const resultDialog = page.getByRole('dialog', { name: `Round ${round} result` });
