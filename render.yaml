@@ -40,6 +40,9 @@ services:
         value: info
       - key: OPEN_METEO_BASE_URL
         value: https://api.open-meteo.com
+      # Optional fallback weather provider (used automatically when Open-Meteo fails/429s).
+      - key: MET_NO_BASE_URL
+        value: https://api.met.no
       # Neon direct PostgreSQL connection string (must include ?sslmode=require).
       - key: DATABASE_URL
         sync: false
@@ -48,9 +51,8 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
-      # Optional: uncomment and fill in later when connecting an SMTP provider
-      # (e.g. Brevo or Resend) to enable email/password registration & password reset.
-      # - key: SMTP_URL
-      #   sync: false
-      # - key: SMTP_FROM
-      #   sync: false
+      # SMTP credentials for email/password account verification & password recovery.
+      - key: SMTP_URL
+        sync: false
+      - key: SMTP_FROM
+        sync: false

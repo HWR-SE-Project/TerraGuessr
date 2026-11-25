@@ -12,7 +12,6 @@ import type { PanoramaProvider } from '../../src/modules/singleplayer/provider.j
 import type { IntelligenceLookup } from '../../src/modules/singleplayer/locationSelection.js';
 import { createUserSession } from '../../src/modules/auth/service.js';
 import { registerResultsRoutes } from '../../src/modules/results/routes.js';
-import { haversineKm } from '../../src/domain/distance.js';
 import { LOBBY_ROUND_REVIEW_MS } from '../../src/config/constants.js';
 import type { LobbyMatchResponse } from '../../src/contracts/lobbies.js';
 

@@ -9,6 +9,7 @@ export interface Env {
   allowedOrigins?: ReadonlySet<string>;
   openMeteoBaseUrl: string;
   openMeteoApiKey?: string;
+  metNoBaseUrl?: string;
   logLevel: string;
   googleClientId?: string;
   googleClientSecret?: string;
@@ -103,6 +104,11 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     env.OPEN_METEO_BASE_URL?.trim() || DEFAULT_OPEN_METEO_BASE_URL;
   parseUrl('OPEN_METEO_BASE_URL', openMeteoBaseUrl, ['http:', 'https:']);
 
+  const metNoBaseUrl = env.MET_NO_BASE_URL?.trim() || undefined;
+  if (metNoBaseUrl) {
+    parseUrl('MET_NO_BASE_URL', metNoBaseUrl, ['http:', 'https:']);
+  }
+
   const appBaseUrl = env.APP_BASE_URL?.trim() || undefined;
   const appBaseUrlParsed = appBaseUrl
     ? parseUrl('APP_BASE_URL', appBaseUrl, ['http:', 'https:'])
@@ -149,6 +155,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     allowedOrigins,
     openMeteoBaseUrl,
     openMeteoApiKey: env.OPEN_METEO_API_KEY?.trim() || undefined,
+    metNoBaseUrl,
     logLevel: parseLogLevel(env.LOG_LEVEL),
     googleClientId,
     googleClientSecret,

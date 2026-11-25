@@ -278,6 +278,88 @@ describe('environment provider boundary', () => {
     expect(recovered.weather?.temperatureC).toBe(12.3);
     expect(fetcher).toHaveBeenCalledTimes(4);
   });
+
+  it('falls back to MET Norway when Open-Meteo returns 429 and bypasses Open-Meteo while circuit is open', async () => {
+    const now = Date.parse('2026-11-19T12:15Z');
+    const log = { warn: vi.fn() };
+    const metNoPayload = {
+      type: 'Feature',
+      properties: {
+        meta: {
+          units: {
+            air_pressure_at_sea_level: 'hPa',
+            air_temperature: 'celsius',
+            precipitation_amount: 'mm',
+            relative_humidity: '%',
+            wind_from_direction: 'degrees',
+            wind_speed: 'm/s',
+          },
+        },
+        timeseries: [
+          {
+            time: '2026-11-19T12:00:00Z',
+            data: {
+              instant: {
+                details: {
+                  air_pressure_at_sea_level: 1011.5,
+                  air_temperature: 7.4,
+                  relative_humidity: 72,
+                  wind_from_direction: 195,
+                  wind_speed: 5,
+                },
+              },
+              next_1_hours: {
+                summary: { symbol_code: 'rainshowers_day' },
+                details: { precipitation_amount: 1.2 },
+              },
+            },
+          },
+        ],
+      },
+    };
+    const fetcher = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('api.open-meteo.com')) {
+        return new Response('rate limited', { status: 429 });
+      }
+      expect(url).toContain('api.met.no/weatherapi/locationforecast/2.0/compact');
+      expect((init?.headers as Record<string, string>)['User-Agent']).toContain('TerraGuessr');
+      return new Response(JSON.stringify(metNoPayload));
+    });
+
+    const get = createIntelligenceProvider({
+      baseUrl: 'https://api.open-meteo.com',
+      fallbackWeatherBaseUrl: 'https://api.met.no',
+      fallbackUserAgent: 'TerraGuessr/0.1 (+https://terra-guessr.vercel.app)',
+      fetcher: fetcher as typeof fetch,
+      now: () => now,
+      log,
+      circuitFailureThreshold: 1,
+      circuitOpenMs: 20_000,
+    });
+
+    // First call hits Open-Meteo (429), opens circuit, and falls back to MET Norway.
+    const first = await get(59.9139, 10.7522, { includeEnvironment: false });
+    expect(first.weather).toEqual({
+      modelTime: '2026-11-19T12:00:00Z',
+      temperatureC: 7.4,
+      condition: 'Rain showers',
+      windSpeedKmh: 18,
+      windDirectionDeg: 195,
+      humidityPct: 72,
+      pressureHpa: 1011.5,
+      precipitationMm: 1.2,
+      precipitationIntervalMinutes: 60,
+      isDay: true,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    // Second distinct location skips Open-Meteo while circuit is open and calls MET Norway directly.
+    const second = await get(48.8566, 2.3522, { includeEnvironment: false });
+    expect(second.weather?.temperatureC).toBe(7.4);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(String(fetcher.mock.calls[2]![0])).toContain('api.met.no');
+  });
 });
 
 describe('intelligence HTTP privacy and ownership (database double)', () => {

@@ -127,6 +127,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     baseUrl: config.openMeteoBaseUrl,
     apiKey: config.openMeteoApiKey,
     log: app.log,
+    ...(config.metNoBaseUrl
+      ? {
+          fallbackWeatherBaseUrl: config.metNoBaseUrl,
+          fallbackUserAgent: `TerraGuessr/0.1 (+${config.appBaseUrl ?? 'https://github.com/TerraGuessr'})`,
+        }
+      : {}),
   });
   registerLobbiesRoutes(app, undefined, { intelligence });
   registerSingleplayerRoutes(app, { intelligence });

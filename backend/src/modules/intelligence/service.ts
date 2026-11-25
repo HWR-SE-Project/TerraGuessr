@@ -30,6 +30,30 @@ function condition(code: unknown): NonNullable<Weather>['condition'] {
   if ([95, 96, 99].includes(code as number)) return 'Thunderstorm';
   return null;
 }
+function metNoCondition(symbolCode: unknown): NonNullable<Weather>['condition'] {
+  if (typeof symbolCode !== 'string' || symbolCode.length === 0) return null;
+  const base = symbolCode.replace(/_(day|night|polartwilight)$/, '');
+  if (base === 'clearsky') return 'Clear sky';
+  if (base === 'fair') return 'Mainly clear';
+  if (base === 'partlycloudy') return 'Partly cloudy';
+  if (base === 'cloudy') return 'Overcast';
+  if (base === 'fog') return 'Fog';
+  if (base.includes('thunder')) return 'Thunderstorm';
+  if (base.includes('snowshowers') || base.includes('sleetshowers')) return 'Snow showers';
+  if (base.includes('rainshowers')) return 'Rain showers';
+  if (base.includes('snow') || base.includes('sleet')) return 'Snow';
+  if (base === 'lightrain') return 'Drizzle';
+  if (base.includes('rain')) return 'Rain';
+  return null;
+}
+
+function metNoIsDay(symbolCode: unknown): boolean | undefined {
+  if (typeof symbolCode !== 'string') return undefined;
+  if (symbolCode.endsWith('_day')) return true;
+  if (symbolCode.endsWith('_night')) return false;
+  return undefined;
+}
+
 function number(value: unknown, min: number, max: number): number | null {
   return typeof value === 'number' &&
     Number.isFinite(value) &&
@@ -101,6 +125,8 @@ export function createIntelligenceProvider(
   options: {
     baseUrl?: string;
     apiKey?: string;
+    fallbackWeatherBaseUrl?: string | false;
+    fallbackUserAgent?: string;
     fetcher?: typeof fetch;
     now?: () => number;
     log?: IntelligenceLogger;
@@ -120,6 +146,9 @@ export function createIntelligenceProvider(
   const pendingWeather = new Map<string, Promise<{ weather: Weather; fetchedAt: string }>>();
   const pendingEnvironment = new Map<string, Promise<Environment>>();
   const baseUrl = options.baseUrl ?? 'https://api.open-meteo.com';
+  const fallbackWeatherBaseUrl = options.fallbackWeatherBaseUrl || undefined;
+  const fallbackUserAgent =
+    options.fallbackUserAgent ?? 'TerraGuessr/0.1 (+https://github.com/TerraGuessr)';
 
   let consecutiveWeatherFailures = 0;
   let circuitOpenUntil = 0;
@@ -141,6 +170,105 @@ export function createIntelligenceProvider(
     if (!data || typeof data !== 'object' || Array.isArray(data))
       throw new Error('Invalid environmental data');
     return data as Record<string, unknown>;
+  }
+
+  async function fallbackWeather(lat: number, lon: number): Promise<Weather> {
+    if (!fallbackWeatherBaseUrl) return null;
+    const url = new URL('/weatherapi/locationforecast/2.0/compact', fallbackWeatherBaseUrl);
+    url.search = new URLSearchParams({
+      lat: lat.toFixed(4),
+      lon: lon.toFixed(4),
+    }).toString();
+    const response = await fetcher(url, {
+      headers: {
+        'User-Agent': fallbackUserAgent,
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) throw new UpstreamStatusError(response.status);
+    const data: unknown = await response.json();
+    if (!data || typeof data !== 'object' || Array.isArray(data))
+      throw new Error('Invalid fallback weather data');
+
+    const props = (data as Record<string, unknown>).properties;
+    if (!props || typeof props !== 'object' || Array.isArray(props)) return null;
+    const meta = (props as Record<string, unknown>).meta as Record<string, unknown> | undefined;
+    const units = (meta?.units ?? {}) as Record<string, unknown>;
+    const timeseries = (props as Record<string, unknown>).timeseries;
+    if (!Array.isArray(timeseries) || timeseries.length === 0) return null;
+
+    const currentNow = now();
+    let bestEntry: Record<string, unknown> | undefined;
+    let bestDiff = Infinity;
+    for (const rawEntry of timeseries) {
+      if (!rawEntry || typeof rawEntry !== 'object' || Array.isArray(rawEntry)) continue;
+      const entry = rawEntry as Record<string, unknown>;
+      if (typeof entry.time !== 'string') continue;
+      const ts = Date.parse(entry.time);
+      if (!Number.isFinite(ts)) continue;
+      if (!isFreshWeatherTimestamp(entry.time, currentNow)) continue;
+      const diff = Math.abs(currentNow - ts);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestEntry = entry;
+      }
+    }
+    if (!bestEntry || typeof bestEntry.time !== 'string') return null;
+
+    const entryData = bestEntry.data as Record<string, unknown> | undefined;
+    const instant = entryData?.instant as Record<string, unknown> | undefined;
+    const details = (instant?.details ?? {}) as Record<string, unknown>;
+    const next1h = entryData?.next_1_hours as Record<string, unknown> | undefined;
+    const next6h = entryData?.next_6_hours as Record<string, unknown> | undefined;
+    const period = next1h ?? next6h;
+    const periodIntervalMinutes = next1h ? 60 : next6h ? 360 : null;
+    const periodDetails = (period?.details ?? {}) as Record<string, unknown>;
+    const periodSummary = (period?.summary ?? {}) as Record<string, unknown>;
+
+    const windMs =
+      units.wind_speed === 'm/s' ? number(details.wind_speed, 0, 150) : null;
+    const windSpeedKmh =
+      windMs === null ? null : Math.round(windMs * 3.6 * 10) / 10;
+    const symbolCode = periodSummary.symbol_code;
+    const isDay = metNoIsDay(symbolCode);
+
+    const result: NonNullable<Weather> = {
+      modelTime: bestEntry.time,
+      temperatureC:
+        units.air_temperature === 'celsius'
+          ? number(details.air_temperature, -100, 70)
+          : null,
+      condition: metNoCondition(symbolCode),
+      windSpeedKmh,
+      windDirectionDeg:
+        units.wind_from_direction === 'degrees'
+          ? number(details.wind_from_direction, 0, 360)
+          : null,
+      humidityPct:
+        units.relative_humidity === '%'
+          ? number(details.relative_humidity, 0, 100)
+          : null,
+      pressureHpa:
+        units.air_pressure_at_sea_level === 'hPa'
+          ? number(details.air_pressure_at_sea_level, 100, 1200)
+          : null,
+      precipitationMm:
+        units.precipitation_amount === 'mm'
+          ? number(periodDetails.precipitation_amount, 0, 1000)
+          : null,
+      precipitationIntervalMinutes: periodIntervalMinutes,
+      ...(isDay !== undefined ? { isDay } : {}),
+    };
+
+    return Object.entries(result).some(
+      ([key, value]) =>
+        key !== 'modelTime' &&
+        key !== 'precipitationIntervalMinutes' &&
+        value !== null,
+    )
+      ? result
+      : null;
   }
   async function weather(lat: number, lon: number): Promise<Weather> {
     const data = await json('/v1/forecast', {
@@ -241,16 +369,48 @@ export function createIntelligenceProvider(
               : 'High relief',
     };
   }
+  async function tryFallbackWeather(lat: number, lon: number): Promise<Weather> {
+    if (!fallbackWeatherBaseUrl) return null;
+    try {
+      return await fallbackWeather(lat, lon);
+    } catch (error: unknown) {
+      log.warn(
+        {
+          endpoint: '/weatherapi/locationforecast/2.0/compact',
+          ...safeErrorSummary(error),
+        },
+        'MET Norway fallback weather request failed',
+      );
+      return null;
+    }
+  }
+
   function fetchWeatherDedup(
     key: string,
     lat: number,
     lon: number,
+    skipPrimary = false,
   ): Promise<{ weather: Weather; fetchedAt: string }> {
     const existing = pendingWeather.get(key);
     if (existing) return existing;
 
-    const job = weather(lat, lon)
-      .then((value) => {
+    const job = (async () => {
+      if (skipPrimary) {
+        const value = await tryFallbackWeather(lat, lon);
+        const entry = {
+          weather: value,
+          fetchedAt: new Date(now()).toISOString(),
+        };
+        weatherCache.set(
+          key,
+          entry,
+          now() + (value ? 15 * MINUTE : 30_000),
+        );
+        return entry;
+      }
+
+      try {
+        const value = await weather(lat, lon);
         consecutiveWeatherFailures = 0;
         circuitOpenUntil = 0;
         const entry = {
@@ -263,8 +423,7 @@ export function createIntelligenceProvider(
           now() + (value ? 15 * MINUTE : 30_000),
         );
         return entry;
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         consecutiveWeatherFailures += 1;
         log.warn(
           {
@@ -285,16 +444,21 @@ export function createIntelligenceProvider(
             'Open-Meteo circuit breaker opened',
           );
         }
+        const fallback = await tryFallbackWeather(lat, lon);
         const entry = {
-          weather: null as Weather,
+          weather: fallback,
           fetchedAt: new Date(now()).toISOString(),
         };
-        weatherCache.set(key, entry, now() + 30_000);
+        weatherCache.set(
+          key,
+          entry,
+          now() + (fallback ? 15 * MINUTE : 30_000),
+        );
         return entry;
-      })
-      .finally(() => {
-        pendingWeather.delete(key);
-      });
+      }
+    })().finally(() => {
+      pendingWeather.delete(key);
+    });
 
     pendingWeather.set(key, job);
     return job;
@@ -361,11 +525,13 @@ export function createIntelligenceProvider(
     const weatherPromise = cachedWeather
       ? Promise.resolve(cachedWeather)
       : weatherCircuitOpen
-        ? Promise.resolve({
-            weather: null as Weather,
-            fetchedAt: new Date(time).toISOString(),
-          })
-        : fetchWeatherDedup(key, lat, lon);
+        ? fallbackWeatherBaseUrl
+          ? fetchWeatherDedup(key, lat, lon, true)
+          : Promise.resolve({
+              weather: null as Weather,
+              fetchedAt: new Date(time).toISOString(),
+            })
+        : fetchWeatherDedup(key, lat, lon, false);
 
     const environmentPromise = cachedEnvironment
       ? Promise.resolve(cachedEnvironment)
