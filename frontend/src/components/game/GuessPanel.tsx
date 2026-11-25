@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import type { Candidate, GameRules, GuessInput, LatLon } from '../../lib/contracts'
+import { formatRegion } from '../../lib/format'
 import { ApiError } from '../../services'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { CandidateList } from './CandidateList'
 import { GuessMap } from './GuessMap'
+import type { MapCandidate } from './GuessMap'
 
 /** Coalesce rapid pin drags/city taps so normal play never trips write rate limits (R08). */
 const SELECTION_COALESCE_MS = 150
@@ -28,6 +31,11 @@ function isNearDeadline(endsAt: string | null | undefined): boolean {
   return Number.isFinite(deadline) && deadline - Date.now() <= IMMEDIATE_FLUSH_WINDOW_MS
 }
 
+function defaultPanelOpen(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true
+  return window.matchMedia('(min-width: 1024px)').matches
+}
+
 export function GuessPanel({
   rules, candidates = [], initialSelection = null, initialCandidateId = null,
   submittedGuesses = [], submittedCandidateIds = [], endsAt = null, attemptsUsed, attemptsTotal,
@@ -47,7 +55,7 @@ export function GuessPanel({
   onSelect: (choice: GuessInput) => Promise<void>
   onSubmit: (choice: GuessInput, final: boolean) => void
 }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(defaultPanelOpen)
   const [selection, setSelection] = useState(initialSelection)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(initialCandidateId)
   const [syncState, setSyncState] = useState<SelectionSyncState>('idle')
@@ -176,6 +184,28 @@ export function GuessPanel({
         candidate.id === selectedCandidateId &&
         !submittedCandidateIds.includes(candidate.id),
     ) ?? null
+  const mappedCandidates = useMemo<MapCandidate[]>(
+    () =>
+      candidates.flatMap((candidate) =>
+        typeof candidate.lat === 'number' &&
+        Number.isFinite(candidate.lat) &&
+        typeof candidate.lon === 'number' &&
+        Number.isFinite(candidate.lon)
+          ? [
+              {
+                id: candidate.id,
+                name: candidate.name ?? 'Unknown location',
+                region: candidate.region,
+                lat: candidate.lat,
+                lon: candidate.lon,
+              },
+            ]
+          : [],
+      ),
+    [candidates],
+  )
+  const useCandidateMap =
+    listMode && mappedCandidates.length > 0 && mappedCandidates.length === candidates.length
   const activeChoice: GuessInput | null = listMode
     ? (selectedCity ? { candidateId: selectedCity.id } : null)
     : selection
@@ -234,80 +264,147 @@ export function GuessPanel({
 
   return (
     <div className="surface-flat overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3">
-        <span className="font-display text-sm font-semibold text-cream">{listMode ? 'Pick a city' : 'Place your pin'}</span>
-        <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="flex items-center gap-1 text-xs font-bold text-muted">
-          {open ? 'Hide' : 'Show'}
-          <Icon name={open ? 'chevronDown' : 'chevronRight'} size={14} />
-        </button>
-      </div>
-      {open && (
-        <div className="px-3 pb-3">
-          {listMode ? (
-            <CandidateList
-              candidates={candidates}
-              selected={selectedCity?.id ?? null}
-              submittedIds={submittedCandidateIds}
-              onSelect={(candidate) => select({ candidateId: candidate.id })}
-              disabled={locked}
-            />
-          ) : (
-            <div className="h-60 overflow-hidden rounded-2xl lg:h-72">
-              <GuessMap
-                guess={selection}
-                submittedGuesses={submittedGuesses}
-                onChange={(point) => select(point)}
-                interactive={!locked}
-                countryBorders={rules?.countryBorders}
-              />
-            </div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left lg:px-4 lg:py-3"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon name="pin" size={15} className="shrink-0 text-lime-300" />
+          <span className="font-display text-sm font-semibold text-cream">
+            {listMode ? 'Pick a city' : 'Place your pin'}
+          </span>
+          {!open && selectedCity && (
+            <span className="truncate text-xs font-semibold text-lime-300">· {selectedCity.name}</span>
           )}
-          {(attemptsTotal > 1 || syncState === 'saving' || (attemptsUsed > 0 && remaining > 0)) && (
-            <div className="mt-2.5 flex items-center justify-between gap-2">
-              {attemptsTotal > 1 && (
-                <p className="min-w-0 flex-1 text-[11px] text-subtle">
-                  Best of {attemptsTotal}: your closest submitted guess counts.
-                </p>
+        </span>
+        <motion.span initial={false} animate={{ rotate: open ? 0 : 180 }} transition={{ duration: 0.2 }} className="shrink-0">
+          <Icon name="chevronDown" size={18} className="text-subtle" />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-white/8 px-3 pb-3 pt-3">
+              {listMode ? (
+                useCandidateMap ? (
+                  <>
+                    <div className="h-44 overflow-hidden rounded-2xl sm:h-56 lg:h-72">
+                      <GuessMap
+                        candidates={mappedCandidates}
+                        selectedCandidateId={selectedCity?.id ?? null}
+                        submittedCandidateIds={submittedCandidateIds}
+                        onSelectCandidate={(candidate) => select({ candidateId: candidate.id })}
+                        interactive={!locked}
+                        countryBorders={rules?.countryBorders}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/8 bg-space-800/80 px-3 py-2 text-xs">
+                      {selectedCity ? (
+                        <>
+                          <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-lime-400 text-ink">
+                            <Icon name="check" size={10} />
+                          </span>
+                          <span className="truncate font-bold text-cream">{selectedCity.name}</span>
+                          {selectedCity.region && (
+                            <span className="shrink-0 text-subtle">· {formatRegion(selectedCity.region)}</span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="pin" size={13} className="shrink-0 text-subtle" />
+                          <span className="text-muted">Click a location on the map to select it.</span>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <CandidateList
+                    candidates={candidates}
+                    selected={selectedCity?.id ?? null}
+                    submittedIds={submittedCandidateIds}
+                    onSelect={(candidate) => select({ candidateId: candidate.id })}
+                    disabled={locked}
+                  />
+                )
+              ) : (
+                <div className="h-44 overflow-hidden rounded-2xl sm:h-56 lg:h-72">
+                  <GuessMap
+                    guess={selection}
+                    submittedGuesses={submittedGuesses}
+                    onChange={(point) => select(point)}
+                    interactive={!locked}
+                    countryBorders={rules?.countryBorders}
+                  />
+                </div>
               )}
-              {syncState === 'saving' && (
-                <span className="shrink-0 text-[11px] font-semibold text-subtle">Saving…</span>
+              {(attemptsTotal > 1 || syncState === 'saving' || (attemptsUsed > 0 && remaining > 0)) && (
+                <div className="mt-2.5 flex items-center justify-between gap-2">
+                  {attemptsTotal > 1 && (
+                    <p className="min-w-0 flex-1 text-[11px] text-subtle">
+                      Best of {attemptsTotal}: your closest submitted guess counts.
+                    </p>
+                  )}
+                  {syncState === 'saving' && (
+                    <span className="shrink-0 text-[11px] font-semibold text-subtle">Saving…</span>
+                  )}
+                  {attemptsUsed > 0 && remaining > 0 && (
+                    <span className="shrink-0 text-xs font-bold text-amber-300">{remaining} {remaining === 1 ? 'try' : 'tries'} left</span>
+                  )}
+                </div>
               )}
-              {attemptsUsed > 0 && remaining > 0 && (
-                <span className="shrink-0 text-xs font-bold text-amber-300">{remaining} {remaining === 1 ? 'try' : 'tries'} left</span>
-              )}
-            </div>
-          )}
-          {syncState === 'error' && syncError && (
-            <div
-              role="alert"
-              className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-2.5 py-1.5 text-xs text-rose-200"
-            >
-              <span className="min-w-0 flex-1">
-                Selection not saved for timeout ({syncError}).
-              </span>
-              {!locked && (
-                <button
-                  type="button"
-                  onClick={retrySelectionSave}
-                  className="shrink-0 rounded-lg bg-rose-400/20 px-2 py-0.5 font-bold text-rose-100 hover:bg-rose-400/30"
+              {syncState === 'error' && syncError && (
+                <div
+                  role="alert"
+                  className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-2.5 py-1.5 text-xs text-rose-200"
                 >
-                  Retry
-                </button>
+                  <span className="min-w-0 flex-1">
+                    Selection not saved for timeout ({syncError}).
+                  </span>
+                  {!locked && (
+                    <button
+                      type="button"
+                      onClick={retrySelectionSave}
+                      className="shrink-0 rounded-lg bg-rose-400/20 px-2 py-0.5 font-bold text-rose-100 hover:bg-rose-400/30"
+                    >
+                      Retry
+                    </button>
+                  )}
+                </div>
               )}
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <Button
+                  icon="pin"
+                  disabled={locked || !activeChoice}
+                  loading={submitting}
+                  className="min-w-0 flex-1 max-sm:px-3 max-sm:text-sm"
+                  onClick={() => handleSubmit(false)}
+                >
+                  Submit guess
+                </Button>
+                {remaining > 1 && (
+                  <Button
+                    variant="tinted"
+                    icon="check"
+                    disabled={locked || !activeChoice}
+                    className="min-w-0 flex-1 max-sm:px-3 max-sm:text-sm"
+                    onClick={() => handleSubmit(true)}
+                  >
+                    Final submit
+                  </Button>
+                )}
+              </div>
             </div>
-          )}
-          <div className="mt-2.5 flex gap-2">
-            <Button fullWidth icon="pin" disabled={locked || !activeChoice} loading={submitting} onClick={() => handleSubmit(false)}>
-              Submit guess
-            </Button>
-            {remaining > 1 && (
-              <Button fullWidth variant="tinted" icon="check" disabled={locked || !activeChoice} onClick={() => handleSubmit(true)}>
-                Final submit
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

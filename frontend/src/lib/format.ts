@@ -50,3 +50,14 @@ export function hueFromString(value: string): number {
 export function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
+
+export function formatRegion(region: string): string {
+  if (!region) return ''
+  if (/^[A-Z0-9_]+$/.test(region)) {
+    return region
+      .split('_')
+      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+  return region.replaceAll('_', ' ')
+}

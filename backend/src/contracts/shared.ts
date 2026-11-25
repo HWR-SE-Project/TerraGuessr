@@ -33,6 +33,8 @@ export const Candidate = Type.Object(
     id: Type.String(),
     name: Type.String(),
     region: Type.String(),
+    lat: Type.Number({ minimum: -90, maximum: 90 }),
+    lon: Type.Number({ minimum: -180, maximum: 180 }),
   },
   { additionalProperties: false },
 );

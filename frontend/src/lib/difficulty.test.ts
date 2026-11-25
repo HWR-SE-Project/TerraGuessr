@@ -8,7 +8,7 @@ describe('difficulty presentation', () => {
   })
 
   it('formats the supplied rules for the picker and help page', () => {
-    expect(difficultyDetails(mockGameRules('easy'))).toEqual(['7 min', '3 attempts', 'Pick from a city list', 'Free clues'])
+    expect(difficultyDetails(mockGameRules('easy'))).toEqual(['7 min', '3 attempts', '6 cities on the map', 'Free clues'])
     expect(difficultyDetails(mockGameRules('medium'))).toEqual(['4 min', '2 attempts', 'World map', 'Clues cost 100 pts'])
     expect(difficultyDetails(mockGameRules('hard'))).toEqual(['2 min', '1 attempt', 'World map', 'Clues cost 20 s'])
   })
@@ -22,7 +22,7 @@ describe('difficulty presentation', () => {
     for (const { id } of DIFFICULTY_LEVELS) {
       expect(difficultyInfo(id, mockGameRules(id))).toEqual(difficultyInfo(id))
     }
-    expect(difficultyInfo('easy').description).toBe('Pick a city and explore with the extra clues unlocked.')
+    expect(difficultyInfo('easy').description).toBe('Pick a marked city on the map and explore with the extra clues unlocked.')
     expect(difficultyInfo('medium').description).toBe('Drop a pin on the world map and decide whether to spend points on clues.')
     expect(difficultyInfo('hard').description).toBe('Drop a pin on the world map. Unlocking extra clues costs time.')
     expect(difficultyInfo('hard').tagline).toBe('One shot')
@@ -39,7 +39,7 @@ describe('difficulty presentation', () => {
     expect(difficultyInfo('hard', rules)).toMatchObject({
       label: 'Hard',
       tagline: 'For true explorers',
-      description: 'Pick a city and decide whether to spend points on clues.',
+      description: 'Pick a marked city on the map and decide whether to spend points on clues.',
     })
   })
 })

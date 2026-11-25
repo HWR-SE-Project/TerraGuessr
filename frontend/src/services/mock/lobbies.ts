@@ -42,7 +42,7 @@ function candidatesFor(answerId: string): Candidate[] {
     .sort(() => Math.random() - 0.5)
     .slice(0, 5)
   return [answer, ...distractors]
-    .map((loc) => ({ id: loc.id, name: loc.name, region: loc.region }))
+    .map((loc) => ({ id: loc.id, name: loc.name, region: loc.region, lat: loc.lat, lon: loc.lon }))
     .sort(() => Math.random() - 0.5)
 }
 

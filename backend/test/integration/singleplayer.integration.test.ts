@@ -700,7 +700,7 @@ describe('difficulty levels and list-mode candidates', () => {
       error: { code: 'VALIDATION_ERROR' },
     });
   });
-  it('offers a 6-option candidate list without coordinates on easy and enforces choice membership', async () => {
+  it('offers 6 mappable candidate locations on easy and enforces choice membership', async () => {
     const auth = await create('easy');
     const round = (
       await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
@@ -708,9 +708,11 @@ describe('difficulty levels and list-mode candidates', () => {
     expect(round.candidates).toHaveLength(6);
     const ids = round.candidates.map((c: { id: string }) => c.id);
     expect(new Set(ids).size).toBe(6);
-    // Coordinates are never sent to the client for Easy candidates.
+    // All 6 shuffled options include coordinates so Easy mode can plot them on the map.
     for (const candidate of round.candidates) {
-      expect(Object.keys(candidate).sort()).toEqual(['id', 'name', 'region']);
+      expect(Object.keys(candidate).sort()).toEqual(['id', 'lat', 'lon', 'name', 'region']);
+      expect(typeof candidate.lat).toBe('number');
+      expect(typeof candidate.lon).toBe('number');
     }
     // Reject arbitrary coordinates and forged candidate IDs in Easy mode.
     const rawSelection = await app.inject({

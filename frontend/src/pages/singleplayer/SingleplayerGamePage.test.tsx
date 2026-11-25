@@ -50,7 +50,7 @@ describe('SingleplayerGamePage start failures', () => {
           extraData: { mode: 'free' },
         },
         selection: null,
-        candidates: [{ id: '0', name: 'London', region: 'EUROPE' }],
+        candidates: [{ id: '0', name: 'London', region: 'EUROPE', lat: 51.5074, lon: -0.1278 }],
         extraData: { mode: 'immediate', cost: null, availableAt: null, unlocked: true, pointsSpent: 0 },
       })
     vi.spyOn(api.singleplayer, 'intelligence').mockResolvedValue({
@@ -164,7 +164,7 @@ describe('SingleplayerGamePage finite round sessions', () => {
         extraData: { mode: 'free' as const },
       },
       selection: null,
-      candidates: [{ id: '0', name: 'London', region: 'EUROPE' }],
+      candidates: [{ id: '0', name: 'London', region: 'EUROPE', lat: 51.5074, lon: -0.1278 }],
       extraData: { mode: 'immediate' as const, cost: null, availableAt: null, unlocked: true, pointsSpent: 0 },
     }
 

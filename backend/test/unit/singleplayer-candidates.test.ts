@@ -83,12 +83,14 @@ describe('easy-mode candidate list generation and validation', () => {
     }
   });
 
-  it('strips coordinates from public candidates and enforces list membership server-side', () => {
+  it('projects candidate coordinates for the Easy map and enforces list membership server-side', () => {
     const stored = buildCandidates(0, []);
     const pub = toPublicCandidates(stored)!;
     expect(pub).toHaveLength(6);
-    for (const entry of pub) {
-      expect(Object.keys(entry).sort()).toEqual(['id', 'name', 'region']);
+    for (const [index, entry] of pub.entries()) {
+      expect(Object.keys(entry).sort()).toEqual(['id', 'lat', 'lon', 'name', 'region']);
+      expect(entry.lat).toBe(stored[index]!.lat);
+      expect(entry.lon).toBe(stored[index]!.lon);
     }
 
     const chosen = stored[2]!;

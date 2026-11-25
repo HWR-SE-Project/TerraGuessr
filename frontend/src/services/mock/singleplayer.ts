@@ -34,6 +34,8 @@ function makeCandidates(answerId: string): Candidate[] {
     id: loc.id,
     name: loc.name,
     region: loc.region,
+    lat: loc.lat,
+    lon: loc.lon,
   }))
 }
 

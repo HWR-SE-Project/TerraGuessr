@@ -24,7 +24,7 @@ const STEPS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'pin',
     title: 'Make your guess',
-    text: 'Easy mode picks from a city list. Medium and hard drop a pin on the world map.',
+    text: 'Easy mode marks 6 cities directly on the map to click. Medium and hard drop a pin anywhere on the world map.',
   },
   {
     icon: 'trophy',
@@ -104,7 +104,7 @@ export function HowToPlayPage() {
           <p className="text-sm text-muted">Ready to give it a go?</p>
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
             <Button size="lg" icon="play" to="/singleplayer">
-              Play singleplayer
+              Singleplayer
             </Button>
             <Button size="lg" variant="secondary" icon="users" to="/multiplayer">
               Multiplayer

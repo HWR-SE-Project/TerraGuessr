@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { LatLon } from '../../lib/contracts'
+import { formatRegion } from '../../lib/format'
 import { greatCircleSegments, normalizeCoordinates } from '../../lib/geodesic'
 
 export interface MapResult {
@@ -16,6 +17,14 @@ export interface MapMarker {
   title: string
   label?: string
   color?: string
+}
+
+export interface MapCandidate {
+  id: string
+  name: string
+  region: string
+  lat: number
+  lon: number
 }
 
 const DEFAULT_TILE_URL =
@@ -34,6 +43,23 @@ function pinIcon(color: string, size = 20): L.DivIcon {
   })
 }
 
+function fitCandidateBounds(instance: L.Map, candidates: MapCandidate[]): boolean {
+  if (candidates.length === 0) return false
+  const size = instance.getSize()
+  if (size.x <= 0 || size.y <= 0) return false
+  const points: [number, number][] = candidates.map((candidate) => [candidate.lat, candidate.lon])
+  if (points.length >= 2) {
+    instance.fitBounds(L.latLngBounds(points), {
+      padding: [36, 36],
+      maxZoom: 4,
+      animate: false,
+    })
+  } else {
+    instance.setView(points[0]!, 4, { animate: false })
+  }
+  return true
+}
+
 /**
  * Interactive world guessing map & read-only result reveal map backed by
  * Leaflet + Esri World Street Map raster tiles (English labels, country borders,
@@ -43,6 +69,10 @@ export function GuessMap({
   guess,
   submittedGuesses = [],
   onChange,
+  candidates = [],
+  selectedCandidateId = null,
+  submittedCandidateIds = [],
+  onSelectCandidate,
   results = [],
   markers = [],
   interactive = true,
@@ -51,6 +81,10 @@ export function GuessMap({
   guess?: LatLon | null
   submittedGuesses?: LatLon[]
   onChange?: (point: LatLon) => void
+  candidates?: MapCandidate[]
+  selectedCandidateId?: string | null
+  submittedCandidateIds?: string[]
+  onSelectCandidate?: (candidate: MapCandidate) => void
   results?: MapResult[]
   markers?: MapMarker[]
   interactive?: boolean
@@ -62,10 +96,18 @@ export function GuessMap({
   const tileLayerRef = useRef<L.TileLayer | null>(null)
   const guessMarkerRef = useRef<L.Marker | null>(null)
   const submittedLayerRef = useRef<L.LayerGroup | null>(null)
+  const candidatesLayerRef = useRef<L.LayerGroup | null>(null)
+  const candidateEntriesRef = useRef<
+    Map<string, { marker: L.Marker; button: HTMLButtonElement; candidate: MapCandidate }>
+  >(new Map())
   const revealLayerRef = useRef<L.LayerGroup | null>(null)
   const drawnReveal = useRef<string | null>(null)
+  const fittedCandidatesRef = useRef<string | null>(null)
   const canSelect = useRef(interactive)
   const onChangeRef = useRef(onChange)
+  const onSelectCandidateRef = useRef(onSelectCandidate)
+  const candidatesRef = useRef(candidates)
+  const submittedCandidateSetRef = useRef<Set<string>>(new Set(submittedCandidateIds))
 
   useEffect(() => {
     canSelect.current = interactive
@@ -73,9 +115,20 @@ export function GuessMap({
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+  useEffect(() => {
+    onSelectCandidateRef.current = onSelectCandidate
+  }, [onSelectCandidate])
 
   const revealSignature = JSON.stringify([results, markers])
   const submittedSignature = JSON.stringify(submittedGuesses)
+  const candidatesSignature = JSON.stringify(candidates)
+  const submittedCandidateSignature = JSON.stringify(submittedCandidateIds)
+  const candidatesSignatureRef = useRef(candidatesSignature)
+
+  useEffect(() => {
+    candidatesRef.current = candidates
+    candidatesSignatureRef.current = candidatesSignature
+  }, [candidates, candidatesSignature])
 
   // Initialize Leaflet map once.
   useEffect(() => {
@@ -85,8 +138,10 @@ export function GuessMap({
     const instance = L.map(el, {
       center: [20, 0],
       zoom: 1,
-      minZoom: 1,
+      minZoom: 0.5,
       maxZoom: 14,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
       worldCopyJump: true,
       maxBounds: [
         [-85, -Infinity],
@@ -98,20 +153,31 @@ export function GuessMap({
     })
 
     const submittedLayer = L.layerGroup().addTo(instance)
+    const candidatesLayer = L.layerGroup().addTo(instance)
     const revealLayer = L.layerGroup().addTo(instance)
+    const candidateEntries = candidateEntriesRef.current
     mapRef.current = instance
     submittedLayerRef.current = submittedLayer
+    candidatesLayerRef.current = candidatesLayer
     revealLayerRef.current = revealLayer
 
     instance.on('click', (event: L.LeafletMouseEvent) => {
-      if (!canSelect.current) return
-      onChangeRef.current?.(normalizeCoordinates(event.latlng.lat, event.latlng.lng))
+      if (!canSelect.current || !onChangeRef.current) return
+      onChangeRef.current(normalizeCoordinates(event.latlng.lat, event.latlng.lng))
     })
 
     const observer =
       typeof ResizeObserver !== 'undefined'
         ? new ResizeObserver(() => {
             instance.invalidateSize({ animate: false })
+            if (
+              candidatesRef.current.length > 0 &&
+              fittedCandidatesRef.current !== candidatesSignatureRef.current
+            ) {
+              if (fitCandidateBounds(instance, candidatesRef.current)) {
+                fittedCandidatesRef.current = candidatesSignatureRef.current
+              }
+            }
           })
         : null
     observer?.observe(el)
@@ -119,8 +185,11 @@ export function GuessMap({
     return () => {
       observer?.disconnect()
       drawnReveal.current = null
+      fittedCandidatesRef.current = null
       guessMarkerRef.current = null
       submittedLayerRef.current = null
+      candidatesLayerRef.current = null
+      candidateEntries.clear()
       revealLayerRef.current = null
       tileLayerRef.current = null
       mapRef.current = null
@@ -192,6 +261,88 @@ export function GuessMap({
     }
   }, [results, markers, revealSignature])
 
+  // Easy-mode candidate markers plotted directly on the map.
+  useEffect(() => {
+    const instance = mapRef.current
+    const layer = candidatesLayerRef.current
+    if (!instance || !layer) return
+
+    layer.clearLayers()
+    candidateEntriesRef.current.clear()
+
+    if (candidates.length === 0) {
+      fittedCandidatesRef.current = null
+      return
+    }
+
+    for (const candidate of candidates) {
+      const marker = L.marker([candidate.lat, candidate.lon], {
+        icon: L.divIcon({
+          className: 'tg-candidate-marker',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+          html: '',
+        }),
+        interactive: true,
+        keyboard: false,
+      }).addTo(layer)
+
+      const el = marker.getElement()
+      if (!el) continue
+      L.DomEvent.disableClickPropagation(el)
+
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'tg-candidate-pin'
+
+      const dot = document.createElement('span')
+      dot.className = 'tg-candidate-dot'
+      dot.setAttribute('aria-hidden', 'true')
+
+      button.append(dot)
+      el.append(button)
+
+      button.addEventListener('click', (event) => {
+        event.stopPropagation()
+        if (!canSelect.current || submittedCandidateSetRef.current.has(candidate.id)) return
+        onSelectCandidateRef.current?.(candidate)
+      })
+
+      candidateEntriesRef.current.set(candidate.id, { marker, button, candidate })
+    }
+
+    if (fittedCandidatesRef.current !== candidatesSignature) {
+      if (fitCandidateBounds(instance, candidates)) {
+        fittedCandidatesRef.current = candidatesSignature
+      }
+    }
+  }, [candidates, candidatesSignature])
+
+  // Keep Easy-mode candidate selection, submitted, and disabled states in sync without recreating markers.
+  useEffect(() => {
+    const submitted = new Set(submittedCandidateIds)
+    submittedCandidateSetRef.current = submitted
+
+    for (const { marker, button, candidate } of candidateEntriesRef.current.values()) {
+      const isSubmitted = submitted.has(candidate.id)
+      const isSelected = !isSubmitted && selectedCandidateId === candidate.id
+      const state = isSubmitted ? 'submitted' : isSelected ? 'selected' : 'available'
+      const regionLabel = formatRegion(candidate.region)
+      const baseLabel = regionLabel ? `${candidate.name}, ${regionLabel}` : candidate.name
+
+      button.dataset.state = state
+      button.disabled = !interactive || isSubmitted
+      button.setAttribute('aria-pressed', String(isSelected))
+      button.setAttribute('aria-label', isSubmitted ? `${baseLabel} (submitted)` : baseLabel)
+      button.title = isSubmitted
+        ? `${candidate.name} · Submitted`
+        : regionLabel
+          ? `${candidate.name} · ${regionLabel}`
+          : candidate.name
+      marker.setZIndexOffset(isSelected ? 500 : isSubmitted ? 250 : 100)
+    }
+  }, [candidatesSignature, selectedCandidateId, submittedCandidateIds, submittedCandidateSignature, interactive])
+
   // Previously submitted bets in the active round (Best-of-N).
   useEffect(() => {
     const layer = submittedLayerRef.current
@@ -238,13 +389,32 @@ export function GuessMap({
     }
   }, [guess, interactive])
 
+  const ariaLabel = !interactive
+    ? 'Round result map'
+    : candidates.length > 0
+      ? 'World map with candidate locations. Click a location to select your guess.'
+      : 'World map. Click to place your guess.'
+
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#8ea6b8]">
       <div
         ref={container}
         className="h-full w-full"
-        aria-label={interactive ? 'World map. Click to place your guess.' : 'Round result map'}
+        aria-label={ariaLabel}
       />
+      {candidates.length > 1 && (
+        <button
+          type="button"
+          onClick={() => {
+            const instance = mapRef.current
+            if (instance) fitCandidateBounds(instance, candidates)
+          }}
+          className="absolute top-2 right-2 z-[800] rounded-lg border border-white/20 bg-space-900/90 px-2.5 py-1 text-[11px] font-bold text-cream shadow-md transition-colors hover:border-lime-400/60 hover:text-lime-300"
+          title="Reset map view to show all locations"
+        >
+          Show all
+        </button>
+      )}
     </div>
   )
 }

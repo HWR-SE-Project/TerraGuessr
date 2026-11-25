@@ -5,7 +5,7 @@ import { LOCATION_CATALOG } from './locations.js';
 
 export const ROAD_TARGET_NAMES = LOCATION_CATALOG.map((loc) => loc.name);
 
-/** Server-side stored candidate record (coordinates stay server-only, R04). */
+/** Server-side stored candidate record for an Easy round. */
 export interface CandidateOption {
   id: string;
   name: string;
@@ -14,11 +14,17 @@ export interface CandidateOption {
   lon: number;
 }
 
-/** Public candidate view sent to the client during an active Easy round (R04/R05). */
+/**
+ * Public candidate view sent to the client during an active Easy round (R04/R05).
+ * Includes each candidate's coordinates so Easy mode can plot all 6 options
+ * directly on the map while keeping which option is the actual target server-side.
+ */
 export interface PublicCandidate {
   id: string;
   name: string;
   region: string;
+  lat: number;
+  lon: number;
 }
 
 export type GuessOrSelectionInput =
@@ -39,12 +45,18 @@ function drawRandom(pool: number[], count: number): number[] {
   return picked;
 }
 
-/** Strip coordinates before projecting Easy candidates to the client (R04). */
+/** Project stored Easy candidates for the client map while keeping the target concealed (R04). */
 export function toPublicCandidates(
   candidates: CandidateOption[] | null | undefined,
 ): PublicCandidate[] | undefined {
   if (!candidates || candidates.length === 0) return undefined;
-  return candidates.map(({ id, name, region }) => ({ id, name, region }));
+  return candidates.map(({ id, name, region, lat, lon }) => ({
+    id,
+    name,
+    region,
+    lat,
+    lon,
+  }));
 }
 
 /** Match a server-stored selection back to its round-scoped candidate choice. */

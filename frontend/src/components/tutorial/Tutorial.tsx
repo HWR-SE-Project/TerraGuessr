@@ -43,7 +43,7 @@ const STEPS: Step[] = [
   {
     icon: 'pin',
     title: 'Pick a location',
-    body: 'Easy mode lets you pick from a shortlist of cities. Medium and hard drop a pin on an interactive world map. You can change your pin as often as you like before you submit — moving it never costs you an attempt.',
+    body: 'Easy mode shows 6 possible cities directly on the map — just click one to pick it. Medium and hard drop a pin anywhere on the interactive world map. You can change your pick as often as you like before you submit — changing it never costs you an attempt.',
   },
   {
     icon: 'check',
