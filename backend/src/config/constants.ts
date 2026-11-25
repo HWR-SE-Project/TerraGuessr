@@ -24,6 +24,7 @@ export const STREET_GAME_TTL_MS = 24 * 60 * 60 * 1000;
 /** Lobby (R16) defaults. Difficulty controls rules; the host sets the round count. */
 export const LOBBY_CODE_LENGTH = 6;
 export const LOBBY_ROUNDS_TOTAL = 5;
+export const MAX_LOBBY_MEMBERS = 16;
 export const LOBBY_TTL_MS = 2 * 60 * 60 * 1000;
 export const LOBBY_ROUND_REVIEW_MS = 5_000;
 
@@ -41,6 +42,10 @@ export const LOBBY_CONTINUE_WINDOW_MS = 30 * 1000;
  * per-endpoint limits from drifting independently.
  */
 export const RATE_LIMITS = {
+  /** Baseline global limit for routes without a stricter per-route override. */
+  globalDefault: { max: 240, timeWindow: '1 minute' },
+  /** Multiplayer waiting-room & active-match polling (1–1.5s cadence, NAT-safe). */
+  poll: { max: 180, timeWindow: '1 minute' },
   /** Standard game-scoped reads/writes. */
   standard: { max: 30, timeWindow: '1 minute' },
   /** Light authenticated reads (results history, lobby reads). */

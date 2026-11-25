@@ -3,28 +3,33 @@ import type { ScheduledTask } from 'node-cron';
 import {
   PURGE_CRON_EXPRESSION,
   PURGE_CRON_TIMEZONE,
+  SESSION_PURGE_CRON_EXPRESSION,
   startScheduler,
   stopScheduler,
 } from '../../src/scheduler/index.js';
-import type { SchedulerClient } from '../../src/scheduler/index.js';
+import type { SchedulerClient, SchedulerHandle } from '../../src/scheduler/index.js';
 
 describe('startScheduler (R18, node-cron v4 wiring)', () => {
-  let task: { stop: () => void | Promise<void> } | undefined;
+  let task: SchedulerHandle | undefined;
 
   afterEach(async () => {
-    await task?.stop();
+    await stopScheduler(task);
     task = undefined;
   });
 
-  it('schedules the daily purge at 03:00 UTC and returns a controllable task', () => {
+  it('schedules the daily retention purge at 03:00 UTC and hourly session purge', () => {
     const db = {} as unknown as SchedulerClient;
 
     task = startScheduler(db);
 
     expect(PURGE_CRON_EXPRESSION).toBe('0 3 * * *');
+    expect(SESSION_PURGE_CRON_EXPRESSION).toBe('0 * * * *');
     expect(PURGE_CRON_TIMEZONE).toBe('UTC');
     expect(task).toBeDefined();
-    expect(typeof task?.stop).toBe('function');
+    expect(typeof task.stop).toBe('function');
+    expect(typeof task.destroy).toBe('function');
+    expect(task.dailyTask).toBeDefined();
+    expect(task.sessionTask).toBeDefined();
   });
 
   it('logs a failure through the injected logger if the purge throws, never a crash', async () => {

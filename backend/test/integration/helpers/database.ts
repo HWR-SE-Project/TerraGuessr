@@ -18,6 +18,7 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
 import { registerErrorHandler } from '../../../src/plugins/errorHandler.js';
+import { createStrictBodySchemaController } from '../../../src/plugins/validation.js';
 import { registerLobbiesRoutes } from '../../../src/modules/lobbies/routes.js';
 import type { LobbyRouteOptions } from '../../../src/modules/lobbies/routes.js';
 
@@ -72,7 +73,10 @@ export function buildTestApp(
   prisma: PrismaClient,
   lobbyOptions: LobbyRouteOptions = {},
 ): FastifyInstance {
-  const app = Fastify({ logger: { level: 'silent' } });
+  const app = Fastify({
+    logger: { level: 'silent' },
+    schemaController: createStrictBodySchemaController(),
+  });
   registerErrorHandler(app);
   registerLobbiesRoutes(app, prisma, lobbyOptions);
   return app;

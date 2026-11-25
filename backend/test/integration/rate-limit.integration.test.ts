@@ -51,10 +51,20 @@ describe('rate limiting (integration, Phase C)', () => {
     });
   });
 
-  it('GET /api/health is not rate-limited (no config.rateLimit on that route)', async () => {
+  it('GET /api/health and GET /api/ready are exempt from rate limiting', async () => {
     for (let i = 0; i < 40; i += 1) {
-      const res = await app.inject({ method: 'GET', url: '/api/health' });
-      expect(res.statusCode).toBe(200);
+      const health = await app.inject({ method: 'GET', url: '/api/health' });
+      expect(health.statusCode).toBe(200);
+      expect(health.headers['x-ratelimit-limit']).toBeUndefined();
     }
+    const ready = await app.inject({ method: 'GET', url: '/api/ready' });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.headers['x-ratelimit-limit']).toBeUndefined();
+  });
+
+  it('GET /api/lobbies/:code is covered by rate limiting', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/lobbies/AAAAAA' });
+    expect(res.statusCode).toBe(404);
+    expect(Number(res.headers['x-ratelimit-limit'])).toBeGreaterThan(0);
   });
 });

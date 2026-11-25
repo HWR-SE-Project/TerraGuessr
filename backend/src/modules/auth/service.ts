@@ -12,10 +12,12 @@ const SCRYPT_P = 1;
 const SCRYPT_KEY_BYTES = 64;
 const SCRYPT_MAXMEM = 256 * 1024 * 1024;
 /**
- * One scrypt call needs ~128 MB. Bound concurrent hashes so a burst of login
- * or registration requests cannot exhaust the process heap.
+ * One scrypt call needs ~128 MB. Bound concurrent hashes and queue depth so a
+ * burst of login or registration requests cannot exhaust heap or sockets.
  */
-const MAX_CONCURRENT_SCRYPT = 2;
+export const MAX_CONCURRENT_SCRYPT = 2;
+export const MAX_SCRYPT_QUEUE = 20;
+export const SCRYPT_QUEUE_TIMEOUT_MS = 2_000;
 export const AUTH_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const AUTH_SESSION_IDLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
@@ -38,21 +40,73 @@ export class AuthError extends AppError {
   }
 }
 
-let activeScryptCalls = 0;
-const scryptWaiters: Array<() => void> = [];
+interface ScryptWaiter {
+  grant: () => void;
+  settled: boolean;
+}
 
-async function acquireScryptSlot(): Promise<void> {
+let activeScryptCalls = 0;
+const scryptWaiters: ScryptWaiter[] = [];
+
+export async function acquireScryptSlot(
+  options: { maxQueue?: number; timeoutMs?: number } = {},
+): Promise<void> {
+  const maxQueue = options.maxQueue ?? MAX_SCRYPT_QUEUE;
+  const timeoutMs = options.timeoutMs ?? SCRYPT_QUEUE_TIMEOUT_MS;
+
   if (activeScryptCalls < MAX_CONCURRENT_SCRYPT) {
     activeScryptCalls += 1;
     return;
   }
-  await new Promise<void>((resolve) => scryptWaiters.push(resolve));
-  activeScryptCalls += 1;
+  if (scryptWaiters.length >= maxQueue) {
+    throw new AuthError(
+      503,
+      'Authentication service is busy. Please retry shortly.',
+      'AUTH_BUSY',
+    );
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const waiter: ScryptWaiter = {
+      settled: false,
+      grant: () => {
+        if (waiter.settled) return;
+        waiter.settled = true;
+        clearTimeout(timer);
+        resolve();
+      },
+    };
+
+    const timer = setTimeout(() => {
+      if (waiter.settled) return;
+      waiter.settled = true;
+      const index = scryptWaiters.indexOf(waiter);
+      if (index >= 0) scryptWaiters.splice(index, 1);
+      reject(
+        new AuthError(
+          503,
+          'Authentication service is busy. Please retry shortly.',
+          'AUTH_BUSY',
+        ),
+      );
+    }, timeoutMs);
+    timer.unref();
+
+    scryptWaiters.push(waiter);
+  });
 }
 
-function releaseScryptSlot(): void {
-  activeScryptCalls -= 1;
-  scryptWaiters.shift()?.();
+export function releaseScryptSlot(): void {
+  while (scryptWaiters.length > 0) {
+    const next = scryptWaiters.shift()!;
+    if (!next.settled) {
+      // Transfer the active slot directly so no concurrent caller can jump
+      // ahead and exceed MAX_CONCURRENT_SCRYPT before the microtask resumes.
+      next.grant();
+      return;
+    }
+  }
+  activeScryptCalls = Math.max(0, activeScryptCalls - 1);
 }
 
 async function scrypt(password: string, salt: Buffer, length: number, n: number): Promise<Buffer> {
@@ -308,15 +362,38 @@ export async function confirmEmailChange(db: PrismaClient, token: string): Promi
   }
 }
 
-async function recordFailedLogin(db: PrismaClient, user: User, now: Date): Promise<void> {
+/**
+ * Atomically increments the failed-login counter within the failure window and
+ * sets `lockedUntil` once `LOGIN_MAX_FAILURES` is reached. Using a single SQL
+ * UPDATE prevents concurrent wrong-password requests from overwriting each
+ * other with stale pre-scrypt counts and bypassing account lockout.
+ */
+async function recordFailedLogin(db: PrismaClient, userId: string, now: Date): Promise<void> {
   const windowStart = new Date(now.getTime() - LOGIN_FAILURE_WINDOW_MS);
-  const withinWindow = user.lastFailedLoginAt !== null && user.lastFailedLoginAt.getTime() > windowStart.getTime();
-  const attempts = withinWindow ? user.failedLoginAttempts + 1 : 1;
-  const lockedUntil = attempts >= LOGIN_MAX_FAILURES ? new Date(now.getTime() + LOGIN_LOCK_MS) : null;
-  await db.user.update({
-    where: { id: user.id },
-    data: { failedLoginAttempts: attempts, lastFailedLoginAt: now, lockedUntil },
-  });
+  const lockUntil = new Date(now.getTime() + LOGIN_LOCK_MS);
+  await db.$executeRaw`
+    UPDATE "User"
+    SET
+      "failedLoginAttempts" = CASE
+        WHEN "lastFailedLoginAt" IS NOT NULL AND "lastFailedLoginAt" > ${windowStart}
+          THEN "failedLoginAttempts" + 1
+        ELSE 1
+      END,
+      "lockedUntil" = CASE
+        WHEN (
+          CASE
+            WHEN "lastFailedLoginAt" IS NOT NULL AND "lastFailedLoginAt" > ${windowStart}
+              THEN "failedLoginAttempts" + 1
+            ELSE 1
+          END
+        ) >= ${LOGIN_MAX_FAILURES}
+          THEN ${lockUntil}
+        ELSE "lockedUntil"
+      END,
+      "lastFailedLoginAt" = ${now},
+      "updatedAt" = ${now}
+    WHERE "id" = ${userId}
+  `;
 }
 
 export async function loginWithEmail(
@@ -331,7 +408,7 @@ export async function loginWithEmail(
   }
   const passwordOk = await verifyPassword(input.password, user?.passwordHash ?? null);
   if (!user || !passwordOk) {
-    if (user) await recordFailedLogin(db, user, now);
+    if (user) await recordFailedLogin(db, user.id, new Date());
     throw new AuthError(401, 'Email or password is incorrect');
   }
   if (!user.emailVerifiedAt) {

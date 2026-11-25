@@ -11,6 +11,7 @@ import { Type } from '@sinclair/typebox';
 import { prisma } from '../../db/prisma.js';
 import { RATE_LIMITS } from '../../config/constants.js';
 import { readTokenHeader } from '../../plugins/auth.js';
+import { AppError } from '../../plugins/errors.js';
 import { optionalSessionUserId } from '../auth/session.js';
 import { IntelligenceResponse } from '../intelligence/contract.js';
 import {
@@ -69,6 +70,13 @@ const Session = Type.Object({
   activeRound: Type.Union([PublicRound, Type.Null()]),
   results: Type.Array(Result),
 });
+const CreateGameBody = Type.Union([
+  Type.Null(),
+  Type.Object(
+    { difficulty: Type.Optional(DifficultyLevel) },
+    { additionalProperties: false },
+  ),
+]);
 const Params = Type.Object({
   gameId: Type.String({ minLength: 1, maxLength: 100 }),
 });
@@ -110,6 +118,7 @@ export function registerSingleplayerRoutes(
     {
       config: limited,
       schema: {
+        body: CreateGameBody,
         response: {
           201: Type.Object({ id: Type.String(), playerToken: Type.String() }),
         },
@@ -117,7 +126,7 @@ export function registerSingleplayerRoutes(
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
-      const body = request.body as { difficulty?: unknown } | undefined;
+      const body = request.body as { difficulty?: unknown } | null | undefined;
       // R18: capture the account once, so archival does not depend on the
       // session cookie still being valid when the final round ends.
       const ownerUserId = await optionalSessionUserId(request, db);
@@ -249,14 +258,12 @@ export function registerSingleplayerRoutes(
   }>(
     '/api/singleplayer/games/:gameId/rounds/:roundId/guess',
     {
-      // Reject nulls and strings before AJV's default numeric coercion.
+      // Reject mixed candidate/coordinate payloads and non-finite or non-numeric
+      // coordinates cleanly via AppError (even when mounted on bare Fastify).
       preValidation: async (request) => {
         const body = request.body as Record<string, unknown> | undefined;
         if (!body || typeof body !== 'object') {
-          throw Object.assign(
-            new Error('Guess coordinates must be finite numbers.'),
-            { statusCode: 400 },
-          );
+          throw new AppError(400, 'Guess coordinates must be finite numbers.');
         }
         if ('candidateId' in body) {
           if (
@@ -265,9 +272,9 @@ export function registerSingleplayerRoutes(
             'lat' in body ||
             'lon' in body
           ) {
-            throw Object.assign(
-              new Error('Candidate guess must specify a valid candidateId without coordinates.'),
-              { statusCode: 400 },
+            throw new AppError(
+              400,
+              'Candidate guess must specify a valid candidateId without coordinates.',
             );
           }
           return;
@@ -278,10 +285,7 @@ export function registerSingleplayerRoutes(
           !Number.isFinite(body.lat) ||
           !Number.isFinite(body.lon)
         ) {
-          throw Object.assign(
-            new Error('Guess coordinates must be finite numbers.'),
-            { statusCode: 400 },
-          );
+          throw new AppError(400, 'Guess coordinates must be finite numbers.');
         }
       },
       config: limited,

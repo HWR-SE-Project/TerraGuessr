@@ -644,10 +644,16 @@ describe('difficulty levels and list-mode candidates (R05/R07)', () => {
     ).json();
     expect(round.candidates).toBeUndefined();
   });
-  it('rejects an unrecognized difficulty value by falling back to medium', async () => {
-    const auth = await create('expert');
-    const session = (await app.inject({ url: auth.base, headers: auth.headers })).json();
-    expect(session.difficulty).toBe('medium');
+  it('rejects an unrecognized difficulty value with 400 VALIDATION_ERROR', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/singleplayer/games',
+      payload: { difficulty: 'expert' },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: { code: 'VALIDATION_ERROR' },
+    });
   });
   it('offers a 6-option candidate list without coordinates on easy and enforces choice membership (R04/R05)', async () => {
     const auth = await create('easy');

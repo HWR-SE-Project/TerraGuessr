@@ -58,20 +58,72 @@ class Cache<T> {
     this.entries.set(key, { value, expires });
   }
 }
+export interface IntelligenceLogger {
+  warn(obj: unknown, msg?: string): void;
+}
+
+export interface IntelligenceLookupOptions {
+  /**
+   * When false, skips fetching `/v1/elevation` (still returns cached elevation
+   * if already warm). Used during weather-only round validation and locked
+   * Medium/Hard rounds where elevation clues are redacted anyway.
+   */
+  includeEnvironment?: boolean;
+}
+
+export const DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 5;
+export const DEFAULT_CIRCUIT_OPEN_MS = 20_000;
+
+const noopLogger: IntelligenceLogger = { warn: () => {} };
+
+class UpstreamStatusError extends Error {
+  public constructor(public readonly status: number) {
+    super(`Environmental provider returned HTTP ${status}`);
+    this.name = 'UpstreamStatusError';
+  }
+}
+
+function safeErrorSummary(error: unknown): Record<string, unknown> {
+  if (error instanceof UpstreamStatusError) {
+    return { kind: 'http_status', status: error.status };
+  }
+  if (error instanceof Error) {
+    const code = (error as Error & { code?: unknown }).code;
+    return {
+      kind: error.name,
+      ...(typeof code === 'string' ? { code } : {}),
+    };
+  }
+  return { kind: 'unknown' };
+}
+
 export function createIntelligenceProvider(
   options: {
     baseUrl?: string;
     apiKey?: string;
     fetcher?: typeof fetch;
     now?: () => number;
+    log?: IntelligenceLogger;
+    circuitFailureThreshold?: number;
+    circuitOpenMs?: number;
   } = {},
 ) {
   const fetcher = options.fetcher ?? fetch;
   const now = options.now ?? Date.now;
+  const log = options.log ?? noopLogger;
+  const circuitFailureThreshold =
+    options.circuitFailureThreshold ?? DEFAULT_CIRCUIT_FAILURE_THRESHOLD;
+  const circuitOpenMs = options.circuitOpenMs ?? DEFAULT_CIRCUIT_OPEN_MS;
+
   const weatherCache = new Cache<{ weather: Weather; fetchedAt: string }>();
   const environmentCache = new Cache<Environment>();
-  const pending = new Map<string, Promise<GeographicIntelligence>>();
+  const pendingWeather = new Map<string, Promise<{ weather: Weather; fetchedAt: string }>>();
+  const pendingEnvironment = new Map<string, Promise<Environment>>();
   const baseUrl = options.baseUrl ?? 'https://api.open-meteo.com';
+
+  let consecutiveWeatherFailures = 0;
+  let circuitOpenUntil = 0;
+
   async function json(
     path: string,
     params: Record<string, string>,
@@ -84,7 +136,7 @@ export function createIntelligenceProvider(
     const response = await fetcher(url, {
       signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
     });
-    if (!response.ok) throw new Error('Environmental provider unavailable');
+    if (!response.ok) throw new UpstreamStatusError(response.status);
     const data: unknown = await response.json();
     if (!data || typeof data !== 'object' || Array.isArray(data))
       throw new Error('Invalid environmental data');
@@ -189,76 +241,152 @@ export function createIntelligenceProvider(
               : 'High relief',
     };
   }
-  return async (lat: number, lon: number): Promise<GeographicIntelligence> => {
+  function fetchWeatherDedup(
+    key: string,
+    lat: number,
+    lon: number,
+  ): Promise<{ weather: Weather; fetchedAt: string }> {
+    const existing = pendingWeather.get(key);
+    if (existing) return existing;
+
+    const job = weather(lat, lon)
+      .then((value) => {
+        consecutiveWeatherFailures = 0;
+        circuitOpenUntil = 0;
+        const entry = {
+          weather: value,
+          fetchedAt: new Date(now()).toISOString(),
+        };
+        weatherCache.set(
+          key,
+          entry,
+          now() + (value ? 15 * MINUTE : 30_000),
+        );
+        return entry;
+      })
+      .catch((error: unknown) => {
+        consecutiveWeatherFailures += 1;
+        log.warn(
+          {
+            endpoint: '/v1/forecast',
+            consecutiveFailures: consecutiveWeatherFailures,
+            ...safeErrorSummary(error),
+          },
+          'Open-Meteo weather request failed',
+        );
+        if (consecutiveWeatherFailures >= circuitFailureThreshold) {
+          circuitOpenUntil = now() + circuitOpenMs;
+          log.warn(
+            {
+              endpoint: '/v1/forecast',
+              consecutiveFailures: consecutiveWeatherFailures,
+              openMs: circuitOpenMs,
+            },
+            'Open-Meteo circuit breaker opened',
+          );
+        }
+        const entry = {
+          weather: null as Weather,
+          fetchedAt: new Date(now()).toISOString(),
+        };
+        weatherCache.set(key, entry, now() + 30_000);
+        return entry;
+      })
+      .finally(() => {
+        pendingWeather.delete(key);
+      });
+
+    pendingWeather.set(key, job);
+    return job;
+  }
+
+  function fetchEnvironmentDedup(
+    key: string,
+    lat: number,
+    lon: number,
+  ): Promise<Environment> {
+    const existing = pendingEnvironment.get(key);
+    if (existing) return existing;
+
+    const job = environment(lat, lon)
+      .catch((error: unknown) => {
+        log.warn(
+          {
+            endpoint: '/v1/elevation',
+            ...safeErrorSummary(error),
+          },
+          'Open-Meteo elevation request failed',
+        );
+        return { ...EMPTY_ENVIRONMENT };
+      })
+      .then((value) => {
+        environmentCache.set(
+          key,
+          value,
+          now() +
+            (value.elevationM !== null ? 30 * 24 * 60 * MINUTE : 30_000),
+        );
+        return value;
+      })
+      .finally(() => {
+        pendingEnvironment.delete(key);
+      });
+
+    pendingEnvironment.set(key, job);
+    return job;
+  }
+
+  return async (
+    lat: number,
+    lon: number,
+    lookupOptions: IntelligenceLookupOptions = {},
+  ): Promise<GeographicIntelligence> => {
     if (number(lat, -90, 90) === null || number(lon, -180, 180) === null)
       throw new Error('Invalid server location');
+    const includeEnvironment = lookupOptions.includeEnvironment ?? true;
     const key = `${lat},${lon}`;
-    const existing = pending.get(key);
-    if (existing) return existing;
-    const job = (async () => {
-      const time = now();
-      const cachedWeatherEntry = weatherCache.get(key, time);
-      // Negative-cache entries stay usable for their short TTL; a stale
-      // positive entry is treated as a miss so the observation is re-fetched.
-      const cachedWeather =
-        cachedWeatherEntry &&
-        (cachedWeatherEntry.weather === null ||
-          isFreshWeatherTimestamp(cachedWeatherEntry.weather.modelTime, time))
-          ? cachedWeatherEntry
-          : undefined;
-      const cachedEnvironment = environmentCache.get(key, time);
-      const [w, e] = await Promise.all([
-        cachedWeather
-          ? Promise.resolve(cachedWeather)
-          : weather(lat, lon)
-              .catch(() => null)
-              .then((value) => {
-                const entry = {
-                  weather: value,
-                  fetchedAt: new Date(now()).toISOString(),
-                };
-                weatherCache.set(
-                  key,
-                  entry,
-                  now() + (value ? 15 * MINUTE : 30_000),
-                );
-                return entry;
-              }),
-        cachedEnvironment
-          ? Promise.resolve(cachedEnvironment)
-          : environment(lat, lon)
-              .catch(() => ({ ...EMPTY_ENVIRONMENT }))
-              .then((value) => {
-                environmentCache.set(
-                  key,
-                  value,
-                  now() +
-                    (value.elevationM !== null
-                      ? 30 * 24 * 60 * MINUTE
-                      : 30_000),
-                );
-                return value;
-              }),
-      ]);
-      // Re-check at display time: a cached observation can cross the
-      // 120-minute limit while it is still inside the cache TTL.
-      const displayTime = now();
-      const displayedWeather = w.weather && isFreshWeatherTimestamp(w.weather.modelTime, displayTime)
+    const time = now();
+    const cachedWeatherEntry = weatherCache.get(key, time);
+    // Negative-cache entries stay usable for their short TTL; a stale
+    // positive entry is treated as a miss so the observation is re-fetched.
+    const cachedWeather =
+      cachedWeatherEntry &&
+      (cachedWeatherEntry.weather === null ||
+        isFreshWeatherTimestamp(cachedWeatherEntry.weather.modelTime, time))
+        ? cachedWeatherEntry
+        : undefined;
+    const cachedEnvironment = environmentCache.get(key, time);
+
+    const weatherCircuitOpen = !cachedWeather && time < circuitOpenUntil;
+    const weatherPromise = cachedWeather
+      ? Promise.resolve(cachedWeather)
+      : weatherCircuitOpen
+        ? Promise.resolve({
+            weather: null as Weather,
+            fetchedAt: new Date(time).toISOString(),
+          })
+        : fetchWeatherDedup(key, lat, lon);
+
+    const environmentPromise = cachedEnvironment
+      ? Promise.resolve(cachedEnvironment)
+      : includeEnvironment
+        ? fetchEnvironmentDedup(key, lat, lon)
+        : Promise.resolve({ ...EMPTY_ENVIRONMENT });
+
+    const [w, e] = await Promise.all([weatherPromise, environmentPromise]);
+    // Re-check at display time: a cached observation can cross the
+    // 120-minute limit while it is still inside the cache TTL.
+    const displayTime = now();
+    const displayedWeather =
+      w.weather && isFreshWeatherTimestamp(w.weather.modelTime, displayTime)
         ? w.weather
         : null;
-      return {
-        ...w,
-        weather: displayedWeather,
-        cached: Boolean(cachedWeather),
-        environment: e,
-        climate: null,
-      };
-    })();
-    pending.set(key, job);
-    try {
-      return await job;
-    } finally {
-      pending.delete(key);
-    }
+    return {
+      ...w,
+      weather: displayedWeather,
+      cached: Boolean(cachedWeather),
+      environment: e,
+      climate: null,
+    };
   };
 }

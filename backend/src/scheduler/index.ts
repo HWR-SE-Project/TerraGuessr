@@ -1,6 +1,7 @@
 /**
- * In-process scheduler (R18, architecture.md §7a). The retention purge and
- * auth-artifact cleanup run once a day; prefetch is event-driven, not scheduled.
+ * In-process scheduler (R18, architecture.md §7a). Archive retention and
+ * auth-artifact cleanup run daily; expired live-session settlement/deletion
+ * runs hourly so expired games never rely on synchronous user-request purges.
  */
 
 import cron from 'node-cron';
@@ -14,11 +15,13 @@ import type { GamePurgeClient, SessionPurgeClient } from './purge.js';
 import { purgeExpiredAuthArtifacts } from './authCleanup.js';
 import type { AuthCleanupClient } from './authCleanup.js';
 
-/** Daily at 03:00 UTC. */
+/** Daily at 03:00 UTC (6-month archive retention + auth artifact cleanup). */
 export const PURGE_CRON_EXPRESSION = '0 3 * * *';
+/** Hourly on the hour UTC (expired singleplayer games + lobbies). */
+export const SESSION_PURGE_CRON_EXPRESSION = '0 * * * *';
 export const PURGE_CRON_TIMEZONE = 'UTC';
 
-/** Everything the daily maintenance job needs. */
+/** Everything the scheduled maintenance jobs need. */
 export type SchedulerClient = AuthCleanupClient &
   GamePurgeClient &
   SessionPurgeClient;
@@ -29,17 +32,27 @@ export interface SchedulerLogger {
   error(obj: unknown, msg?: string): void;
 }
 
+/** Controllable handle covering every scheduled task registered by `startScheduler`. */
+export interface SchedulerHandle {
+  dailyTask: ScheduledTask;
+  sessionTask: ScheduledTask;
+  execute(): Promise<void>;
+  stop(): Promise<void>;
+  destroy(): Promise<void>;
+}
+
 const noopLogger: SchedulerLogger = { info: () => {}, error: () => {} };
 
 /**
- * Registers the daily retention purge and auth cleanup, returning the task so
- * the caller can stop it on shutdown. Tests never start it.
+ * Registers the daily retention/auth cleanup and hourly expired-session purge,
+ * returning a handle so the caller can stop every task on shutdown. Tests never
+ * start it automatically.
  */
 export function startScheduler(
   db: SchedulerClient,
   log: SchedulerLogger = noopLogger,
-): ScheduledTask {
-  return cron.schedule(
+): SchedulerHandle {
+  const dailyTask = cron.schedule(
     PURGE_CRON_EXPRESSION,
     () => {
       void purgeExpiredGameResults(db)
@@ -58,16 +71,6 @@ export function startScheduler(
           log.error({ err }, 'game result retention purge failed');
         });
 
-      void purgeExpiredGameSessions(db)
-        .then((summary) => {
-          if (summary.deletedStreetGames + summary.deletedLobbies > 0) {
-            log.info(summary, 'expired game session purge completed');
-          }
-        })
-        .catch((err: unknown) => {
-          log.error({ err }, 'expired game session purge failed');
-        });
-
       void purgeExpiredAuthArtifacts(db)
         .then((summary) => {
           const total = summary.deletedSessions + summary.deletedResetTokens +
@@ -80,10 +83,42 @@ export function startScheduler(
     },
     { timezone: PURGE_CRON_TIMEZONE },
   );
+
+  const sessionTask = cron.schedule(
+    SESSION_PURGE_CRON_EXPRESSION,
+    () => {
+      void purgeExpiredGameSessions(db)
+        .then((summary) => {
+          if (summary.deletedStreetGames + summary.deletedLobbies > 0) {
+            log.info(summary, 'expired game session purge completed');
+          }
+        })
+        .catch((err: unknown) => {
+          log.error({ err }, 'expired game session purge failed');
+        });
+    },
+    { timezone: PURGE_CRON_TIMEZONE },
+  );
+
+  return {
+    dailyTask,
+    sessionTask,
+    async execute() {
+      await Promise.all([dailyTask.execute(), sessionTask.execute()]);
+    },
+    async stop() {
+      await Promise.all([dailyTask.stop(), sessionTask.stop()]);
+    },
+    async destroy() {
+      await Promise.all([dailyTask.destroy(), sessionTask.destroy()]);
+    },
+  };
 }
 
-/** Stops and destroys a scheduled task during graceful shutdown. */
-export async function stopScheduler(task: ScheduledTask | undefined): Promise<void> {
+/** Stops and destroys all scheduled tasks during graceful shutdown. */
+export async function stopScheduler(
+  task: Pick<ScheduledTask, 'stop' | 'destroy'> | undefined,
+): Promise<void> {
   if (!task) return;
   await task.stop();
   await task.destroy();

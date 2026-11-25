@@ -13,9 +13,12 @@ import {
   WEATHER_MAX_DISPLAY_AGE_MS,
 } from '../../config/constants.js';
 
+import type { IntelligenceLookupOptions } from '../intelligence/service.js';
+
 export type IntelligenceLookup = (
   lat: number,
   lon: number,
+  options?: IntelligenceLookupOptions,
 ) => Promise<GeographicIntelligence>;
 
 export type PanoramaLocator = (panoId: string) => Promise<LatLon>;
@@ -104,8 +107,13 @@ export async function selectRoundWithWeather(
 
   const checkTarget = async (target: PanoramaTarget) => {
     const point = locate ? await locate(target.panoId) : target;
-    const weather = (await intelligence(point.lat, point.lon).catch(() => null))
-      ?.weather;
+    // Only weather is required for R03 validation and diorama scene derivation;
+    // skip `/v1/elevation` so retries and discarded candidates never double upstream load.
+    const weather = (
+      await intelligence(point.lat, point.lon, { includeEnvironment: false }).catch(
+        () => null,
+      )
+    )?.weather;
     if (
       weather &&
       isValidStreetWeather(weather, Math.max(Date.now(), validAt?.getTime() ?? 0))

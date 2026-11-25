@@ -13,6 +13,7 @@ import {
   LOBBY_CODE_LENGTH,
   LOBBY_ROUNDS_TOTAL,
   LOBBY_TTL_MS,
+  MAX_LOBBY_MEMBERS,
 } from '../../config/constants.js';
 import { prisma } from '../../db/prisma.js';
 import { gameRulesFor } from '../../domain/gameRules.js';
@@ -103,7 +104,7 @@ export function toLobbyView(
 /** Load a live lobby or throw 404 (expired lobbies are treated as gone). */
 async function loadLobbyOrThrow(
   code: string,
-  db: PrismaClient,
+  db: Pick<PrismaClient, 'lobby'>,
 ): Promise<LobbyWithMembers> {
   const lobby = await db.lobby.findUnique({
     where: { code },
@@ -177,30 +178,44 @@ export async function getLobby(
 }
 
 /**
- * Join a waiting lobby and return a fresh lobby token. Joining is idempotent
- * only in the sense that every call creates a new member — a player who loses
- * their token cannot impersonate an existing member.
+ * Join a waiting lobby and return a fresh lobby token. Joining is serialized
+ * per lobby row so concurrent joins cannot bypass `MAX_LOBBY_MEMBERS` or slip
+ * in after the host starts the match.
  */
 export async function joinLobby(
   code: string,
   input: { displayName?: string },
   db: PrismaClient = prisma,
   userId?: string,
+  maxMembers: number = MAX_LOBBY_MEMBERS,
 ): Promise<JoinLobbyResponse> {
-  const lobby = await loadLobbyOrThrow(code, db);
-
-  if (lobby.status !== 'waiting') {
-    throw new LobbyConflictError('Lobby is no longer accepting players');
-  }
-
   const playerToken = generatePlayerToken();
-  const member = await db.lobbyMember.create({
-    data: {
-      lobbyId: lobby.id,
-      playerTokenHash: hashPlayerToken(playerToken),
-      displayName: normalizeDisplayName(input.displayName),
-      userId: userId ?? null,
-    },
+  const playerTokenHash = hashPlayerToken(playerToken);
+  const displayName = normalizeDisplayName(input.displayName);
+
+  const { lobby, member } = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Lobby" WHERE "code" = ${code} FOR UPDATE`;
+    const existing = await loadLobbyOrThrow(code, tx);
+
+    if (existing.status !== 'waiting') {
+      throw new LobbyConflictError('Lobby is no longer accepting players');
+    }
+    if (existing.members.length >= maxMembers) {
+      throw new LobbyConflictError(
+        `Lobby is full (maximum ${maxMembers} players)`,
+      );
+    }
+
+    const created = await tx.lobbyMember.create({
+      data: {
+        lobbyId: existing.id,
+        playerTokenHash,
+        displayName,
+        userId: userId ?? null,
+      },
+    });
+
+    return { lobby: existing, member: created };
   });
 
   return {
@@ -213,36 +228,35 @@ export async function joinLobby(
 }
 
 /**
- * Leave a lobby. While the lobby is still waiting, the host leaving disbands it
- * (and cascades all members). Once a match has started, the host leaving must
- * not end the game: the host is removed and the earliest remaining player is
- * promoted so the lobby can carry on. An ordinary member is removed, along
- * with their match history. An unknown token is a 404.
+ * Leave a lobby. Serialized per lobby row inside a transaction so concurrent
+ * departures can never promote a deleted member as host or fail with P2025.
  */
 export async function leaveLobby(
   code: string,
   rawToken: string,
   db: PrismaClient = prisma,
 ): Promise<void> {
-  const lobby = await loadLobbyOrThrow(code, db);
   const playerTokenHash = hashPlayerToken(rawToken);
 
-  if (playerTokenHash === lobby.hostTokenHash) {
-    if (lobby.status === 'waiting') {
-      await db.lobby.delete({ where: { id: lobby.id } });
-      return;
-    }
+  await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Lobby" WHERE "code" = ${code} FOR UPDATE`;
+    const lobby = await loadLobbyOrThrow(code, tx);
 
-    const remaining = lobby.members.filter(
-      (candidate) => candidate.playerTokenHash !== playerTokenHash,
-    );
-    if (remaining.length === 0) {
-      await db.lobby.delete({ where: { id: lobby.id } });
-      return;
-    }
+    if (playerTokenHash === lobby.hostTokenHash) {
+      if (lobby.status === 'waiting') {
+        await tx.lobby.delete({ where: { id: lobby.id } });
+        return;
+      }
 
-    const nextHost = remaining[0]!;
-    await db.$transaction(async (tx) => {
+      const remaining = lobby.members.filter(
+        (candidate) => candidate.playerTokenHash !== playerTokenHash,
+      );
+      if (remaining.length === 0) {
+        await tx.lobby.delete({ where: { id: lobby.id } });
+        return;
+      }
+
+      const nextHost = remaining[0]!;
       await tx.lobbyMember.deleteMany({
         where: { lobbyId: lobby.id, playerTokenHash },
       });
@@ -250,18 +264,18 @@ export async function leaveLobby(
         where: { id: lobby.id },
         data: { hostTokenHash: nextHost.playerTokenHash },
       });
-    });
-    return;
-  }
+      return;
+    }
 
-  const member = lobby.members.find(
-    (candidate) => candidate.playerTokenHash === playerTokenHash,
-  );
-  if (!member) {
-    throw new LobbyNotFoundError();
-  }
+    const member = lobby.members.find(
+      (candidate) => candidate.playerTokenHash === playerTokenHash,
+    );
+    if (!member) {
+      throw new LobbyNotFoundError();
+    }
 
-  await db.lobbyMember.delete({ where: { id: member.id } });
+    await tx.lobbyMember.deleteMany({ where: { id: member.id } });
+  });
 }
 
 /** Delete the lobby; only the host may do so. */

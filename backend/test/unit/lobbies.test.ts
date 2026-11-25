@@ -6,8 +6,10 @@ import {
   generatePlayerToken,
   hashPlayerToken,
 } from '../../src/plugins/auth.js';
+import { MAX_LOBBY_MEMBERS } from '../../src/config/constants.js';
 import { gameRulesFor } from '../../src/domain/gameRules.js';
 import {
+  LobbyConflictError,
   LobbyForbiddenError,
   LobbyNotFoundError,
   createLobby,
@@ -18,6 +20,7 @@ import {
   leaveLobby,
   type toLobbyView,
 } from '../../src/modules/lobbies/service.js';
+import { getLobbyMatch } from '../../src/modules/lobbies/match.js';
 
 type PrismaLike = Parameters<typeof createLobby>[1];
 type LobbyRow = Parameters<typeof toLobbyView>[0];
@@ -227,7 +230,24 @@ describe('getLobby', () => {
 });
 
 describe('joinLobby', () => {
-  it('adds a member with a fresh token', async () => {
+  function joinDb(row: LobbyRow, createdMember?: ReturnType<typeof member>) {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: row.id }]);
+    const findUnique = vi.fn().mockResolvedValue(row);
+    const create = vi.fn().mockResolvedValue(createdMember);
+    const tx = {
+      $queryRaw: queryRaw,
+      lobby: { findUnique },
+      lobbyMember: { create },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    } as unknown as PrismaLike;
+    return { db, queryRaw, findUnique, create };
+  }
+
+  it('adds a member with a fresh token inside a locked transaction', async () => {
     const guestHash = hashPlayerToken('guest-token');
     const createdMember = member({
       id: 'member-2',
@@ -235,88 +255,235 @@ describe('joinLobby', () => {
       displayName: 'Bob',
       joinedAt: new Date('2026-11-20T12:02:00.000Z'),
     });
-    const db = {
-      lobby: { findUnique: vi.fn().mockResolvedValue(lobbyRow()) },
-      lobbyMember: { create: vi.fn().mockResolvedValue(createdMember) },
-    } as unknown as PrismaLike;
+    const { db, queryRaw, create } = joinDb(lobbyRow(), createdMember);
 
     const result = await joinLobby('ABC234', { displayName: 'Bob' }, db);
 
+    expect(queryRaw).toHaveBeenCalledTimes(1);
     expect(result.lobby.members).toHaveLength(2);
     expect(result.lobby.members[1]?.displayName).toBe('Bob');
     expect(result.lobbyToken).not.toBe(HOST_TOKEN);
-    const createData = (
-      db.lobbyMember.create as unknown as ReturnType<typeof vi.fn>
-    ).mock.calls[0][0].data;
+    const createData = (create.mock.calls[0] as [{ data: { playerTokenHash: string } }])[0]
+      .data;
     expect(createData.playerTokenHash).toBe(hashPlayerToken(result.lobbyToken));
   });
 
   it('rejects joining a lobby that is already playing with 409', async () => {
-    const db = {
-      lobby: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue(lobbyRow({ status: 'playing' })),
-      },
-    } as unknown as PrismaLike;
+    const { db, create } = joinDb(lobbyRow({ status: 'playing' }));
 
     await expect(joinLobby('ABC234', {}, db)).rejects.toMatchObject({
       statusCode: 409,
     });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('rejects joining a lobby that has reached MAX_LOBBY_MEMBERS with 409', async () => {
+    const fullMembers = Array.from({ length: MAX_LOBBY_MEMBERS }, (_, i) =>
+      member({
+        id: `member-${i + 1}`,
+        playerTokenHash: i === 0 ? HOST_HASH : hashPlayerToken(`guest-${i}`),
+        displayName: `Player ${i + 1}`,
+      }),
+    );
+    const { db, create } = joinDb(lobbyRow({ members: fullMembers }));
+
+    await expect(joinLobby('ABC234', { displayName: 'Overflow' }, db)).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof LobbyConflictError &&
+        err.statusCode === 409 &&
+        /full/i.test(err.message),
+    );
+    expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe('getLobbyMatch idle polling', () => {
+  function matchLobbyRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'lobby-1',
+      code: 'ABC234',
+      difficulty: 'medium',
+      matchId: 'match-1',
+      hostTokenHash: HOST_HASH,
+      roundsTotal: 5,
+      status: 'playing',
+      currentRound: 1,
+      startedAt: CREATED_AT,
+      finishedAt: null,
+      createdAt: CREATED_AT,
+      expiresAt: FAR_FUTURE,
+      members: [
+        member({
+          selectionLat: null,
+          selectionLon: null,
+          continueRequestedAt: null,
+          userId: null,
+        }),
+        member({
+          id: 'member-2',
+          playerTokenHash: hashPlayerToken('guest-token'),
+          displayName: 'Guest',
+          selectionLat: null,
+          selectionLon: null,
+          continueRequestedAt: null,
+          userId: null,
+        }),
+      ],
+      rounds: [
+        {
+          id: 'round-1',
+          lobbyId: 'lobby-1',
+          number: 1,
+          panoId: 'loc:0',
+          targetIndex: 0,
+          targetLat: 51.5074,
+          targetLon: -0.1278,
+          placeName: 'London',
+          sceneJson: {
+            biome: 'urban',
+            weather: 'clear',
+            lighting: 'day',
+            temperatureBand: 'mild',
+            windBand: 'calm',
+            seed: 42,
+          },
+          candidatesJson: null,
+          startedAt: CREATED_AT,
+          endsAt: FAR_FUTURE,
+          reviewEndsAt: null,
+          weatherValidUntil: FAR_FUTURE,
+          weatherAttemptedIndices: [0],
+          weatherExhausted: false,
+          createdAt: CREATED_AT,
+          attempts: [],
+          results: [],
+          memberStates: [],
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  it('loads the lobby only once on an idle playing poll when no state transition occurs', async () => {
+    const findUnique = vi.fn().mockResolvedValue(matchLobbyRow());
+    const db = { lobby: { findUnique } } as unknown as PrismaLike;
+
+    const response = await getLobbyMatch('ABC234', HOST_TOKEN, db);
+
+    expect(response.match.status).toBe('playing');
+    expect(response.match.currentRound).toBe(1);
+    expect(findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads the lobby only once on an idle finished poll before any rematch request', async () => {
+    const findUnique = vi.fn().mockResolvedValue(
+      matchLobbyRow({
+        status: 'finished',
+        finishedAt: CREATED_AT,
+      }),
+    );
+    const db = { lobby: { findUnique } } as unknown as PrismaLike;
+
+    const response = await getLobbyMatch('ABC234', HOST_TOKEN, db);
+
+    expect(response.match.status).toBe('finished');
+    expect(response.match.continuePrompt?.deadline).toBeNull();
+    expect(findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads the lobby only once during the active rematch wait window while players are pending', async () => {
+    const now = new Date();
+    const row = matchLobbyRow({
+      status: 'finished',
+      finishedAt: now,
+      members: [
+        member({
+          selectionLat: null,
+          selectionLon: null,
+          continueRequestedAt: now,
+          userId: null,
+        }),
+        member({
+          id: 'member-2',
+          playerTokenHash: hashPlayerToken('guest-token'),
+          displayName: 'Guest',
+          selectionLat: null,
+          selectionLon: null,
+          continueRequestedAt: null,
+          userId: null,
+        }),
+      ],
+    });
+    const findUnique = vi.fn().mockResolvedValue(row);
+    const db = { lobby: { findUnique } } as unknown as PrismaLike;
+
+    const response = await getLobbyMatch('ABC234', HOST_TOKEN, db);
+
+    expect(response.match.status).toBe('finished');
+    expect(response.match.continuePrompt?.youRequested).toBe(true);
+    expect(response.match.continuePrompt?.pendingPlayers).toEqual(['Guest']);
+    expect(findUnique).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('leaveLobby', () => {
-  it('deletes the lobby when the host leaves', async () => {
-    const del = vi.fn().mockResolvedValue({});
-    const db = {
-      lobby: {
-        findUnique: vi.fn().mockResolvedValue(lobbyRow()),
-        delete: del,
-      },
-    } as unknown as PrismaLike;
-
-    await leaveLobby('ABC234', HOST_TOKEN, db);
-
-    expect(del).toHaveBeenCalledWith({ where: { id: 'lobby-1' } });
-  });
-
-  it('keeps a started match alive and promotes a guest when the host leaves', async () => {
-    const guestToken = 'guest-token';
-    const guestHash = hashPlayerToken(guestToken);
-    const deleteHost = vi.fn().mockResolvedValue({});
+  function leaveDb(row: LobbyRow) {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: row.id }]);
+    const findUnique = vi.fn().mockResolvedValue(row);
+    const deleteLobbyMock = vi.fn().mockResolvedValue({});
     const updateLobby = vi.fn().mockResolvedValue({});
+    const deleteMembers = vi.fn().mockResolvedValue({ count: 1 });
     const tx = {
-      lobbyMember: { deleteMany: deleteHost },
-      lobby: { update: updateLobby },
+      $queryRaw: queryRaw,
+      lobby: {
+        findUnique,
+        delete: deleteLobbyMock,
+        update: updateLobby,
+      },
+      lobbyMember: {
+        deleteMany: deleteMembers,
+      },
     };
     const db = {
-      lobby: {
-        findUnique: vi.fn().mockResolvedValue(
-          lobbyRow({
-            status: 'playing',
-            members: [
-              member(),
-              member({
-                id: 'member-2',
-                playerTokenHash: guestHash,
-                displayName: 'Guest',
-                joinedAt: new Date('2026-11-20T12:01:00.000Z'),
-              }),
-            ],
-          }),
-        ),
-        delete: vi.fn(),
-      },
       $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) =>
         callback(tx),
       ),
     } as unknown as PrismaLike;
+    return { db, queryRaw, deleteLobbyMock, updateLobby, deleteMembers };
+  }
+
+  it('deletes the lobby when the host leaves while waiting', async () => {
+    const { db, queryRaw, deleteLobbyMock } = leaveDb(lobbyRow());
 
     await leaveLobby('ABC234', HOST_TOKEN, db);
 
-    expect((db.lobby.delete as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
-    expect(deleteHost).toHaveBeenCalledWith({
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(deleteLobbyMock).toHaveBeenCalledWith({ where: { id: 'lobby-1' } });
+  });
+
+  it('keeps a started match alive and promotes a guest atomically when the host leaves', async () => {
+    const guestToken = 'guest-token';
+    const guestHash = hashPlayerToken(guestToken);
+    const { db, queryRaw, deleteLobbyMock, updateLobby, deleteMembers } = leaveDb(
+      lobbyRow({
+        status: 'playing',
+        members: [
+          member(),
+          member({
+            id: 'member-2',
+            playerTokenHash: guestHash,
+            displayName: 'Guest',
+            joinedAt: new Date('2026-11-20T12:01:00.000Z'),
+          }),
+        ],
+      }),
+    );
+
+    await leaveLobby('ABC234', HOST_TOKEN, db);
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(deleteLobbyMock).not.toHaveBeenCalled();
+    expect(deleteMembers).toHaveBeenCalledWith({
       where: { lobbyId: 'lobby-1', playerTokenHash: HOST_HASH },
     });
     expect(updateLobby).toHaveBeenCalledWith({
@@ -325,34 +492,26 @@ describe('leaveLobby', () => {
     });
   });
 
-  it('removes only the member when a guest leaves', async () => {
+  it('removes only the member idempotently when a guest leaves', async () => {
     const guestToken = 'guest-token';
-    const deleteMember = vi.fn().mockResolvedValue({});
-    const db = {
-      lobby: {
-        findUnique: vi.fn().mockResolvedValue(
-          lobbyRow({
-            members: [
-              member(),
-              member({ id: 'member-2', playerTokenHash: hashPlayerToken(guestToken) }),
-            ],
-          }),
-        ),
-        delete: vi.fn(),
-      },
-      lobbyMember: { delete: deleteMember },
-    } as unknown as PrismaLike;
+    const { db, queryRaw, deleteLobbyMock, deleteMembers } = leaveDb(
+      lobbyRow({
+        members: [
+          member(),
+          member({ id: 'member-2', playerTokenHash: hashPlayerToken(guestToken) }),
+        ],
+      }),
+    );
 
     await leaveLobby('ABC234', guestToken, db);
 
-    expect(deleteMember).toHaveBeenCalledWith({ where: { id: 'member-2' } });
-    expect((db.lobby.delete as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(deleteMembers).toHaveBeenCalledWith({ where: { id: 'member-2' } });
+    expect(deleteLobbyMock).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown token with 404', async () => {
-    const db = {
-      lobby: { findUnique: vi.fn().mockResolvedValue(lobbyRow()) },
-    } as unknown as PrismaLike;
+    const { db } = leaveDb(lobbyRow());
 
     await expect(leaveLobby('ABC234', 'nope', db)).rejects.toBeInstanceOf(
       LobbyNotFoundError,

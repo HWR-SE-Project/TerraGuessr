@@ -36,4 +36,69 @@ describe('loadEnv', () => {
     expect(loadEnv({ DATABASE_URL: 'postgresql://x', TRUST_PROXY: '1' }).trustProxy).toBe(1);
     expect(loadEnv({ DATABASE_URL: 'postgresql://x', TRUST_PROXY: '10.0.0.0/8' }).trustProxy).toBe('10.0.0.0/8');
   });
+
+  it('validates URLs, LOG_LEVEL, and precomputes allowedOrigins at startup (M-6)', () => {
+    expect(() =>
+      loadEnv({ DATABASE_URL: 'not-a-url' }),
+    ).toThrow(/Invalid DATABASE_URL/);
+    expect(() =>
+      loadEnv({ DATABASE_URL: 'http://wrong-proto' }),
+    ).toThrow(/Invalid DATABASE_URL protocol/);
+    expect(() =>
+      loadEnv({ DATABASE_URL: 'postgresql://x', CORS_ORIGIN: 'example.com' }),
+    ).toThrow(/Invalid CORS_ORIGIN URL/);
+    expect(() =>
+      loadEnv({ DATABASE_URL: 'postgresql://x', APP_BASE_URL: 'ftp://example.com' }),
+    ).toThrow(/Invalid APP_BASE_URL protocol/);
+    expect(() =>
+      loadEnv({ DATABASE_URL: 'postgresql://x', OPEN_METEO_BASE_URL: 'bad' }),
+    ).toThrow(/Invalid OPEN_METEO_BASE_URL URL/);
+    expect(() =>
+      loadEnv({ DATABASE_URL: 'postgresql://x', LOG_LEVEL: 'verbose' }),
+    ).toThrow(/Invalid LOG_LEVEL/);
+
+    const valid = loadEnv({
+      DATABASE_URL: 'postgresql://x',
+      CORS_ORIGIN: 'https://app.example.com/path',
+      APP_BASE_URL: 'https://web.example.com',
+      LOG_LEVEL: 'warn',
+    });
+    expect(valid.logLevel).toBe('warn');
+    expect([...(valid.allowedOrigins ?? [])].sort()).toEqual([
+      'https://app.example.com',
+      'https://web.example.com',
+    ]);
+  });
+
+  it('rejects partial Google OAuth or partial SMTP configuration (M-6)', () => {
+    // Pre-filled GOOGLE_REDIRECT_URI alone (as in .env.example) is allowed.
+    expect(
+      loadEnv({
+        DATABASE_URL: 'postgresql://x',
+        GOOGLE_REDIRECT_URI: 'http://localhost:3000/api/auth/google/callback',
+      }).googleClientId,
+    ).toBeUndefined();
+
+    expect(() =>
+      loadEnv({
+        DATABASE_URL: 'postgresql://x',
+        GOOGLE_CLIENT_ID: 'client-id-only',
+      }),
+    ).toThrow(/Partial Google OAuth configuration/);
+
+    expect(() =>
+      loadEnv({
+        DATABASE_URL: 'postgresql://x',
+        SMTP_URL: 'smtp://localhost:1025',
+      }),
+    ).toThrow(/Partial SMTP configuration/);
+
+    expect(() =>
+      loadEnv({
+        DATABASE_URL: 'postgresql://x',
+        SMTP_URL: 'http://not-smtp:1025',
+        SMTP_FROM: 'TerraGuessr <no-reply@example.test>',
+      }),
+    ).toThrow(/Invalid SMTP_URL protocol/);
+  });
 });

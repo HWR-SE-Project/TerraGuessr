@@ -1,9 +1,7 @@
-import type { ScheduledTask } from 'node-cron';
-
 import { buildApp } from './app.js';
 import { loadEnv } from './config/env.js';
 import { prisma } from './db/prisma.js';
-import { startScheduler, stopScheduler } from './scheduler/index.js';
+import { startScheduler, stopScheduler, type SchedulerHandle } from './scheduler/index.js';
 
 const SHUTDOWN_TIMEOUT_MS = 8_000;
 
@@ -11,7 +9,7 @@ const config = loadEnv();
 const app = await buildApp();
 
 const host = process.env.HOST ?? '0.0.0.0';
-let scheduler: ScheduledTask | undefined;
+let scheduler: SchedulerHandle | undefined;
 let shuttingDown = false;
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {

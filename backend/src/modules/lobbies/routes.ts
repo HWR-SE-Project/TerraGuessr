@@ -103,6 +103,7 @@ export function registerLobbiesRoutes(
   app.get(
     '/api/lobbies/:code',
     {
+      config: { rateLimit: RATE_LIMITS.poll },
       schema: {
         params: LobbyCodeParams,
         response: { 200: LobbyView },
@@ -165,6 +166,7 @@ export function registerLobbiesRoutes(
   app.post(
     '/api/lobbies/:code/start',
     {
+      config: { rateLimit: RATE_LIMITS.standard },
       schema: {
         params: LobbyCodeParams,
         response: { 200: LobbyMatchResponse },
@@ -186,6 +188,7 @@ export function registerLobbiesRoutes(
   app.get(
     '/api/lobbies/:code/match',
     {
+      config: { rateLimit: RATE_LIMITS.poll },
       schema: {
         params: LobbyCodeParams,
         response: { 200: LobbyMatchResponse },

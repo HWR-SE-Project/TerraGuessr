@@ -109,6 +109,7 @@ model EmailChangeRequest {
   @@index([userId, expiresAt])
   // Backs authCleanup.ts's unscoped `WHERE expiresAt <= now OR completedAt IS NOT NULL`.
   @@index([expiresAt])
+  @@index([completedAt])
 }
 
 model UserPreference {
@@ -166,7 +167,6 @@ model LobbyMember {
   roundStates         LobbyRoundMemberState[]
 
   @@unique([lobbyId, playerTokenHash])
-  @@index([lobbyId])
   @@index([userId])
 }
 
@@ -194,7 +194,6 @@ model LobbyRound {
   memberStates   LobbyRoundMemberState[]
 
   @@unique([lobbyId, number])
-  @@index([lobbyId])
 }
 
 model LobbyRoundAttempt {
@@ -211,7 +210,7 @@ model LobbyRoundAttempt {
   createdAt     DateTime    @default(now())
 
   @@unique([roundId, memberId, attemptNumber])
-  @@index([roundId, memberId])
+  @@index([memberId])
 }
 
 model LobbyRoundResult {
@@ -231,7 +230,7 @@ model LobbyRoundResult {
   createdAt    DateTime    @default(now())
 
   @@unique([roundId, memberId])
-  @@index([roundId])
+  @@index([memberId])
 }
 
 // Per-player state for the active round. Keeps additional-data unlocks and
@@ -344,7 +343,6 @@ model StreetRoundAttempt {
   createdAt     DateTime    @default(now())
 
   @@unique([roundId, attemptNumber])
-  @@index([roundId])
 }
 
 // Durable archive of a completed round for a signed-in player (R18). Guest
@@ -375,6 +373,7 @@ model GameResult {
 
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([userId, matchId, createdAt])
   @@index([sessionId])
   @@index([matchId])
 }

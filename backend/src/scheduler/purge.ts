@@ -35,34 +35,80 @@ export interface SessionPurgeSummary {
   deletedLobbies: number;
 }
 
-export type SessionPurgeClient = Pick<PrismaClient, 'streetGame' | 'lobby'> &
+export type SessionPurgeClient = Pick<PrismaClient, '$executeRaw'> &
   SettlementClient;
+
+async function deleteExpiredStreetGamesBatched(
+  db: Pick<PrismaClient, '$executeRaw'>,
+  now: Date,
+): Promise<number> {
+  let deleted = 0;
+  let batchSize: number;
+  do {
+    batchSize = await db.$executeRaw`
+      WITH expired AS (
+        SELECT "id"
+        FROM "StreetGame"
+        WHERE "expiresAt" < ${now}
+        ORDER BY "expiresAt"
+        LIMIT ${PURGE_BATCH_SIZE}
+        FOR UPDATE SKIP LOCKED
+      )
+      DELETE FROM "StreetGame" USING expired
+      WHERE "StreetGame"."id" = expired."id"
+    `;
+    deleted += batchSize;
+  } while (batchSize === PURGE_BATCH_SIZE);
+  return deleted;
+}
+
+async function deleteExpiredLobbiesBatched(
+  db: Pick<PrismaClient, '$executeRaw'>,
+  now: Date,
+): Promise<number> {
+  let deleted = 0;
+  let batchSize: number;
+  do {
+    batchSize = await db.$executeRaw`
+      WITH expired AS (
+        SELECT "id"
+        FROM "Lobby"
+        WHERE "expiresAt" < ${now}
+        ORDER BY "expiresAt"
+        LIMIT ${PURGE_BATCH_SIZE}
+        FOR UPDATE SKIP LOCKED
+      )
+      DELETE FROM "Lobby" USING expired
+      WHERE "Lobby"."id" = expired."id"
+    `;
+    deleted += batchSize;
+  } while (batchSize === PURGE_BATCH_SIZE);
+  return deleted;
+}
 
 /**
  * Settles any timed-out rounds on expired authenticated singleplayer sessions
- * before deleting expired `StreetGame` rows (R08/R18).
+ * before deleting expired `StreetGame` rows in bounded lock-safe batches (R08/R18).
  */
 export async function purgeExpiredStreetGames(
-  db: Pick<PrismaClient, 'streetGame'> & SettlementClient,
+  db: Pick<PrismaClient, '$executeRaw'> & SettlementClient,
   now: Date = new Date(),
 ): Promise<{ settledStreetRounds: number; deletedStreetGames: number }> {
   const settledStreetRounds = await settleTimedOutStreetRounds(db, now, {
     expiredGamesOnly: true,
   });
-  const streetGames = await db.streetGame.deleteMany({
-    where: { expiresAt: { lt: now } },
-  });
+  const deletedStreetGames = await deleteExpiredStreetGamesBatched(db, now);
   return {
     settledStreetRounds,
-    deletedStreetGames: streetGames.count,
+    deletedStreetGames,
   };
 }
 
 /**
  * Settles any unattended timed-out rounds for signed-in accounts before
- * removing expired singleplayer sessions and lobbies (cascading their rounds,
- * attempts, and results). Runs daily so stale result-bearing rows cannot
- * accumulate indefinitely while never dropping timed-out authenticated results.
+ * removing expired singleplayer sessions and lobbies in bounded batches
+ * (cascading their rounds, attempts, and results). Runs hourly via the
+ * scheduler so stale rows cannot accumulate while never blocking on large deletes.
  */
 export async function purgeExpiredGameSessions(
   db: SessionPurgeClient,
@@ -72,16 +118,16 @@ export async function purgeExpiredGameSessions(
     settleTimedOutStreetRounds(db, now, { expiredGamesOnly: true }),
     settleTimedOutLobbyRounds(db, now, { expiredLobbiesOnly: true }),
   ]);
-  const [streetGames, lobbies] = await Promise.all([
-    db.streetGame.deleteMany({ where: { expiresAt: { lt: now } } }),
-    db.lobby.deleteMany({ where: { expiresAt: { lt: now } } }),
+  const [deletedStreetGames, deletedLobbies] = await Promise.all([
+    deleteExpiredStreetGamesBatched(db, now),
+    deleteExpiredLobbiesBatched(db, now),
   ]);
   return {
     cutoff: now,
     settledStreetRounds,
     settledLobbyResults,
-    deletedStreetGames: streetGames.count,
-    deletedLobbies: lobbies.count,
+    deletedStreetGames,
+    deletedLobbies,
   };
 }
 

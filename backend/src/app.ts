@@ -7,9 +7,11 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
 import { prisma } from './db/prisma.js';
+import { RATE_LIMITS } from './config/constants.js';
 import { registerSingleplayerRoutes } from './modules/singleplayer/routes.js';
 import { loadEnv } from './config/env.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
+import { createStrictBodySchemaController } from './plugins/validation.js';
 import { registerLobbiesRoutes } from './modules/lobbies/routes.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerStatisticsRoutes } from './modules/statistics/routes.js';
@@ -73,35 +75,58 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const readyTimeoutMs = options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
 
   const app: FastifyInstance = Fastify({
-    logger: { level: config.logLevel },
+    logger: {
+      level: config.logLevel,
+      redact: {
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers["x-player-token"]',
+          'req.headers["x-lobby-token"]',
+          'res.headers["set-cookie"]',
+          '*.password',
+          '*.currentPassword',
+          '*.token',
+          '*.playerToken',
+          '*.lobbyToken',
+          '*.apikey',
+        ],
+        censor: '[REDACTED]',
+      },
+    },
     // Use the real client address for rate limits and redirect/origin checks.
     // Defaults to false; deployments behind Caddy/nginx set TRUST_PROXY.
     // Fastify's types omit numeric hop counts even though proxy-addr supports them.
     trustProxy: config.trustProxy as boolean | string | string[],
+    // Keep coercion for params/querystring/headers while rejecting invalid
+    // JSON body types (e.g. `{ lat: null }` coerced to `0`).
+    schemaController: createStrictBodySchemaController(),
   });
 
   registerErrorHandler(app);
-  // Phase C: opt-in rate limiting (global: false) — only routes that set
-  // `config.rateLimit` are limited; see lobbies and auth routes for the
-  // expensive/sensitive ones (anonymous resource creation, auth, Open-Meteo calls).
-  // Must be awaited: @fastify/rate-limit reads route config via an `onRoute`
-  // hook it installs during its own (async) registration. Routes declared
-  // before that hook is actually attached are invisible to it — fire-and-
-  // forget registration silently dropped rate limiting on every route.
+  // Global baseline rate limit protects every route by default while letting
+  // individual endpoints apply tighter limits (auth, creation) or opt out
+  // explicitly (`/api/health`, `/api/ready`). Must be awaited so the `onRoute`
+  // hook is active before routes are registered.
   await app.register(rateLimit, {
-    global: false,
-    max: 30,
-    timeWindow: '1 minute',
+    global: true,
+    max: RATE_LIMITS.globalDefault.max,
+    timeWindow: RATE_LIMITS.globalDefault.timeWindow,
   });
   // Register CORS before routes so its hooks are active for every endpoint.
-  // An unset CORS_ORIGIN resolves to false (same-origin only).
-  await app.register(cors, { origin: config.corsOrigin });
+  // An unset CORS_ORIGIN resolves to false (same-origin only); when configured,
+  // allow credentials to match frontend `credentials: 'include'`.
+  await app.register(cors, {
+    origin: config.corsOrigin,
+    credentials: Boolean(config.corsOrigin),
+  });
   registerAuthRoutes(app, { config });
   registerStatisticsRoutes(app);
   registerResultsRoutes(app);
   const intelligence = createIntelligenceProvider({
     baseUrl: config.openMeteoBaseUrl,
     apiKey: config.openMeteoApiKey,
+    log: app.log,
   });
   registerLobbiesRoutes(app, undefined, { intelligence });
   registerSingleplayerRoutes(app, { intelligence });
@@ -130,6 +155,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.get(
     '/api/health',
     {
+      config: { rateLimit: false },
       schema: {
         response: {
           200: Type.Object({
@@ -148,6 +174,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.get(
     '/api/ready',
     {
+      config: { rateLimit: false },
       schema: {
         response: {
           200: Type.Object({

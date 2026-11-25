@@ -34,7 +34,6 @@ import {
   formatEvaluatedAttempts,
 } from '../../domain/roundView.js';
 import { archiveGameResult } from '../../domain/archive.js';
-import { purgeExpiredStreetGames } from '../../scheduler/purge.js';
 import { buildRoundScene, type RoundScene } from '../../domain/scene.js';
 import { catalogLocationProvider } from './provider.js';
 import type { PanoramaProvider, PanoramaTarget } from './provider.js';
@@ -222,6 +221,38 @@ export function createSingleplayerService(
       : { lat: round.targetLat, lon: round.targetLon };
   }
 
+  type GameHeader = {
+    id: string;
+    playerTokenHash: string;
+    ownerUserId: string | null;
+    difficulty: Difficulty;
+    expiresAt: Date;
+  };
+
+  async function ownedHeader(
+    gameId: string,
+    token: string | undefined,
+  ): Promise<GameHeader> {
+    if (typeof token !== 'string') throw new GameNotFoundError();
+    const game = await db.streetGame.findUnique({
+      where: { id: gameId },
+      select: {
+        id: true,
+        playerTokenHash: true,
+        ownerUserId: true,
+        difficulty: true,
+        expiresAt: true,
+      },
+    });
+    if (
+      !game ||
+      game.playerTokenHash !== hashPlayerToken(token) ||
+      game.expiresAt < new Date()
+    )
+      throw new GameNotFoundError();
+    return game;
+  }
+
   async function owned(
     gameId: string,
     token: string | undefined,
@@ -242,8 +273,53 @@ export function createSingleplayerService(
     return game;
   }
 
+  /**
+   * Load the game header plus only the target `roundId` (avoiding unbounded
+   * endless-mode round history loads on hot per-round paths like `saveSelection`,
+   * `unlockExtraData`, `getRoundIntelligence`, and `submitGuess`).
+   */
+  async function ownedRoundSettled(
+    gameId: string,
+    roundId: string,
+    token: string | undefined,
+  ): Promise<{ game: GameHeader; round: RoundWithAttempts }> {
+    if (typeof token !== 'string') throw new GameNotFoundError();
+    const load = async () => {
+      const game = await db.streetGame.findUnique({
+        where: { id: gameId },
+        include: {
+          rounds: {
+            where: { id: roundId },
+            include: roundInclude(),
+          },
+        },
+      });
+      if (
+        !game ||
+        game.playerTokenHash !== hashPlayerToken(token) ||
+        game.expiresAt < new Date()
+      )
+        throw new GameNotFoundError();
+      const round = game.rounds.find((r) => r.id === roundId);
+      if (!round) throw new GameNotFoundError();
+      return { game, round };
+    };
+
+    let loaded = await load();
+    if (
+      loaded.round.score === null &&
+      isDeadlinePassed(loaded.round.endsAt, new Date())
+    ) {
+      const actual = await resolveRoundPoint(loaded.round);
+      if (await finalizeRound(loaded.game, loaded.round, actual, true)) {
+        loaded = await load();
+      }
+    }
+    return loaded;
+  }
+
   async function finalizeRound(
-    game: GameWithRounds,
+    game: Pick<GameHeader, 'id' | 'ownerUserId' | 'difficulty'>,
     round: RoundWithAttempts,
     actual: LatLon,
     timedOut = false,
@@ -338,7 +414,6 @@ export function createSingleplayerService(
     difficulty?: unknown;
     ownerUserId: string | null;
   }): Promise<{ id: string; playerToken: string }> {
-    await purgeExpiredStreetGames(db, new Date());
     const playerToken = generatePlayerToken();
     const game = await db.streetGame.create({
       data: {
@@ -377,8 +452,8 @@ export function createSingleplayerService(
     // rather than let it expire naturally. A hard delete cascades StreetRound
     // (see schema) but never touches GameResult, so already-scored
     // authenticated rounds remain in the durable archive (R18) untouched.
-    const game = await owned(gameId, token);
-    await db.streetGame.delete({ where: { id: game.id } });
+    const game = await ownedHeader(gameId, token);
+    await db.streetGame.deleteMany({ where: { id: game.id } });
   }
 
   async function startRound(gameId: string, token: string | undefined) {
@@ -531,21 +606,28 @@ export function createSingleplayerService(
     roundId: string,
     token: string | undefined,
   ): Promise<GeographicIntelligence> {
-    const game = await ownedSettled(gameId, token);
-    const round = game.rounds.find((r) => r.id === roundId);
-    if (!round) throw new GameNotFoundError();
+    const { game, round } = await ownedRoundSettled(gameId, roundId, token);
     if (round.score !== null)
       throw conflict(
         'Environmental clues are only available for the active round.',
       );
     const point = await resolveRoundPoint(round);
-    const data = await intelligence(point.lat, point.lon);
+    const rules = gameRulesFor(game.difficulty);
+    const initiallyUnlocked = extraDataAccess(
+      {
+        unlockedAt: round.additionalDataUnlockedAt,
+        pointsSpent: round.additionalDataPointsSpent,
+      },
+      rules,
+    ).unlocked;
+    const data = initiallyUnlocked
+      ? await intelligence(point.lat, point.lon)
+      : await intelligence(point.lat, point.lon, { includeEnvironment: false });
     const current = await db.streetRound.findUnique({
       where: { id: round.id },
     });
     if (!current || current.panoId !== round.panoId || current.score !== null)
       throw conflict('The round changed. Request clues for the current round.');
-    const rules = gameRulesFor(game.difficulty);
     const { unlocked } = extraDataAccess(
       {
         unlockedAt: current.additionalDataUnlockedAt,
@@ -553,7 +635,11 @@ export function createSingleplayerService(
       },
       rules,
     );
-    return redactLockedExtraData(withCurrentRoundWeather(data), unlocked);
+    const resolvedData =
+      unlocked && !initiallyUnlocked
+        ? await intelligence(point.lat, point.lon)
+        : data;
+    return redactLockedExtraData(withCurrentRoundWeather(resolvedData), unlocked);
   }
 
   async function saveSelection(
@@ -562,10 +648,8 @@ export function createSingleplayerService(
     token: string | undefined,
     body: GuessOrSelectionInput,
   ): Promise<void> {
-    const game = await ownedSettled(gameId, token);
+    const { game, round } = await ownedRoundSettled(gameId, roundId, token);
     const rules = gameRulesFor(game.difficulty);
-    const round = game.rounds.find((r) => r.id === roundId);
-    if (!round) throw new GameNotFoundError();
     if (round.score !== null) throw conflict('This round has already ended.');
     if (isDeadlinePassed(round.endsAt, new Date()))
       throw conflict('The time limit for this round has expired.');
@@ -585,10 +669,8 @@ export function createSingleplayerService(
     roundId: string,
     token: string | undefined,
   ) {
-    const game = await ownedSettled(gameId, token);
+    const { game, round } = await ownedRoundSettled(gameId, roundId, token);
     const rules = gameRulesFor(game.difficulty);
-    const round = game.rounds.find((r) => r.id === roundId);
-    if (!round) throw new GameNotFoundError();
     if (round.score !== null) throw conflict('This round has already ended.');
     if (rules.extraData.mode === 'free') {
       if (round.additionalDataUnlockedAt === null) {
@@ -660,8 +742,16 @@ export function createSingleplayerService(
         ? buildCandidates(target.targetIndex, usedIndices)
         : null;
     const now = new Date();
+    // Guard against concurrent unlock or guess submission during the upstream
+    // weather fetch so retries can never erase paid penalties or orphan attempts.
     const changed = await db.streetRound.updateMany({
-      where: { id: current.id, score: null, panoId: current.panoId },
+      where: {
+        id: current.id,
+        score: null,
+        panoId: current.panoId,
+        additionalDataUnlockedAt: null,
+        attempts: { none: {} },
+      },
       data: {
         panoId: target.panoId,
         targetIndex: target.targetIndex,
@@ -715,84 +805,151 @@ export function createSingleplayerService(
     token: string | undefined,
     guess: GuessBody,
   ) {
-    const game = await ownedSettled(gameId, token);
+    const { game, round } = await ownedRoundSettled(gameId, roundId, token);
     const rules = gameRulesFor(game.difficulty);
-    const round = game.rounds.find((r) => r.id === roundId);
-    if (!round) throw new GameNotFoundError();
     const point = resolveSelectionPoint(
       rules.selectionMode,
       guess,
       storedCandidates(round),
     );
     const actual = await resolveRoundPoint(round);
-    const latest = await db.streetRound.findUniqueOrThrow({
-      where: { id: round.id },
-    });
-    if (latest.panoId !== round.panoId)
-      throw conflict(
-        'The panorama changed. Reload the current round before guessing.',
-      );
-    if (latest.score !== null) {
-      if (latest.guessLat === point.lat && latest.guessLon === point.lon) {
+
+    const outcome = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "StreetRound" WHERE "id" = ${round.id} FOR UPDATE`;
+      const latest = await tx.streetRound.findUniqueOrThrow({
+        where: { id: round.id },
+        include: roundInclude(),
+      });
+      if (latest.panoId !== round.panoId) {
+        throw conflict(
+          'The panorama changed. Reload the current round before guessing.',
+        );
+      }
+      if (latest.score !== null) {
+        if (latest.guessLat === point.lat && latest.guessLon === point.lon) {
+          return {
+            response: {
+              finalized: true as const,
+              attemptsRemaining: 0,
+              result: result(latest, actual),
+            },
+            shouldPrefetch: false,
+          };
+        }
+        throw conflict('This round has already ended.');
+      }
+
+      const decision = decideAttempt({
+        attemptsUsed: latest.attempts.length,
+        attemptsTotal: rules.attemptsPerRound,
+        requestedFinal: guess.final === true,
+        finalized: false,
+        deadlinePassed: isDeadlinePassed(latest.endsAt, new Date()),
+      });
+      if (!decision.allowed) {
+        if (decision.reason === 'deadline')
+          throw conflict('The time limit for this round has expired.');
+        if (decision.reason === 'exhausted')
+          throw conflict('No attempts remain for this round.');
+        throw conflict('This round has already ended.');
+      }
+
+      const { distanceKm, score } = evaluateGuess(point, actual);
+      let createdAttempt;
+      try {
+        createdAttempt = await tx.streetRoundAttempt.create({
+          data: {
+            roundId: round.id,
+            attemptNumber: decision.attemptNumber,
+            guessLat: point.lat,
+            guessLon: point.lon,
+            distanceKm,
+            score,
+          },
+        });
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          throw conflict(
+            'Another guess was submitted at the same time; retry the action.',
+          );
+        }
+        throw error;
+      }
+
+      if (!decision.finalizes) {
+        await tx.streetRound.updateMany({
+          where: { id: round.id, score: null },
+          data: { selectionLat: point.lat, selectionLon: point.lon },
+        });
         return {
-          finalized: true,
-          attemptsRemaining: 0,
-          result: result(await roundWithAttempts(round.id), actual),
+          response: {
+            finalized: false as const,
+            attemptsRemaining: decision.attemptsRemaining,
+          },
+          shouldPrefetch: false,
         };
       }
-      throw conflict('This round has already ended.');
-    }
-    const decision = decideAttempt({
-      attemptsUsed: round.attempts.length,
-      attemptsTotal: rules.attemptsPerRound,
-      requestedFinal: guess.final === true,
-      finalized: round.score !== null,
-      deadlinePassed: isDeadlinePassed(round.endsAt, new Date()),
-    });
-    if (!decision.allowed) {
-      if (decision.reason === 'deadline')
-        throw conflict('The time limit for this round has expired.');
-      if (decision.reason === 'exhausted')
-        throw conflict('No attempts remain for this round.');
-      throw conflict('This round has already ended.');
-    }
-    const { distanceKm, score } = evaluateGuess(point, actual);
-    try {
-      await db.streetRoundAttempt.create({
-        data: {
-          roundId: round.id,
-          attemptNumber: decision.attemptNumber,
-          guessLat: point.lat,
-          guessLon: point.lon,
-          distanceKm,
-          score,
-        },
+
+      const allAttempts = [...latest.attempts, createdAttempt];
+      const evaluated = computeScore({
+        attempts: allAttempts,
+        selection: point,
+        actual,
+        pointsSpent: latest.additionalDataPointsSpent,
       });
-    } catch (error) {
-      if (isUniqueConstraintError(error))
-        throw conflict(
-          'Another guess was submitted at the same time; retry the action.',
-        );
-      throw error;
-    }
-    await db.streetRound.updateMany({
-      where: { id: round.id, score: null },
-      data: { selectionLat: point.lat, selectionLon: point.lon },
-    });
-    if (!decision.finalizes) {
+
+      const locked = await tx.streetRound.update({
+        where: { id: round.id },
+        data: {
+          selectionLat: point.lat,
+          selectionLon: point.lon,
+          guessLat: evaluated.guess?.lat ?? null,
+          guessLon: evaluated.guess?.lon ?? null,
+          distanceKm: evaluated.distanceKm,
+          score: evaluated.score,
+        },
+        include: roundInclude(),
+      });
+
+      if (game.ownerUserId !== null) {
+        await archiveGameResult(tx, {
+          prefix: 'solo',
+          roundId: round.id,
+          userId: game.ownerUserId,
+          mode: 'solo',
+          difficulty: game.difficulty,
+          sessionId: game.id,
+          matchId: game.id,
+          roundNumber: round.number,
+          actual,
+          evaluatedGuess: evaluated.guess,
+          distanceKm: evaluated.distanceKm,
+          score: evaluated.score,
+        });
+      }
+
       return {
-        finalized: false,
-        attemptsRemaining: decision.attemptsRemaining,
+        response: {
+          finalized: true as const,
+          attemptsRemaining: 0,
+          result: result(locked, actual),
+        },
+        shouldPrefetch: true,
       };
+    });
+
+    if (outcome.shouldPrefetch) {
+      void prefetchNextStreetRound(
+        game.id,
+        round.number + 1,
+        db,
+        provider,
+        intelligence,
+        locate,
+      );
     }
-    const current = await roundWithAttempts(round.id);
-    await finalizeRound(game, current, actual);
-    const locked = await roundWithAttempts(round.id);
-    return {
-      finalized: true,
-      attemptsRemaining: 0,
-      result: result(locked, actual),
-    };
+
+    return outcome.response;
   }
 
   return {

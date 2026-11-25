@@ -20,6 +20,24 @@ export async function requireSessionUser(request: FastifyRequest, db: PrismaClie
   return user;
 }
 
+const allowedOriginsCache = new WeakMap<Env, ReadonlySet<string>>();
+
+function resolveAllowedOrigins(config: Env): ReadonlySet<string> {
+  if (config.allowedOrigins) return config.allowedOrigins;
+  const cached = allowedOriginsCache.get(config);
+  if (cached) return cached;
+  const origins = new Set<string>();
+  for (const raw of [
+    config.appBaseUrl,
+    typeof config.corsOrigin === 'string' ? config.corsOrigin : undefined,
+  ]) {
+    if (!raw) continue;
+    origins.add(new URL(raw).origin);
+  }
+  allowedOriginsCache.set(config, origins);
+  return origins;
+}
+
 export async function assertSameSiteMutation(request: FastifyRequest, config: Env): Promise<void> {
   if (request.headers['sec-fetch-site'] === 'cross-site') throw new AuthError(403, 'Cross-site account request rejected');
   const origin = request.headers.origin;
@@ -28,6 +46,6 @@ export async function assertSameSiteMutation(request: FastifyRequest, config: En
   // configured with a matching `trustProxy`, so a client cannot spoof the
   // forwarded headers to make its own origin look same-site.
   const requestOrigin = request.host ? `${request.protocol}://${request.host}` : '';
-  const allowed = new Set([config.appBaseUrl, typeof config.corsOrigin === 'string' ? config.corsOrigin : undefined].filter(Boolean).map((value) => new URL(value!).origin));
+  const allowed = resolveAllowedOrigins(config);
   if (origin !== requestOrigin && !allowed.has(origin)) throw new AuthError(403, 'Cross-site account request rejected');
 }

@@ -417,6 +417,11 @@ function prepareFollowingRound(
   return preparation;
 }
 
+interface LobbyProgressResult {
+  mutated: boolean;
+  unavailable?: LobbyUnavailableError;
+}
+
 async function ensureLobbyProgress(
   lobby: MatchLobby,
   db: PrismaClient,
@@ -424,11 +429,11 @@ async function ensureLobbyProgress(
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
   locate?: PanoramaLocator,
-): Promise<LobbyUnavailableError | undefined> {
-  if (lobby.status !== 'playing') return;
+): Promise<LobbyProgressResult> {
+  if (lobby.status !== 'playing') return { mutated: false };
 
   const round = lobby.rounds.find((candidate) => candidate.number === lobby.currentRound);
-  if (!round) return;
+  if (!round) return { mutated: false };
   const nextRound = lobby.rounds.find((candidate) => candidate.number === round.number + 1);
   const where = {
     id: lobby.id,
@@ -441,6 +446,7 @@ async function ensureLobbyProgress(
     const completed = new Set(round.results.map((result) => result.memberId));
     const pending = lobby.members.filter((member) => !completed.has(member.id));
     const timedOut = pending.filter((member) => isDeadlinePassed(roundDeadline(round, member), now));
+    let mutated = false;
     // Hard-mode clue penalties can expire a single player's clock before the shared round.
     if (timedOut.length > 0) {
       const actual = await roundPoint(round, locate);
@@ -450,8 +456,9 @@ async function ensureLobbyProgress(
           actual, true,
         );
       }
+      mutated = true;
     }
-    if (timedOut.length !== pending.length) return;
+    if (timedOut.length !== pending.length) return { mutated };
 
     const reviewEndsAt = new Date(Date.now() + LOBBY_ROUND_REVIEW_MS);
     const opened = await db.$transaction(async (tx) => {
@@ -494,16 +501,19 @@ async function ensureLobbyProgress(
       void prepareFollowingRound(lobby, nextRound.id, reviewEndsAt, db, provider, intelligence, locate)
         .catch(() => {});
     }
-    return;
+    return { mutated: true };
   }
 
-  if (!isDeadlinePassed(round.reviewEndsAt, now)) return;
+  if (!isDeadlinePassed(round.reviewEndsAt, now)) return { mutated: false };
   if (!nextRound) {
     await db.lobby.updateMany({ where, data: { status: 'finished', finishedAt: now } });
-    return;
+    return { mutated: true };
   }
   if (!provider || !intelligence) {
-    return new LobbyUnavailableError('Geographic data is not configured on this server.');
+    return {
+      mutated: false,
+      unavailable: new LobbyUnavailableError('Geographic data is not configured on this server.'),
+    };
   }
 
   try {
@@ -528,9 +538,12 @@ async function ensureLobbyProgress(
         data: { selectionLat: null, selectionLon: null },
       });
     });
+    return { mutated: true };
   } catch (error) {
-    if (error instanceof LobbyUnavailableError) return error;
-    if (error instanceof PanoramaError) return new LobbyUnavailableError(error.reason, error.code);
+    if (error instanceof LobbyUnavailableError) return { mutated: true, unavailable: error };
+    if (error instanceof PanoramaError) {
+      return { mutated: true, unavailable: new LobbyUnavailableError(error.reason, error.code) };
+    }
     throw error;
   }
 }
@@ -685,33 +698,45 @@ async function beginLobbyMatch(
   return claimed;
 }
 
-/** Remove members (and their match history) while preserving a valid host. */
+/**
+ * Remove members (and their match history) while preserving a valid host.
+ * Serialized on the lobby row so a concurrent departure can never leave
+ * `hostTokenHash` pointing at a removed member.
+ */
 async function removeLobbyMembers(
   lobby: MatchLobby,
   members: LobbyMember[],
   db: PrismaClient,
 ): Promise<void> {
-  const removeIds = new Set(members.map((member) => member.id));
-  const remaining = lobby.members.filter((member) => !removeIds.has(member.id));
-
-  if (remaining.length === 0) {
-    await db.lobby.delete({ where: { id: lobby.id } });
-    return;
-  }
-
-  const hostRemoved = remaining.every(
-    (member) => member.playerTokenHash !== lobby.hostTokenHash,
-  );
-  const nextHost = hostRemoved ? remaining[0]! : null;
+  const removeIds = members.map((member) => member.id);
+  if (removeIds.length === 0) return;
 
   await db.$transaction(async (tx) => {
-    await tx.lobbyMember.deleteMany({
-      where: { lobbyId: lobby.id, id: { in: [...removeIds] } },
+    await tx.$queryRaw`SELECT "id" FROM "Lobby" WHERE "id" = ${lobby.id} FOR UPDATE`;
+    const liveLobby = await tx.lobby.findUnique({
+      where: { id: lobby.id },
+      select: { id: true, hostTokenHash: true },
     });
-    if (nextHost) {
+    if (!liveLobby) return;
+
+    await tx.lobbyMember.deleteMany({
+      where: { lobbyId: lobby.id, id: { in: removeIds } },
+    });
+    const remaining = await tx.lobbyMember.findMany({
+      where: { lobbyId: lobby.id },
+      orderBy: { joinedAt: 'asc' },
+    });
+    if (remaining.length === 0) {
+      await tx.lobby.deleteMany({ where: { id: lobby.id } });
+      return;
+    }
+    const hostStillPresent = remaining.some(
+      (member) => member.playerTokenHash === liveLobby.hostTokenHash,
+    );
+    if (!hostStillPresent) {
       await tx.lobby.update({
         where: { id: lobby.id },
-        data: { hostTokenHash: nextHost.playerTokenHash },
+        data: { hostTokenHash: remaining[0]!.playerTokenHash },
       });
     }
   });
@@ -786,49 +811,52 @@ async function resolveFinishedLobby(
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
   locate?: PanoramaLocator,
-): Promise<void> {
-  if (lobby.status !== 'finished') return;
+): Promise<boolean> {
+  if (lobby.status !== 'finished') return false;
 
+  let mutated = false;
   if (lobby.finishedAt === null) {
     await db.lobby.update({
       where: { id: lobby.id },
       data: { finishedAt: now },
     });
     lobby.finishedAt = now;
+    mutated = true;
   }
 
   const deadline = continueWindowDeadline(lobby);
-  if (deadline === null) return;
+  if (deadline === null) return mutated;
 
   const expired = now.getTime() >= deadline.getTime();
+  if (!expired) {
+    const allReady =
+      lobby.members.length > 0 &&
+      lobby.members.every((member) => member.continueRequestedAt !== null);
+    if (!allReady) return mutated;
+  }
 
+  let current = lobby;
   if (expired) {
     const nonResponders = lobby.members.filter(
       (member) => member.continueRequestedAt === null,
     );
     if (nonResponders.length > 0) {
       await removeLobbyMembers(lobby, nonResponders, db);
-      if (nonResponders.length === lobby.members.length) return;
+      mutated = true;
+      if (nonResponders.length === lobby.members.length) return true;
+      try {
+        current = await loadMatchLobby(lobby.code, db);
+      } catch (error) {
+        if (error instanceof LobbyNotFoundError) return true;
+        throw error;
+      }
+      if (current.status !== 'finished') return true;
     }
   }
 
-  let current: MatchLobby;
-  try {
-    current = await loadMatchLobby(lobby.code, db);
-  } catch (error) {
-    if (error instanceof LobbyNotFoundError) return;
-    throw error;
-  }
-  if (current.status !== 'finished') return;
-
-  const allReady =
-    current.members.length > 0 &&
-    current.members.every((member) => member.continueRequestedAt !== null);
-  if (!expired && !allReady) return;
-
   if (current.members.length < 2 || !provider || !intelligence) {
     await resetLobbyForNewGame(current, db, now);
-    return;
+    return true;
   }
 
   let planned: PlannedLobbyRound[];
@@ -837,10 +865,11 @@ async function resolveFinishedLobby(
   } catch {
     // Do not trap players in a finished lobby if fresh rounds cannot load.
     await resetLobbyForNewGame(current, db, now);
-    return;
+    return true;
   }
 
   await beginLobbyMatch(current, planned, 'finished', db);
+  return true;
 }
 
 function continuePromptView(
@@ -1002,35 +1031,53 @@ async function matchResponse(
   provider?: PanoramaProvider,
   intelligence?: IntelligenceLookup,
   locate?: PanoramaLocator,
+  preloaded?: MatchLobby,
 ): Promise<LobbyMatchResponse> {
-  const lobby = await loadMatchLobby(code, db);
-  memberForToken(lobby, rawToken);
-  const unavailable = await ensureLobbyProgress(
-    lobby, db, new Date(), provider, intelligence, locate,
-  );
+  let current = preloaded ?? (await loadMatchLobby(code, db));
+  let currentMember = memberForToken(current, rawToken);
 
-  let refreshed = await loadMatchLobby(code, db);
-  if (
-    unavailable && refreshed.matchId === lobby.matchId && refreshed.currentRound === lobby.currentRound
-  ) {
-    throw unavailable;
+  const progress = await ensureLobbyProgress(
+    current,
+    db,
+    new Date(),
+    provider,
+    intelligence,
+    locate,
+  );
+  if (progress.mutated) {
+    const previousMatchId = current.matchId;
+    const previousRound = current.currentRound;
+    current = await loadMatchLobby(code, db);
+    if (
+      progress.unavailable &&
+      current.matchId === previousMatchId &&
+      current.currentRound === previousRound
+    ) {
+      throw progress.unavailable;
+    }
+    currentMember = memberForToken(current, rawToken);
+  } else if (progress.unavailable) {
+    throw progress.unavailable;
   }
-  if (refreshed.status === 'finished') {
-    await resolveFinishedLobby(
-      refreshed,
+
+  if (current.status === 'finished') {
+    const resolved = await resolveFinishedLobby(
+      current,
       db,
       new Date(),
       provider,
       intelligence,
       locate,
     );
-    refreshed = await loadMatchLobby(code, db);
+    if (resolved) {
+      current = await loadMatchLobby(code, db);
+      currentMember = memberForToken(current, rawToken);
+    }
   }
 
-  const refreshedMember = memberForToken(refreshed, rawToken);
   return {
-    lobby: toLobbyView(refreshed, rawToken),
-    match: buildMatchView(refreshed, refreshedMember),
+    lobby: toLobbyView(current, rawToken),
+    match: buildMatchView(current, currentMember),
   };
 }
 
@@ -1046,7 +1093,7 @@ export async function startLobbyMatch(
   assertHost(lobby, memberForToken(lobby, rawToken));
 
   if (lobby.status === 'playing') {
-    return matchResponse(code, rawToken, db, provider, intelligence, locate);
+    return matchResponse(code, rawToken, db, provider, intelligence, locate, lobby);
   }
   if (lobby.status !== 'waiting') {
     throw new LobbyConflictError('This lobby has already finished');
@@ -1093,16 +1140,38 @@ export async function requestLobbyContinue(
   locate?: PanoramaLocator,
 ): Promise<LobbyMatchResponse> {
   let lobby = await loadMatchLobby(code, db);
-  memberForToken(lobby, rawToken);
-  await ensureLobbyProgress(lobby, db, new Date(), provider, intelligence, locate);
+  let member = memberForToken(lobby, rawToken);
 
-  lobby = await loadMatchLobby(code, db);
-  await resolveFinishedLobby(lobby, db, new Date(), provider, intelligence, locate);
-  lobby = await loadMatchLobby(code, db);
-  const member = memberForToken(lobby, rawToken);
+  const progress = await ensureLobbyProgress(
+    lobby,
+    db,
+    new Date(),
+    provider,
+    intelligence,
+    locate,
+  );
+  if (progress.mutated) {
+    lobby = await loadMatchLobby(code, db);
+    member = memberForToken(lobby, rawToken);
+  }
+
+  if (lobby.status === 'finished') {
+    const resolvedBefore = await resolveFinishedLobby(
+      lobby,
+      db,
+      new Date(),
+      provider,
+      intelligence,
+      locate,
+    );
+    if (resolvedBefore) {
+      lobby = await loadMatchLobby(code, db);
+      member = memberForToken(lobby, rawToken);
+    }
+  }
 
   if (lobby.status === 'playing') {
-    return matchResponse(code, rawToken, db, provider, intelligence, locate);
+    return matchResponse(code, rawToken, db, provider, intelligence, locate, lobby);
   }
   if (lobby.status !== 'finished') {
     throw new LobbyConflictError(
@@ -1115,19 +1184,10 @@ export async function requestLobbyContinue(
       where: { id: member.id },
       data: { continueRequestedAt: new Date() },
     });
+    lobby = await loadMatchLobby(code, db);
   }
 
-  const refreshed = await loadMatchLobby(code, db);
-  await resolveFinishedLobby(
-    refreshed,
-    db,
-    new Date(),
-    provider,
-    intelligence,
-    locate,
-  );
-
-  return matchResponse(code, rawToken, db, provider, intelligence, locate);
+  return matchResponse(code, rawToken, db, provider, intelligence, locate, lobby);
 }
 
 export async function saveLobbySelection(
@@ -1283,62 +1343,139 @@ export async function submitLobbyGuess(
     roundCandidates(round),
   );
   const actual = await roundPoint(round, locate);
-  if (isDeadlinePassed(roundDeadline(round, member), new Date())) {
+  const { distanceKm, score } = evaluateGuess(point, actual);
+
+  type GuessOutcome =
+    | { expired: true }
+    | {
+        expired: false;
+        finalized: boolean;
+        attemptsRemaining: number;
+        attemptsUsed: number;
+      };
+
+  const outcome: GuessOutcome = await db.$transaction(async (tx) => {
+    // Lock this member's row to serialize concurrent guesses, hard-mode
+    // unlocks, and finalization within the same round.
+    await tx.$queryRaw`SELECT "id" FROM "LobbyMember" WHERE "id" = ${member.id} FOR UPDATE`;
+    const liveMember = await tx.lobbyMember.findUnique({
+      where: { id: member.id },
+      select: { id: true },
+    });
+    if (!liveMember) throw new LobbyNotFoundError();
+
+    const liveRound = await tx.lobbyRound.findUnique({
+      where: { id: round.id },
+      include: {
+        attempts: { where: { memberId: member.id } },
+        results: { where: { memberId: member.id } },
+        memberStates: { where: { memberId: member.id } },
+      },
+    });
+    if (!liveRound) {
+      throw new LobbyConflictError('This round is not the active round');
+    }
+
+    const liveDecision = decideAttempt({
+      attemptsUsed: liveRound.attempts.length,
+      attemptsTotal: rules.attemptsPerRound,
+      requestedFinal: body.final === true,
+      finalized: liveRound.results.length > 0,
+      deadlinePassed: isDeadlinePassed(roundDeadline(liveRound, member), new Date()),
+    });
+    if (!liveDecision.allowed) {
+      if (liveDecision.reason === 'deadline') return { expired: true };
+      if (liveDecision.reason === 'exhausted') {
+        throw new LobbyConflictError('No attempts remain for this round');
+      }
+      throw new LobbyConflictError('Your guess for this round is already final');
+    }
+
+    let created: LobbyRoundAttempt;
+    try {
+      created = await tx.lobbyRoundAttempt.create({
+        data: {
+          roundId: round.id,
+          memberId: member.id,
+          attemptNumber: liveDecision.attemptNumber,
+          guessLat: point.lat,
+          guessLon: point.lon,
+          distanceKm,
+          score,
+        },
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new LobbyConflictError(
+          'Another guess was submitted at the same time; retry the action',
+        );
+      }
+      throw error;
+    }
+
+    await tx.lobbyMember.update({
+      where: { id: member.id },
+      data: { selectionLat: point.lat, selectionLon: point.lon },
+    });
+
+    if (!liveDecision.finalizes) {
+      return {
+        expired: false,
+        finalized: false,
+        attemptsRemaining: liveDecision.attemptsRemaining,
+        attemptsUsed: liveDecision.attemptNumber,
+      };
+    }
+
+    const allAttempts = [...liveRound.attempts, created];
+    const extraDataPointsSpent = liveRound.memberStates[0]?.extraDataPointsSpent ?? 0;
+    const evaluated = computeScore({
+      attempts: allAttempts,
+      selection: point,
+      actual,
+      pointsSpent: extraDataPointsSpent,
+    });
+    const finalizedResult = await tx.lobbyRoundResult.upsert({
+      where: {
+        roundId_memberId: { roundId: round.id, memberId: member.id },
+      },
+      create: {
+        roundId: round.id,
+        memberId: member.id,
+        actualLat: actual.lat,
+        actualLon: actual.lon,
+        guessLat: evaluated.guess?.lat ?? null,
+        guessLon: evaluated.guess?.lon ?? null,
+        distanceKm: evaluated.distanceKm,
+        score: evaluated.score,
+        attemptsUsed: allAttempts.length,
+        extraDataPointsSpent,
+      },
+      update: {},
+    });
+
+    return {
+      expired: false,
+      finalized: true,
+      attemptsRemaining: 0,
+      attemptsUsed: finalizedResult.attemptsUsed,
+    };
+  });
+
+  if (outcome.expired) {
     await ensureLobbyProgress(lobby, db, new Date(), provider, intelligence, locate);
     throw new LobbyConflictError('The time limit for this round has expired');
   }
-  const { distanceKm, score } = evaluateGuess(point, actual);
-  const attemptNumber = decision.attemptNumber;
 
-  let created: LobbyRoundAttempt;
-  try {
-    created = await db.lobbyRoundAttempt.create({
-      data: {
-        roundId: round.id,
-        memberId: member.id,
-        attemptNumber,
-        guessLat: point.lat,
-        guessLon: point.lon,
-        distanceKm,
-        score,
-      },
-    });
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      throw new LobbyConflictError(
-        'Another guess was submitted at the same time; retry the action',
-      );
-    }
-    throw error;
+  if (outcome.finalized) {
+    const afterGuess = await loadMatchLobby(code, db);
+    await ensureLobbyProgress(afterGuess, db, new Date(), provider, intelligence, locate);
   }
-
-  await db.lobbyMember.update({
-    where: { id: member.id },
-    data: { selectionLat: point.lat, selectionLon: point.lon },
-  });
-
-  if (!decision.finalizes) {
-    return {
-      finalized: false,
-      attemptsRemaining: decision.attemptsRemaining,
-      attemptsUsed: attemptNumber,
-    };
-  }
-
-  const result = await finalizeMemberRound(
-    db,
-    round,
-    member,
-    [...attempts, created],
-    actual,
-  );
-  const afterGuess = await loadMatchLobby(code, db);
-  await ensureLobbyProgress(afterGuess, db, new Date(), provider, intelligence, locate);
 
   return {
-    finalized: true,
-    attemptsRemaining: 0,
-    attemptsUsed: result.attemptsUsed,
+    finalized: outcome.finalized,
+    attemptsRemaining: outcome.attemptsRemaining,
+    attemptsUsed: outcome.attemptsUsed,
   };
 }
 
@@ -1433,8 +1570,11 @@ export async function getLobbyRoundIntelligence(
     },
     rules,
   );
+  const data = unlocked
+    ? await intelligence(point.lat, point.lon)
+    : await intelligence(point.lat, point.lon, { includeEnvironment: false });
   return redactLockedExtraData(
-    withCurrentRoundWeather(await intelligence(point.lat, point.lon)),
+    withCurrentRoundWeather(data),
     unlocked,
   );
 }

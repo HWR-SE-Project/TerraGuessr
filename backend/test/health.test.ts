@@ -43,6 +43,7 @@ describe('GET /api/health', () => {
           method: 'GET', url: '/api/health', headers: { origin: 'https://other.example' },
         });
         expect(response.headers['access-control-allow-origin']).toBeUndefined();
+        expect(response.headers['access-control-allow-credentials']).toBeUndefined();
       } finally {
         await closedApp.close();
       }
@@ -54,6 +55,7 @@ describe('GET /api/health', () => {
           method: 'GET', url: '/api/health', headers: { origin: 'https://allowed.example' },
         });
         expect(response.headers['access-control-allow-origin']).toBe('https://allowed.example');
+        expect(response.headers['access-control-allow-credentials']).toBe('true');
       } finally {
         await configuredApp.close();
       }

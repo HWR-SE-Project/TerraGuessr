@@ -35,7 +35,11 @@ import {
   buildVerificationEmail,
 } from './emailTemplates.js';
 import { assertSameSiteMutation, readSessionToken, requireSessionUser } from './session.js';
-import { normalizeDisplayName, DISPLAY_NAME_MAX_LENGTH } from '../../domain/identity.js';
+import {
+  isValidDisplayName,
+  normalizeDisplayName,
+  DISPLAY_NAME_MAX_LENGTH,
+} from '../../domain/identity.js';
 import {
   clearGoogleFlowCookie,
   clearSessionCookie,
@@ -257,7 +261,7 @@ export function registerAuthRoutes(
     // Local/dev/e2e fallback: without SMTP there is no way to deliver a link,
     // so auto-verify and sign in (production never reaches this branch).
     if (!mailer || !config.appBaseUrl) {
-      request.log.warn({ email: user.email }, 'SMTP not configured; auto-verified account (non-production fallback)');
+      request.log.warn({ userId: user.id }, 'SMTP not configured; auto-verified account (non-production fallback)');
       const verified = await db.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
       await rotateSession(request, reply, await createUserSession(db, user.id));
       reply.code(201);
@@ -390,9 +394,13 @@ export function registerAuthRoutes(
   }, async (request) => {
     const user = await requireSessionUser(request, db);
     const { displayName } = request.body as { displayName: string };
+    const trimmed = displayName.trim();
+    if (!isValidDisplayName(trimmed)) {
+      throw new AuthError(400, 'Display name must be 2–40 characters');
+    }
     const updated = await db.user.update({
       where: { id: user.id },
-      data: { displayName: displayName.trim() },
+      data: { displayName: trimmed },
     });
     return { user: toPublicUser(updated) };
   });
@@ -448,8 +456,9 @@ export function registerAuthRoutes(
       try {
         const resetEmail = buildPasswordResetEmail(resetUrl.toString());
         await mailer({ to: user.email, ...resetEmail });
-      } catch {
+      } catch (error) {
         await db.passwordResetToken.deleteMany({ where: { tokenHash: hashSecret(token) } });
+        request.log.error({ err: error, userId: user.id }, 'recovery email could not be sent');
         throw new AuthError(503, 'Recovery email could not be sent');
       }
     }
@@ -468,25 +477,32 @@ export function registerAuthRoutes(
     reply.code(204);
   });
 
-  app.get<{ Querystring: GoogleQuery }>('/api/auth/google', async (_request, reply) => {
-    if (!googleConfigured(config)) throw new AuthError(503, 'Google sign-in is not configured');
-    const client = createGoogleClient(config);
-    const flow = createGoogleFlowState(config.googleClientSecret!);
-    const challenge = createHash('sha256').update(flow.state.verifier).digest('base64url');
-    setGoogleFlowCookie(reply, flow.cookieValue, config.sessionCookieSecure);
-    const location = client.generateAuthUrl({
-      access_type: 'online',
-      scope: ['openid', 'email', 'profile'],
-      state: flow.state.state,
-      nonce: flow.state.nonce,
-      code_challenge: challenge,
-      code_challenge_method: CodeChallengeMethod.S256,
-      prompt: 'select_account',
-    });
-    return reply.redirect(location);
-  });
+  app.get<{ Querystring: GoogleQuery }>(
+    '/api/auth/google',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (_request, reply) => {
+      if (!googleConfigured(config)) throw new AuthError(503, 'Google sign-in is not configured');
+      const client = createGoogleClient(config);
+      const flow = createGoogleFlowState(config.googleClientSecret!);
+      const challenge = createHash('sha256').update(flow.state.verifier).digest('base64url');
+      setGoogleFlowCookie(reply, flow.cookieValue, config.sessionCookieSecure);
+      const location = client.generateAuthUrl({
+        access_type: 'online',
+        scope: ['openid', 'email', 'profile'],
+        state: flow.state.state,
+        nonce: flow.state.nonce,
+        code_challenge: challenge,
+        code_challenge_method: CodeChallengeMethod.S256,
+        prompt: 'select_account',
+      });
+      return reply.redirect(location);
+    },
+  );
 
-  app.get<{ Querystring: GoogleQuery }>('/api/auth/google/callback', async (request, reply) => {
+  app.get<{ Querystring: GoogleQuery }>(
+    '/api/auth/google/callback',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
     if (!googleConfigured(config)) throw new AuthError(503, 'Google sign-in is not configured');
     const flow = verifyGoogleFlowCookie(googleCookie(request), config.googleClientSecret!);
     clearGoogleFlowCookie(reply, config.sessionCookieSecure);

@@ -199,6 +199,85 @@ describe('environment provider boundary', () => {
     const value = await get(50, 10);
     expect(value.weather).toBeNull();
   });
+
+  it('skips /v1/elevation when includeEnvironment is false and fetches it only on demand (H-3)', async () => {
+    const now = Date.parse('2026-11-19T12:01Z');
+    const fetcher = vi.fn(
+      async (input: URL | RequestInfo) =>
+        new Response(
+          JSON.stringify(
+            String(input).includes('/elevation')
+              ? { elevation: [250, 250, 250, 250, 250, 250, 250, 250, 250] }
+              : { current, current_units },
+          ),
+        ),
+    );
+    const get = createIntelligenceProvider({
+      fetcher: fetcher as typeof fetch,
+      now: () => now,
+    });
+
+    const weatherOnly = await get(50, 10, { includeEnvironment: false });
+    expect(weatherOnly.weather?.temperatureC).toBe(12.3);
+    expect(weatherOnly.environment.elevationM).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(String(fetcher.mock.calls[0]![0])).toContain('/v1/forecast');
+
+    // Subsequent full request reuses cached weather and fetches only /v1/elevation.
+    const full = await get(50, 10);
+    expect(full.weather?.temperatureC).toBe(12.3);
+    expect(full.environment.elevationM).toBe(250);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(String(fetcher.mock.calls[1]![0])).toContain('/v1/elevation');
+  });
+
+  it('logs Open-Meteo failures without coordinates/API keys and opens circuit breaker during outages (H-3)', async () => {
+    let now = Date.parse('2026-11-19T12:01Z');
+    const log = { warn: vi.fn() };
+    let fail = true;
+    const fetcher = vi.fn(async () => {
+      if (fail) {
+        return new Response('rate limited', { status: 429 });
+      }
+      return new Response(JSON.stringify({ current, current_units }));
+    });
+    const get = createIntelligenceProvider({
+      apiKey: 'super-secret-open-meteo-key',
+      fetcher: fetcher as typeof fetch,
+      now: () => now,
+      log,
+      circuitFailureThreshold: 3,
+      circuitOpenMs: 20_000,
+    });
+
+    // 3 consecutive failures on distinct coordinates trip the circuit breaker.
+    await get(10, 10, { includeEnvironment: false });
+    await get(20, 20, { includeEnvironment: false });
+    await get(30, 30, { includeEnvironment: false });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: '/v1/forecast', status: 429 }),
+      'Open-Meteo weather request failed',
+    );
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: '/v1/forecast', consecutiveFailures: 3 }),
+      'Open-Meteo circuit breaker opened',
+    );
+    // Logs must never leak coordinates or the subscription API key.
+    expect(JSON.stringify(log.warn.mock.calls)).not.toContain('super-secret-open-meteo-key');
+
+    // While circuit is open, a 4th distinct coordinate short-circuits with 0 HTTP calls.
+    const blocked = await get(40, 40, { includeEnvironment: false });
+    expect(blocked.weather).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(3);
+
+    // After circuitOpenMs elapses, a healthy probe succeeds and closes the circuit.
+    now += 21_000;
+    fail = false;
+    const recovered = await get(50, 50, { includeEnvironment: false });
+    expect(recovered.weather?.temperatureC).toBe(12.3);
+    expect(fetcher).toHaveBeenCalledTimes(4);
+  });
 });
 
 describe('intelligence HTTP privacy and ownership (database double)', () => {
