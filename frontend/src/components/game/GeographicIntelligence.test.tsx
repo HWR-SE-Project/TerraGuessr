@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GeographicIntelligence as Intelligence } from '../../lib/contracts'
 import { GeographicIntelligence } from './GeographicIntelligence'
@@ -124,5 +124,28 @@ describe('round weather freshness', () => {
 
     await act(async () => { deliverRefresh(observation('2026-11-20T14:00:00Z', 15)) })
     expect(screen.getAllByText('15°C').length).toBeGreaterThan(0)
+  })
+
+  it('starts collapsed on mobile viewports and expands when toggled', async () => {
+    const originalMatchMedia = window.matchMedia
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia
+    try {
+      const load = vi.fn().mockResolvedValue(observation(new Date().toISOString(), 18))
+      await act(async () => {
+        render(<GeographicIntelligence roundId="round" roundKey="round-mobile" load={load} />)
+      })
+
+      const toggle = screen.getByRole('button', { name: /Geographic intelligence/i })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByText('Precipitation')).not.toBeInTheDocument()
+
+      await act(async () => {
+        toggle.click()
+      })
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      await waitFor(() => expect(screen.getByText('Precipitation')).toBeVisible())
+    } finally {
+      window.matchMedia = originalMatchMedia
+    }
   })
 })

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Biome, RoundScene } from '../../lib/contracts'
 import { BiomeDiorama } from './BiomeDiorama'
+import { dioramaCameraFraming } from './cameraFraming'
 import { fieldActivity, groundMotion, ACTIVITY_DURATION } from './fieldActivity'
 import { getBiomeLayout } from './layout'
 import { quipsForScene } from './quips'
@@ -118,13 +119,29 @@ describe('3D biome diorama logic & WebGL fallback', () => {
     expect(reduced).toEqual({ windLeanZ: 0, shiverZ: 0, shiverX: 0, pitchX: 0, glanceYaw: 0 })
   })
 
-  it('renders a clean 2D fallback in non-WebGL environments (CI/jsdom) with interactive quips', async () => {
+  it('renders a clean illustrated 2D fallback in non-WebGL environments (CI/jsdom) with interactive quips', async () => {
     const user = userEvent.setup()
     render(<BiomeDiorama scene={sampleScene()} />)
-    expect(screen.getByLabelText('Tundra diorama scene')).toBeVisible()
-    expect(screen.getByText(/Tundra · snow · night/i)).toBeVisible()
+    const sceneEl = screen.getByLabelText('Tundra diorama scene')
+    expect(sceneEl).toBeVisible()
+    expect(sceneEl.querySelector('svg')).toBeInTheDocument()
+    expect(screen.queryByText(/Tundra · snow · night/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Tap explorer for a weather note/i }))
     await waitFor(() => expect(screen.getByRole('status')).toBeVisible())
+  })
+
+  it('frames the full island on narrow/portrait viewports while keeping desktop framing intact', () => {
+    const desktop = dioramaCameraFraming(16 / 9)
+    expect(desktop.fov).toBe(38)
+    expect(desktop.position).toEqual([0, 5.2, 12.2])
+    expect(desktop.fogOffset).toBe(0)
+
+    const mobile = dioramaCameraFraming(390 / 844)
+    const mobileHalfWidth = mobile.distance * Math.tan((mobile.fov * Math.PI) / 360) * (390 / 844)
+    expect(mobileHalfWidth).toBeGreaterThanOrEqual(5.4)
+    expect(mobile.distance).toBeGreaterThan(desktop.distance)
+    expect(mobile.fogOffset).toBeGreaterThan(0)
+    expect(mobile.maxDistance).toBeGreaterThan(desktop.maxDistance)
   })
 })
