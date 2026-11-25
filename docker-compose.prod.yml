@@ -16,18 +16,20 @@ name: terraguessr-prod
 #   cp .env.example .env        # then fill in the production values
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
-# Required in .env: POSTGRES_PASSWORD, DOMAIN, ACME_EMAIL.
+# Required in .env: POSTGRES_PASSWORD, DOMAIN, ACME_EMAIL, SMTP_URL, SMTP_FROM.
 # NEVER commit .env. Do not purchase a domain or publish this stack without
 # Product Owner approval (decision B.7).
 #
 # The frontend SPA is built into a static nginx image (frontend/Dockerfile) and
 # served through Caddy; /api/* is proxied to backend.
 #
-# mailpit is a local SMTP capture box for TESTING the email-verification flow.
+# mailpit is behind the optional `test-mail` profile so production never
+# silently captures real user emails. To test email verification locally
+# against Mailpit instead of a real provider, enable the profile explicitly:
+#   SMTP_URL=smtp://mailpit:1025 SMTP_FROM="TerraGuessr <no-reply@terraguessr.local>" \
+#     docker compose -f docker-compose.prod.yml --profile test-mail up -d --build
 # Its web UI binds to 127.0.0.1 only: reach it with an SSH tunnel
 #   ssh -L 8025:127.0.0.1:8025 user@host  →  http://localhost:8025
-# Set SMTP_URL + SMTP_FROM in .env to a real provider to deliver real mail;
-# no code or compose changes are needed.
 
 x-logging: &default-logging
   driver: json-file
@@ -54,9 +56,11 @@ services:
       start_period: 30s
     logging: *default-logging
 
-  # Test SMTP sink + web inbox. Safe defaults keep verification working with no
-  # .env edits; override SMTP_URL/SMTP_FROM in .env for real delivery.
+  # Opt-in test SMTP sink + web inbox. Never started by default in production;
+  # enable explicitly with `--profile test-mail` only when testing without a
+  # real SMTP provider.
   mailpit:
+    profiles: ["test-mail"]
     image: axllent/mailpit:v1.20
     restart: unless-stopped
     environment:
@@ -86,15 +90,14 @@ services:
       OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
       OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      GOOGLE_MAPS_SERVER_API_KEY: ${GOOGLE_MAPS_SERVER_API_KEY:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       APP_BASE_URL: ${APP_BASE_URL:-https://${DOMAIN}}
-      # Empty/omitted values fall back to the mailpit service. Set both to a
-      # real provider URL/sender in .env to send real verification email.
-      SMTP_URL: "${SMTP_URL:-smtp://mailpit:1025}"
-      SMTP_FROM: "${SMTP_FROM:-TerraGuessr <no-reply@terraguessr.local>}"
+      # Required in production so verification/recovery mail never silently
+      # drops into a local test sink.
+      SMTP_URL: ${SMTP_URL:?SMTP_URL is required — set it in .env}
+      SMTP_FROM: ${SMTP_FROM:?SMTP_FROM is required — set it in .env}
       SESSION_COOKIE_SECURE: "true"
     # No published ports: Caddy proxies /api to this service over the network.
     expose:
@@ -102,10 +105,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mailpit:
-        condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT:-3000}/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT:-3000}/api/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -120,7 +121,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
-        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+        VITE_MAP_TILE_URL: ${VITE_MAP_TILE_URL:-}
         VITE_MAP_ATTRIBUTION: ${VITE_MAP_ATTRIBUTION:-}
     restart: unless-stopped
     expose:

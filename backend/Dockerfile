@@ -51,6 +51,6 @@ USER node
 
 EXPOSE 3000
 
-# Apply pending migrations, then start the HTTP server. DATABASE_URL is
-# supplied by docker compose (from .env).
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Apply pending migrations, then exec the HTTP server so Node runs as PID 1
+# and receives SIGTERM/SIGINT directly for graceful shutdown.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/server.js"]

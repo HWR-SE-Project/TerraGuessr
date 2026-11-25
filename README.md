@@ -1,7 +1,8 @@
 # TerraGuessr
 
-A geography guessing game: Google Street View panoramas, a guessing map,
-weather/geographic clues, and scoring based on guess distance. React +
+A geography guessing game: interactive 3D low-poly biome dioramas driven by
+live Open-Meteo weather, an open-source Leaflet guessing map (CARTO Voyager),
+customizable 3D explorer avatars, and geodesic distance scoring. React +
 TypeScript frontend, Fastify + PostgreSQL (Prisma) backend.
 
 ## Repository structure
@@ -24,10 +25,10 @@ Both `frontend/` and `backend/` are independent npm projects (separate
   a rigged/animated explorer character with cursor head-tracking, cosmic
   starfield background. Falls back to a static image when WebGL is
   unavailable or the scene is still loading.
-- **Singleplayer** (`/game/singleplayer`): Street View round play, map or
+- **Singleplayer** (`/singleplayer`): 3D biome diorama round play, map or
   list-based guessing, scoring, round progression and results.
 - **Multiplayer** (`/multiplayer`, `/lobby/:code`): live lobbies with a host,
-  6-character join codes, shared Street View rounds, difficulty-derived timers
+  6-character join codes, shared 3D diorama rounds, difficulty-derived timers
   and attempts, and a shared in-match/final leaderboard.
 - **Auth** (`/auth`): email/password accounts (scrypt-hashed, session
   cookies) plus a Google sign-in button gated behind OAuth credentials.
@@ -41,8 +42,6 @@ etc.) — that matrix does not describe this branch.
 
 - Node.js 22+
 - Docker (for PostgreSQL, and the backend container)
-- A Google Cloud project with the **Maps JavaScript API** and **Street View
-  Static API** enabled (for interactive gameplay)
 
 ## Environment variables
 
@@ -55,14 +54,12 @@ cp frontend/.env.example frontend/.env.local
 
 `.env` holds backend, database, Docker Compose and production values;
 `frontend/.env.local` holds Vite/browser values. Both examples document every
-variable and which ones are required. At minimum, set `ADMIN_API_TOKEN` in
-`.env` and `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` for interactive
-maps. Google sign-in and real email delivery stay disabled until their
-credentials are added; nothing else requires them.
+variable and which ones are required. No map or weather API keys are required
+for singleplayer or multiplayer gameplay. Google sign-in and real email
+delivery stay disabled until their credentials are added; nothing else requires
+them.
 
-**Never commit `.env` or `.env.local`.** `VITE_GOOGLE_MAPS_API_KEY` is a
-public, HTTP-referrer-restricted browser key; never reuse
-`GOOGLE_MAPS_SERVER_API_KEY` (server-only) as a `VITE_*` value.
+**Never commit `.env` or `.env.local`.**
 
 ## Development
 
@@ -147,7 +144,6 @@ server).
 ## Deployment
 
 See `docs/deploy.md` for the production procedure
-(`docker-compose.prod.yml` + Caddy, including a bundled Mailpit test inbox).
-Requires Product Owner approval before provisioning a real domain. For real
-email delivery, set `SMTP_URL`/`SMTP_FROM` in `.env`; otherwise verification
-links are captured by Mailpit.
+(`docker-compose.prod.yml` + Caddy). Requires Product Owner approval before
+provisioning a real domain. Production requires real `SMTP_URL` and `SMTP_FROM`
+values in `.env`; Mailpit is opt-in via `--profile test-mail` for testing only.
