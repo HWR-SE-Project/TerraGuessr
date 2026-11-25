@@ -64,9 +64,12 @@ function SceneContents() {
   const [feetPixelY, setFeetPixelY] = useState<number | null>(null)
 
   const isNarrow = size.width <= 600
+  // Scale the contact overlap proportionally on compact mobile viewports so the
+  // planet never rises up over the explorer when the scene container is shorter.
+  const contactOverlapPx = PLANET_CONTACT_OVERLAP_PX * Math.min(1, size.height / 444)
   const rawApexPixelY =
     (feetPixelY ?? (layout ? layout.top + layout.height * 0.97 : size.height * 0.7)) -
-    PLANET_CONTACT_OVERLAP_PX
+    contactOverlapPx
   // Nudge the fit zone down a bit below the character's feet (purely a
   // vertical-placement tweak), then fit the planet's full sphere — apex to
   // nadir — inside the space below that, so it reads as a whole floating

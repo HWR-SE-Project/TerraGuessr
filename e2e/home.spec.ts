@@ -5,10 +5,10 @@ test.describe('home and primary navigation', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: /Small world\.\s*Big adventure\./i })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Play singleplayer' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Singleplayer' })).toBeVisible();
     await expect(page.locator('main').getByRole('link', { name: 'Multiplayer' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Play singleplayer' }).click();
+    await page.getByRole('button', { name: 'Singleplayer' }).click();
     await expect(page).toHaveURL(/\/singleplayer$/);
     await expect(page.getByRole('heading', { name: 'Choose your challenge' })).toBeVisible();
 
