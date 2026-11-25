@@ -1,6 +1,9 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { buildApp } from '../src/app.js';
+import type { ReadinessDb } from '../src/app.js';
+import { gameRulesFor } from '../src/domain/gameRules.js';
+import { scoreForDistance } from '../src/domain/scoring.js';
 
 describe('GET /api/health', () => {
   beforeAll(() => {
@@ -57,6 +60,82 @@ describe('GET /api/health', () => {
     } finally {
       if (previous === undefined) delete process.env.CORS_ORIGIN;
       else process.env.CORS_ORIGIN = previous;
+    }
+  });
+
+  it('publishes the same difficulty rules and scores the game uses', async () => {
+    const app = await buildApp();
+    try {
+      const response = await app.inject({ url: '/api/game-rules' });
+      expect(response.statusCode).toBe(200);
+      const catalog = response.json();
+      for (const difficulty of ['easy', 'medium', 'hard']) {
+        expect(catalog.difficulties[difficulty]).toEqual(gameRulesFor(difficulty));
+      }
+      const { exampleScores, exampleDistanceStepKm } = catalog.scoring;
+      expect(exampleScores[0]).toBe(scoreForDistance(0));
+      expect(exampleScores[2000 / exampleDistanceStepKm]).toBe(scoreForDistance(2000));
+      expect(exampleScores.at(-1)).toBe(0);
+      expect(catalog.scoring.londonParisKm).toBeCloseTo(343.56, 1);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe('GET /api/ready', () => {
+  beforeAll(() => {
+    process.env.DATABASE_URL =
+      process.env.DATABASE_URL ??
+      'postgresql://postgres:postgres@localhost:5432/terraguessr_test';
+    process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? 'silent';
+  });
+
+  it('returns 200 { status: "ok", db: "ok", time } when SELECT 1 succeeds', async () => {
+    const readyDb: ReadinessDb = {
+      $queryRaw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
+    };
+    const app = await buildApp({ readyDb });
+    try {
+      const response = await app.inject({ method: 'GET', url: '/api/ready' });
+      expect(response.statusCode).toBe(200);
+      expect(readyDb.$queryRaw).toHaveBeenCalledTimes(1);
+      const body = response.json() as { status: string; db: string; time: string };
+      expect(body.status).toBe('ok');
+      expect(body.db).toBe('ok');
+      expect(Number.isNaN(Date.parse(body.time))).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('returns 503 when the database probe fails', async () => {
+    const readyDb: ReadinessDb = {
+      $queryRaw: vi.fn().mockRejectedValue(new Error('connection refused')),
+    };
+    const app = await buildApp({ readyDb });
+    try {
+      const response = await app.inject({ method: 'GET', url: '/api/ready' });
+      expect(response.statusCode).toBe(503);
+      const body = response.json() as { status: string; db: string; time: string };
+      expect(body.status).toBe('unavailable');
+      expect(body.db).toBe('unavailable');
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('returns 503 when the database probe times out', async () => {
+    const readyDb: ReadinessDb = {
+      $queryRaw: vi.fn().mockImplementation(() => new Promise(() => {})),
+    };
+    const app = await buildApp({ readyDb, readyTimeoutMs: 25 });
+    try {
+      const response = await app.inject({ method: 'GET', url: '/api/ready' });
+      expect(response.statusCode).toBe(503);
+      expect(response.json()).toMatchObject({ status: 'unavailable', db: 'unavailable' });
+    } finally {
+      await app.close();
     }
   });
 });

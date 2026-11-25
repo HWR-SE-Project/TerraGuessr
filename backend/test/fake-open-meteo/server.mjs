@@ -6,19 +6,34 @@ import { createServer } from 'node:http';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
-const BODY = JSON.stringify({
-  current: {
-    temperature_2m: 21.5,
-    relative_humidity_2m: 62,
-    precipitation: 0.4,
-    wind_speed_10m: 12.7,
-    surface_pressure: 1013.2,
-    wind_direction_10m: 245,
-    uv_index: 3.1,
-    time: '2026-11-17T12:00',
-  },
-  daily: { time: ['2026-11-17'], sunshine_duration: [7200] },
-});
+function freshForecastBody() {
+  const observedAt = new Date(Date.now() - 5 * 60_000);
+  const isoMinute = observedAt.toISOString().slice(0, 16);
+  const isoDay = isoMinute.slice(0, 10);
+  return JSON.stringify({
+    current: {
+      time: isoMinute,
+      interval: 900,
+      temperature_2m: 21.5,
+      weather_code: 1,
+      relative_humidity_2m: 62,
+      precipitation: 0.4,
+      wind_speed_10m: 12.7,
+      wind_direction_10m: 245,
+      surface_pressure: 1013.2,
+      is_day: 1,
+    },
+    current_units: {
+      temperature_2m: '°C',
+      relative_humidity_2m: '%',
+      wind_speed_10m: 'km/h',
+      wind_direction_10m: '°',
+      surface_pressure: 'hPa',
+      precipitation: 'mm',
+    },
+    daily: { time: [isoDay], sunshine_duration: [7200] },
+  });
+}
 
 let failuresRemaining = 0;
 let failuresServed = 0;
@@ -60,7 +75,16 @@ const server = createServer((req, res) => {
       return;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(BODY);
+    res.end(freshForecastBody());
+    return;
+  }
+  if (req.url && req.url.startsWith('/v1/elevation')) {
+    const query = new URL(req.url, 'http://localhost').searchParams;
+    const latitudes = (query.get('latitude') ?? '').split(',').filter(Boolean);
+    const count = Math.max(1, latitudes.length);
+    const elevation = Array.from({ length: count }, (_, idx) => 120 + (idx % 3) * 15);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ elevation }));
     return;
   }
   res.writeHead(404, { 'Content-Type': 'application/json' });

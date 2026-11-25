@@ -6,6 +6,10 @@ import {
   decideAttempt,
   isDeadlinePassed,
 } from '../../src/domain/roundFlow.js';
+import {
+  computeScore,
+  formatEvaluatedAttempts,
+} from '../../src/domain/roundView.js';
 
 describe('shared game rules (R05)', () => {
   it('defines the same difficulty contract for every mode', () => {
@@ -102,5 +106,74 @@ describe('shared penalties (R05/R10)', () => {
     expect(isDeadlinePassed('2026-11-21T12:00:00Z', now)).toBe(true);
     expect(isDeadlinePassed('2026-11-21T12:00:01Z', now)).toBe(false);
     expect(isDeadlinePassed(null, now)).toBe(false);
+  });
+});
+
+describe('unified Best-of-N scoring (R02/R08/R11)', () => {
+  const actual = { lat: 48.8566, lon: 2.3522 }; // Paris
+  const close = {
+    id: 'a1',
+    attemptNumber: 1,
+    guessLat: 51.5074,
+    guessLon: -0.1278,
+    distanceKm: 343.5,
+    score: 4939,
+    createdAt: new Date('2026-11-24T12:00:00Z'),
+  };
+  const far = {
+    id: 'a2',
+    attemptNumber: 2,
+    guessLat: 35.6762,
+    guessLon: 139.6503,
+    distanceKm: 9713.0,
+    score: 2584,
+    createdAt: new Date('2026-11-24T12:01:00Z'),
+  };
+
+  it('scores the closest submitted attempt on both explicit completion and timeout', () => {
+    const onFinal = computeScore({
+      attempts: [close, far],
+      selection: { lat: 0, lon: 0 },
+      actual,
+      pointsSpent: 100,
+      timedOut: false,
+    });
+    const onTimeout = computeScore({
+      attempts: [close, far],
+      selection: { lat: 0, lon: 0 },
+      actual,
+      pointsSpent: 100,
+      timedOut: true,
+    });
+
+    expect(onFinal.guess).toEqual({ lat: close.guessLat, lon: close.guessLon });
+    expect(onTimeout).toEqual(onFinal);
+    expect(onFinal.score).toBeLessThanOrEqual(4900);
+
+    const formatted = formatEvaluatedAttempts([far, close]);
+    expect(formatted.map((a) => ({ n: a.attemptNumber, isBest: a.isBest }))).toEqual([
+      { n: 1, isBest: true },
+      { n: 2, isBest: false },
+    ]);
+  });
+
+  it('falls back to the latest selection on a zero-attempt timeout, or zero when empty', () => {
+    const withSelection = computeScore({
+      attempts: [],
+      selection: actual,
+      actual,
+      pointsSpent: 0,
+      timedOut: true,
+    });
+    expect(withSelection).toMatchObject({ guess: actual, distanceKm: 0, score: 5000 });
+
+    const empty = computeScore({
+      attempts: [],
+      selection: null,
+      actual,
+      pointsSpent: 0,
+      timedOut: true,
+    });
+    expect(empty).toEqual({ guess: null, distanceKm: null, score: 0 });
   });
 });

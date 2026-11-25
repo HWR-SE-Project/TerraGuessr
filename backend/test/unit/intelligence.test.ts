@@ -208,9 +208,12 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       gameId: 'game',
       score: null as number | null,
       panoId: 'starting-pano',
+      additionalDataUnlockedAt: null as Date | null,
+      additionalDataPointsSpent: 0,
     };
     const game = {
       id: 'game',
+      difficulty: 'easy' as 'easy' | 'medium' | 'hard',
       playerTokenHash: hashPlayerToken('owner'),
       expiresAt: new Date(Date.now() + 60_000),
       rounds: [round],
@@ -284,6 +287,67 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       expect(res.json()).toEqual(sample());
       expect(f.locate).toHaveBeenCalledWith('starting-pano');
       expect(f.intelligence).toHaveBeenCalledWith(50.123, 10.456);
+    } finally {
+      await f.app.close();
+    }
+  });
+  it('withholds locked extra clues on medium/hard until unlocked, while keeping core weather (R05)', async () => {
+    const f = await fixture();
+    f.game.difficulty = 'medium';
+    f.intelligence.mockResolvedValue({
+      fetchedAt: '2026-11-19T12:01:00Z',
+      cached: false,
+      weather: {
+        modelTime: new Date().toISOString(),
+        temperatureC: 12.3,
+        condition: 'Partly cloudy',
+        windSpeedKmh: 8,
+        windDirectionDeg: 240,
+        humidityPct: 64,
+        pressureHpa: 1003.4,
+        precipitationMm: 0,
+        precipitationIntervalMinutes: 15,
+      },
+      environment: {
+        elevationM: 420,
+        reliefM: 85,
+        terrain: 'Rolling relief',
+        biome: null,
+        vegetation: null,
+      },
+      climate: null,
+    });
+    try {
+      const locked = (
+        await f.app.inject({ url: f.url, headers: f.headers })
+      ).json();
+      expect(locked.weather).toMatchObject({
+        temperatureC: 12.3,
+        precipitationMm: 0,
+        humidityPct: 64,
+        windSpeedKmh: 8,
+        condition: null,
+        pressureHpa: null,
+      });
+      expect(locked.environment).toMatchObject({
+        elevationM: null,
+        reliefM: null,
+        terrain: null,
+      });
+
+      f.round.additionalDataUnlockedAt = new Date();
+      const unlocked = (
+        await f.app.inject({ url: f.url, headers: f.headers })
+      ).json();
+      expect(unlocked.weather).toMatchObject({
+        condition: 'Partly cloudy',
+        pressureHpa: 1003.4,
+      });
+      expect(unlocked.environment).toMatchObject({
+        elevationM: 420,
+        reliefM: 85,
+        terrain: 'Rolling relief',
+      });
     } finally {
       await f.app.close();
     }

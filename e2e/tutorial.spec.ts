@@ -67,7 +67,7 @@ test('the distance example shows the real London-Paris great-circle distance', a
   await expect(page.getByRole('heading', { name: 'Measuring distance' })).toBeVisible()
   await expect(page.getByText('London')).toBeVisible()
   await expect(page.getByText('Paris')).toBeVisible()
-  await expect(page.getByText(/34[0-9] km/)).toBeVisible()
+  await expect(page.getByText(/34[0-9]\.\d km/)).toBeVisible()
 })
 
 for (const [width, height] of [

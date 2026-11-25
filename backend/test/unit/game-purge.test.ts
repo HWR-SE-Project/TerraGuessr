@@ -1,78 +1,32 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { PURGE_RETENTION_MS } from '../../src/config/constants.js';
 import { purgeExpiredGameResults } from '../../src/scheduler/purge.js';
 import type { GamePurgeClient } from '../../src/scheduler/purge.js';
 
 const NOW = new Date('2026-11-20T03:00:00.000Z');
-const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
-interface Row {
-  id: string;
-  createdAt: Date;
+function makeDb(...batchSizes: number[]) {
+  const executeRaw = vi.fn<() => Promise<number>>();
+  for (const size of batchSizes) executeRaw.mockResolvedValueOnce(size);
+  const db = { $executeRaw: executeRaw } as unknown as GamePurgeClient;
+  return { db, executeRaw };
 }
-
-function makeDb(rows: Row[]) {
-  const table = [...rows];
-  const gameResult = {
-    findMany: vi.fn(
-      async (args: {
-        where: { createdAt: { lt: Date } };
-        take: number;
-      }): Promise<Array<{ id: string }>> =>
-        table
-          .filter((row) => row.createdAt.getTime() < args.where.createdAt.lt.getTime())
-          .slice(0, args.take)
-          .map((row) => ({ id: row.id })),
-    ),
-    deleteMany: vi.fn(async (args: { where: { id: { in: string[] } } }) => {
-      const wanted = new Set(args.where.id.in);
-      const before = table.length;
-      for (let i = table.length - 1; i >= 0; i -= 1) {
-        if (wanted.has(table[i]!.id)) table.splice(i, 1);
-      }
-      return { count: before - table.length };
-    }),
-  };
-  return {
-    db: { gameResult } as unknown as GamePurgeClient,
-    table,
-    gameResult,
-  };
-}
-
-const OLD: Row = { id: 'old-1', createdAt: new Date(NOW.getTime() - 7 * MONTH_MS) };
-const RECENT: Row = { id: 'recent-1', createdAt: new Date(NOW.getTime() - MONTH_MS) };
 
 describe('purgeExpiredGameResults (R18)', () => {
-  it('uses the 6-month retention cutoff', async () => {
-    const ctx = makeDb([OLD, RECENT]);
-    const summary = await purgeExpiredGameResults(ctx.db, NOW);
-    expect(summary.cutoff.getTime()).toBe(NOW.getTime() - PURGE_RETENTION_MS);
+  it('runs a single batch when no results are expired', async () => {
+    const { db, executeRaw } = makeDb(0);
+
+    expect(await purgeExpiredGameResults(db, NOW)).toEqual({ checkedAt: NOW, deletedResults: 0 });
+    expect(executeRaw).toHaveBeenCalledTimes(1);
   });
 
-  it('deletes results older than 6 months and keeps recent ones', async () => {
-    const ctx = makeDb([OLD, RECENT]);
-    const summary = await purgeExpiredGameResults(ctx.db, NOW);
-    expect(summary.deletedResults).toBe(1);
-    expect(ctx.table.map((r) => r.id)).toEqual(['recent-1']);
-  });
+  it('uses the same reference time for each batch and returns the total deleted', async () => {
+    const { db, executeRaw } = makeDb(500, 500, 200);
 
-  it('does nothing when nothing is expired', async () => {
-    const ctx = makeDb([RECENT]);
-    const summary = await purgeExpiredGameResults(ctx.db, NOW);
-    expect(summary.deletedResults).toBe(0);
-    expect(ctx.gameResult.deleteMany).not.toHaveBeenCalled();
-  });
-
-  it('paginates across batches larger than one page', async () => {
-    const many = Array.from({ length: 1200 }, (_, i) => ({
-      id: `old-${i}`,
-      createdAt: new Date(NOW.getTime() - 7 * MONTH_MS),
-    }));
-    const ctx = makeDb(many);
-    const summary = await purgeExpiredGameResults(ctx.db, NOW);
-    expect(summary.deletedResults).toBe(1200);
-    expect(ctx.table).toHaveLength(0);
+    expect(await purgeExpiredGameResults(db, NOW)).toEqual({ checkedAt: NOW, deletedResults: 1200 });
+    expect(executeRaw).toHaveBeenCalledTimes(3);
+    for (const call of executeRaw.mock.calls) {
+      expect(call).toEqual([expect.any(Array), NOW.toISOString(), 500]);
+    }
   });
 });

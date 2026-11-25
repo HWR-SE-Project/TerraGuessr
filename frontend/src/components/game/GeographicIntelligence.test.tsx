@@ -1,0 +1,128 @@
+import { act, cleanup, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { GeographicIntelligence as Intelligence } from '../../lib/contracts'
+import { GeographicIntelligence } from './GeographicIntelligence'
+
+function observation(modelTime: string | null, temperatureC = 12): Intelligence {
+  return {
+    fetchedAt: new Date().toISOString(),
+    cached: false,
+    weather: {
+      modelTime,
+      temperatureC,
+      condition: 'Clear sky',
+      windSpeedKmh: 7.2,
+      windDirectionDeg: null,
+      humidityPct: 66,
+      pressureHpa: null,
+      precipitationMm: 0,
+      precipitationIntervalMinutes: null,
+    },
+    environment: { elevationM: null, reliefM: null, terrain: null, biome: null, vegetation: null },
+    climate: null,
+  }
+}
+
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
+
+describe('core weather measurements', () => {
+  it.each([0, 1.5])('displays precipitation of %s mm and keeps all core measurements with clues locked', async (precipitationMm) => {
+    const data = observation(new Date().toISOString())
+    const load = vi.fn().mockResolvedValue({ ...data, weather: { ...data.weather, precipitationMm } })
+    render(
+      <GeographicIntelligence
+        roundId="round"
+        roundKey="round-pano"
+        load={load}
+        access={{ mode: 'points', cost: 100, availableAt: null, unlocked: false, pointsSpent: 0 }}
+        onUnlock={() => {}}
+      />,
+    )
+
+    const panel = within(screen.getByRole('complementary', { name: 'Geographic intelligence' }))
+    expect(await panel.findByText('Temperature', { exact: true })).toBeVisible()
+    expect(panel.getAllByText('12°C')).toHaveLength(2)
+    expect(panel.getAllByRole('term').map((label) => label.textContent)).toEqual(['Precipitation', 'Humidity', 'Wind speed'])
+    expect(panel.getAllByRole('definition').map((value) => value.textContent)).toEqual([`${precipitationMm} mm`, '66%', '2 m/s'])
+    expect(panel.getByRole('button', { name: /Unlock.*100 pts/ })).toBeEnabled()
+  })
+
+  it('refetches intelligence when additional data is unlocked so server-gated clues appear (R05)', async () => {
+    const lockedData = observation(new Date().toISOString())
+    lockedData.weather!.condition = null
+    lockedData.weather!.pressureHpa = null
+    const unlockedData = observation(new Date().toISOString())
+    unlockedData.weather!.pressureHpa = 1015
+    unlockedData.environment = { elevationM: 420, reliefM: 85, terrain: 'Rolling relief', biome: null, vegetation: null }
+
+    const load = vi.fn()
+      .mockResolvedValueOnce(lockedData)
+      .mockResolvedValueOnce(unlockedData)
+
+    const { rerender } = render(
+      <GeographicIntelligence
+        roundId="round"
+        roundKey="round-pano"
+        load={load}
+        access={{ mode: 'points', cost: 100, availableAt: null, unlocked: false, pointsSpent: 0 }}
+        onUnlock={() => {}}
+      />,
+    )
+
+    const panel = within(screen.getByRole('complementary', { name: 'Geographic intelligence' }))
+    expect(await panel.findByText('Conditions locked')).toBeVisible()
+    expect(panel.queryByText('1,015 hPa')).not.toBeInTheDocument()
+    expect(panel.queryByText('420 m')).not.toBeInTheDocument()
+
+    rerender(
+      <GeographicIntelligence
+        roundId="round"
+        roundKey="round-pano"
+        load={load}
+        access={{ mode: 'points', cost: 100, availableAt: null, unlocked: true, pointsSpent: 100 }}
+        onUnlock={() => {}}
+      />,
+    )
+
+    expect(await panel.findByText('Clear sky')).toBeVisible()
+    expect(panel.getByText('1,015 hPa')).toBeVisible()
+    expect(panel.getByText('420 m')).toBeVisible()
+    expect(load).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('round weather freshness', () => {
+  it.each(['2026-11-20T11:59:59Z', null])('does not display weather with an old or missing timestamp (%s)', async (modelTime) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-20T14:00:00Z'))
+    const load = vi.fn().mockResolvedValue(observation(modelTime))
+    render(<GeographicIntelligence roundId="round" roundKey="round-pano" load={load} />)
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Current weather unavailable')
+    expect(screen.queryAllByText('12°C')).toHaveLength(0)
+  })
+
+  it('hides the observation after 120 minutes and automatically displays fresh weather when it arrives', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date('2026-11-20T14:00:00Z'))
+    let deliverRefresh!: (data: Intelligence) => void
+    const load = vi.fn()
+      .mockResolvedValueOnce(observation('2026-11-20T12:00:00Z'))
+      .mockImplementationOnce(() => new Promise<Intelligence>((resolve) => { deliverRefresh = resolve }))
+    await act(async () => {
+      render(<GeographicIntelligence roundId="round" roundKey="round-pano" load={load} />)
+    })
+    expect(screen.getAllByText('12°C').length).toBeGreaterThan(0)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(screen.queryAllByText('12°C')).toHaveLength(0)
+    expect(screen.getByText('Connecting to the weather station…')).toBeVisible()
+    expect(load).toHaveBeenCalledTimes(2)
+
+    await act(async () => { deliverRefresh(observation('2026-11-20T14:00:00Z', 15)) })
+    expect(screen.getAllByText('15°C').length).toBeGreaterThan(0)
+  })
+})

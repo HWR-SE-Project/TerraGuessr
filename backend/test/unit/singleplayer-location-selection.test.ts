@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  selectRoundWithWeather,
   selectValidatedTarget,
   nextExclusions,
 } from '../../src/modules/singleplayer/locationSelection.js';
@@ -26,7 +27,7 @@ function withWeather(
     fetchedAt: new Date().toISOString(),
     cached: false,
     weather: {
-      modelTime: null,
+      modelTime: new Date().toISOString(),
       temperatureC: 10,
       condition: null,
       windSpeedKmh: 5,
@@ -50,6 +51,13 @@ function withWeather(
 const noWeather: GeographicIntelligence = { ...withWeather(), weather: null };
 
 describe('isValidStreetWeather (R03)', () => {
+  it('requires a valid model timestamp within the display limit', () => {
+    const now = Date.parse('2026-11-20T14:00:00Z');
+    expect(isValidStreetWeather(withWeather({ modelTime: '2026-11-20T12:00:00Z' }).weather, now)).toBe(true);
+    expect(isValidStreetWeather(withWeather({ modelTime: '2026-11-20T11:59:59Z' }).weather, now)).toBe(false);
+    expect(isValidStreetWeather(withWeather({ modelTime: null }).weather, now)).toBe(false);
+  });
+
   it('rejects a null weather payload', () => {
     expect(isValidStreetWeather(null)).toBe(false);
   });
@@ -116,7 +124,7 @@ describe('selectValidatedTarget (R03 gate + R13 automatic fallback)', () => {
     const provider = vi.fn(async (used: number[]) => target(used.length));
     const intelligence = vi.fn(async () => noWeather);
     await expect(
-      selectValidatedTarget([], provider, intelligence, 3),
+      selectValidatedTarget([], provider, intelligence),
     ).rejects.toMatchObject({ code: 'WEATHER_UNAVAILABLE' });
     expect(provider).toHaveBeenCalledTimes(3);
   });
@@ -125,17 +133,56 @@ describe('selectValidatedTarget (R03 gate + R13 automatic fallback)', () => {
     const provider = vi.fn(async (used: number[]) => target(used.length));
     const intelligence = vi.fn(async () => noWeather);
     await expect(
-      selectValidatedTarget([10, 11], provider, intelligence, 2),
+      selectValidatedTarget([10, 11], provider, intelligence, { maxAttempts: 2 }),
     ).rejects.toBeInstanceOf(PanoramaError);
     expect(provider).toHaveBeenCalledTimes(2);
     expect(provider.mock.calls[0]![0]).toEqual([10, 11]);
     expect(provider.mock.calls[1]![0]).toEqual([10, 11, 2]);
   });
+
+  it('shares the 3-location budget across prior alreadyAttempted indices and re-checks prefetched targets without double-counting (R13)', async () => {
+    const provider = vi.fn(async (used: number[]) => {
+      const next = [0, 1, 2, 3, 4, 5].find((i) => !used.includes(i))!;
+      return target(next);
+    });
+    const intelligence = vi.fn(async () => noWeather);
+
+    // 2 distinct locations already tried; re-checking prefetched #1 does not consume a new slot,
+    // so only 1 new location (#2) may be fetched before hitting the 3-location cap.
+    await expect(
+      selectRoundWithWeather([], provider, intelligence, {
+        prefetched: target(1),
+        alreadyAttempted: [0, 1],
+      }),
+    ).rejects.toMatchObject({
+      code: 'WEATHER_UNAVAILABLE',
+      attemptedIndices: [0, 1, 2],
+    });
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(intelligence).toHaveBeenCalledTimes(2); // re-check #1 + new #2
+
+    // When 3 distinct locations are already exhausted, zero additional lookups are issued.
+    provider.mockClear();
+    intelligence.mockClear();
+    await expect(
+      selectRoundWithWeather([], provider, intelligence, {
+        alreadyAttempted: [0, 1, 2],
+      }),
+    ).rejects.toMatchObject({
+      code: 'WEATHER_UNAVAILABLE',
+      attemptedIndices: [0, 1, 2],
+    });
+    expect(provider).not.toHaveBeenCalled();
+    expect(intelligence).not.toHaveBeenCalled();
+  });
 });
 
 describe('nextExclusions (R08 endless-mode pool exhaustion)', () => {
-  it('excludes every used location while unused ones remain', () => {
-    expect(nextExclusions([0, 1, 2])).toEqual([0, 1, 2]);
+  it('excludes every used location plus targets within 400km of the most recent one', () => {
+    const exclusions = nextExclusions([0, 1, 2]);
+    expect(exclusions).toContain(0);
+    expect(exclusions).toContain(1);
+    expect(exclusions).toContain(2);
     expect(nextExclusions([])).toEqual([]);
   });
 
@@ -147,15 +194,19 @@ describe('nextExclusions (R08 endless-mode pool exhaustion)', () => {
     expect(nextExclusions(almostAll)).toEqual(almostAll);
   });
 
-  it('once every location has been used, only excludes the most recent one', () => {
+  it('once every location has been used, excludes the most recent one (and nearby neighbors) without starving the pool', () => {
     const all = Array.from({ length: ROAD_TARGETS.length }, (_, i) => i);
-    expect(nextExclusions(all)).toEqual([all.at(-1)]);
+    const exclusions = nextExclusions(all);
+    expect(exclusions).toContain(all.at(-1));
+    expect(exclusions.length).toBeLessThan(ROAD_TARGETS.length);
   });
 
-  it('keeps excluding only the latest repeat after the pool stays exhausted', () => {
+  it('keeps excluding the latest repeat after the pool stays exhausted', () => {
     const all = Array.from({ length: ROAD_TARGETS.length }, (_, i) => i);
     const repeated = [...all, 5, 17];
-    expect(nextExclusions(repeated)).toEqual([17]);
+    const exclusions = nextExclusions(repeated);
+    expect(exclusions).toContain(17);
+    expect(exclusions.length).toBeLessThan(ROAD_TARGETS.length);
   });
 
   it('never returns an exclusion list wide enough to starve the provider', async () => {
