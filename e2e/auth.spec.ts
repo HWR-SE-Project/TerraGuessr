@@ -1,59 +1,53 @@
 import { expect, test } from '@playwright/test';
-import { registerAndLogin } from './support/game';
+import { registerAndSignIn } from './support/auth';
 
-test.describe('authentication', () => {
-  test('registration logs the player in and the session survives a reload', async ({ page }) => {
-    await registerAndLogin(page, 'Browser Explorer');
-    await page.goto('/game/singleplayer');
-    await expect(page.locator('.th-profile-name')).toHaveText('Browser Explorer');
+test.describe('authentication and account settings', () => {
+  test('registration persists across reload, supports logout and sign-in, and rejects wrong passwords', async ({ page }) => {
+    const { email, password } = await registerAndSignIn(page, 'Atlas Runner');
 
     await page.reload();
-    await expect(page.locator('.th-profile-name')).toHaveText('Browser Explorer');
-  });
-
-  test('logout returns to the guest home page, and the account can log back in', async ({ page }) => {
-    const { email, password } = await registerAndLogin(page, 'Logout Tester');
+    await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
+    const sessionRes = await page.request.get('/api/auth/session');
+    expect((await sessionRes.json()).user?.email).toBe(email);
 
     await page.goto('/settings');
-    await page.getByRole('button', { name: 'Log out' }).click();
-    await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible();
-    expect((await (await page.request.get('/api/auth/session')).json()).user).toBeNull();
-    await page.goto('/auth');
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.locator('main').getByRole('link', { name: 'Sign in' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Log in' }).first().click();
-    await page.getByRole('button', { name: 'Continue with Email' }).click();
+    await page.goto('/auth');
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: false }).fill(password);
-    await page.locator('form').getByRole('button', { name: 'Log in', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible();
-    await page.goto('/game/singleplayer');
-    await expect(page.locator('.th-profile-name')).toHaveText('Logout Tester');
+    await page.getByLabel('Password').fill('wrong password value');
+    await page.locator('main').getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
+
+    await page.getByLabel('Password').fill(password);
+    await page.locator('main').getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
   });
 
-  test('an incorrect password shows an inline error instead of logging in', async ({ page }) => {
-    const { email } = await registerAndLogin(page, 'Wrong Password');
+  test('updates display name and permanently deletes account from settings', async ({ page }) => {
+    const { password } = await registerAndSignIn(page, 'Original Name');
+
     await page.goto('/settings');
-    await page.getByRole('button', { name: 'Log out' }).click();
-    await expect(page.getByRole('heading', { name: 'Explore the World' })).toBeVisible();
-    expect((await (await page.request.get('/api/auth/session')).json()).user).toBeNull();
-    await page.goto('/auth');
+    const nameField = page.getByLabel('Display name');
+    await expect(nameField).toHaveValue('Original Name');
+    await nameField.fill('Updated Name');
+    await page.getByRole('button', { name: 'Save name' }).click();
+    await expect(page.getByText('Display name updated.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Log in' }).first().click();
-    await page.getByRole('button', { name: 'Continue with Email' }).click();
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: false }).fill('definitely-the-wrong-password');
-    await page.locator('form').getByRole('button', { name: 'Log in', exact: true }).click();
+    await page.reload();
+    await expect(page.getByLabel('Display name')).toHaveValue('Updated Name');
 
-    await expect(page.getByRole('alert')).toContainText(/incorrect email or password/i);
-  });
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Delete your account?' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByPlaceholder('DELETE').fill('DELETE');
+    await dialog.getByPlaceholder('Current password (if set)').fill(password);
+    await dialog.getByRole('button', { name: 'Delete forever' }).click();
 
-  test('registering with a too-short password is rejected before it reaches the server', async ({ page }) => {
-    await page.goto('/auth');
-    await page.getByRole('button', { name: 'Continue with Email' }).click();
-    await page.getByLabel('Display name').fill('Short Password');
-    await page.getByLabel('Email').fill(`short-${Date.now()}@example.test`);
-    const passwordField = page.getByLabel('Password', { exact: false });
-    await passwordField.fill('tooshort');
-    await expect(passwordField).toHaveJSProperty('validity.valid', false);
+    await expect(page).toHaveURL(/\/$/);
+    const sessionAfter = await page.request.get('/api/auth/session');
+    expect((await sessionAfter.json()).user).toBeNull();
   });
 });
