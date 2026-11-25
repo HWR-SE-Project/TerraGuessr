@@ -78,7 +78,7 @@ export function Header() {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                `whitespace-nowrap rounded-full px-3 py-2 text-sm font-bold transition-colors lg:px-4 ${
                   isActive ? 'bg-lime-400/15 text-lime-300' : 'text-muted hover:bg-white/6 hover:text-cream'
                 }`
               }
@@ -88,7 +88,7 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <div className="hidden items-center gap-2 md:flex">
             <IconButton
               name="settings"
