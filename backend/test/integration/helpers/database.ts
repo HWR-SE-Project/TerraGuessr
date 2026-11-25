@@ -1,11 +1,10 @@
 /**
- * Integration test database helper (ADR-0012 tier I).
+ * Integration test database helper.
  *
- * Owned by QA (MODULE-OWNERSHIP.md: backend/test/integration/**). Assumes
- * `DATABASE_URL` points to a disposable Postgres (CI `services:` container or
- * the docker compose test stack). Runs `prisma migrate deploy` and builds a
- * Fastify app with injected provider doubles so integration tests never hit
- * live Street View or Open-Meteo.
+ * Assumes `DATABASE_URL` points to a disposable Postgres (CI `services:`
+ * container or the docker compose test stack). Runs `prisma migrate deploy`
+ * and builds a Fastify app with injected provider doubles so integration tests
+ * never hit live Street View or Open-Meteo.
  */
 
 import { TEST_DEFAULT_DATABASE_URL } from './env.js'; // first: sets DATABASE_URL eagerly

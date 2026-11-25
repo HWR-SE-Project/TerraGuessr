@@ -10,7 +10,7 @@ import {
   releaseScryptSlot,
 } from '../../src/modules/auth/service.js';
 
-describe('scrypt concurrency semaphore & bounded queue (C-4)', () => {
+describe('scrypt concurrency limit and bounded waiter queue', () => {
   it('fast-fails with 503 AUTH_BUSY when the waiter queue is full and recovers cleanly on release', async () => {
     for (let i = 0; i < MAX_CONCURRENT_SCRYPT; i += 1) {
       await acquireScryptSlot();
@@ -70,7 +70,7 @@ describe('scrypt concurrency semaphore & bounded queue (C-4)', () => {
   });
 });
 
-describe('atomic failed-login lockout counter (C-4)', () => {
+describe('atomic failed-login lockout counter', () => {
   it('records failed logins via atomic $executeRaw UPDATE instead of stale user.update', async () => {
     const passwordHash = await hashPassword('correct horse battery');
     const executeRaw = vi.fn().mockResolvedValue(1);

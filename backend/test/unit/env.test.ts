@@ -6,7 +6,7 @@ describe('loadEnv', () => {
     expect(() => loadEnv({})).toThrow(/DATABASE_URL is required/);
   });
 
-  it('defaults CORS to disabled (false), never a wildcard (Phase C)', () => {
+  it('defaults CORS to disabled (false) instead of a wildcard', () => {
     const env = loadEnv({ DATABASE_URL: 'postgresql://x' });
     expect(env.corsOrigin).toBe(false);
   });
@@ -37,7 +37,7 @@ describe('loadEnv', () => {
     expect(loadEnv({ DATABASE_URL: 'postgresql://x', TRUST_PROXY: '10.0.0.0/8' }).trustProxy).toBe('10.0.0.0/8');
   });
 
-  it('validates URLs, LOG_LEVEL, and precomputes allowedOrigins at startup (M-6)', () => {
+  it('validates URLs, LOG_LEVEL, and precomputes allowedOrigins at startup', () => {
     expect(() =>
       loadEnv({ DATABASE_URL: 'not-a-url' }),
     ).toThrow(/Invalid DATABASE_URL/);
@@ -78,7 +78,7 @@ describe('loadEnv', () => {
     ]);
   });
 
-  it('rejects partial Google OAuth or partial SMTP configuration (M-6)', () => {
+  it('rejects partial Google OAuth or partial SMTP configuration', () => {
     // Pre-filled GOOGLE_REDIRECT_URI alone (as in .env.example) is allowed.
     expect(
       loadEnv({

@@ -9,7 +9,7 @@ import {
 } from '../../src/domain/scene.js';
 import { LOCATION_CATALOG } from '../../src/modules/singleplayer/locations.js';
 
-describe('diorama scene classification (R04/R20)', () => {
+describe('diorama scene classification', () => {
   it('classifies weather conditions and precipitation fallbacks cleanly', () => {
     expect(
       classifySceneWeather({
@@ -80,7 +80,7 @@ describe('diorama scene classification (R04/R20)', () => {
     expect(classifyLighting(0, new Date('2026-06-15T01:00:00Z'), false)).toBe('night');
   });
 
-  it('builds an R04-safe RoundScene without location identifiers', () => {
+  it('builds a RoundScene without leaking location identifiers', () => {
     const scene = buildRoundScene({
       biome: 'tundra',
       weather: {

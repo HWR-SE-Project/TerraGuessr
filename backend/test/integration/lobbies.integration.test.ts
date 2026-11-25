@@ -76,8 +76,8 @@ interface LobbyBody {
   lobbyToken: string;
 }
 
-/** Lobby lifecycle + membership rules (R16). */
-describe('lobby lifecycle (integration, R16)', () => {
+/** Lobby lifecycle and membership rules. */
+describe('lobby lifecycle (integration)', () => {
   let prisma: PrismaClient;
   let app: FastifyInstance;
   let expiredWeatherLatitude: number | undefined;
@@ -212,7 +212,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     }
   }
 
-  it('creates a lobby with the host, a 6-character code and R5 rules', async () => {
+  it('creates a lobby with the host, a 6-character code, and difficulty rules', async () => {
     const created = await createLobby('easy', 'Alice');
 
     expect(created.lobby.code).toMatch(/^[A-Z0-9]{6}$/);
@@ -700,7 +700,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     }
   });
 
-  it('unlocks additional data per player and deducts only that player (R05/R16)', async () => {
+  it('unlocks additional data per player and deducts points only from that player', async () => {
     const created = await createLobby('medium', 'Host', 3);
     const joined = await joinLobby(created.lobby.code, 'Guest');
     const guest = joined.json() as LobbyBody;
@@ -775,7 +775,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     expect(guestResult.score).toBe(hostResult.score + 100);
   });
 
-  it('applies the hard-mode time penalty only to the player who unlocks (R05/R16)', async () => {
+  it('applies the hard-mode time penalty only to the player who unlocks', async () => {
     const created = await createLobby('hard', 'Host', 3);
     const joined = await joinLobby(created.lobby.code, 'Guest');
     const guest = joined.json() as LobbyBody;
@@ -862,7 +862,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     expect(hostBoard[0]!.totalScore).toBeGreaterThan(hostBoard[1]!.totalScore);
   });
 
-  it('reveals every submitted participant guess and their easy-mode answer without leaking coordinates beforehand (R04/R05)', async () => {
+  it('reveals every submitted participant guess and their easy-mode answer without leaking coordinates beforehand', async () => {
     const created = await createLobby('easy', 'Host');
     const joined = await joinLobby(created.lobby.code, 'Guest');
     const guest = joined.json() as LobbyBody;
@@ -1009,7 +1009,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     }
   });
 
-  it('keeps final standings visible past 30 seconds when nobody requests a rematch (R16)', async () => {
+  it('keeps final standings visible past 30 seconds when nobody requests a rematch', async () => {
     const created = await createLobby('easy', 'Host', 3);
     const joined = await joinLobby(created.lobby.code, 'Guest');
     const guest = joined.json() as LobbyBody;
@@ -1213,7 +1213,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     expect(guestView.statusCode).toBe(404);
   });
 
-  it('archives authenticated multiplayer results but not guest results (R18)', async () => {
+  it('archives authenticated multiplayer results but not guest results', async () => {
     const account = await signIn('Lobby Archive Host');
     const created = await createLobby('hard', 'Archive Host', 3, account.cookie);
     const guestResponse = await joinLobby(created.lobby.code, 'Archive Guest');
@@ -1261,7 +1261,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     ).toBe(0);
   });
 
-  it('withholds multiplayer target and score from account history until shared review opens (R04/R16)', async () => {
+  it('withholds multiplayer target and score from account history until shared review opens', async () => {
     const hostAccount = await signIn('Early Finish Host');
     const guestAccount = await signIn('Late Finish Guest');
     const host = await createLobby('medium', 'Early Host', 3, hostAccount.cookie);
@@ -1324,7 +1324,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     }
   });
 
-  it('scores, reveals, and archives the closest attempt (Best-of-N) across Final Submit and timeout in multiplayer (R02/R08/R11/R18)', async () => {
+  it('scores, reveals, and archives the closest attempt (Best-of-N) across Final Submit and timeout in multiplayer', async () => {
     const hostAccount = await signIn('Lobby Best Host');
     const guestAccount = await signIn('Lobby Best Guest');
     const host = await createLobby('medium', 'Best Host', 3, hostAccount.cookie);
@@ -1388,7 +1388,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     });
   });
 
-  it('caps weather retrieval at 3 distinct locations per lobby round across planning, review prep, and repeated polls (R13)', async () => {
+  it('caps weather retrieval at 3 distinct locations per lobby round across planning, review prep, and repeated polls', async () => {
     const fetchedForRound: string[] = [];
     let failAllWeather = false;
     const budgetApp = buildTestApp(prisma, {
@@ -1462,7 +1462,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     }
   });
 
-  it('preserves placeName on pre-diorama legacy lobby rounds (index 2 Rome) instead of showing Berlin (R11)', async () => {
+  it('preserves placeName on pre-diorama legacy lobby rounds (index 2 Rome) instead of showing Berlin', async () => {
     const host = await createLobby('medium', 'Legacy Host', 3);
     const guest = (await joinLobby(host.lobby.code, 'Legacy Guest')).json() as LobbyBody;
     const lobby = await prisma.lobby.findUniqueOrThrow({
@@ -1509,7 +1509,7 @@ describe('lobby lifecycle (integration, R16)', () => {
     });
   });
 
-  it('rotates matchId on a rematch while keeping the same sessionId (R18)', async () => {
+  it('rotates matchId on a rematch while keeping the same sessionId', async () => {
     const account = await signIn('Lobby Rematch Host');
     const created = await createLobby('easy', 'Rematch Host', 3, account.cookie);
     const guestResponse = await joinLobby(created.lobby.code, 'Rematch Guest');

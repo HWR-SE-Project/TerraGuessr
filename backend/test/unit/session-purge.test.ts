@@ -39,7 +39,7 @@ function makeDb() {
   };
 }
 
-describe('purgeExpiredGameSessions (R18, batched)', () => {
+describe('expired game session settlement and batched purge', () => {
   it('settles timed-out rounds in bounded pages before deleting expired sessions in SKIP LOCKED batches', async () => {
     const ctx = makeDb();
     const summary = await purgeExpiredGameSessions(ctx.db, NOW);

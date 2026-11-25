@@ -67,7 +67,7 @@ describe('3D biome diorama logic & WebGL fallback', () => {
     }
   })
 
-  it('produces R04-safe weather quips for every biome without leaking location names', () => {
+  it('produces weather quips for every biome without leaking location names', () => {
     const biomes: Biome[] = ['desert', 'forest', 'mountains', 'tundra', 'coast', 'grasslands', 'urban']
     for (const biome of biomes) {
       const quips = quipsForScene(sampleScene({ biome }))

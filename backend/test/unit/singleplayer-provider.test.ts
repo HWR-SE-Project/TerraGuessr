@@ -11,7 +11,7 @@ import {
   resolveRoundLocation,
 } from '../../src/modules/singleplayer/locations.js';
 
-describe('catalog location provider (R01/R04)', () => {
+describe('catalog location provider', () => {
   it('selects an unused land target from the catalog with biome metadata', async () => {
     const provider = catalogLocationProvider();
     const excluded = [0, 1, 2];
@@ -39,9 +39,9 @@ describe('catalog location provider (R01/R04)', () => {
   });
 });
 
-describe('location identity across catalog migrations (R11)', () => {
+describe('location identity across catalog migrations', () => {
   it('resolves legacy pre-diorama index/coordinate pairs to their true city names (never mismatched)', () => {
-    // At base commit 4bee821: index 2 = Rome, index 4 = Amsterdam, index 10 = Tokyo.
+    // In the legacy catalog: index 2 = Rome, index 4 = Amsterdam, index 10 = Tokyo.
     // In the expanded catalog: index 2 = Berlin, index 4 = Rome, index 10 = Shanghai.
     expect(
       resolveRoundLocation({

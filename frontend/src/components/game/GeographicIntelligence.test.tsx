@@ -50,7 +50,7 @@ describe('core weather measurements', () => {
     expect(panel.getByRole('button', { name: /Unlock.*100 pts/ })).toBeEnabled()
   })
 
-  it('refetches intelligence when additional data is unlocked so server-gated clues appear (R05)', async () => {
+  it('refetches intelligence when additional data is unlocked so server-gated clues appear', async () => {
     const lockedData = observation(new Date().toISOString())
     lockedData.weather!.condition = null
     lockedData.weather!.pressureHpa = null

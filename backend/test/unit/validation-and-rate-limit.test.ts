@@ -26,7 +26,7 @@ function baseEnv(): Env {
   };
 }
 
-describe('PATCH /api/auth/profile displayName validation (M-5)', () => {
+describe('PATCH /api/auth/profile displayName validation', () => {
   function authDb(updateMock = vi.fn()) {
     const rawToken = 'valid-session-token';
     const user = {
@@ -218,7 +218,7 @@ describe('Strict JSON body validation (coerceTypes: false on body, kept on param
   });
 });
 
-describe('Global baseline rate limiting (H-4)', () => {
+describe('global baseline rate limiting', () => {
   beforeAll(() => {
     process.env.DATABASE_URL =
       process.env.DATABASE_URL ??
@@ -226,7 +226,7 @@ describe('Global baseline rate limiting (H-4)', () => {
     process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? 'silent';
   });
 
-  it('enforces rate limits on previously unprotected routes while exempting /api/health and /api/ready', async () => {
+  it('enforces default and per-route rate limits while exempting /api/health and /api/ready', async () => {
     const readyDb = { $queryRaw: vi.fn().mockResolvedValue([{ '?column?': 1 }]) };
     const app = await buildApp({ readyDb });
 

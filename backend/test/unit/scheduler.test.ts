@@ -9,7 +9,7 @@ import {
 } from '../../src/scheduler/index.js';
 import type { SchedulerClient, SchedulerHandle } from '../../src/scheduler/index.js';
 
-describe('startScheduler (R18, node-cron v4 wiring)', () => {
+describe('background purge scheduler', () => {
   let task: SchedulerHandle | undefined;
 
   afterEach(async () => {

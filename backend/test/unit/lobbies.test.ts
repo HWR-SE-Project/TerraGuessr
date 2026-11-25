@@ -56,7 +56,7 @@ function lobbyRow(overrides: Record<string, unknown> = {}): LobbyRow {
   } as LobbyRow;
 }
 
-describe('lobby difficulty rules (R5)', () => {
+describe('lobby difficulty rules', () => {
   it('maps each difficulty to its time limit, attempts and selection mode', () => {
     expect(gameRulesFor('easy')).toEqual({
       timeLimitSeconds: 420,

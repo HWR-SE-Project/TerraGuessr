@@ -17,7 +17,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('GuessPanel selection sync (R08)', () => {
+describe('GuessPanel selection sync', () => {
   it('coalesces rapid selection changes so only the latest choice is sent', async () => {
     vi.useFakeTimers()
     const onSelect = vi.fn(async () => {})

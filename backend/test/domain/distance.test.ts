@@ -11,7 +11,7 @@ describe('haversineKm', () => {
     expect(haversineKm(BERLIN, BERLIN)).toBe(0);
   });
 
-  it('measures Berlin -> Paris at ~877 km (R09 vector)', () => {
+  it('measures Berlin -> Paris at ~877 km', () => {
     const distance = haversineKm(BERLIN, PARIS);
 
     // Reference value: 877.4645... km with R = 6371.0088.
@@ -31,7 +31,7 @@ describe('haversineKm', () => {
     expect(EARTH_RADIUS_KM).toBe(6371.0088);
   });
 
-  it('handles the antimeridian as the short way around, not 359.8° of longitude (R09)', () => {
+  it('handles the antimeridian as the short way around, not 359.8° of longitude', () => {
     // 179.9°E and 179.9°W are 0.2° apart along the equator (~22 km), not the
     // ~19,975 km a naive |lonA - lonB| would produce without sine wraparound.
     const distance = haversineKm(
@@ -42,7 +42,7 @@ describe('haversineKm', () => {
     expect(distance).toBeLessThan(30);
   });
 
-  it('measures a known long-haul pair: New York -> Tokyo at ~10,850 km (R09)', () => {
+  it('measures a known long-haul pair: New York -> Tokyo at ~10,850 km', () => {
     const NEW_YORK = { lat: 40.7128, lon: -74.006 } as const;
     const TOKYO = { lat: 35.6762, lon: 139.6503 } as const;
     expect(haversineKm(NEW_YORK, TOKYO)).toBeCloseTo(10851, -1);

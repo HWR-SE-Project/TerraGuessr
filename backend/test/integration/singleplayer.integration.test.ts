@@ -14,7 +14,7 @@ import { runMigrations } from './helpers/database.js';
 import type { GeographicIntelligence } from '../../src/modules/intelligence/contract.js';
 import type { IntelligenceLookup } from '../../src/modules/singleplayer/locationSelection.js';
 
-/** A deterministic, always-valid weather payload (R03) — explicit provider
+/** A deterministic, always-valid weather payload — explicit provider
  * double so these tests never depend on real network access. */
 function validIntelligence(): GeographicIntelligence {
   return {
@@ -113,7 +113,7 @@ describe('Street View singleplayer lifecycle (database integration; provider dou
   it('plays ten consecutive rounds with no cap, reveals answers only after guessing, and persists exact geodesic scores', async () => {
     const auth = await create();
     let total = 0;
-    const ROUNDS = 10; // Past the old five-round cap (R01/endless mode).
+    const ROUNDS = 10; // Verify endless mode continues past 5 rounds.
     for (let number = 1; number <= ROUNDS; number++) {
       const started = await app.inject({
         method: 'POST',
@@ -597,7 +597,7 @@ describe('replacing unavailable Street View locations (database integration)', (
   });
 });
 
-describe('difficulty levels and list-mode candidates (R05/R07)', () => {
+describe('difficulty levels and list-mode candidates', () => {
   const db = new PrismaClient();
   const app = Fastify();
   const ids: string[] = [];
@@ -655,7 +655,7 @@ describe('difficulty levels and list-mode candidates (R05/R07)', () => {
       error: { code: 'VALIDATION_ERROR' },
     });
   });
-  it('offers a 6-option candidate list without coordinates on easy and enforces choice membership (R04/R05)', async () => {
+  it('offers a 6-option candidate list without coordinates on easy and enforces choice membership', async () => {
     const auth = await create('easy');
     const round = (
       await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
@@ -663,7 +663,7 @@ describe('difficulty levels and list-mode candidates (R05/R07)', () => {
     expect(round.candidates).toHaveLength(6);
     const ids = round.candidates.map((c: { id: string }) => c.id);
     expect(new Set(ids).size).toBe(6);
-    // R04: coordinates are never sent to the client for Easy candidates.
+    // Coordinates are never sent to the client for Easy candidates.
     for (const candidate of round.candidates) {
       expect(Object.keys(candidate).sort()).toEqual(['id', 'name', 'region']);
     }
@@ -741,7 +741,7 @@ describe('difficulty levels and list-mode candidates (R05/R07)', () => {
     expect(third.finalized).toBe(true);
     expect(third.result.score).toBeGreaterThan(0);
   });
-  it('scores the closest submitted guess (Best-of-N) when time expires, ignoring unsubmitted moves (R08/R11)', async () => {
+  it('scores the closest submitted guess (Best-of-N) when time expires, ignoring unsubmitted moves', async () => {
     const auth = await create('easy');
     const round = (await app.inject({
       method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers,
@@ -865,7 +865,7 @@ describe('difficulty levels and list-mode candidates (R05/R07)', () => {
   });
 });
 
-describe('automatic location replacement on weather failure (R03/R13)', () => {
+describe('automatic location replacement on weather failure', () => {
   const db = new PrismaClient();
   const app = Fastify();
   const ids: string[] = [];
@@ -951,7 +951,7 @@ describe('automatic location replacement on weather failure (R03/R13)', () => {
   });
 });
 
-describe('next-round prefetch (R12)', () => {
+describe('next-round prefetch', () => {
   const db = new PrismaClient();
   const app = Fastify();
   const ids: string[] = [];
@@ -1048,7 +1048,7 @@ describe('next-round prefetch (R12)', () => {
     expect(intelligence).toHaveBeenCalledWith(50, 10, { includeEnvironment: false });
     await pendingStreetPrefetch(auth.id, 2);
   });
-  it('actually populates a prefetch in the background as soon as a round starts (R12)', async () => {
+  it('populates a prefetch in the background as soon as a round starts', async () => {
     const auth = await create();
     await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers });
     await pendingStreetPrefetch(auth.id, 2);
@@ -1077,7 +1077,7 @@ describe('next-round prefetch (R12)', () => {
     expect(game.nextPanoId).not.toBeNull();
     expect(game.nextRoundNumber).toBe(7);
   });
-  it('makes Next round playable well under 2 seconds even with 2.3s upstream forecasts (R12)', async () => {
+  it('makes the next round playable well under 2 seconds even with 2.3s upstream forecasts', async () => {
     const slowApp = Fastify();
     registerErrorHandler(slowApp);
     const slowFetch = vi.fn(async (input: URL | RequestInfo) => {
@@ -1170,7 +1170,7 @@ describe('next-round prefetch (R12)', () => {
       await slowApp.close();
     }
   }, 15_000);
-  it('joins an in-flight prefetch and caps distinct coordinates at 3 across failed prefetch + Next round (R12/R13)', async () => {
+  it('joins an in-flight prefetch and caps distinct coordinates at 3 across a failed prefetch and next-round request', async () => {
     const budgetApp = Fastify();
     registerErrorHandler(budgetApp);
     let failWeather = false;
@@ -1290,7 +1290,7 @@ describe('next-round prefetch (R12)', () => {
   });
 });
 
-describe('durable result archive (R18)', () => {
+describe('durable result archive', () => {
   const db = new PrismaClient();
   const app = Fastify();
   const ids: string[] = [];
@@ -1381,7 +1381,7 @@ describe('durable result archive (R18)', () => {
     });
     expect(await db.gameResult.findUnique({ where: { id: `solo:${round.id}` } })).toBeNull();
   });
-  it('evaluates and archives the closest submitted attempt (Best-of-N) even when a later Final Submit is farther (R02/R11/R18)', async () => {
+  it('evaluates and archives the closest submitted attempt (Best-of-N) even when a later Final Submit is farther', async () => {
     const account = await signIn(db, 'Archive Best Guess');
     userIds.push(account.user.id);
     const auth = await createGame('medium', account.cookie);
@@ -1442,7 +1442,7 @@ describe('durable result archive (R18)', () => {
       sessionId: auth.id,
     });
   });
-  it('preserves placeName on pre-diorama legacy results (index 2 Rome) instead of showing Berlin (R11)', async () => {
+  it('preserves placeName on pre-diorama legacy results (index 2 Rome) instead of showing Berlin', async () => {
     const auth = await createGame('medium');
     await db.streetRound.create({
       data: {

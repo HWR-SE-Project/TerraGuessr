@@ -4,7 +4,7 @@ import type { PrismaClient } from '@prisma/client';
 import { hashPlayerToken } from '../../src/plugins/auth.js';
 import { createSingleplayerService } from '../../src/modules/singleplayer/service.js';
 
-describe('singleplayer hot-path DB queries (C-2, M-3)', () => {
+describe('singleplayer hot-path database queries', () => {
   it('creates a singleplayer game without triggering global settlement or deletion of expired games', async () => {
     const create = vi.fn().mockResolvedValue({ id: 'game-new-1' });
     const deleteMany = vi.fn();

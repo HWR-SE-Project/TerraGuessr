@@ -1,4 +1,4 @@
-// Deterministic stand-in for Open-Meteo (ADR-0012): e2e must never depend on
+// Deterministic stand-in for Open-Meteo: e2e tests must never depend on
 // live egress or real weather. Serves the exact /v1/forecast shape the
 // intelligence provider (src/modules/intelligence/service.ts) parses, with
 // fixed values, for any latitude/longitude. Zero dependencies — plain Node http.

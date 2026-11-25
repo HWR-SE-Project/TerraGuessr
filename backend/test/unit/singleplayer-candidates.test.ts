@@ -12,7 +12,7 @@ function indexOfCandidate(name: string): number {
   return LOCATION_CATALOG.findIndex((entry) => entry.name === name);
 }
 
-describe('buildCandidates (R04/R05 easy difficulty, R07 list selection)', () => {
+describe('easy-mode candidate list generation and validation', () => {
   it('always includes the actual target among the options with opaque round-scoped IDs', () => {
     const target = LOCATION_CATALOG[5]!;
     const first = buildCandidates(5, []);
@@ -24,7 +24,7 @@ describe('buildCandidates (R04/R05 easy difficulty, R07 list selection)', () => 
     expect(second.find((c) => c.name === target.name)?.id).not.toBe(match!.id);
   });
 
-  it('returns 6 distinct, labeled options with real server coordinates and same-biome distractors (R04)', () => {
+  it('returns 6 distinct, labeled options with real server coordinates and same-biome distractors', () => {
     const targetIndex = 20; // Desert entry
     const targetBiome = LOCATION_CATALOG[targetIndex]!.biome;
     const candidates = buildCandidates(targetIndex, []);
@@ -55,7 +55,7 @@ describe('buildCandidates (R04/R05 easy difficulty, R07 list selection)', () => 
     }
   });
 
-  it('does not always place the answer in the same position (shuffled, R04)', () => {
+  it('shuffles the target position across rounds', () => {
     const targetName = LOCATION_CATALOG[3]!.name;
     const positions = new Set<number>();
     for (let i = 0; i < 40; i++) {
@@ -65,7 +65,7 @@ describe('buildCandidates (R04/R05 easy difficulty, R07 list selection)', () => 
     expect(positions.size).toBeGreaterThan(1);
   });
 
-  it('guarantees 6 distinct options with 139 previous targets and after a complete catalog cycle (R04/R05)', () => {
+  it('guarantees 6 distinct options even when nearly all or all catalog targets were already used', () => {
     const target = LOCATION_CATALOG[0]!;
     const almostAllUsed = ROAD_TARGETS.map((_, i) => i).filter((i) => i !== 0);
     const fullCycleUsed = ROAD_TARGETS.map((_, i) => i);
@@ -83,7 +83,7 @@ describe('buildCandidates (R04/R05 easy difficulty, R07 list selection)', () => 
     }
   });
 
-  it('strips coordinates from public candidates and enforces list membership server-side (R04/R05)', () => {
+  it('strips coordinates from public candidates and enforces list membership server-side', () => {
     const stored = buildCandidates(0, []);
     const pub = toPublicCandidates(stored)!;
     expect(pub).toHaveLength(6);

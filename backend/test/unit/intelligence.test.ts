@@ -200,7 +200,7 @@ describe('environment provider boundary', () => {
     expect(value.weather).toBeNull();
   });
 
-  it('skips /v1/elevation when includeEnvironment is false and fetches it only on demand (H-3)', async () => {
+  it('skips /v1/elevation when includeEnvironment is false and fetches it only on demand', async () => {
     const now = Date.parse('2026-11-19T12:01Z');
     const fetcher = vi.fn(
       async (input: URL | RequestInfo) =>
@@ -231,7 +231,7 @@ describe('environment provider boundary', () => {
     expect(String(fetcher.mock.calls[1]![0])).toContain('/v1/elevation');
   });
 
-  it('logs Open-Meteo failures without coordinates/API keys and opens circuit breaker during outages (H-3)', async () => {
+  it('logs Open-Meteo failures without coordinates or API keys and opens circuit breaker during outages', async () => {
     let now = Date.parse('2026-11-19T12:01Z');
     const log = { warn: vi.fn() };
     let fail = true;
@@ -452,7 +452,7 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       await f.app.close();
     }
   });
-  it('withholds locked extra clues on medium/hard until unlocked, while keeping core weather (R05)', async () => {
+  it('withholds locked extra clues on medium and hard difficulties until unlocked, while keeping core weather', async () => {
     const f = await fixture();
     f.game.difficulty = 'medium';
     f.intelligence.mockResolvedValue({

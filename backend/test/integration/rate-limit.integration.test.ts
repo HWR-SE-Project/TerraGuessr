@@ -8,13 +8,11 @@ import { ensureDatabaseUrl, runMigrations, teardownDatabase } from './helpers/da
 import { prisma } from '../../src/db/prisma.js';
 
 /**
- * Phase C regression: `@fastify/rate-limit` was registered fire-and-forget
- * (`void app.register(...)`), so routes declared synchronously right after
- * never saw its per-route `config.rateLimit` option — the limiter silently
- * did nothing on every real request. This exercises the actual production
- * wiring (buildApp(), not a bare test Fastify instance) end to end.
+ * Regression test: `@fastify/rate-limit` must be awaited before registering
+ * routes so per-route `config.rateLimit` options take effect on real requests.
+ * This exercises the full `buildApp()` wiring end to end.
  */
-describe('rate limiting (integration, Phase C)', () => {
+describe('rate limiting (integration)', () => {
   let app: FastifyInstance;
   let db: PrismaClient;
 

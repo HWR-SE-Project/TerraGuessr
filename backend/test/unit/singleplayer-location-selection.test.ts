@@ -50,7 +50,7 @@ function withWeather(
 }
 const noWeather: GeographicIntelligence = { ...withWeather(), weather: null };
 
-describe('isValidStreetWeather (R03)', () => {
+describe('weather payload validation', () => {
   it('requires a valid model timestamp within the display limit', () => {
     const now = Date.parse('2026-11-20T14:00:00Z');
     expect(isValidStreetWeather(withWeather({ modelTime: '2026-11-20T12:00:00Z' }).weather, now)).toBe(true);
@@ -88,7 +88,7 @@ describe('isValidStreetWeather (R03)', () => {
   });
 });
 
-describe('selectValidatedTarget (R03 gate + R13 automatic fallback)', () => {
+describe('target selection with weather validation and fallback', () => {
   it('accepts the first candidate when its weather is valid', async () => {
     const provider = vi.fn(async (used: number[]) => target(used.length));
     const intelligence = vi.fn(async () => withWeather());
@@ -140,7 +140,7 @@ describe('selectValidatedTarget (R03 gate + R13 automatic fallback)', () => {
     expect(provider.mock.calls[1]![0]).toEqual([10, 11, 2]);
   });
 
-  it('shares the 3-location budget across prior alreadyAttempted indices and re-checks prefetched targets without double-counting (R13)', async () => {
+  it('shares the 3-location budget across prior attempted indices and re-checks prefetched targets without double-counting', async () => {
     const provider = vi.fn(async (used: number[]) => {
       const next = [0, 1, 2, 3, 4, 5].find((i) => !used.includes(i))!;
       return target(next);
@@ -177,7 +177,7 @@ describe('selectValidatedTarget (R03 gate + R13 automatic fallback)', () => {
   });
 });
 
-describe('nextExclusions (R08 endless-mode pool exhaustion)', () => {
+describe('location exclusion handling when the endless-mode pool is exhausted', () => {
   it('excludes every used location plus targets within 400km of the most recent one', () => {
     const exclusions = nextExclusions([0, 1, 2]);
     expect(exclusions).toContain(0);

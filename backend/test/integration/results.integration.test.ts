@@ -30,7 +30,7 @@ interface ResultMatch {
   }>;
 }
 
-describe('authenticated result history (R18)', () => {
+describe('authenticated result history', () => {
   let db: PrismaClient;
   let app: FastifyInstance;
   const userIds: string[] = [];
@@ -176,7 +176,7 @@ describe('authenticated result history (R18)', () => {
     expect(await db.gameResult.count({ where: { matchId: 'match-b1', userId: owner.user.id } })).toBe(0);
   });
 
-  it('settles and archives an unattended timed-out authenticated solo round before session purge (R08/R18)', async () => {
+  it('settles and archives an unattended timed-out authenticated solo round before session purge', async () => {
     const { user, cookie } = await signIn('Unattended Solo');
     const past = new Date(Date.now() - 60_000);
     const game = await db.streetGame.create({
@@ -227,7 +227,7 @@ describe('authenticated result history (R18)', () => {
     expect((history.json() as { total: number }).total).toBe(1);
   });
 
-  it('settles unattended timed-out rounds on /api/me/results without revealing active multiplayer rounds early (R04/R08/R18)', async () => {
+  it('settles unattended timed-out rounds on /api/me/results without revealing active multiplayer rounds early', async () => {
     const p1 = await signIn('Disconnected P1');
     const p2 = await signIn('Disconnected P2');
     const past = new Date(Date.now() - 60_000);

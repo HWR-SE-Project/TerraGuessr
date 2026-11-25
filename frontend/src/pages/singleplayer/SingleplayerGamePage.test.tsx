@@ -12,7 +12,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('SingleplayerGamePage start failures (R13)', () => {
+describe('SingleplayerGamePage start failures', () => {
   it('displays a clear error screen instead of the session summary when weather retrieval fails, and allows retrying', async () => {
     const user = userEvent.setup()
     const errorMessage = 'No location with available weather data could be found nearby. Please retry.'

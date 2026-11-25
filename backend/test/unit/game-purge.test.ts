@@ -12,7 +12,7 @@ function makeDb(...batchSizes: number[]) {
   return { db, executeRaw };
 }
 
-describe('purgeExpiredGameResults (R18)', () => {
+describe('expired game result retention purge', () => {
   it('runs a single batch when no results are expired', async () => {
     const { db, executeRaw } = makeDb(0);
 

@@ -10,7 +10,7 @@ const PLAYER_HASH = hashPlayerToken(PLAYER_TOKEN);
 const FAR_FUTURE = new Date('2100-01-01T00:00:00.000Z');
 const PAST = new Date('2020-01-01T00:00:00.000Z');
 
-describe('singleplayer concurrency hardening (H-1)', () => {
+describe('singleplayer round concurrency guards', () => {
   it('retryRound guards updateMany against concurrent unlock or guess submission and returns 409 on race', async () => {
     const round = {
       id: 'round-1',
@@ -172,7 +172,7 @@ describe('singleplayer concurrency hardening (H-1)', () => {
   });
 });
 
-describe('multiplayer submitLobbyGuess transactional locking (H-1)', () => {
+describe('multiplayer guess submission transactional locking', () => {
   it('locks the member row and executes attempt insert, selection update, and finalization in one transaction', async () => {
     const member = {
       id: 'member-1',

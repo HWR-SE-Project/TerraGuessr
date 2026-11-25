@@ -12,7 +12,7 @@ function buildApp() {
   return app;
 }
 
-describe('error handler envelope (ADR-0009)', () => {
+describe('HTTP error response formatting', () => {
   const cases: Array<[number, string]> = [
     [400, 'VALIDATION_ERROR'],
     [401, 'UNAUTHORIZED'],

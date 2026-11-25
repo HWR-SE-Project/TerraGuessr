@@ -11,7 +11,7 @@ import {
   formatEvaluatedAttempts,
 } from '../../src/domain/roundView.js';
 
-describe('shared game rules (R05)', () => {
+describe('difficulty game rules', () => {
   it('defines the same difficulty contract for every mode', () => {
     expect(gameRulesFor('easy')).toMatchObject({
       timeLimitSeconds: 420,
@@ -39,7 +39,7 @@ describe('shared game rules (R05)', () => {
   });
 });
 
-describe('shared attempt decisions (R02)', () => {
+describe('round attempt lifecycle decisions', () => {
   const base = {
     attemptsUsed: 0,
     attemptsTotal: 3,
@@ -87,7 +87,7 @@ describe('shared attempt decisions (R02)', () => {
   });
 });
 
-describe('shared penalties (R05/R10)', () => {
+describe('extra-data point and time penalties', () => {
   it('never deducts below zero points', () => {
     expect(applyPointPenalty(5000, 100)).toBe(4900);
     expect(applyPointPenalty(40, 100)).toBe(0);
@@ -109,7 +109,7 @@ describe('shared penalties (R05/R10)', () => {
   });
 });
 
-describe('unified Best-of-N scoring (R02/R08/R11)', () => {
+describe('best-of-N attempt scoring', () => {
   const actual = { lat: 48.8566, lon: 2.3522 }; // Paris
   const close = {
     id: 'a1',

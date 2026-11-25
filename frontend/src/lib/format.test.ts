@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { formatDistance, formatScore } from './format'
 import { haversineKm, scoreForDistance } from '../services/mock/gameRules'
 
-describe('scoreForDistance (mirrors backend R10 curve)', () => {
+describe('scoreForDistance (mirrors backend scoring curve)', () => {
   it('awards the max score under 100 km', () => {
     expect(scoreForDistance(0)).toBe(5000)
     expect(scoreForDistance(99.9)).toBe(5000)
@@ -43,7 +43,7 @@ describe('haversineKm', () => {
 })
 
 describe('format helpers', () => {
-  it('formats distances in kilometers rounded to one decimal place (R09)', () => {
+  it('formats distances in kilometers rounded to one decimal place', () => {
     expect(formatDistance(null)).toBe('—')
     expect(formatDistance(Number.NaN)).toBe('—')
     expect(formatDistance(0)).toBe('0.0 km')
