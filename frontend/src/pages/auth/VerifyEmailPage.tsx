@@ -13,7 +13,7 @@ export function VerifyEmailPage() {
       loadingLabel="Verifying…"
       missingTokenMessage="This verification link is missing a token."
       confirm={verifyEmail}
-      success={{ to: '/', label: 'Continue exploring' }}
+      success={{ to: '/auth', label: 'Sign in' }}
       failure={{ to: '/auth', label: 'Back to sign in' }}
     />
   )

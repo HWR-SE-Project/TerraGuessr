@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Field, Input } from '../../components/ui/Form'
 import { LogoMark } from '../../components/ui/Logo'
+import { api, ApiError } from '../../services'
 import { signIn, signUp, useSession } from '../../state/session'
 import { scaleIn } from '../../lib/motion'
 import googleLogo from '../../assets/brand/google-logo.svg'
@@ -18,18 +19,26 @@ export function AuthPage() {
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [resending, setResending] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const session = useSession()
-  if (session.status === 'authed') {
-    navigate('/', { replace: true })
-  }
-
   const from = (location.state as { from?: string } | null)?.from ?? '/'
+
+  useEffect(() => {
+    if (session.status === 'authed') {
+      navigate('/', { replace: true })
+    }
+  }, [navigate, session.status])
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     setError(null)
+    setUnverifiedEmail(null)
+    setResendMessage(null)
     setLoading(true)
     try {
       if (mode === 'signin') {
@@ -37,16 +46,80 @@ export function AuthPage() {
         navigate(from, { replace: true })
       } else {
         const result = await signUp({ email, password, displayName })
-        // The mock auto-verifies, but keep the state for a real backend.
-        if (result) {
+        if (result.verificationRequired) {
+          setPendingVerificationEmail(result.user.email)
+          setPassword('')
+        } else {
           navigate(from, { replace: true })
         }
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Something went wrong.')
+      if (cause instanceof ApiError && cause.code === 'EMAIL_NOT_VERIFIED') {
+        setUnverifiedEmail(email.trim())
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  async function resendVerification(targetEmail: string) {
+    setResending(true)
+    setResendMessage(null)
+    try {
+      const { message } = await api.auth.resendVerification(targetEmail)
+      setResendMessage(message)
+    } catch (cause) {
+      setResendMessage(cause instanceof Error ? cause.message : 'Could not resend verification email.')
+    } finally {
+      setResending(false)
+    }
+  }
+
+  if (pendingVerificationEmail) {
+    return (
+      <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 py-10">
+        <motion.div variants={scaleIn} initial="initial" animate="animate" className="surface w-full max-w-md p-8 text-center">
+          <div className="flex flex-col items-center">
+            <LogoMark size={44} />
+            <h1 className="mt-4 font-display text-2xl font-semibold text-cream">Check your email</h1>
+            <p className="mt-2 text-sm text-muted">
+              We sent a verification link to <span className="font-semibold text-cream">{pendingVerificationEmail}</span>. Verify your address before signing in.
+            </p>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            {resendMessage && (
+              <p role="status" className="rounded-xl bg-lime-400/12 px-3 py-2 text-sm font-semibold text-lime-300">
+                {resendMessage}
+              </p>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              loading={resending}
+              onClick={() => void resendVerification(pendingVerificationEmail)}
+            >
+              Resend verification email
+            </Button>
+            <Button
+              type="button"
+              fullWidth
+              onClick={() => {
+                setEmail(pendingVerificationEmail)
+                setPendingVerificationEmail(null)
+                setResendMessage(null)
+                setError(null)
+                setMode('signin')
+              }}
+            >
+              Back to sign in
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    )
   }
 
   return (
@@ -109,8 +182,23 @@ export function AuthPage() {
             </Field>
 
             {error && (
-              <p role="alert" className="rounded-xl bg-rose-400/12 px-3 py-2 text-sm font-semibold text-rose-300">
-                {error}
+              <div role="alert" className="flex flex-col gap-2 rounded-xl bg-rose-400/12 px-3 py-2 text-sm font-semibold text-rose-300">
+                <p>{error}</p>
+                {unverifiedEmail && (
+                  <button
+                    type="button"
+                    disabled={resending}
+                    onClick={() => void resendVerification(unverifiedEmail)}
+                    className="self-start text-xs font-bold text-lime-300 underline hover:text-lime-200 disabled:opacity-50"
+                  >
+                    {resending ? 'Sending…' : 'Resend verification email'}
+                  </button>
+                )}
+              </div>
+            )}
+            {resendMessage && (
+              <p role="status" className="rounded-xl bg-lime-400/12 px-3 py-2 text-sm font-semibold text-lime-300">
+                {resendMessage}
               </p>
             )}
 
