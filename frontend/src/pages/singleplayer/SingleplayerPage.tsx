@@ -6,6 +6,7 @@ import { DifficultyPicker } from '../../components/game/DifficultyPicker'
 import { Icon } from '../../components/ui/Icon'
 import { api } from '../../services'
 import { setGameCredentials } from '../../state/game'
+import { useGameRules } from '../../state/gameRules'
 import { difficultyInfo, readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
 import type { Difficulty } from '../../lib/contracts'
 import { staggerContainer, staggerItem } from '../../lib/motion'
@@ -15,7 +16,8 @@ export function SingleplayerPage() {
   const [difficulty, setDifficulty] = useState<Difficulty>(readStoredDifficulty())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const info = difficultyInfo(difficulty)
+  const rules = useGameRules()
+  const info = difficultyInfo(difficulty, rules?.difficulties[difficulty])
 
   async function start() {
     setLoading(true)
@@ -45,7 +47,7 @@ export function SingleplayerPage() {
         </motion.div>
 
         <motion.div variants={staggerItem} className="mt-8">
-          <DifficultyPicker value={difficulty} onChange={setDifficulty} />
+          <DifficultyPicker value={difficulty} onChange={setDifficulty} rules={rules?.difficulties} />
         </motion.div>
 
         <motion.div variants={staggerItem} className="mt-6 flex items-center gap-3 rounded-2xl bg-space-700 p-4">

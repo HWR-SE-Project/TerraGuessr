@@ -23,9 +23,13 @@ export function useWebGLSupport(): boolean {
 
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     const handler = (event: MediaQueryListEvent) => setReduced(event.matches)
     mq.addEventListener('change', handler)

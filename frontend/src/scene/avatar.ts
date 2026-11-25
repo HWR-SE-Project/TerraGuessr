@@ -1,5 +1,4 @@
-import { useEffect, useMemo } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useLayoutEffect, useMemo } from 'react'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
@@ -115,7 +114,12 @@ function prepareModel(source: THREE.Group, clips: THREE.AnimationClip[]): Prepar
   } else {
     measure()
   }
-  return { model, idle, bounds, dimensions: bounds.getSize(new THREE.Vector3()) }
+  return {
+    model,
+    idle,
+    bounds,
+    dimensions: bounds.getSize(new THREE.Vector3()),
+  }
 }
 
 /** Shared hook: load, tint, animate and clean up the explorer character. */
@@ -142,9 +146,11 @@ export function useAvatarModel(config: AvatarConfig, reducedMotion: boolean) {
     }
   }, [actions, idle, mixer])
 
-  useFrame(() => {
+  useLayoutEffect(() => {
+    // Three.js owns this mutable playback clock. Apply the preference before the next frame.
+    // oxlint-disable-next-line react/immutability
     mixer.timeScale = reducedMotion ? 0 : 1
-  }, -1)
+  }, [mixer, reducedMotion])
 
   useEffect(
     () => () => {
@@ -158,7 +164,7 @@ export function useAvatarModel(config: AvatarConfig, reducedMotion: boolean) {
     [materials, model],
   )
 
-  return { model, bounds, dimensions }
+  return { model, bounds, dimensions, actions, mixer }
 }
 
 useGLTF.preload(modelUrl)

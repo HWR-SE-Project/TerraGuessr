@@ -8,11 +8,6 @@ export default defineConfig(({ mode }) => {
   const rootDir = resolve(import.meta.dirname, '..')
   const frontend = loadEnv(mode, import.meta.dirname, '')
   const root = loadEnv(mode, rootDir, '')
-  // Only this public credential may cross the frontend/backend boundary.
-  const mapsKey =
-    process.env.VITE_GOOGLE_MAPS_API_KEY ||
-    frontend.VITE_GOOGLE_MAPS_API_KEY ||
-    root.VITE_GOOGLE_MAPS_API_KEY
   // One source of truth for the host-side backend port.
   const backendHostPort =
     process.env.BACKEND_HOST_PORT || root.BACKEND_HOST_PORT || '3000'
@@ -23,12 +18,6 @@ export default defineConfig(({ mode }) => {
     `http://localhost:${backendHostPort}`
   return {
     plugins: [react(), tailwindcss()],
-    define:
-      mode !== 'test' && mapsKey
-        ? {
-            'import.meta.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(mapsKey),
-          }
-        : {},
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],

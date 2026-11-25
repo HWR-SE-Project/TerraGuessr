@@ -7,6 +7,7 @@ import type {
   Candidate,
   Difficulty,
   GeographicIntelligence,
+  GuessInput,
   LatLon,
   StreetCredentials,
   StreetGuessResponse,
@@ -14,9 +15,8 @@ import type {
   StreetRound,
   StreetSession,
 } from '../../lib/contracts'
-import { haversineKm, scoreForDistance } from '../../lib/format'
 import { LOCATIONS, locationById, mockWeather, randomLocation } from './data'
-import { difficultyInfo } from '../../lib/difficulty'
+import { haversineKm, mockGameRules, scoreForDistance } from './gameRules'
 import { games } from './db'
 import type { MockGame, MockRound, MockStreetResult } from './db'
 
@@ -32,14 +32,20 @@ function makeCandidates(answerId: string): Candidate[] {
   return pool.map((loc) => ({
     id: loc.id,
     name: loc.name,
-    lat: loc.lat,
-    lon: loc.lon,
     region: loc.region,
   }))
 }
 
+function resolveMockChoice(choice: GuessInput): LatLon {
+  if ('candidateId' in choice) {
+    const loc = locationById(choice.candidateId)
+    return { lat: loc.lat, lon: loc.lon }
+  }
+  return { lat: choice.lat, lon: choice.lon }
+}
+
 function toRound(game: MockGame, round: MockRound): StreetRound {
-  const rules = difficultyInfo(game.difficulty)
+  const rules = mockGameRules(game.difficulty)
   const extraData: AdditionalDataAccess =
     rules.extraData.mode === 'free'
       ? { mode: 'immediate', cost: null, availableAt: null, unlocked: true, pointsSpent: 0 }
@@ -61,10 +67,19 @@ function toRound(game: MockGame, round: MockRound): StreetRound {
   return {
     id: round.id,
     number: round.number,
-    panoId: round.locationId,
+    scene: {
+      biome: 'urban',
+      weather: 'clear',
+      lighting: 'day',
+      temperatureBand: 'mild',
+      windBand: 'calm',
+      seed: round.number * 997 + 13,
+    },
     candidates: rules.selectionMode === 'list' ? round.candidates : undefined,
     startedAt: round.startedAt,
     endsAt: round.endsAt,
+    rules,
+    selection: round.guess ?? null,
     attemptsUsed: round.attemptsUsed,
     attemptsTotal: round.attemptsTotal,
     extraData,
@@ -98,7 +113,7 @@ function requireRound(game: MockGame, roundId: string): MockRound {
 }
 
 function endRoundAt(difficulty: Difficulty): string {
-  const seconds = difficultyInfo(difficulty).timeLimitSeconds
+  const seconds = mockGameRules(difficulty).timeLimitSeconds
   return new Date(Date.now() + seconds * 1000).toISOString()
 }
 
@@ -140,7 +155,7 @@ export const singleplayerMock = {
     const location = randomLocation(game.locationHistory)
     game.locationHistory.push(location.id)
     game.roundsPlayed += 1
-    const rules = difficultyInfo(game.difficulty)
+    const rules = mockGameRules(game.difficulty)
     const round: MockRound = {
       id: `round_${Math.random().toString(36).slice(2, 10)}`,
       number: game.roundsPlayed,
@@ -178,10 +193,10 @@ export const singleplayerMock = {
     })
   },
 
-  async selection(credentials: StreetCredentials, roundId: string, point: LatLon): Promise<void> {
+  async selection(credentials: StreetCredentials, roundId: string, choice: GuessInput): Promise<void> {
     const game = requireGame(credentials.id)
     const round = requireRound(game, roundId)
-    round.guess = { lat: point.lat, lon: point.lon }
+    round.guess = resolveMockChoice(choice)
     return delay(undefined, 80)
   },
 
@@ -189,7 +204,7 @@ export const singleplayerMock = {
     const game = requireGame(credentials.id)
     const round = requireRound(game, roundId)
     round.extraDataUnlocked = true
-    const rules = difficultyInfo(game.difficulty)
+    const rules = mockGameRules(game.difficulty)
     if (rules.extraData.mode === 'points') {
       round.extraDataPointsSpent = rules.extraData.cost
     } else if (rules.extraData.mode === 'time') {
@@ -207,18 +222,19 @@ export const singleplayerMock = {
     round.guess = null
     round.result = null
     round.endsAt = endRoundAt(game.difficulty)
-    round.extraDataUnlocked = difficultyInfo(game.difficulty).extraData.mode === 'free'
+    round.extraDataUnlocked = mockGameRules(game.difficulty).extraData.mode === 'free'
     round.extraDataPointsSpent = 0
     return delay(toRound(game, round))
   },
 
-  async guess(credentials: StreetCredentials, roundId: string, guess: LatLon, final = false): Promise<StreetGuessResponse> {
+  async guess(credentials: StreetCredentials, roundId: string, choice: GuessInput, final = false): Promise<StreetGuessResponse> {
     const game = requireGame(credentials.id)
     const round = requireRound(game, roundId)
     if (round.result) return delay({ finalized: true, attemptsRemaining: 0, result: toResult(round.result) })
+    const guess = resolveMockChoice(choice)
 
     round.attemptsUsed += 1
-    const rules = difficultyInfo(game.difficulty)
+    const rules = mockGameRules(game.difficulty)
     const finalizes = final || round.attemptsUsed >= round.attemptsTotal
 
     if (finalizes) {

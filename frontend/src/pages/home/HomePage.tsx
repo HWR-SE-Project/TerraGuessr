@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
-import { Dropdown } from '../../components/ui/Dropdown'
 import { Icon } from '../../components/ui/Icon'
 import { useSession } from '../../state/session'
 import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
@@ -33,7 +32,7 @@ export function HomePage() {
             <span>Big adventure.</span>
           </motion.h1>
           <motion.p variants={staggerItem} className="home-description">
-            Find yourself somewhere unexpected. Read the streets, follow the clues,
+            Find yourself somewhere unexpected. Read the weather, explore the biome,
             and guess your spot on Earth.
           </motion.p>
         </div>
@@ -68,26 +67,10 @@ export function HomePage() {
             <Button size="lg" icon="play" className="home-primary-cta" onClick={() => navigate('/singleplayer')}>
               Play singleplayer
             </Button>
-            <Dropdown
-              align="end"
-              trigger={({ toggle, ref, open }) => (
-                <button
-                  ref={ref}
-                  type="button"
-                  onClick={toggle}
-                  aria-expanded={open}
-                  className="btn-base home-multiplayer-cta"
-                >
-                  <Icon name="users" size={21} />
-                  Multiplayer
-                  <Icon name="chevronDown" size={16} className={open ? 'rotate-180' : ''} />
-                </button>
-              )}
-              items={[
-                { key: 'create', label: 'Create a lobby', icon: <Icon name="plus" size={18} />, onSelect: () => navigate('/multiplayer?mode=create') },
-                { key: 'join', label: 'Join with a code', icon: <Icon name="search" size={18} />, onSelect: () => navigate('/multiplayer?mode=join') },
-              ]}
-            />
+            <Link to="/multiplayer" className="btn-base home-multiplayer-cta">
+              <Icon name="users" size={21} />
+              Multiplayer
+            </Link>
           </div>
           {session.status === 'guest' && (
             <p className="home-account-note">

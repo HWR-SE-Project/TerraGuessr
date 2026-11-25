@@ -5,10 +5,9 @@ import { formatPercent } from '../../lib/format'
 import { Icon } from '../ui/Icon'
 import type { IconName } from '../ui/Icon'
 
-type Request =
-  | { phase: 'loading' }
-  | { phase: 'ready'; data: Intelligence }
-  | { phase: 'error' }
+type WeatherResponse = { roundKey: string; retry: number; data: Intelligence | null }
+
+const WEATHER_MAX_DISPLAY_AGE_MS = 120 * 60 * 1000
 
 function weatherIcon(condition: string | null | undefined): IconName {
   if (condition?.includes('Snow')) return 'snow'
@@ -17,12 +16,16 @@ function weatherIcon(condition: string | null | undefined): IconName {
   return 'cloud'
 }
 
-const metric = (value: number | null | undefined, digits = 0) =>
-  value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: digits })
+function measurement(value: number | null | undefined, unit: string, digits = 0): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return value.toLocaleString(undefined, { maximumFractionDigits: digits }) + unit
+}
 
-function direction(value: number | null | undefined) {
-  if (value == null) return '—'
-  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(value / 45) % 8]
+function windMeasurement(speedKmh: number | null, directionDeg: number | null): string {
+  const speed = measurement(speedKmh == null ? null : speedKmh / 3.6, ' m/s', 1)
+  if (speed === '—' || directionDeg == null) return speed
+  const heading = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(directionDeg / 45) % 8]
+  return heading ? `${speed} ${heading}` : speed
 }
 
 /** Collapsible geographic intelligence (weather + environment clues). */
@@ -33,6 +36,7 @@ export function GeographicIntelligence({
   access = { mode: 'immediate', cost: null, availableAt: null, unlocked: true, pointsSpent: 0 },
   onUnlock,
   unlocking = false,
+  unlockDisabled = false,
   defaultExpanded = true,
 }: {
   load: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
@@ -42,29 +46,56 @@ export function GeographicIntelligence({
   access?: AdditionalDataAccess
   onUnlock?: () => void
   unlocking?: boolean
+  unlockDisabled?: boolean
   defaultExpanded?: boolean
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const [request, setRequest] = useState<Request>({ phase: 'loading' })
+  const [response, setResponse] = useState<WeatherResponse | null>(null)
   const [retry, setRetry] = useState(0)
+  const unlocked = access.unlocked
 
   useEffect(() => {
     const controller = new AbortController()
-    setRequest({ phase: 'loading' })
+    let expiresAt = 0
+    let expiryTimer: number | undefined
+
+    function refreshWhenExpired() {
+      if (!expiresAt) return
+      window.clearTimeout(expiryTimer)
+      const remaining = expiresAt - Date.now()
+      if (remaining > 0) {
+        expiryTimer = window.setTimeout(refreshWhenExpired, Math.min(remaining, WEATHER_MAX_DISPLAY_AGE_MS))
+      } else {
+        expiresAt = 0
+        setRetry((attempt) => attempt + 1)
+      }
+    }
+
+    document.addEventListener('visibilitychange', refreshWhenExpired)
     load(roundId, controller.signal)
       .then((data) => {
-        if (!controller.signal.aborted) setRequest({ phase: 'ready', data })
+        if (controller.signal.aborted) return
+        // Exactly 120 minutes old is still valid. Hide and refresh on the next millisecond.
+        const deadline = Date.parse(data.weather?.modelTime ?? '') + WEATHER_MAX_DISPLAY_AGE_MS + 1
+        if (deadline > Date.now()) expiresAt = deadline
+        setResponse({ roundKey, retry, data: expiresAt ? data : { ...data, weather: null } })
+        refreshWhenExpired()
       })
       .catch(() => {
-        if (!controller.signal.aborted) setRequest({ phase: 'error' })
+        if (!controller.signal.aborted) setResponse({ roundKey, retry, data: null })
       })
-    return () => controller.abort()
-  }, [load, roundId, roundKey, retry])
+    return () => {
+      controller.abort()
+      window.clearTimeout(expiryTimer)
+      document.removeEventListener('visibilitychange', refreshWhenExpired)
+    }
+  }, [load, roundId, roundKey, retry, unlocked])
 
-  const data = request.phase === 'ready' ? request.data : null
+  const request = response?.roundKey === roundKey && response.retry === retry ? response : null
+  const data = request?.data
   const weather = data?.weather ?? null
+  const temperature = measurement(weather?.temperatureC, '°C', 1)
   const environment = data?.environment
-  const unlocked = access.unlocked
   const canUnlock = access.mode !== 'immediate' && !unlocked && onUnlock
 
   const unlockLabel =
@@ -90,10 +121,10 @@ export function GeographicIntelligence({
             Geographic intelligence
           </span>
           <span className="block text-sm text-muted">
-            {request.phase === 'loading'
+            {!request
               ? 'Connecting…'
               : weather
-                ? `${metric(weather.temperatureC, 1)}°C${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
+                ? `${temperature}${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
                 : 'Environmental clues'}
           </span>
         </span>
@@ -112,75 +143,71 @@ export function GeographicIntelligence({
             className="overflow-hidden"
           >
             <div className="border-t border-white/8 px-4 py-3">
-              {request.phase === 'loading' ? (
+              {data && canUnlock && (
+                <div className="mb-3 rounded-2xl bg-space-800 p-3">
+                  <p className="text-sm text-muted">Extra clues are locked for this difficulty.</p>
+                  <button
+                    type="button"
+                    disabled={unlocking || unlockDisabled}
+                    onClick={onUnlock}
+                    className="mt-2 rounded-full bg-lime-400 px-3 py-1.5 text-sm font-bold text-ink"
+                  >
+                    {unlocking ? 'Unlocking…' : unlockLabel}
+                  </button>
+                </div>
+              )}
+              {!request ? (
                 <p className="py-2 text-sm text-muted">Connecting to the weather station…</p>
-              ) : request.phase === 'error' ? (
+              ) : !weather ? (
                 <div className="flex flex-col gap-2 py-1">
-                  <p className="text-sm text-muted">Signal unavailable. Keep exploring and try again.</p>
+                  <p role="status" className="text-sm text-muted">Current weather unavailable. Try again.</p>
                   <button
                     type="button"
                     className="w-fit rounded-full bg-lime-400/15 px-3 py-1.5 text-sm font-bold text-lime-300"
-                    onClick={() => {
-                      setRequest({ phase: 'loading' })
-                      setRetry((r) => r + 1)
-                    }}
+                    onClick={() => setRetry((r) => r + 1)}
                   >
                     Retry ↻
                   </button>
                 </div>
               ) : (
                 <>
-                  {canUnlock && (
-                    <div className="mb-3 rounded-2xl bg-space-800 p-3">
-                      <p className="text-sm text-muted">Weather is visible. Extra clues are locked for this difficulty.</p>
-                      <button
-                        type="button"
-                        disabled={unlocking}
-                        onClick={onUnlock}
-                        className="mt-2 rounded-full bg-lime-400 px-3 py-1.5 text-sm font-bold text-ink"
-                      >
-                        {unlocking ? 'Unlocking…' : unlockLabel}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Weather */}
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl text-sky-300">
-                      <Icon name={weatherIcon(unlocked ? weather?.condition : null)} size={26} />
+                    <span className="shrink-0 text-2xl text-sky-300">
+                      <Icon name={weatherIcon(unlocked ? weather.condition : null)} size={26} />
                     </span>
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1 wrap-anywhere">
+                      <span className="block text-xs text-subtle">Temperature</span>
                       <span className="font-display text-2xl font-semibold text-cream">
-                        {metric(weather?.temperatureC, 1)}°C
+                        {temperature}
                       </span>
                       <span className="ml-2 text-sm font-semibold text-muted">
-                        {unlocked ? (weather?.condition ?? 'Conditions unavailable') : 'Conditions locked'}
+                        {unlocked ? (weather.condition ?? 'Conditions unavailable') : 'Conditions locked'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <Metric icon="wind" label="Wind" value={`${metric(weather?.windSpeedKmh == null ? null : weather.windSpeedKmh / 3.6, 1)} m/s ${direction(weather?.windDirectionDeg)}`} />
-                    <Metric icon="drop" label="Humidity" value={formatPercent(weather?.humidityPct)} />
-                    <Metric icon="rain" label="Rain" value={weather?.precipitationMm ? `${metric(weather.precipitationMm, 1)} mm` : 'None'} />
-                    {unlocked && <Metric icon="pressure" label="Pressure" value={`${metric(weather?.pressureHpa)} hPa`} />}
-                  </div>
-
-                  {unlocked && environment?.elevationM != null && (
-                    <div className="mt-3 flex items-center gap-3 rounded-2xl bg-space-800 p-3">
-                      <span className="text-lime-300">
-                        <Icon name="mountain" size={20} />
-                      </span>
-                      <div>
-                        <span className="block text-xs font-bold uppercase tracking-wider text-subtle">Elevation</span>
-                        <span className="font-display text-lg font-semibold text-cream">
-                          {metric(environment.elevationM)} m
-                          <span className="ml-2 text-sm font-semibold text-muted">{environment.terrain}</span>
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <Metric icon="rain" label="Precipitation" value={measurement(weather.precipitationMm, ' mm', 1)} />
+                    <Metric icon="drop" label="Humidity" value={formatPercent(weather.humidityPct)} />
+                    <Metric icon="wind" label="Wind speed" value={windMeasurement(weather.windSpeedKmh, weather.windDirectionDeg)} />
+                    {unlocked && <Metric icon="pressure" label="Pressure" value={measurement(weather.pressureHpa, ' hPa')} />}
+                  </dl>
                 </>
+              )}
+
+              {unlocked && environment?.elevationM != null && (
+                <div className="mt-3 flex items-center gap-3 rounded-2xl bg-space-800 p-3">
+                  <span className="text-lime-300">
+                    <Icon name="mountain" size={20} />
+                  </span>
+                  <div>
+                    <span className="block text-xs font-bold uppercase tracking-wider text-subtle">Elevation</span>
+                    <span className="font-display text-lg font-semibold text-cream">
+                      {measurement(environment.elevationM, ' m')}
+                      <span className="ml-2 text-sm font-semibold text-muted">{environment.terrain}</span>
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
           </motion.div>
@@ -192,10 +219,12 @@ export function GeographicIntelligence({
 
 function Metric({ icon, label, value }: { icon: IconName; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl bg-space-800 px-3 py-2">
-      <Icon name={icon} size={16} className="shrink-0 text-subtle" />
-      <span className="min-w-0 flex-1 truncate text-xs text-subtle">{label}</span>
-      <span className="shrink-0 text-sm font-bold text-cream">{value}</span>
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-xl bg-space-800 px-3 py-2">
+      <dt className="flex min-w-0 items-center gap-1.5 text-xs text-subtle">
+        <Icon name={icon} size={14} className="shrink-0" />
+        <span className="min-w-0 wrap-anywhere">{label}</span>
+      </dt>
+      <dd className="min-w-0 wrap-anywhere text-sm font-bold text-cream tabular-nums">{value}</dd>
     </div>
   )
 }

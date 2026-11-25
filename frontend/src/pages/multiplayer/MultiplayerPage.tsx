@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
@@ -7,8 +8,9 @@ import { DifficultyPicker } from '../../components/game/DifficultyPicker'
 import { Icon } from '../../components/ui/Icon'
 import { api } from '../../services'
 import { setLobbySession } from '../../state/lobby'
-import { difficultyInfo, readStoredDifficulty } from '../../lib/difficulty'
-import type { Difficulty } from '../../lib/contracts'
+import { difficultyDetails, difficultyInfo, readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
+import { useGameRules } from '../../state/gameRules'
+import type { Difficulty, LobbySession } from '../../lib/contracts'
 import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
 
 type Mode = 'create' | 'join'
@@ -18,6 +20,11 @@ export function MultiplayerPage() {
   const [params] = useSearchParams()
   const initialMode: Mode = params.get('mode') === 'join' ? 'join' : 'create'
   const [mode, setMode] = useState<Mode>(initialMode)
+
+  function enterLobby({ lobby, lobbyToken }: LobbySession) {
+    setLobbySession({ code: lobby.code, token: lobbyToken, isHost: lobby.youAreHost })
+    navigate(`/lobby/${lobby.code}`)
+  }
 
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-3xl flex-col justify-center px-4 py-10 sm:px-6">
@@ -46,45 +53,31 @@ export function MultiplayerPage() {
         </motion.div>
 
         <motion.div variants={fadeUp} className="mt-4">
-          {mode === 'create' ? <CreateLobby navigate={navigate} /> : <JoinLobby navigate={navigate} />}
+          {mode === 'create' ? <CreateLobby onEntered={enterLobby} /> : <JoinLobby onEntered={enterLobby} />}
         </motion.div>
       </motion.div>
     </div>
   )
 }
 
-function CreateLobby({ navigate }: { navigate: (to: string) => void }) {
-  const [displayName, setDisplayName] = useState('')
+function CreateLobby({ onEntered }: { onEntered: (session: LobbySession) => void }) {
   const [difficulty, setDifficulty] = useState<Difficulty>(readStoredDifficulty())
   const [rounds, setRounds] = useState(5)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const info = difficultyInfo(difficulty)
+  const rules = useGameRules()
 
-  async function create(event: React.FormEvent) {
-    event.preventDefault()
-    setLoading(true)
-    setError(null)
-    try {
-      const session = await api.lobby.create({ difficulty, roundsTotal: rounds, displayName: displayName || undefined })
-      setLobbySession({ code: session.lobby.code, token: session.lobbyToken, isHost: session.lobby.youAreHost })
-      navigate(`/lobby/${session.lobby.code}`)
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create the lobby.')
-      setLoading(false)
-    }
+  async function create(displayName?: string) {
+    const session = await api.lobby.create({ difficulty, roundsTotal: rounds, displayName })
+    storeDifficulty(difficulty)
+    return session
   }
 
   return (
-    <form onSubmit={create} className="surface flex flex-col gap-3 p-5">
-      <Field label="Your name" htmlFor="mp-name">
-        <Input id="mp-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Wandering Nix" maxLength={40} icon="person" />
-      </Field>
-
+    <LobbyEntryForm action={create} onEntered={onEntered} label="Create lobby" icon="plus" errorMessage="Could not create the lobby.">
       <div>
         <span className="text-sm font-bold text-cream/90">Difficulty</span>
         <div className="mt-2">
-          <DifficultyPicker value={difficulty} onChange={setDifficulty} />
+          <DifficultyPicker value={difficulty} onChange={setDifficulty} rules={rules?.difficulties} />
         </div>
       </div>
 
@@ -96,49 +89,27 @@ function CreateLobby({ navigate }: { navigate: (to: string) => void }) {
         </div>
       </Field>
 
-      <div className="rounded-2xl bg-space-800 px-4 py-2.5 text-sm text-muted">
+      {rules && <div className="rounded-2xl bg-space-800 px-4 py-2.5 text-sm text-muted">
         <Icon name="info" size={16} className="mr-1.5 inline text-sky-300" />
-        {info.label}: {info.detail.join(' · ')}
-      </div>
+        {info.label} · {difficultyDetails(rules.difficulties[difficulty]).join(' · ')}
+      </div>}
 
-      {error && (
-        <p role="alert" className="rounded-xl bg-rose-400/12 px-3 py-2 text-sm font-semibold text-rose-300">
-          {error}
-        </p>
-      )}
-
-      <Button type="submit" size="lg" icon="plus" loading={loading}>
-        Create lobby
-      </Button>
-    </form>
+    </LobbyEntryForm>
   )
 }
 
-function JoinLobby({ navigate }: { navigate: (to: string) => void }) {
-  const [displayName, setDisplayName] = useState('')
+function JoinLobby({ onEntered }: { onEntered: (session: LobbySession) => void }) {
   const [code, setCode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function join(event: React.FormEvent) {
-    event.preventDefault()
-    setLoading(true)
-    setError(null)
-    try {
-      const session = await api.lobby.join(code, displayName || undefined)
-      setLobbySession({ code: session.lobby.code, token: session.lobbyToken, isHost: session.lobby.youAreHost })
-      navigate(`/lobby/${session.lobby.code}`)
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not join that lobby.')
-      setLoading(false)
-    }
-  }
 
   return (
-    <form onSubmit={join} className="surface flex flex-col gap-3 p-5">
-      <Field label="Your name" htmlFor="join-name">
-        <Input id="join-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Wandering Nix" maxLength={40} icon="person" />
-      </Field>
+    <LobbyEntryForm
+      action={(displayName) => api.lobby.join(code, displayName)}
+      onEntered={onEntered}
+      label="Join lobby"
+      icon="users"
+      errorMessage="Could not join that lobby."
+      disabled={code.length !== 6}
+    >
       <Field label="Lobby code" htmlFor="join-code" hint="Six characters, e.g. AB3C9X.">
         <Input
           id="join-code"
@@ -150,14 +121,58 @@ function JoinLobby({ navigate }: { navigate: (to: string) => void }) {
           className="font-display text-xl tracking-[0.3em]"
         />
       </Field>
+    </LobbyEntryForm>
+  )
+}
+
+function LobbyEntryForm({ action, onEntered, label, icon, errorMessage, disabled = false, children }: {
+  action: (displayName?: string) => Promise<LobbySession>
+  onEntered: (session: LobbySession) => void
+  label: string
+  icon: 'plus' | 'users'
+  errorMessage: string
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const nameId = useId()
+  const [displayName, setDisplayName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const pending = useRef(false)
+  const mounted = useRef(false)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (disabled || pending.current) return
+    pending.current = true
+    setLoading(true)
+    setError(null)
+    try {
+      const session = await action(displayName || undefined)
+      if (mounted.current) onEntered(session)
+    } catch (cause) {
+      if (mounted.current) setError(cause instanceof Error ? cause.message : errorMessage)
+    } finally {
+      pending.current = false
+      if (mounted.current) setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="surface flex flex-col gap-3 p-5">
+      <Field label="Your name" htmlFor={nameId}>
+        <Input id={nameId} value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="e.g. Wandering Nix" maxLength={40} icon="person" />
+      </Field>
+      {children}
       {error && (
-        <p role="alert" className="rounded-xl bg-rose-400/12 px-3 py-2 text-sm font-semibold text-rose-300">
-          {error}
-        </p>
+        <p role="alert" className="rounded-xl bg-rose-400/12 px-3 py-2 text-sm font-semibold text-rose-300">{error}</p>
       )}
-      <Button type="submit" size="lg" icon="users" loading={loading} disabled={code.length !== 6}>
-        Join lobby
-      </Button>
+      <Button type="submit" size="lg" icon={icon} loading={loading} disabled={disabled}>{label}</Button>
     </form>
   )
 }

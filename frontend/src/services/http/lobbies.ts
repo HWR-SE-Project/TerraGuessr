@@ -4,10 +4,10 @@
 import type {
   Difficulty,
   GeographicIntelligence,
-  LatLon,
+  GuessInput,
   Lobby,
+  LobbyGuessResponse,
   LobbyMatchResponse,
-  LobbyMatchResult,
   LobbySession,
 } from '../../lib/contracts'
 import { apiFetch } from './client'
@@ -24,9 +24,10 @@ export const lobbyHttp = {
     })
   },
 
-  get(code: string, token?: string | null): Promise<Lobby> {
+  get(code: string, token?: string | null, signal?: AbortSignal): Promise<Lobby> {
     return apiFetch<Lobby>(`/lobbies/${encodeURIComponent(code)}`, {
       lobbyToken: token ?? null,
+      signal,
     })
   },
 
@@ -37,16 +38,17 @@ export const lobbyHttp = {
     })
   },
 
-  match(code: string, token: string): Promise<LobbyMatchResponse> {
+  match(code: string, token: string, signal?: AbortSignal): Promise<LobbyMatchResponse> {
     return apiFetch<LobbyMatchResponse>(`/lobbies/${encodeURIComponent(code)}/match`, {
       lobbyToken: token,
+      signal,
     })
   },
 
-  selection(code: string, token: string, point: LatLon): Promise<void> {
+  selection(code: string, token: string, choice: GuessInput, roundId: string): Promise<void> {
     return apiFetch<void>(`/lobbies/${encodeURIComponent(code)}/selection`, {
       method: 'POST',
-      body: point,
+      body: { ...choice, roundId },
       lobbyToken: token,
     })
   },
@@ -55,9 +57,9 @@ export const lobbyHttp = {
     code: string,
     roundNumber: number,
     token: string,
-    guess: LatLon,
+    guess: GuessInput,
     final = false,
-  ): Promise<{ finalized: boolean; attemptsRemaining: number; result?: LobbyMatchResult }> {
+  ): Promise<LobbyGuessResponse> {
     return apiFetch(`/lobbies/${encodeURIComponent(code)}/rounds/${roundNumber}/guess`, {
       method: 'POST',
       body: { ...guess, final },
@@ -76,7 +78,7 @@ export const lobbyHttp = {
     code: string,
     roundNumber: number,
     token: string,
-  ): Promise<{ finalized: boolean; attemptsRemaining: number; result?: LobbyMatchResult }> {
+  ): Promise<LobbyGuessResponse> {
     return apiFetch(`/lobbies/${encodeURIComponent(code)}/rounds/${roundNumber}/finish`, {
       method: 'POST',
       lobbyToken: token,
@@ -90,9 +92,10 @@ export const lobbyHttp = {
     })
   },
 
-  intelligence(code: string, roundNumber: number, token: string): Promise<GeographicIntelligence> {
+  intelligence(code: string, roundNumber: number, token: string, signal?: AbortSignal): Promise<GeographicIntelligence> {
     return apiFetch<GeographicIntelligence>(`/lobbies/${encodeURIComponent(code)}/rounds/${roundNumber}/intelligence`, {
       lobbyToken: token,
+      signal,
     })
   },
 

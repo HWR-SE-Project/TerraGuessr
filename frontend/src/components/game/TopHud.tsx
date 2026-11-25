@@ -25,10 +25,10 @@ export function TopHud({
     <motion.div
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3 pt-safe sm:p-4"
+      className="pointer-events-none flex shrink-0 items-start justify-between gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]"
     >
       <div className="pointer-events-auto flex items-center gap-2">
-        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-space-900/80 px-3 py-2 backdrop-blur-md">
+        <div className="surface-flat flex items-center gap-2 px-3 py-2 shadow-card">
           <span className="font-display text-sm font-semibold text-cream">
             Round {round}
             {roundsTotal ? <span className="text-subtle"> / {roundsTotal}</span> : null}
@@ -56,7 +56,13 @@ export function TopHud({
       </div>
       {onMenu && (
         <div className="pointer-events-auto">
-          <IconButton name="menu" label="Game menu" onClick={onMenu} variant="solid" />
+          <IconButton
+            name="menu"
+            label="Game menu"
+            onClick={onMenu}
+            variant="solid"
+            className="border-white/8 bg-space-700 shadow-card hover:bg-space-600"
+          />
         </div>
       )}
     </motion.div>
@@ -71,7 +77,7 @@ export function MenuDots({ onClick }: { onClick: () => void }) {
       label="Game menu"
       onClick={onClick}
       variant="solid"
-      className="bg-space-900/80 backdrop-blur-md"
+      className="border-white/8 bg-space-700 shadow-card hover:bg-space-600"
     />
   )
 }

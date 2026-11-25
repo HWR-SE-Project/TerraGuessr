@@ -3,7 +3,8 @@ import type { IconName } from '../ui/Icon'
 import { Icon } from '../ui/Icon'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
-import { haversineKm, scoreForDistance, formatDistance, formatScore, MAX_SCORE } from '../../lib/format'
+import { formatDistance, formatScore } from '../../lib/format'
+import { useGameRules } from '../../state/gameRules'
 
 // R14: an interactive tutorial covering the four required beats — reading
 // weather data, selecting a location, submitting a guess, and distance/score
@@ -47,7 +48,7 @@ const STEPS: Step[] = [
   {
     icon: 'check',
     title: 'Submit your guess',
-    body: 'When you are happy with your pin, submit it. Depending on your difficulty you get one or more attempts per round — your final attempt (or running out of time) locks in your guess and reveals the answer.',
+    body: 'When you are happy with your pick, submit it. On Easy and Medium you can place multiple guesses in a round — your closest submitted guess is the one that scores, even if time runs out. Use Final submit to lock in early and reveal the answer.',
   },
   {
     icon: 'scan',
@@ -57,17 +58,17 @@ const STEPS: Step[] = [
   {
     icon: 'trophy',
     title: 'Score by distance',
-    body: 'The closer your guess, the higher your score. Landing within 100 km of the real spot earns the full 5,000 points; score falls off smoothly out to 20,000 km, where it bottoms out at zero.',
+    body: 'The closer your guess, the higher your score. Try a few distances to see how the points change.',
   },
 ]
-
-const LONDON = { lat: 51.5074, lon: -0.1278 }
-const PARIS = { lat: 48.8566, lon: 2.3522 }
-const EXAMPLE_DISTANCE_KM = haversineKm(LONDON, PARIS)
 
 export function Tutorial({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [step, setStep] = useState(0)
   const [exampleDistance, setExampleDistance] = useState(2000)
+  const scoring = useGameRules()?.scoring
+  const maxExampleDistance = scoring ? (scoring.exampleScores.length - 1) * scoring.exampleDistanceStepKm : 0
+  const distance = Math.min(exampleDistance, maxExampleDistance)
+  const exampleScore = scoring?.exampleScores[Math.round(distance / scoring.exampleDistanceStepKm)]
 
   // Reopening always restarts from the first step.
   useEffect(() => {
@@ -123,34 +124,36 @@ export function Tutorial({ open, onClose }: { open: boolean; onClose: () => void
           <p className="mt-1 text-sm leading-relaxed text-muted">{current.body}</p>
         </div>
 
-        {step === 3 && (
+        {step === 3 && scoring && (
           <div className="surface-flat flex flex-col gap-2 p-4" aria-label="Example: London to Paris">
             <span className="text-xs font-bold uppercase tracking-wider text-subtle">Example</span>
             <div className="flex items-center justify-between gap-3 text-sm font-semibold text-cream">
               <span>London</span>
-              <span className="font-display text-lime-300">{formatDistance(EXAMPLE_DISTANCE_KM)}</span>
+              <span className="font-display text-lime-300">{formatDistance(scoring.londonParisKm)}</span>
               <span>Paris</span>
             </div>
           </div>
         )}
 
-        {step === 4 && (
+        {step >= 3 && !scoring && <p className="text-sm text-muted">The example is unavailable.</p>}
+
+        {step === 4 && scoring && exampleScore != null && (
           <div className="surface-flat flex flex-col gap-3 p-4">
             <span className="text-xs font-bold uppercase tracking-wider text-subtle">Try it</span>
             <div className="flex items-center justify-between">
               <output aria-live="polite" aria-label="Example score" className="font-display text-2xl font-semibold text-lime-300">
-                {formatScore(scoreForDistance(exampleDistance))}{' '}
-                <span className="text-sm font-normal text-subtle">/ {formatScore(MAX_SCORE)} pts</span>
+                {formatScore(exampleScore)}{' '}
+                <span className="text-sm font-normal text-subtle">/ {formatScore(scoring.maxScore)} pts</span>
               </output>
-              <span className="text-sm text-muted">{formatDistance(exampleDistance)} away</span>
+              <span className="text-sm text-muted">{formatDistance(distance)} away</span>
             </div>
             <input
               aria-label="Example distance in kilometers"
               type="range"
               min={0}
-              max={20000}
-              step={50}
-              value={exampleDistance}
+              max={maxExampleDistance}
+              step={scoring.exampleDistanceStepKm}
+              value={distance}
               onChange={(e) => setExampleDistance(Number(e.target.value))}
               className="w-full accent-lime-400"
             />

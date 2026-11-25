@@ -61,7 +61,6 @@
   font-size: 1.125rem;
 }
 .home-multiplayer-cta:hover { background: var(--color-space-500); border-color: rgb(181 155 255 / 45%); }
-.home-multiplayer-cta svg:last-child { margin-left: 5px; transition: transform 160ms ease; }
 .home-play-note { margin-top: 18px; color: var(--color-muted); font-size: 0.875rem; }
 .home-account-note { margin-top: 9px; color: var(--color-subtle); font-size: 0.8125rem; line-height: 1.7; text-wrap: balance; }
 .home-account-note a { color: var(--color-cream); font-weight: 800; text-decoration: underline; text-decoration-color: rgb(251 247 238 / 30%); text-underline-offset: 4px; }
@@ -137,7 +136,6 @@
   .home-play-actions > * { flex: 1; min-width: 0; }
   .home-primary-cta { min-height: 54px; padding-inline: 12px; font-size: 1rem; gap: 6px; }
   .home-multiplayer-cta { width: 100%; min-height: 54px; padding-inline: 12px; font-size: 1rem; gap: 6px; }
-  .home-multiplayer-cta svg:last-child { display: none; }
   .home-play-note { font-size: 0.8125rem; }
 }
 

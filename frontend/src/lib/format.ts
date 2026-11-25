@@ -1,41 +1,15 @@
 // Small, dependency-free helpers shared across the app.
 
-const EARTH_RADIUS_KM = 6371.0088
+import type { LatLon } from './contracts'
 
-/** Great-circle distance in kilometres between two lat/lon points. */
-export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180
-  const dLat = toRad(b.lat - a.lat)
-  const dLon = toRad(b.lon - a.lon)
-  const lat1 = toRad(a.lat)
-  const lat2 = toRad(b.lat)
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
-  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)))
-}
-
-// Mirrors backend/src/domain/scoring.ts (R10): 5000 points under 100 km,
-// 0 beyond 20000 km, linear decay between, computed on the one-decimal
-// rounded distance and floored.
-export const MAX_SCORE = 5000
-const FULL_SCORE_KM = 100
-const ZERO_SCORE_KM = 20000
-
-export function scoreForDistance(distanceKm: number | null): number {
-  if (distanceKm == null || !Number.isFinite(distanceKm)) return 0
-  const roundedKm = Math.round(distanceKm * 10) / 10
-  if (roundedKm <= FULL_SCORE_KM) return MAX_SCORE
-  if (roundedKm >= ZERO_SCORE_KM) return 0
-  const span = ZERO_SCORE_KM - FULL_SCORE_KM
-  const raw = (MAX_SCORE * (ZERO_SCORE_KM - roundedKm)) / span
-  return Math.floor(Math.min(MAX_SCORE, Math.max(0, raw)))
+export function formatCoordinates({ lat, lon }: LatLon): string {
+  return `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`
 }
 
 export function formatDistance(distanceKm: number | null): string {
   if (distanceKm == null || !Number.isFinite(distanceKm)) return '—'
-  if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m`
-  if (distanceKm < 1000) return `${distanceKm.toFixed(0)} km`
-  return `${(distanceKm / 1000).toFixed(1)}k km`
+  const rounded = Math.round(Math.max(0, distanceKm) * 10) / 10
+  return `${rounded.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`
 }
 
 export function formatScore(score: number): string {

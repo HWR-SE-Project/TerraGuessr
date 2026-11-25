@@ -1,77 +1,50 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import type { Lobby } from '../../lib/contracts'
 import { api } from '../../services'
-import { useLobbySession, clearLobbySession } from '../../state/lobby'
-import { Button, IconButton } from '../../components/ui/Button'
+import { useLobbyPolling, useLobbyRoute } from './useLobbyRoute'
+import { Button, IconButton, Spinner } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
-import { Spinner } from '../../components/ui/Button'
-import { hueFromString, initials } from '../../lib/format'
-import { difficultyInfo } from '../../lib/difficulty'
+import { PlayerBadge } from '../../components/game/PlayerBadge'
+import { difficultyDetails, difficultyInfo } from '../../lib/difficulty'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 
 export function LobbyPage() {
-  const { code = '' } = useParams()
-  const navigate = useNavigate()
-  const session = useLobbySession()
-
-  const [lobby, setLobby] = useState<Lobby | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { session, leave, leaving, openMatch } = useLobbyRoute()
+  const { data: lobby, error: connectionError } = useLobbyPolling(session, api.lobby.get, 1500, !leaving)
+  const [startError, setStartError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
-
-  const load = useCallback(async () => {
-    if (!session || session.code !== code.toUpperCase()) return
-    try {
-      const data = await api.lobby.get(code, session.token)
-      setLobby(data)
-      setError(null)
-    } catch {
-      setError('Lost connection to the lobby.')
-    }
-  }, [session, code])
+  const error = startError ?? (connectionError ? 'Lost connection to the lobby.' : null)
 
   useEffect(() => {
-    if (!session || session.code !== code.toUpperCase()) {
-      navigate('/multiplayer', { replace: true })
-      return
-    }
-    void load()
-    const interval = window.setInterval(() => void load(), 1500)
-    return () => window.clearInterval(interval)
-  }, [session, code, load, navigate])
+    if (lobby?.status === 'playing') openMatch()
+  }, [lobby?.status, openMatch])
 
   async function start() {
     if (!session || !lobby) return
     setStarting(true)
+    setStartError(null)
     try {
-      await api.lobby.start(code, session.token)
-      navigate(`/lobby/${code}/play`)
+      await api.lobby.start(session.code, session.token)
+      openMatch()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not start the match.')
+      setStartError(cause instanceof Error ? cause.message : 'Could not start the match.')
+    } finally {
       setStarting(false)
     }
   }
 
-  async function leave() {
-    if (session) {
-      try {
-        await api.lobby.leave(session.code, session.token)
-      } catch {
-        /* best-effort */
-      }
-    }
-    clearLobbySession()
-    navigate('/multiplayer')
-  }
-
-  if (!session || session.code !== code.toUpperCase()) return null
+  if (!session) return null
   if (!lobby) {
     return (
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3">
-        <Spinner className="size-8 text-lime-300" />
-        <p className="text-muted">Joining the lobby…</p>
+        {error ? <p role="alert" className="text-muted">{error}</p> : (
+          <>
+            <Spinner className="size-8 text-lime-300" />
+            <p className="text-muted">Joining the lobby…</p>
+          </>
+        )}
+        <Button variant="secondary" onClick={leave} loading={leaving}>Leave</Button>
       </div>
     )
   }
@@ -117,7 +90,6 @@ export function LobbyPage() {
             {lobby.members.map((member, index) => {
               const isHost = member.isHost
               const isYou = member.displayName === 'You'
-              const hue = hueFromString(member.displayName ?? '?')
               return (
                 <motion.div
                   key={`${member.displayName}-${index}`}
@@ -126,12 +98,7 @@ export function LobbyPage() {
                     isYou ? 'border-lime-400/40 bg-lime-400/8' : 'border-white/8 bg-space-800'
                   }`}
                 >
-                  <span
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-semibold text-ink"
-                    style={{ background: `hsl(${hue} 70% 72%)` }}
-                  >
-                    {initials(member.displayName ?? '?')}
-                  </span>
+                  <PlayerBadge name={member.displayName} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1 truncate text-sm font-bold text-cream">
                       {member.displayName ?? 'Player'}
@@ -147,7 +114,7 @@ export function LobbyPage() {
 
         {/* Rules */}
         <motion.div variants={staggerItem} className="flex flex-wrap items-center justify-center gap-2 text-sm">
-          {info.detail.map((detail) => (
+          {difficultyDetails(lobby.rules).map((detail) => (
             <span key={detail} className="rounded-full bg-space-700 px-3 py-1.5 font-bold text-muted">
               {detail}
             </span>
@@ -162,7 +129,7 @@ export function LobbyPage() {
 
         <motion.div variants={staggerItem} className="flex flex-col gap-2 sm:flex-row">
           {lobby.youAreHost ? (
-            <Button size="lg" icon="play" fullWidth loading={starting} onClick={start} disabled={lobby.members.length < 2}>
+            <Button size="lg" icon="play" fullWidth loading={starting} onClick={start} disabled={leaving || lobby.members.length < 2}>
               {lobby.members.length < 2 ? 'Waiting for players…' : 'Start match'}
             </Button>
           ) : (
@@ -171,7 +138,7 @@ export function LobbyPage() {
               Waiting for the host to start…
             </div>
           )}
-          <Button size="lg" variant="secondary" icon="exit" onClick={leave}>
+          <Button size="lg" variant="secondary" icon="exit" onClick={leave} loading={leaving}>
             Leave
           </Button>
         </motion.div>

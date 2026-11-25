@@ -4,7 +4,7 @@
 import type {
   Difficulty,
   GeographicIntelligence,
-  LatLon,
+  GuessInput,
   StreetCredentials,
   StreetGuessResponse,
   StreetRound,
@@ -15,7 +15,7 @@ import { apiFetch } from './client'
 const path = (id: string) => `/singleplayer/games/${encodeURIComponent(id)}`
 
 export const singleplayerHttp = {
-  config(): Promise<{ available: boolean; provider: 'google'; serverKeyConfigured: boolean }> {
+  config(): Promise<{ available: boolean; provider: 'diorama'; serverKeyConfigured: boolean }> {
     return apiFetch('/singleplayer/config')
   },
 
@@ -50,10 +50,10 @@ export const singleplayerHttp = {
     )
   },
 
-  selection(credentials: StreetCredentials, roundId: string, point: LatLon): Promise<void> {
+  selection(credentials: StreetCredentials, roundId: string, choice: GuessInput): Promise<void> {
     return apiFetch<void>(`${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/selection`, {
       method: 'PUT',
-      body: point,
+      body: choice,
       playerToken: credentials.playerToken,
     })
   },
@@ -75,7 +75,7 @@ export const singleplayerHttp = {
   guess(
     credentials: StreetCredentials,
     roundId: string,
-    guess: LatLon,
+    guess: GuessInput,
     final = false,
   ): Promise<StreetGuessResponse> {
     return apiFetch<StreetGuessResponse>(`${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/guess`, {

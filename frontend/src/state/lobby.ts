@@ -37,11 +37,13 @@ export function setLobbySession(session: LobbySession): void {
   }
 }
 
-export function clearLobbySession(): void {
+export function clearLobbySession(session?: LobbySession): boolean {
+  if (session && store.get() !== session) return false
   store.set(null)
   try {
     localStorage.removeItem(KEY)
   } catch {
     /* ignore */
   }
+  return true
 }

@@ -1,243 +1,162 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
-import type { LatLon, LobbyMatchResponse } from '../../lib/contracts'
-import { api } from '../../services'
-import { useLobbySession, clearLobbySession } from '../../state/lobby'
-import { StreetView } from '../../components/game/StreetView'
-import { GuessMap } from '../../components/game/GuessMap'
-import { CandidateList } from '../../components/game/CandidateList'
-import { GeographicIntelligence } from '../../components/game/GeographicIntelligence'
+import { motion } from 'framer-motion'
+import type { GuessInput, LobbyLeaderboardEntry, LobbyMatchResponse, LobbyMatchResult, LobbyParticipantGuess } from '../../lib/contracts'
+import { api, ApiError } from '../../services'
+import { useLobbyPolling, useLobbyRoute } from './useLobbyRoute'
+import { RoundResultDetails } from '../../components/game/RoundResultDetails'
+import { RoundStage } from '../../components/game/RoundStage'
+import { PlayerBadge } from '../../components/game/PlayerBadge'
 import { Timer } from '../../components/game/Timer'
-import { TopHud } from '../../components/game/TopHud'
 import { Button, Spinner } from '../../components/ui/Button'
 import { Dialog } from '../../components/ui/Dialog'
 import { Icon } from '../../components/ui/Icon'
-import { formatDistance, formatScore, hueFromString, initials } from '../../lib/format'
-import { difficultyInfo } from '../../lib/difficulty'
+import { formatCoordinates, formatScore } from '../../lib/format'
 
 export function MultiplayerGamePage() {
-  const { code = '' } = useParams()
-  const navigate = useNavigate()
-  const session = useLobbySession()
-
-  const [match, setMatch] = useState<LobbyMatchResponse | null>(null)
-  const [guess, setGuess] = useState<LatLon | null>(null)
-  const [selectedCity, setSelectedCity] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const { code, session, leaving, leave, openWaitingRoom } = useLobbyRoute()
+  const { data: match, error: connectionError, refresh, update } = useLobbyPolling(session, api.lobby.match, 1000, !leaving)
+  const [expiredRoundId, setExpiredRoundId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [mapOpen, setMapOpen] = useState(true)
   const [exitOpen, setExitOpen] = useState(false)
+  const pollError = connectionError instanceof ApiError && (connectionError.status === 503 || !match)
+    ? connectionError.message
+    : null
+  const roundNumber = match?.match.round?.number
 
-  const load = useCallback(async () => {
-    if (!session) return
-    try {
-      const data = await api.lobby.match(code, session.token)
-      setMatch(data)
-    } catch {
-      /* transient — keep polling */
-    }
-  }, [session, code])
+  const loadIntelligence = useCallback((_id: string, signal?: AbortSignal) => {
+    if (!session || roundNumber == null) return Promise.reject(new Error('There is no active round.'))
+    return api.lobby.intelligence(code, roundNumber, session.token, signal)
+  }, [code, roundNumber, session])
 
+  const matchStatus = match?.match.status
   useEffect(() => {
-    if (!session || session.code !== code.toUpperCase()) {
-      navigate('/multiplayer', { replace: true })
-      return
-    }
-    void load()
-    const interval = window.setInterval(() => void load(), 1000)
-    return () => window.clearInterval(interval)
-  }, [session, code, load, navigate])
+    if (matchStatus === 'waiting') openWaitingRoom()
+  }, [matchStatus, openWaitingRoom])
 
-  // Reset local guess when the round changes.
-  useEffect(() => {
-    setGuess(null)
-    setSelectedCity(null)
-  }, [match?.match.round?.id])
-
-  if (!session || !match) {
+  if (!session) return null
+  if (!match) {
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-3">
-        <Spinner className="size-8 text-lime-300" />
-        <p className="text-muted">Entering the match…</p>
+        {pollError ? <p role="alert" className="text-muted">{pollError}</p> : (
+          <>
+            <Spinner className="size-8 text-lime-300" />
+            <p className="text-muted">Entering the match…</p>
+          </>
+        )}
+        <Button variant="secondary" onClick={leave} loading={leaving}>Leave</Button>
       </div>
     )
   }
 
-  const { lobby, match: m } = match
-  const info = difficultyInfo(lobby.difficulty)
+  const m = match.match
   const round = m.round
   const finished = m.status === 'finished'
-  const showResult = !finished && m.roundComplete
-
-  async function submit(final: boolean, point?: LatLon) {
-    if (!round) return
-    const target = point ?? guess
-    if (!target) return
-    setSubmitting(true)
-    setError(null)
-    try {
-      const response = await api.lobby.guess(code, round.number, session!.token, target, final)
-      if (response.finalized) {
-        // Refresh immediately to surface the round result.
-        await load()
-      }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not submit the guess.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  // R08: persist the current pin server-side on every change (best-effort),
-  // so a round that times out without reaching this client's own final
-  // submit (closed tab, dropped network) still has a guess to fall back to.
-  function pushSelection(point: LatLon) {
-    if (!session || !round) return
-    void api.lobby.selection(code, session.token, point).catch(() => {})
-  }
-
-  function updateGuess(point: LatLon) {
-    setGuess(point)
-    pushSelection(point)
-  }
+  const activeRound = !finished && round && !m.reviewEndsAt ? round : null
 
   function onExpired() {
-    if (round) {
-      const target = guess ?? { lat: 0, lon: 0 }
-      void submit(true, target)
+    if (!round || m.you.finalized) return
+    setExpiredRoundId(round.id)
+    void refresh()
+  }
+
+  async function submit(choice: GuessInput, final: boolean) {
+    if (!round || !session || m.you.finalized) return
+    try {
+      const response = await api.lobby.guess(code, round.number, session.token, choice, final)
+      // Apply acknowledgement before the next read completes.
+      update((previous) => {
+        if (!previous || previous.match.round?.id !== round.id) return previous
+        const you = previous.match.you
+        return {
+          ...previous,
+          match: {
+            ...previous.match,
+            you: {
+              ...you,
+              attemptsUsed: response.attemptsUsed ?? (you.attemptsTotal - response.attemptsRemaining),
+              submittedGuesses: 'candidateId' in choice
+                ? (you.submittedGuesses ?? [])
+                : [...(you.submittedGuesses ?? []), { lat: choice.lat, lon: choice.lon }],
+              submittedCandidateIds: 'candidateId' in choice
+                ? [...(you.submittedCandidateIds ?? []), choice.candidateId]
+                : (you.submittedCandidateIds ?? []),
+              finalized: response.finalized,
+            },
+          },
+        }
+      })
+    } finally {
+      void refresh()
     }
+  }
+
+  async function unlock() {
+    if (!round || !session) return
+    const updated = await api.lobby.unlock(code, round.number, session.token)
+    update((previous) => previous?.match.round?.id === round.id ? updated : previous)
+    void refresh()
   }
 
   async function rematch() {
     try {
-      await api.lobby.continue(code, session!.token)
-      setGuess(null)
-      await load()
+      const updated = await api.lobby.continue(code, session!.token)
+      update(() => updated)
+      void refresh()
     } catch {
       setError('Could not start the rematch.')
     }
   }
 
-  async function leave() {
-    try {
-      await api.lobby.leave(code, session!.token)
-    } catch {
-      /* best-effort */
-    }
-    clearLobbySession()
-    navigate('/multiplayer')
-  }
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-space-900">
-      {!finished && round && (
-        <div className="absolute inset-0">
-          <StreetView panoId={round.panoId} />
-        </div>
+    <RoundStage
+      round={!finished && round ? {
+        ...round,
+        rules: m.rules,
+        selection: m.you.selection,
+        selectedCandidateId: m.you.selectedCandidateId,
+        submittedGuesses: m.you.submittedGuesses,
+        submittedCandidateIds: m.you.submittedCandidateIds,
+        attemptsUsed: m.you.attemptsUsed,
+        attemptsTotal: m.you.attemptsTotal,
+        endsAt: m.endsAt,
+      } : null}
+      hud={activeRound ? {
+        roundsTotal: m.roundsTotal,
+        score: m.leaderboard.find((entry) => entry.isYou)?.totalScore ?? 0,
+        pauseExpiry: m.you.finalized,
+        onExpired,
+        onMenu: () => setExitOpen(true),
+      } : undefined}
+      controls={activeRound && !m.you.finalized && !m.roundComplete ? {
+        disabled: leaving || expiredRoundId === activeRound.id,
+        loadIntelligence,
+        select: (point) => api.lobby.selection(code, session.token, point, activeRound.id),
+        submit,
+        unlock,
+      } : undefined}
+      error={error ?? (m.reviewEndsAt ? null : pollError)}
+    >
+      {activeRound && m.you.finalized && (
+        <p role="status" className="surface absolute bottom-4 left-1/2 z-20 -translate-x-1/2 px-4 py-3 text-sm font-semibold text-cream">
+          Guess locked. Waiting for the round to finish.
+        </p>
       )}
 
-      {!finished && round && (
-        <TopHud
-          round={round.number}
-          roundsTotal={m.roundsTotal}
-          score={m.leaderboard.find((entry) => entry.isYou)?.totalScore ?? 0}
-          attemptsUsed={m.you.attemptsUsed}
-          attemptsTotal={m.you.attemptsTotal}
-          timer={<Timer endsAt={round.endsAt} paused={submitting} onExpired={onExpired} />}
-          onMenu={() => setExitOpen(true)}
+      {m.reviewEndsAt && m.you.result && (
+        <RoundResultOverlay
+          result={m.you.result}
+          leaderboard={m.leaderboard}
+          endsAt={m.reviewEndsAt}
+          lastRound={m.currentRound === m.roundsTotal}
+          onExpired={() => void refresh()}
+          error={pollError}
         />
       )}
 
-      {/* Live leaderboard strip */}
-      {!finished && (
-        <div className="pointer-events-none absolute right-3 top-20 z-20 hidden sm:right-4 sm:block">
-          <LeaderboardCard match={match} />
-        </div>
-      )}
-
-      {/* Guess controls */}
-      {!finished && round && !m.roundComplete && (
-        <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-3 p-3 pb-safe sm:p-4 lg:inset-x-auto lg:left-4 lg:top-20 lg:bottom-4 lg:w-[380px] lg:justify-between">
-          <GeographicIntelligence
-            roundId={round.id}
-            roundKey={`${round.id}-${round.panoId}`}
-            load={() => api.lobby.intelligence(code, round.number, session!.token)}
-            access={round.extraData}
-            onUnlock={async () => {
-              await api.lobby.unlock(code, round.number, session!.token)
-              await load()
-            }}
-          />
-
-          <div className="surface-flat overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3">
-              <span className="font-display text-sm font-semibold text-cream">
-                {round.candidates?.length ? 'Pick a city' : 'Place your pin'}
-              </span>
-              <button type="button" onClick={() => setMapOpen((v) => !v)} className="flex items-center gap-1 text-xs font-bold text-muted">
-                {mapOpen ? 'Hide' : 'Show'}
-                <Icon name={mapOpen ? 'chevronDown' : 'chevronRight'} size={14} />
-              </button>
-            </div>
-            {mapOpen && (
-              <div className="px-3 pb-3">
-                {round.candidates?.length ? (
-                  <CandidateList
-                    candidates={round.candidates}
-                    selected={selectedCity}
-                    onSelect={(c) => {
-                      setSelectedCity(c.id)
-                      updateGuess({ lat: c.lat, lon: c.lon })
-                    }}
-                  />
-                ) : (
-                  <div className="h-60 overflow-hidden rounded-2xl lg:h-72">
-                    <GuessMap guess={guess} onChange={updateGuess} interactive={!submitting} countryBorders={info.countryBorders} />
-                  </div>
-                )}
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-xs text-subtle">
-                    {guess ? `${guess.lat.toFixed(2)}°, ${guess.lon.toFixed(2)}°` : round.candidates?.length ? 'Choose a city' : 'Tap the map to place a pin'}
-                  </span>
-                  {m.you.attemptsUsed > 0 && m.you.attemptsUsed < m.you.attemptsTotal && (
-                    <span className="text-xs font-bold text-amber-300">
-                      {m.you.attemptsTotal - m.you.attemptsUsed} {m.you.attemptsTotal - m.you.attemptsUsed === 1 ? 'try' : 'tries'} left
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <Button fullWidth icon="pin" disabled={!guess || submitting} loading={submitting} onClick={() => submit(false)}>
-                    Submit guess
-                  </Button>
-                  {m.you.attemptsUsed > 0 && m.you.attemptsUsed < m.you.attemptsTotal && (
-                    <Button fullWidth variant="tinted" icon="check" disabled={!guess || submitting} onClick={() => submit(true)}>
-                      Final
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Round result overlay */}
-      <AnimatePresence>
-        {showResult && !finished && (
-          <RoundResultOverlay match={match} />
-        )}
-      </AnimatePresence>
-
       {/* Finished: final leaderboard */}
       {finished && (
-        <FinalLeaderboard match={match} onRematch={rematch} onLeave={leave} />
-      )}
-
-      {error && (
-        <div className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-full bg-rose-400/90 px-4 py-2 text-sm font-bold text-space-950">
-          {error}
-        </div>
+        <FinalLeaderboard match={match} onRematch={rematch} onLeave={leave} onRefresh={() => void refresh()} />
       )}
 
       <Dialog
@@ -249,7 +168,7 @@ export function MultiplayerGamePage() {
             <Button variant="secondary" fullWidth onClick={() => setExitOpen(false)}>
               Stay
             </Button>
-            <Button variant="danger" fullWidth icon="exit" onClick={leave}>
+            <Button variant="danger" fullWidth icon="exit" onClick={leave} loading={leaving}>
               Leave match
             </Button>
           </div>
@@ -257,92 +176,88 @@ export function MultiplayerGamePage() {
       >
         <p className="text-sm text-muted">Leaving now forfeits the current match for you.</p>
       </Dialog>
-    </div>
+    </RoundStage>
   )
 }
 
-function LeaderboardCard({ match }: { match: LobbyMatchResponse }) {
-  const entries = match.match.leaderboard
+function Leaderboard({ entries, guesses }: {
+  entries: LobbyLeaderboardEntry[]
+  guesses?: LobbyParticipantGuess[]
+}) {
+  const guessesByMember = new Map(guesses?.map((guess) => [guess.memberId, guess]))
   return (
-    <div className="surface-flat w-56 p-3">
-      <p className="mb-2 font-display text-xs font-semibold uppercase tracking-widest text-subtle">Leaderboard</p>
-      <div className="flex flex-col gap-1">
-        {entries.map((entry) => (
-          <div
-            key={entry.displayName ?? entry.rank}
-            className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${entry.isYou ? 'bg-lime-400/12' : ''}`}
+    <ol aria-label="Leaderboard" className="flex flex-col gap-2 text-left">
+      {entries.map((entry) => {
+        const guess = guessesByMember.get(entry.memberId)
+        return (
+          <li
+            key={entry.memberId}
+            className={`flex items-center gap-3 rounded-2xl border px-3 py-2 ${entry.isYou ? 'border-lime-400/50 bg-lime-400/10' : 'border-white/8 bg-space-800'}`}
           >
-            <span className="w-4 text-center font-display text-sm font-semibold text-subtle">{entry.rank}</span>
-            <span className="flex size-6 items-center justify-center rounded-full text-[10px] font-bold text-ink" style={{ background: `hsl(${hueFromString(entry.displayName ?? '?')} 70% 72%)` }}>
-              {initials(entry.displayName ?? '?')}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-sm font-bold text-cream">{entry.displayName}</span>
-            <span className="font-display text-sm font-semibold text-lime-300">{formatScore(entry.totalScore)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+            <span className="shrink-0 font-display font-semibold text-subtle">#{entry.rank}</span>
+            <PlayerBadge name={entry.displayName} compact={Boolean(guesses)} />
+            <div className="min-w-0 flex-1 wrap-anywhere">
+              <p className="font-bold text-cream">
+                {entry.displayName ?? 'Guest explorer'}
+                {entry.isYou && <span className="ml-2 text-xs text-lime-300">(you)</span>}
+              </p>
+              {guess && <p className="text-xs text-muted">{guess.answer ?? (guess.guess ? formatCoordinates(guess.guess) : 'No guess')}</p>}
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-display font-semibold text-lime-300">{formatScore(entry.totalScore)} pts</p>
+              {guess && <p className="text-xs text-muted">+{formatScore(guess.score)} this round</p>}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
-function RoundResultOverlay({ match }: { match: LobbyMatchResponse }) {
-  const result = match.match.you.result
-  const pending = match.match.pendingPlayers
+const ignoreReviewDismissal = () => {}
+
+function RoundResultOverlay({ result, leaderboard, endsAt, lastRound, onExpired, error }: {
+  result: LobbyMatchResult
+  leaderboard: LobbyLeaderboardEntry[]
+  endsAt: string
+  lastRound: boolean
+  onExpired: () => void
+  error: string | null
+}) {
+  const countdownLabel = lastRound ? 'Final standings in' : 'Next round in'
   const participantMarkers = useMemo(
-    () =>
-      (result?.guesses ?? [])
-        .filter((g) => g.guess)
-        .map((g) => ({
-          position: g.guess!,
-          title: g.displayName ?? 'Player',
-          color: g.isYou ? '#c0f66b' : '#ffb45e',
-        })),
+    () => result.guesses.flatMap((guess) => guess.guess && !guess.isYou ? [{
+      position: guess.guess,
+      title: guess.displayName ?? 'Player',
+    }] : []),
     [result],
   )
 
   return (
-    <motion.div
-      className="absolute inset-0 z-30 flex items-center justify-center bg-space-950/70 p-4 backdrop-blur-sm"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <Dialog
+      open
+      onClose={ignoreReviewDismissal}
+      dismissible={false}
+      title={`Round ${result.roundNumber} results`}
+      maxWidth="max-w-3xl"
+      footer={
+        <>
+          {error && <p role="alert" className="mb-2 text-sm text-rose-300">{error}</p>}
+          <div className="flex items-center justify-between gap-3 text-cream">
+            <span>{countdownLabel}</span>
+            <Timer endsAt={endsAt} onExpired={onExpired} label={countdownLabel} warningAtSeconds={0} />
+          </div>
+        </>
+      }
     >
-      <motion.div initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} className="surface w-full max-w-lg p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold text-cream">Round {result?.roundNumber} results</h2>
-          {pending.length > 0 ? (
-            <span className="flex items-center gap-1.5 rounded-full bg-space-800 px-3 py-1 text-xs font-bold text-amber-300">
-              <Spinner className="size-3.5" /> Waiting for {pending.join(', ')}
-            </span>
-          ) : (
-            <span className="rounded-full bg-lime-400/15 px-3 py-1 text-xs font-bold text-lime-300">Starting next round…</span>
-          )}
+      <RoundResultDetails result={result} markers={participantMarkers} sideContent={
+        <div>
+          <p className="mb-2 text-sm text-muted">Actual location {formatCoordinates(result.actual)}</p>
+          <h3 className="mb-2 font-display text-base text-cream">Leaderboard</h3>
+          <Leaderboard entries={leaderboard} guesses={result.guesses} />
         </div>
-
-        {result && (
-          <>
-            <div className="mt-4 flex items-end justify-center gap-10">
-              <div className="text-center">
-                <p className="text-xs font-bold uppercase tracking-wider text-subtle">Your distance</p>
-                <p className="font-display text-3xl font-semibold text-cream">{formatDistance(result.distanceKm)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs font-bold uppercase tracking-wider text-subtle">Points</p>
-                <p className="font-display text-3xl font-semibold text-lime-300">+{formatScore(result.score)}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 h-52 overflow-hidden rounded-2xl">
-              <GuessMap interactive={false} markers={participantMarkers} results={[{ actual: result.actual, guess: result.guess }]} />
-            </div>
-
-            <div className="mt-4 max-h-40 overflow-y-auto">
-              <LeaderboardCard match={match} />
-            </div>
-          </>
-        )}
-      </motion.div>
-    </motion.div>
+      } />
+    </Dialog>
   )
 }
 
@@ -350,13 +265,17 @@ function FinalLeaderboard({
   match,
   onRematch,
   onLeave,
+  onRefresh,
 }: {
   match: LobbyMatchResponse
   onRematch: () => void
   onLeave: () => void
+  onRefresh: () => void
 }) {
   const entries = match.match.leaderboard
   const you = entries.find((entry) => entry.isYou)
+  const prompt = match.match.continuePrompt
+  const rematchActive = Boolean(prompt && prompt.readyPlayers.length > 0)
 
   return (
     <div className="absolute inset-0 z-30 overflow-y-auto bg-space-900/95 backdrop-blur-sm">
@@ -372,32 +291,36 @@ function FinalLeaderboard({
             </p>
           )}
 
-          <div className="mt-8 flex flex-col gap-2 text-left">
-            {entries.map((entry) => (
-              <div
-                key={entry.displayName ?? entry.rank}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
-                  entry.isYou ? 'border-lime-400/50 bg-lime-400/10' : 'border-white/8 bg-space-800'
-                }`}
-              >
-                <span className={`font-display text-2xl font-semibold ${entry.rank === 1 ? 'text-amber-300' : 'text-subtle'}`}>
-                  {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
-                </span>
-                <span className="flex size-9 items-center justify-center rounded-full font-display font-semibold text-ink" style={{ background: `hsl(${hueFromString(entry.displayName ?? '?')} 70% 72%)` }}>
-                  {initials(entry.displayName ?? '?')}
-                </span>
-                <span className="min-w-0 flex-1 truncate font-bold text-cream">
-                  {entry.displayName}
-                  {entry.isYou && <span className="ml-2 text-xs text-lime-300">(you)</span>}
-                </span>
-                <span className="font-display font-semibold text-lime-300">{formatScore(entry.totalScore)}</span>
-              </div>
-            ))}
+          <div className="mt-8">
+            <Leaderboard entries={entries} />
           </div>
 
+          {rematchActive && prompt && (
+            <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-space-800 px-4 py-3 text-left text-sm">
+              <div className="min-w-0">
+                <p className="font-semibold text-cream">
+                  {prompt.youRequested ? 'Rematch requested' : 'A rematch has been requested'}
+                </p>
+                {prompt.pendingPlayers.length > 0 && (
+                  <p className="truncate text-xs text-muted">
+                    Waiting for {prompt.pendingPlayers.join(', ')}
+                  </p>
+                )}
+              </div>
+              {prompt.deadline && (
+                <Timer
+                  endsAt={prompt.deadline}
+                  onExpired={onRefresh}
+                  label="Rematch window"
+                  warningAtSeconds={10}
+                />
+              )}
+            </div>
+          )}
+
           <div className="mt-8 flex flex-col gap-2 sm:flex-row">
-            <Button size="lg" icon="refresh" fullWidth onClick={onRematch}>
-              Rematch
+            <Button size="lg" icon="refresh" fullWidth onClick={onRematch} disabled={prompt?.youRequested}>
+              {prompt?.youRequested ? 'Ready for rematch' : 'Rematch'}
             </Button>
             <Button size="lg" variant="secondary" icon="exit" fullWidth onClick={onLeave}>
               Leave

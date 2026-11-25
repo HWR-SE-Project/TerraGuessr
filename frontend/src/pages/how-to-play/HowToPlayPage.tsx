@@ -6,12 +6,15 @@ import { Icon } from '../../components/ui/Icon'
 import type { IconName } from '../../components/ui/Icon'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import { Tutorial } from '../../components/tutorial/Tutorial'
+import { DIFFICULTY_LEVELS, difficultyDetails } from '../../lib/difficulty'
+import { formatScore } from '../../lib/format'
+import { useGameRules } from '../../state/gameRules'
 
 const STEPS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'globe',
     title: 'You appear somewhere',
-    text: 'Each round drops you into a random Street View panorama anywhere on Earth.',
+    text: 'Each round drops your explorer onto a live 3D biome diorama shaped by the destination’s environment and real-time weather.',
   },
   {
     icon: 'scan',
@@ -26,18 +29,13 @@ const STEPS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'trophy',
     title: 'Earn points',
-    text: 'The closer your guess, the more points. A perfect guess scores 5,000.',
+    text: 'Closer guesses earn more points.',
   },
-]
-
-const DIFFICULTIES = [
-  { name: 'Easy', items: ['7 minutes', '3 attempts', 'Pick from 6 cities', 'Free clues'] },
-  { name: 'Medium', items: ['4 minutes', '2 attempts', 'World map', 'Clues cost 100 pts'] },
-  { name: 'Hard', items: ['2 minutes', '1 attempt', 'World map', 'Clues cost 20 s'] },
 ]
 
 export function HowToPlayPage() {
   const [tutorialOpen, setTutorialOpen] = useState(false)
+  const rules = useGameRules()
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -68,14 +66,14 @@ export function HowToPlayPage() {
           ))}
         </motion.div>
 
-        <motion.div variants={staggerItem}>
+        {rules && <motion.div variants={staggerItem}>
           <h2 className="mb-4 text-center font-display text-2xl font-semibold text-cream">Difficulty at a glance</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            {DIFFICULTIES.map((difficulty) => (
-              <div key={difficulty.name} className="surface-flat p-5">
-                <h3 className="font-display text-lg font-semibold text-lime-300">{difficulty.name}</h3>
+            {DIFFICULTY_LEVELS.map((difficulty) => (
+              <div key={difficulty.id} className="surface-flat p-5">
+                <h3 className="font-display text-lg font-semibold text-lime-300">{difficulty.label}</h3>
                 <ul className="mt-3 flex flex-col gap-1.5">
-                  {difficulty.items.map((item) => (
+                  {difficultyDetails(rules.difficulties[difficulty.id]).map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm text-muted">
                       <Icon name="check" size={14} className="text-lime-300" />
                       {item}
@@ -85,22 +83,22 @@ export function HowToPlayPage() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </motion.div>}
 
-        <motion.div variants={staggerItem}>
+        {rules && <motion.div variants={staggerItem}>
           <h2 className="mb-4 text-center font-display text-2xl font-semibold text-cream">Scoring</h2>
           <div className="surface p-6">
             <div className="flex flex-col items-center gap-2 text-center">
               <p className="font-display text-3xl font-semibold text-cream">
-                Up to <span className="text-lime-300">5,000 points</span> per round
+                Up to <span className="text-lime-300">{formatScore(rules.scoring.maxScore)} points</span> per round
               </p>
               <p className="max-w-md text-sm leading-relaxed text-muted">
-                Land within 100 km for the full score. Points fall off smoothly with distance and
-                reach zero around 20,000 km. In multiplayer, your score stacks across every round.
+                Land within {formatScore(rules.scoring.fullScoreKm)} km for the full score. Points fall with distance and
+                reach zero at {formatScore(rules.scoring.zeroScoreKm)} km. In multiplayer, your score adds up across rounds.
               </p>
             </div>
           </div>
-        </motion.div>
+        </motion.div>}
 
         <motion.div variants={staggerItem} className="flex flex-col items-center gap-3 text-center">
           <p className="text-sm text-muted">Ready to give it a go?</p>

@@ -1,20 +1,23 @@
 import { motion } from 'framer-motion'
-import type { Difficulty } from '../../lib/contracts'
-import { DIFFICULTY_LEVELS } from '../../lib/difficulty'
+import type { Difficulty, GameRules } from '../../lib/contracts'
+import { DIFFICULTY_LEVELS, difficultyDetails, difficultyInfo } from '../../lib/difficulty'
 import { Icon } from '../ui/Icon'
 
 export function DifficultyPicker({
   value,
   onChange,
+  rules,
   disabled = false,
 }: {
   value: Difficulty
   onChange: (difficulty: Difficulty) => void
+  rules?: Record<Difficulty, GameRules>
   disabled?: boolean
 }) {
   return (
     <div role="radiogroup" aria-label="Difficulty" className="grid gap-3 sm:grid-cols-3">
-      {DIFFICULTY_LEVELS.map((level) => {
+      {DIFFICULTY_LEVELS.map(({ id }) => {
+        const level = difficultyInfo(id, rules?.[id])
         const selected = value === level.id
         return (
           <motion.button
@@ -45,13 +48,13 @@ export function DifficultyPicker({
               <span className="text-xs font-bold text-subtle">{level.tagline}</span>
             </div>
             <p className="text-sm leading-relaxed text-muted">{level.description}</p>
-            <div className="mt-auto flex flex-wrap gap-1.5">
-              {level.detail.map((detail) => (
+            {rules && <div className="mt-auto flex flex-wrap gap-1.5">
+              {difficultyDetails(rules[level.id]).map((detail) => (
                 <span key={detail} className="rounded-full bg-space-600 px-2.5 py-1 text-xs font-bold text-cream/80">
                   {detail}
                 </span>
               ))}
-            </div>
+            </div>}
           </motion.button>
         )
       })}

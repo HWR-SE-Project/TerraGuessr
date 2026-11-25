@@ -7,17 +7,18 @@ import type {
   Candidate,
   Difficulty,
   GeographicIntelligence,
+  GuessInput,
   LatLon,
   Lobby,
+  LobbyGuessResponse,
   LobbyLeaderboardEntry,
   LobbyMatch,
   LobbyMatchResponse,
   LobbyMatchResult,
   LobbySession,
 } from '../../lib/contracts'
-import { haversineKm, scoreForDistance } from '../../lib/format'
 import { LOCATIONS, locationById, mockWeather, randomLocation } from './data'
-import { difficultyInfo, lobbyRules } from '../../lib/difficulty'
+import { haversineKm, mockGameRules, scoreForDistance } from './gameRules'
 import { lobbies, lobbiesByCode } from './db'
 import type { MockLobby, MockMatch, MockMatchRound } from './db'
 
@@ -40,8 +41,16 @@ function candidatesFor(answerId: string): Candidate[] {
     .sort(() => Math.random() - 0.5)
     .slice(0, 5)
   return [answer, ...distractors]
-    .map((loc) => ({ id: loc.id, name: loc.name, lat: loc.lat, lon: loc.lon, region: loc.region }))
+    .map((loc) => ({ id: loc.id, name: loc.name, region: loc.region }))
     .sort(() => Math.random() - 0.5)
+}
+
+function resolveLobbyChoice(choice: GuessInput): { point: LatLon; answer: string | null } {
+  if ('candidateId' in choice) {
+    const loc = locationById(choice.candidateId)
+    return { point: { lat: loc.lat, lon: loc.lon }, answer: loc.name }
+  }
+  return { point: { lat: choice.lat, lon: choice.lon }, answer: null }
 }
 
 // --- Lobby/member view mapping ----------------------------------------------
@@ -53,7 +62,7 @@ function toLobby(lobby: MockLobby, viewerId: string): Lobby {
     difficulty: lobby.difficulty,
     status: lobby.status,
     roundsTotal: lobby.roundsTotal,
-    rules: lobbyRules(lobby.difficulty),
+    rules: mockGameRules(lobby.difficulty),
     createdAt: lobby.createdAt,
     expiresAt: lobby.expiresAt,
     members: lobby.members.map((member) => ({
@@ -121,8 +130,8 @@ function buildMatch(lobby: MockLobby): MockMatch {
       number,
       locationId: location.id,
       candidates: lobby.difficulty === 'easy' ? candidatesFor(location.id) : [],
-      endsAt: new Date(Date.now() + difficultyInfo(lobby.difficulty).timeLimitSeconds * 1000).toISOString(),
-      extraDataUnlocked: difficultyInfo(lobby.difficulty).extraData.mode === 'free',
+      endsAt: new Date(Date.now() + mockGameRules(lobby.difficulty).timeLimitSeconds * 1000).toISOString(),
+      extraDataUnlocked: mockGameRules(lobby.difficulty).extraData.mode === 'free',
       extraDataPointsSpent: 0,
       guesses: new Map(),
       memberAttempts: new Map(),
@@ -182,6 +191,7 @@ function roundResultView(
     const rawScore = distanceKm == null ? 0 : scoreForDistance(distanceKm)
     const spent = member.id === viewerId ? round.extraDataPointsSpent : 0
     return {
+      memberId: member.id,
       displayName: member.displayName,
       isHost: member.isHost,
       isYou: member.id === viewerId,
@@ -212,6 +222,7 @@ function leaderboard(lobby: MockLobby, match: MockMatch, viewerId: string): Lobb
     if (prevScore == null || score !== prevScore) rank = index + 1
     prevScore = score
     return {
+      memberId: member.id,
       rank,
       displayName: member.displayName,
       isHost: member.isHost,
@@ -239,7 +250,7 @@ function matchView(lobby: MockLobby, match: MockMatch, viewerId: string): LobbyM
         } else {
           match.currentRound += 1
           const next = match.rounds.get(match.currentRound)!
-          next.endsAt = new Date(Date.now() + difficultyInfo(lobby.difficulty).timeLimitSeconds * 1000).toISOString()
+          next.endsAt = new Date(Date.now() + mockGameRules(lobby.difficulty).timeLimitSeconds * 1000).toISOString()
         }
       }
     }
@@ -247,14 +258,14 @@ function matchView(lobby: MockLobby, match: MockMatch, viewerId: string): LobbyM
     round = match.rounds.get(match.currentRound) ?? null
   }
 
-  const roundComplete = round ? round.finalized.has(viewerId) : false
+  const roundComplete = match.advanceAt != null || match.status === 'finished'
   const youResult = roundComplete && round ? roundResultView(lobby, round, viewerId) : null
 
   const pendingPlayers = round
     ? lobby.members.filter((member) => !round.finalized.has(member.id)).map((member) => member.displayName ?? 'Player')
     : []
 
-  const rules = difficultyInfo(lobby.difficulty)
+  const rules = mockGameRules(lobby.difficulty)
   const extraDataRule = rules.extraData
   const extraDataMode: 'immediate' | 'points' | 'time' =
     extraDataRule.mode === 'free' ? 'immediate' : extraDataRule.mode
@@ -265,14 +276,21 @@ function matchView(lobby: MockLobby, match: MockMatch, viewerId: string): LobbyM
     currentRound: round ? match.currentRound : null,
     roundsTotal: match.roundsTotal,
     difficulty: lobby.difficulty,
-    rules: lobbyRules(lobby.difficulty),
+    rules: mockGameRules(lobby.difficulty),
     startedAt: match.startedAt,
     endsAt: null,
     round: round
       ? {
           id: round.id,
           number: round.number,
-          panoId: round.locationId,
+          scene: {
+            biome: 'urban',
+            weather: 'clear',
+            lighting: 'day',
+            temperatureBand: 'mild',
+            windBand: 'calm',
+            seed: round.number * 997 + 13,
+          },
           candidates: lobby.difficulty === 'easy' ? round.candidates : undefined,
           endsAt: round.endsAt,
           attemptsUsed: round.memberAttempts.get(viewerId) ?? 0,
@@ -287,6 +305,7 @@ function matchView(lobby: MockLobby, match: MockMatch, viewerId: string): LobbyM
         }
       : null,
     roundComplete,
+    reviewEndsAt: match.advanceAt == null ? null : new Date(match.advanceAt).toISOString(),
     pendingPlayers,
     you: {
       attemptsUsed: round?.memberAttempts.get(viewerId) ?? 0,
@@ -384,33 +403,33 @@ export const lobbyMock = {
     return delay(responseView(lobby, lobby.match, memberId), 120)
   },
 
-  async selection(code: string, token: string, point: LatLon): Promise<void> {
+  async selection(code: string, token: string, choice: GuessInput): Promise<void> {
     const lobby = requireLobby(code)
     const memberId = requireMember(lobby, token)
     const match = lobby.match
     const round = match?.rounds.get(match.currentRound)
-    if (round) round.guesses.set(memberId, { lat: point.lat, lon: point.lon, answer: null })
+    const resolved = resolveLobbyChoice(choice)
+    if (round) round.guesses.set(memberId, { lat: resolved.point.lat, lon: resolved.point.lon, answer: resolved.answer })
     return delay(undefined, 60)
   },
 
-  async guess(code: string, roundNumber: number, token: string, guess: LatLon, final = false): Promise<{ finalized: boolean; attemptsRemaining: number; result?: LobbyMatchResult }> {
+  async guess(code: string, roundNumber: number, token: string, choice: GuessInput, final = false): Promise<LobbyGuessResponse> {
     const lobby = requireLobby(code)
     const memberId = requireMember(lobby, token)
     const match = lobby.match!
     const round = match.rounds.get(roundNumber)!
 
     if (round.finalized.has(memberId)) {
-      return delay({ finalized: true, attemptsRemaining: 0, result: roundResultView(lobby, round, memberId) })
+      return delay({ finalized: true, attemptsRemaining: 0, attemptsUsed: round.memberAttempts.get(memberId) ?? 0 })
     }
 
     const location = locationById(round.locationId)
-    const answer =
-      round.candidates.find(
-        (candidate) => candidate.lat === guess.lat && candidate.lon === guess.lon,
-      )?.name ?? null
+    const resolved = resolveLobbyChoice(choice)
+    const guess = resolved.point
+    const answer = resolved.answer
     round.guesses.set(memberId, { lat: guess.lat, lon: guess.lon, answer })
 
-    const rules = difficultyInfo(lobby.difficulty)
+    const rules = mockGameRules(lobby.difficulty)
     const attemptsUsed = (round.memberAttempts.get(memberId) ?? 0) + 1
     round.memberAttempts.set(memberId, attemptsUsed)
     const finalizes = final || attemptsUsed >= rules.attemptsPerRound
@@ -423,9 +442,9 @@ export const lobbyMock = {
       ;(round as MockMatchRound & { playerFinalizedAt?: number }).playerFinalizedAt = Date.now()
       const result = roundResultView(lobby, round, memberId)
       match.results.push(result)
-      return delay({ finalized: true, attemptsRemaining: 0, result }, 400)
+      return delay({ finalized: true, attemptsRemaining: 0, attemptsUsed }, 400)
     }
-    return delay({ finalized: false, attemptsRemaining: rules.attemptsPerRound - attemptsUsed })
+    return delay({ finalized: false, attemptsRemaining: rules.attemptsPerRound - attemptsUsed, attemptsUsed })
   },
 
   async unlock(code: string, roundNumber: number, token: string): Promise<LobbyMatchResponse> {
@@ -433,12 +452,12 @@ export const lobbyMock = {
     const memberId = requireMember(lobby, token)
     const round = lobby.match!.rounds.get(roundNumber)!
     round.extraDataUnlocked = true
-    const rules = difficultyInfo(lobby.difficulty)
+    const rules = mockGameRules(lobby.difficulty)
     if (rules.extraData.mode === 'points') round.extraDataPointsSpent = rules.extraData.cost
     return delay(responseView(lobby, lobby.match!, memberId))
   },
 
-  async finish(code: string, roundNumber: number, token: string): Promise<{ finalized: boolean; attemptsRemaining: number; result?: LobbyMatchResult }> {
+  async finish(code: string, roundNumber: number, token: string): Promise<LobbyGuessResponse> {
     const lobby = requireLobby(code)
     const memberId = requireMember(lobby, token)
     const round = lobby.match!.rounds.get(roundNumber)!

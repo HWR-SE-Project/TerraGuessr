@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import type { LatLon } from '../../lib/contracts'
-import { browserMapsKey, loadGoogleMaps } from './googleMaps'
-import { Button } from '../ui/Button'
+import { greatCircleSegments, normalizeCoordinates } from '../../lib/geodesic'
 
 export interface MapResult {
   actual: LatLon
@@ -18,19 +18,38 @@ export interface MapMarker {
   color?: string
 }
 
-// The guessing map: an interactive world map for placing a guess, or a read-only
-// reveal map for showing results. Google Maps JavaScript API under the hood.
+const DEFAULT_TILE_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+const DEFAULT_ATTRIBUTION = 'Tiles &copy; Esri'
+const PHYSICAL_TILE_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}'
+const PHYSICAL_ATTRIBUTION = 'Tiles &copy; Esri &mdash; US National Park Service'
 
+function pinIcon(color: string, size = 20): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    html: `<span style="display:block;width:${size}px;height:${size}px;border-radius:9999px;background:${color};border:3px solid #ffffff;box-shadow:0 2px 8px rgba(5,3,20,0.45);"></span>`,
+  })
+}
+
+/**
+ * Interactive world guessing map & read-only result reveal map backed by
+ * Leaflet + Esri World Street Map raster tiles (English labels, country borders,
+ * zero API keys), switching to Esri World Physical Map when borders are disabled.
+ */
 export function GuessMap({
   guess,
+  submittedGuesses = [],
   onChange,
   results = [],
   markers = [],
   interactive = true,
   countryBorders = true,
-  fallback,
 }: {
   guess?: LatLon | null
+  submittedGuesses?: LatLon[]
   onChange?: (point: LatLon) => void
   results?: MapResult[]
   markers?: MapMarker[]
@@ -39,14 +58,14 @@ export function GuessMap({
   fallback?: ReactNode
 }) {
   const container = useRef<HTMLDivElement>(null)
-  const map = useRef<google.maps.Map | null>(null)
-  const guessMarker = useRef<google.maps.Marker | null>(null)
-  const overlayRef = useRef<(google.maps.Marker | google.maps.Polyline)[]>([])
-  const extraMarkers = useRef<google.maps.Marker[]>([])
+  const mapRef = useRef<L.Map | null>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
+  const guessMarkerRef = useRef<L.Marker | null>(null)
+  const submittedLayerRef = useRef<L.LayerGroup | null>(null)
+  const revealLayerRef = useRef<L.LayerGroup | null>(null)
+  const drawnReveal = useRef<string | null>(null)
   const canSelect = useRef(interactive)
   const onChangeRef = useRef(onChange)
-  const [error, setError] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     canSelect.current = interactive
@@ -55,202 +74,177 @@ export function GuessMap({
     onChangeRef.current = onChange
   }, [onChange])
 
-  const resultsSignature = results
-    .map((r) => `${r.actual.lat},${r.actual.lon},${r.guess?.lat ?? ''},${r.guess?.lon ?? ''}`)
-    .join('|')
-  const markersSignature = markers
-    .map((m) => `${m.position.lat},${m.position.lon},${m.color ?? ''},${m.label ?? ''}`)
-    .join('|')
+  const revealSignature = JSON.stringify([results, markers])
+  const submittedSignature = JSON.stringify(submittedGuesses)
 
-  // Initialize the map once.
+  // Initialize Leaflet map once.
   useEffect(() => {
-    if (!browserMapsKey()) {
-      setError('World map unavailable')
-      return
-    }
-    let cancelled = false
-    const overlays: (google.maps.Marker | google.maps.Polyline)[] = []
-    void loadGoogleMaps()
-      .then((maps) => {
-        if (cancelled || !container.current) return
-        const instance = new maps.Map(container.current, {
-          center: { lat: 20, lng: 0 },
-          zoom: 0,
-          minZoom: 0,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-          clickableIcons: false,
-          gestureHandling: 'greedy',
-          keyboardShortcuts: false,
-          zoomControl: true,
-          zoomControlOptions: { position: maps.ControlPosition.LEFT_TOP },
-          backgroundColor: '#8ea6b8',
-          styles: countryBorders
-            ? []
-            : [
-                { featureType: 'administrative.country', stylers: [{ visibility: 'off' }] },
-                { featureType: 'administrative.province', stylers: [{ visibility: 'off' }] },
-              ],
-        })
-        map.current = instance
-        instance.addListener('click', (event: google.maps.MapMouseEvent) => {
-          if (canSelect.current && event.latLng) {
-            onChangeRef.current?.({ lat: event.latLng.lat(), lon: event.latLng.lng() })
-          }
-        })
-        setError(null)
-        setReady(true)
-      })
-      .catch((cause: Error) => {
-        if (!cancelled) setError(cause.message)
-      })
+    const el = container.current
+    if (!el) return
+
+    const instance = L.map(el, {
+      center: [20, 0],
+      zoom: 1,
+      minZoom: 1,
+      maxZoom: 14,
+      worldCopyJump: true,
+      maxBounds: [
+        [-85, -Infinity],
+        [85, Infinity],
+      ],
+      maxBoundsViscosity: 0.85,
+      zoomControl: true,
+      attributionControl: true,
+    })
+
+    const submittedLayer = L.layerGroup().addTo(instance)
+    const revealLayer = L.layerGroup().addTo(instance)
+    mapRef.current = instance
+    submittedLayerRef.current = submittedLayer
+    revealLayerRef.current = revealLayer
+
+    instance.on('click', (event: L.LeafletMouseEvent) => {
+      if (!canSelect.current) return
+      onChangeRef.current?.(normalizeCoordinates(event.latlng.lat, event.latlng.lng))
+    })
+
+    const observer =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            instance.invalidateSize({ animate: false })
+          })
+        : null
+    observer?.observe(el)
+
     return () => {
-      cancelled = true
-      overlays.forEach((overlay) => overlay.setMap(null))
-      extraMarkers.current.forEach((overlay) => overlay.setMap(null))
-      extraMarkers.current = []
-      guessMarker.current?.setMap(null)
-      guessMarker.current = null
-      if (map.current) google.maps.event.clearInstanceListeners(map.current)
-      map.current = null
+      observer?.disconnect()
+      drawnReveal.current = null
+      guessMarkerRef.current = null
+      submittedLayerRef.current = null
+      revealLayerRef.current = null
+      tileLayerRef.current = null
+      mapRef.current = null
+      instance.remove()
+    }
+  }, [])
+
+  // Swap tile layer cleanly when countryBorders toggles (e.g. Hard mode physical map).
+  useEffect(() => {
+    const instance = mapRef.current
+    if (!instance) return
+    tileLayerRef.current?.remove()
+    const customUrl = import.meta.env.VITE_MAP_TILE_URL?.trim()
+    const customAttribution = import.meta.env.VITE_MAP_ATTRIBUTION?.trim()
+    const usePhysical = !countryBorders && !customUrl
+    const tileUrl = customUrl || (usePhysical ? PHYSICAL_TILE_URL : DEFAULT_TILE_URL)
+    const attribution =
+      customAttribution || (usePhysical ? PHYSICAL_ATTRIBUTION : DEFAULT_ATTRIBUTION)
+    const layer = L.tileLayer(tileUrl, {
+      maxNativeZoom: usePhysical ? 8 : 19,
+      maxZoom: 19,
+      attribution,
+    }).addTo(instance)
+    tileLayerRef.current = layer
+    return () => {
+      layer.remove()
     }
   }, [countryBorders])
 
-  // Render result pins/lines.
+  // Fit target, viewer guess, and other participants on reveal maps.
   useEffect(() => {
-    if (!ready || !map.current) return
-    void loadGoogleMaps().then((maps) => {
-      if (!map.current) return
-      overlayRef.current.forEach((overlay) => overlay.setMap(null))
-      overlayRef.current = []
-      const bounds = new maps.LatLngBounds()
-      const pin = (point: LatLon, color: string) =>
-        new maps.Marker({
-          map: map.current!,
-          position: { lat: point.lat, lng: point.lon },
-          icon: { path: maps.SymbolPath.CIRCLE, fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3, scale: 9 },
-        })
-      results.forEach((result) => {
-        overlayRef.current.push(pin(result.actual, '#a8e04e'))
-        bounds.extend({ lat: result.actual.lat, lng: result.actual.lon })
-        if (result.guess) {
-          overlayRef.current.push(pin(result.guess, '#a78bfa'))
-          bounds.extend({ lat: result.guess.lat, lng: result.guess.lon })
-          overlayRef.current.push(
-            new maps.Polyline({
-              map: map.current!,
-              path: [result.guess, result.actual].map((p) => ({ lat: p.lat, lng: p.lon })),
-              geodesic: true,
-              strokeColor: '#8b5cf6',
-              strokeOpacity: 0.85,
-              strokeWeight: 3,
-            }),
-          )
-        }
-      })
-      if (results.length) map.current.fitBounds(bounds, 56)
-    })
-  }, [resultsSignature, ready])
+    const instance = mapRef.current
+    const layer = revealLayerRef.current
+    if (!instance || !layer || drawnReveal.current === revealSignature) return
+    drawnReveal.current = revealSignature
+    layer.clearLayers()
 
-  // Participant pins.
-  useEffect(() => {
-    if (!ready || !map.current) return
-    void loadGoogleMaps().then((maps) => {
-      if (!map.current) return
-      extraMarkers.current.forEach((overlay) => overlay.setMap(null))
-      extraMarkers.current = markers.map(
-        (entry) =>
-          new maps.Marker({
-            map: map.current!,
-            position: { lat: entry.position.lat, lng: entry.position.lon },
-            title: entry.title,
-            label: entry.label,
-            icon: {
-              path: maps.SymbolPath.CIRCLE,
-              fillColor: entry.color ?? '#ffb45e',
-              fillOpacity: 1,
-              strokeColor: '#fff',
-              strokeWeight: 3,
-              scale: 9,
-            },
-          }),
-      )
-      if (markers.length) {
-        const bounds = new maps.LatLngBounds()
-        markers.forEach((entry) => bounds.extend({ lat: entry.position.lat, lng: entry.position.lon }))
-        map.current.fitBounds(bounds, 56)
+    const points: [number, number][] = []
+    const addPin = (point: LatLon, color: string, title: string) => {
+      const latLng: [number, number] = [point.lat, point.lon]
+      points.push(latLng)
+      L.marker(latLng, { icon: pinIcon(color, 18), title, interactive: true })
+        .bindTooltip(title, { direction: 'top', offset: [0, -10] })
+        .addTo(layer)
+    }
+
+    for (const result of results) {
+      addPin(result.actual, '#a8e04e', 'Actual location')
+      if (!result.guess) continue
+      addPin(result.guess, '#a78bfa', result.label ?? 'Your guess')
+      for (const segment of greatCircleSegments(result.guess, result.actual)) {
+        L.polyline(segment, {
+          color: '#8b5cf6',
+          opacity: 0.85,
+          weight: 3,
+          dashArray: '6 4',
+        }).addTo(layer)
       }
-    })
-  }, [markersSignature, ready])
+    }
 
-  // Guess marker.
+    for (const marker of markers) {
+      addPin(marker.position, marker.color ?? '#ffb45e', marker.title)
+    }
+
+    if (points.length >= 2) {
+      instance.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 6 })
+    } else if (points.length === 1) {
+      instance.setView(points[0]!, 4)
+    }
+  }, [results, markers, revealSignature])
+
+  // Previously submitted bets in the active round (Best-of-N).
   useEffect(() => {
-    if (!ready || !map.current) return
+    const layer = submittedLayerRef.current
+    if (!layer) return
+    layer.clearLayers()
+    submittedGuesses.forEach((point, index) => {
+      const title = `Submitted guess #${index + 1}`
+      L.marker([point.lat, point.lon], {
+        icon: pinIcon('#38bdf8', 16),
+        title,
+        interactive: true,
+      })
+        .bindTooltip(title, { direction: 'top', offset: [0, -8] })
+        .addTo(layer)
+    })
+  }, [submittedGuesses, submittedSignature])
+
+  // Interactive guess marker.
+  useEffect(() => {
+    const instance = mapRef.current
+    if (!instance) return
     if (!guess) {
-      guessMarker.current?.setMap(null)
-      guessMarker.current = null
+      guessMarkerRef.current?.remove()
+      guessMarkerRef.current = null
       return
     }
-    void loadGoogleMaps().then((maps) => {
-      if (!map.current) return
-      const position = { lat: guess.lat, lng: guess.lon }
-      if (guessMarker.current) {
-        guessMarker.current.setPosition(position)
-        guessMarker.current.setDraggable(interactive)
-      } else {
-        guessMarker.current = new maps.Marker({
-          map: map.current,
-          position,
-          draggable: interactive,
-          title: 'Your guess',
-          icon: {
-            path: maps.SymbolPath.CIRCLE,
-            fillColor: '#8b5cf6',
-            fillOpacity: 1,
-            strokeColor: '#fff',
-            strokeWeight: 3,
-            scale: 10,
-          },
-        })
-        guessMarker.current.addListener('dragend', (event: google.maps.MapMouseEvent) => {
-          if (canSelect.current && event.latLng) {
-            onChangeRef.current?.({ lat: event.latLng.lat(), lon: event.latLng.lng() })
-          }
-        })
-      }
-    })
-  }, [guess, interactive, ready])
+    const latLng: [number, number] = [guess.lat, guess.lon]
+    if (guessMarkerRef.current) {
+      guessMarkerRef.current.setLatLng(latLng)
+      if (interactive) guessMarkerRef.current.dragging?.enable()
+      else guessMarkerRef.current.dragging?.disable()
+    } else {
+      const marker = L.marker(latLng, {
+        icon: pinIcon('#8b5cf6', 20),
+        draggable: interactive,
+        title: 'Your guess',
+      }).addTo(instance)
+      marker.on('dragend', () => {
+        if (!canSelect.current) return
+        const pos = marker.getLatLng()
+        onChangeRef.current?.(normalizeCoordinates(pos.lat, pos.lng))
+      })
+      guessMarkerRef.current = marker
+    }
+  }, [guess, interactive])
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden bg-[#8ea6b8]">
       <div
         ref={container}
         className="h-full w-full"
         aria-label={interactive ? 'World map. Click to place your guess.' : 'Round result map'}
       />
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-space-800 p-6 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {fallback ? (
-              fallback
-            ) : (
-              <>
-                <span className="text-2xl">🗺️</span>
-                <p className="max-w-xs text-sm font-semibold text-muted">{error}</p>
-                <Button variant="tinted" size="sm" onClick={() => setError(null)}>
-                  Retry map
-                </Button>
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

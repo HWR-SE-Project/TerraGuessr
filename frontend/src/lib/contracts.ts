@@ -65,9 +65,40 @@ export interface AdditionalDataAccess {
 export interface Candidate {
   id: string
   name: string | null
-  lat: number
-  lon: number
   region: string
+}
+
+export type GuessInput = LatLon | { candidateId: string }
+
+export interface EvaluatedAttempt {
+  attemptNumber: number
+  guess: LatLon
+  distanceKm: number
+  score: number
+  isBest: boolean
+}
+
+export type Biome =
+  | 'desert'
+  | 'forest'
+  | 'mountains'
+  | 'tundra'
+  | 'coast'
+  | 'grasslands'
+  | 'urban'
+
+export type SceneWeather = 'clear' | 'cloudy' | 'fog' | 'rain' | 'storm' | 'snow'
+export type SceneLighting = 'day' | 'dusk' | 'night'
+export type TemperatureBand = 'freezing' | 'cold' | 'mild' | 'warm' | 'hot'
+export type WindBand = 'calm' | 'breezy' | 'windy'
+
+export interface RoundScene {
+  biome: Biome
+  weather: SceneWeather
+  lighting: SceneLighting
+  temperatureBand: TemperatureBand
+  windBand: WindBand
+  seed: number
 }
 
 // --- Singleplayer -----------------------------------------------------------
@@ -75,8 +106,14 @@ export interface Candidate {
 export interface StreetRound {
   id: string
   number: number
-  panoId: string
+  scene: RoundScene
   candidates?: Candidate[]
+  // Older singleplayer servers omit these fields.
+  rules?: GameRules
+  selection?: LatLon | null
+  selectedCandidateId?: string | null
+  submittedGuesses?: LatLon[]
+  submittedCandidateIds?: string[]
   startedAt: string | null
   endsAt: string | null
   attemptsUsed: number
@@ -89,9 +126,11 @@ export interface StreetResult {
   number: number
   guess: LatLon | null
   actual: LatLon
+  placeName?: string | null
   distanceKm: number | null
   score: number
   extraDataPointsSpent?: number
+  attempts?: EvaluatedAttempt[]
 }
 
 export interface StreetGuessResponse {
@@ -117,7 +156,7 @@ export interface StreetCredentials {
 
 export type LobbyStatus = 'waiting' | 'playing' | 'finished'
 
-export interface LobbyRules {
+export interface GameRules {
   timeLimitSeconds: number
   attemptsPerRound: number
   selectionMode: SelectionMode
@@ -126,6 +165,20 @@ export interface LobbyRules {
     | { mode: 'free' }
     | { mode: 'points'; cost: number }
     | { mode: 'time'; cost: number }
+}
+
+export type LobbyRules = GameRules
+
+export interface GameRulesCatalog {
+  difficulties: Record<Difficulty, GameRules>
+  scoring: {
+    maxScore: number
+    fullScoreKm: number
+    zeroScoreKm: number
+    exampleDistanceStepKm: number
+    exampleScores: number[]
+    londonParisKm: number
+  }
 }
 
 export interface LobbyMember {
@@ -155,7 +208,7 @@ export interface LobbySession {
 export interface LobbyMatchRound {
   id: string
   number: number
-  panoId: string
+  scene: RoundScene
   candidates?: Candidate[]
   endsAt: string | null
   attemptsUsed: number
@@ -164,6 +217,7 @@ export interface LobbyMatchRound {
 }
 
 export interface LobbyParticipantGuess {
+  memberId: string
   displayName: string | null
   isHost: boolean
   isYou: boolean
@@ -179,12 +233,15 @@ export interface LobbyMatchResult {
   distanceKm: number | null
   guess: LatLon | null
   actual: LatLon
+  placeName?: string | null
   attemptsUsed: number
   extraDataPointsSpent?: number
+  attempts?: EvaluatedAttempt[]
   guesses: LobbyParticipantGuess[]
 }
 
 export interface LobbyLeaderboardEntry {
+  memberId: string
   rank: number
   displayName: string | null
   isHost: boolean
@@ -193,7 +250,15 @@ export interface LobbyLeaderboardEntry {
   roundsCompleted: number
 }
 
+export interface LobbyMatchContinuePrompt {
+  deadline: string | null
+  readyPlayers: string[]
+  pendingPlayers: string[]
+  youRequested: boolean
+}
+
 export interface LobbyMatch {
+  matchId?: string
   status: LobbyStatus
   currentRound: number | null
   roundsTotal: number
@@ -203,16 +268,21 @@ export interface LobbyMatch {
   endsAt: string | null
   round: LobbyMatchRound | null
   roundComplete: boolean
+  reviewEndsAt: string | null
   pendingPlayers: string[]
   you: {
     attemptsUsed: number
     attemptsTotal: number
     selection: LatLon | null
+    selectedCandidateId?: string | null
+    submittedGuesses?: LatLon[]
+    submittedCandidateIds?: string[]
     finalized: boolean
     result: LobbyMatchResult | null
   }
   leaderboard: LobbyLeaderboardEntry[]
   results: LobbyMatchResult[]
+  continuePrompt?: LobbyMatchContinuePrompt | null
 }
 
 export interface LobbyMatchResponse {
@@ -223,7 +293,7 @@ export interface LobbyMatchResponse {
 export interface LobbyGuessResponse {
   finalized: boolean
   attemptsRemaining: number
-  result?: LobbyMatchResult
+  attemptsUsed: number
 }
 
 // --- Auth / account ---------------------------------------------------------

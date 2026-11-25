@@ -1,78 +1,63 @@
-import type { Difficulty, LobbyRules } from './contracts'
+import type { Difficulty, GameRules } from './contracts'
 
-// Single source of truth for difficulty presentation and rules. The backend
-// owns the authoritative rules (backend/src/domain/gameRules.ts); this mirrors
-// them for the UI and for the Phase 1 mock service.
-
-export interface DifficultyInfo {
+interface DifficultyInfo {
   id: Difficulty
   label: string
   tagline: string
   description: string
-  detail: string[]
-  selection: string
-  timeLimitSeconds: number
-  attemptsPerRound: number
-  selectionMode: 'list' | 'map'
-  countryBorders: boolean
-  extraData: { mode: 'free' } | { mode: 'points'; cost: number } | { mode: 'time'; cost: number }
 }
 
-export const DIFFICULTY_LEVELS: DifficultyInfo[] = [
-  {
+const selectionCopy = {
+  list: 'Pick a city',
+  map: 'Drop a pin on the world map',
+}
+
+const clueCopy = {
+  free: ' and explore with the extra clues unlocked.',
+  points: ' and decide whether to spend points on clues.',
+  time: '. Unlocking extra clues costs time.',
+}
+
+// Keep the card copy visible while the rules catalog loads.
+const difficultyCards: Record<Difficulty, DifficultyInfo> = {
+  easy: {
     id: 'easy',
     label: 'Easy',
     tagline: 'Relaxed exploring',
-    description: 'Pick from a shortlist of six cities. Every clue is free — no pressure.',
-    detail: ['7 min', '3 attempts', 'Free clues'],
-    selection: 'Pick from a list',
-    timeLimitSeconds: 7 * 60,
-    attemptsPerRound: 3,
-    selectionMode: 'list',
-    countryBorders: true,
-    extraData: { mode: 'free' },
+    description: selectionCopy.list + clueCopy.free,
   },
-  {
+  medium: {
     id: 'medium',
     label: 'Medium',
     tagline: 'A real challenge',
-    description: 'Pin it on the world map with country borders. Weather clues cost points.',
-    detail: ['4 min', '2 attempts', 'Clues cost 100 pts'],
-    selection: 'World map',
-    timeLimitSeconds: 4 * 60,
-    attemptsPerRound: 2,
-    selectionMode: 'map',
-    countryBorders: true,
-    extraData: { mode: 'points', cost: 100 },
+    description: selectionCopy.map + clueCopy.points,
   },
-  {
+  hard: {
     id: 'hard',
     label: 'Hard',
-    tagline: 'For true explorers',
-    description: 'One shot, tight clock. Unlock extra clues at the cost of seconds.',
-    detail: ['2 min', '1 attempt', 'Clues cost 20 s'],
-    selection: 'World map',
-    timeLimitSeconds: 2 * 60,
-    attemptsPerRound: 1,
-    selectionMode: 'map',
-    countryBorders: true,
-    extraData: { mode: 'time', cost: 20 },
+    tagline: 'One shot',
+    description: selectionCopy.map + clueCopy.time,
   },
-]
-
-export function difficultyInfo(difficulty: Difficulty): DifficultyInfo {
-  return DIFFICULTY_LEVELS.find((level) => level.id === difficulty) ?? DIFFICULTY_LEVELS[1]
 }
 
-export function lobbyRules(difficulty: Difficulty): LobbyRules {
-  const info = difficultyInfo(difficulty)
+export const DIFFICULTY_LEVELS: readonly DifficultyInfo[] = Object.values(difficultyCards)
+
+export function difficultyInfo(difficulty: Difficulty, rules?: GameRules): DifficultyInfo {
+  const card = difficultyCards[difficulty] ?? difficultyCards.medium
+  if (!rules) return card
   return {
-    timeLimitSeconds: info.timeLimitSeconds,
-    attemptsPerRound: info.attemptsPerRound,
-    selectionMode: info.selectionMode,
-    countryBorders: info.countryBorders,
-    extraData: info.extraData,
+    ...card,
+    tagline: card.id === 'hard' && rules.attemptsPerRound !== 1 ? 'For true explorers' : card.tagline,
+    description: selectionCopy[rules.selectionMode] + clueCopy[rules.extraData.mode],
   }
+}
+
+export function difficultyDetails(rules: GameRules): string[] {
+  const { timeLimitSeconds, attemptsPerRound, selectionMode, extraData } = rules
+  const time = timeLimitSeconds % 60 === 0 ? `${timeLimitSeconds / 60} min` : `${timeLimitSeconds} s`
+  const selection = selectionMode === 'list' ? 'Pick from a city list' : 'World map'
+  const cost = extraData.mode === 'free' ? 'Free clues' : `Clues cost ${extraData.cost} ${extraData.mode === 'points' ? 'pts' : 's'}`
+  return [time, `${attemptsPerRound} ${attemptsPerRound === 1 ? 'attempt' : 'attempts'}`, selection, cost]
 }
 
 export const DEFAULT_DIFFICULTY: Difficulty = 'medium'
