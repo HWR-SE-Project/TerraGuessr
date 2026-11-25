@@ -8,7 +8,9 @@ import { DifficultyPicker, DifficultySummary } from '../../components/game/Diffi
 import { Icon } from '../../components/ui/Icon'
 import { api } from '../../services'
 import { setLobbySession } from '../../state/lobby'
+import { useSession } from '../../state/session'
 import { readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
+import { readOrCreateGuestName, storeGuestName } from '../../lib/playerName'
 import { useGameRules } from '../../state/gameRules'
 import type { Difficulty, LobbySession } from '../../lib/contracts'
 import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
@@ -20,6 +22,20 @@ export function MultiplayerPage() {
   const [params] = useSearchParams()
   const initialMode: Mode = params.get('mode') === 'join' ? 'join' : 'create'
   const [mode, setMode] = useState<Mode>(initialMode)
+  const { status, user } = useSession()
+  const [guestName] = useState(() => readOrCreateGuestName())
+  const [customName, setCustomName] = useState<string | null>(null)
+
+  const defaultName = status === 'authed' && user?.displayName
+    ? user.displayName
+    : status === 'guest'
+      ? guestName
+      : ''
+  const displayName = customName ?? defaultName
+
+  function handleDisplayNameSubmit(submittedName?: string) {
+    if (status === 'guest' && submittedName) storeGuestName(submittedName)
+  }
 
   function enterLobby({ lobby, lobbyToken }: LobbySession) {
     setLobbySession({ code: lobby.code, token: lobbyToken, isHost: lobby.youAreHost })
@@ -53,26 +69,59 @@ export function MultiplayerPage() {
         </motion.div>
 
         <motion.div variants={fadeUp} className="mt-4">
-          {mode === 'create' ? <CreateLobby onEntered={enterLobby} /> : <JoinLobby onEntered={enterLobby} />}
+          {mode === 'create' ? (
+            <CreateLobby
+              displayName={displayName}
+              onDisplayNameChange={setCustomName}
+              onDisplayNameSubmit={handleDisplayNameSubmit}
+              onEntered={enterLobby}
+            />
+          ) : (
+            <JoinLobby
+              displayName={displayName}
+              onDisplayNameChange={setCustomName}
+              onDisplayNameSubmit={handleDisplayNameSubmit}
+              onEntered={enterLobby}
+            />
+          )}
         </motion.div>
       </motion.div>
     </div>
   )
 }
 
-function CreateLobby({ onEntered }: { onEntered: (session: LobbySession) => void }) {
+function CreateLobby({
+  displayName,
+  onDisplayNameChange,
+  onDisplayNameSubmit,
+  onEntered,
+}: {
+  displayName: string
+  onDisplayNameChange: (value: string) => void
+  onDisplayNameSubmit: (submittedName?: string) => void
+  onEntered: (session: LobbySession) => void
+}) {
   const [difficulty, setDifficulty] = useState<Difficulty>(readStoredDifficulty())
   const [rounds, setRounds] = useState(5)
   const rules = useGameRules()
 
-  async function create(displayName?: string) {
-    const session = await api.lobby.create({ difficulty, roundsTotal: rounds, displayName })
+  async function create(submittedName?: string) {
+    const session = await api.lobby.create({ difficulty, roundsTotal: rounds, displayName: submittedName })
     storeDifficulty(difficulty)
     return session
   }
 
   return (
-    <LobbyEntryForm action={create} onEntered={onEntered} label="Create lobby" icon="plus" errorMessage="Could not create the lobby.">
+    <LobbyEntryForm
+      displayName={displayName}
+      onDisplayNameChange={onDisplayNameChange}
+      onDisplayNameSubmit={onDisplayNameSubmit}
+      action={create}
+      onEntered={onEntered}
+      label="Create lobby"
+      icon="plus"
+      errorMessage="Could not create the lobby."
+    >
       <div>
         <span className="text-sm font-bold text-cream/90">Difficulty</span>
         <div className="mt-2">
@@ -94,12 +143,25 @@ function CreateLobby({ onEntered }: { onEntered: (session: LobbySession) => void
   )
 }
 
-function JoinLobby({ onEntered }: { onEntered: (session: LobbySession) => void }) {
+function JoinLobby({
+  displayName,
+  onDisplayNameChange,
+  onDisplayNameSubmit,
+  onEntered,
+}: {
+  displayName: string
+  onDisplayNameChange: (value: string) => void
+  onDisplayNameSubmit: (submittedName?: string) => void
+  onEntered: (session: LobbySession) => void
+}) {
   const [code, setCode] = useState('')
 
   return (
     <LobbyEntryForm
-      action={(displayName) => api.lobby.join(code, displayName)}
+      displayName={displayName}
+      onDisplayNameChange={onDisplayNameChange}
+      onDisplayNameSubmit={onDisplayNameSubmit}
+      action={(submittedName) => api.lobby.join(code, submittedName)}
       onEntered={onEntered}
       label="Join lobby"
       icon="users"
@@ -121,7 +183,21 @@ function JoinLobby({ onEntered }: { onEntered: (session: LobbySession) => void }
   )
 }
 
-function LobbyEntryForm({ action, onEntered, label, icon, errorMessage, disabled = false, children }: {
+function LobbyEntryForm({
+  displayName,
+  onDisplayNameChange,
+  onDisplayNameSubmit,
+  action,
+  onEntered,
+  label,
+  icon,
+  errorMessage,
+  disabled = false,
+  children,
+}: {
+  displayName: string
+  onDisplayNameChange: (value: string) => void
+  onDisplayNameSubmit: (submittedName?: string) => void
   action: (displayName?: string) => Promise<LobbySession>
   onEntered: (session: LobbySession) => void
   label: string
@@ -131,7 +207,6 @@ function LobbyEntryForm({ action, onEntered, label, icon, errorMessage, disabled
   children: ReactNode
 }) {
   const nameId = useId()
-  const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pending = useRef(false)
@@ -149,7 +224,9 @@ function LobbyEntryForm({ action, onEntered, label, icon, errorMessage, disabled
     setLoading(true)
     setError(null)
     try {
-      const session = await action(displayName || undefined)
+      const submittedName = displayName.trim() || undefined
+      onDisplayNameSubmit(submittedName)
+      const session = await action(submittedName)
       if (mounted.current) onEntered(session)
     } catch (cause) {
       if (mounted.current) setError(cause instanceof Error ? cause.message : errorMessage)
@@ -162,7 +239,7 @@ function LobbyEntryForm({ action, onEntered, label, icon, errorMessage, disabled
   return (
     <form onSubmit={submit} className="surface flex flex-col gap-3 p-5">
       <Field label="Your name" htmlFor={nameId}>
-        <Input id={nameId} value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="e.g. Wandering Nix" maxLength={40} icon="person" />
+        <Input id={nameId} value={displayName} onChange={(event) => onDisplayNameChange(event.target.value)} placeholder="e.g. Wandering Nix" maxLength={40} icon="person" />
       </Field>
       {children}
       {error && (

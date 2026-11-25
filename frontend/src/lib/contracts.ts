@@ -184,6 +184,7 @@ export interface GameRulesCatalog {
 export interface LobbyMember {
   displayName: string | null
   isHost: boolean
+  isYou?: boolean
   joinedAt: string
 }
 

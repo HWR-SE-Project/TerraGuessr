@@ -89,7 +89,7 @@ export function LobbyPage() {
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {lobby.members.map((member, index) => {
               const isHost = member.isHost
-              const isYou = member.displayName === 'You'
+              const isYou = Boolean(member.isYou)
               return (
                 <motion.div
                   key={`${member.displayName}-${index}`}

@@ -19,6 +19,7 @@ import type {
 } from '../../lib/contracts'
 import { LOCATIONS, locationById, mockWeather, randomLocation } from './data'
 import { haversineKm, mockGameRules, scoreForDistance } from './gameRules'
+import { disambiguateDisplayName } from '../../lib/playerName'
 import { lobbies, lobbiesByCode } from './db'
 import type { MockLobby, MockMatch, MockMatchRound } from './db'
 
@@ -68,6 +69,7 @@ function toLobby(lobby: MockLobby, viewerId: string): Lobby {
     members: lobby.members.map((member) => ({
       displayName: member.displayName,
       isHost: member.isHost,
+      isYou: member.id === viewerId,
       joinedAt: member.joinedAt,
     })),
     youAreHost: lobby.hostId === viewerId,
@@ -101,9 +103,13 @@ function createBotMembers(lobby: MockLobby, count: number) {
   const shuffled = [...BOT_NAMES].sort(() => Math.random() - 0.5)
   for (let i = 0; i < count; i++) {
     const id = `bot_${Math.random().toString(36).slice(2, 10)}`
+    const displayName = disambiguateDisplayName(
+      shuffled[i % shuffled.length],
+      lobby.members.map((member) => member.displayName),
+    )
     lobby.members.push({
       id,
-      displayName: shuffled[i % shuffled.length],
+      displayName,
       isHost: false,
       joinedAt: new Date(Date.now() + i * 900).toISOString(),
     })
@@ -361,9 +367,13 @@ export const lobbyMock = {
     const lobby = requireLobby(code)
     const memberId = `member_${Math.random().toString(36).slice(2, 10)}`
     const token = `lt_${Math.random().toString(36).slice(2, 16)}`
+    const uniqueDisplayName = disambiguateDisplayName(
+      displayName?.trim() || 'Player',
+      lobby.members.map((member) => member.displayName),
+    )
     lobby.members.push({
       id: memberId,
-      displayName: displayName?.trim() || 'Player',
+      displayName: uniqueDisplayName,
       isHost: false,
       joinedAt: new Date().toISOString(),
     })
