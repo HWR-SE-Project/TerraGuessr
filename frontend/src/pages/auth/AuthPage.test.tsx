@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthPage } from './AuthPage'
 import { useSession } from '../../state/session'
+import { RESEND_COOLDOWN_SECONDS } from './useResendCooldown'
 
 const auth = vi.hoisted(() => ({
   getConfig: vi.fn(),
@@ -33,6 +34,10 @@ beforeEach(() => {
   auth.getGoogleAuthUrl.mockReturnValue('/api/auth/google')
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('AuthPage registration verification flow', () => {
   it('does not establish an authenticated session when email verification is required', async () => {
     auth.register.mockResolvedValue({
@@ -60,6 +65,7 @@ describe('AuthPage registration verification flow', () => {
     fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Explorer' } })
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.test' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct horse battery' } })
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeVisible()
@@ -67,9 +73,21 @@ describe('AuthPage registration verification flow', () => {
     expect(screen.getByTestId('session-status')).toHaveTextContent('guest')
     expect(auth.getSession).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Resend verification email' }))
+    // Resend starts in cooldown right after registration sends the initial email.
+    const coolingBtn = screen.getByRole('button', { name: /Resend verification email \(30s\)/ })
+    expect(coolingBtn).toBeDisabled()
+
+    await act(async () => {
+      vi.advanceTimersByTime(RESEND_COOLDOWN_SECONDS * 1000)
+    })
+
+    const resendBtn = screen.getByRole('button', { name: 'Resend verification email' })
+    expect(resendBtn).toBeEnabled()
+    fireEvent.click(resendBtn)
+
     expect(await screen.findByRole('status')).toBeVisible()
     expect(auth.resendVerification).toHaveBeenCalledWith('new@example.test')
+    expect(screen.getByRole('button', { name: /Resend verification email \(30s\)/ })).toBeDisabled()
   })
 })
 

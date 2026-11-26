@@ -129,6 +129,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(cors, {
     origin: config.corsOrigin,
     credentials: Boolean(config.corsOrigin),
+    exposedHeaders: ['Retry-After'],
   });
   registerAuthRoutes(app, { config });
   registerStatisticsRoutes(app);

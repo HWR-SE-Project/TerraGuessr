@@ -59,4 +59,18 @@ export const RATE_LIMITS = {
   write: { max: 120, timeWindow: '1 minute' },
   /** Interactive pin/city selection changes during an active round (R08). */
   selection: { max: 240, timeWindow: '1 minute' },
+  /**
+   * Coarse per-IP ceiling for unauthenticated email-sending auth endpoints
+   * (password reset request & verification resend). Tight per-email throttling
+   * runs separately in `EmailRateLimiter` so shared IPs / NAT and multi-account
+   * testing aren't immediately locked out.
+   */
+  authEmailIp: { max: 20, timeWindow: '1 hour' },
+} as const;
+
+/** Strict per-email throttling for password-reset and verification-resend endpoints. */
+export const AUTH_EMAIL_RATE_LIMIT = {
+  maxPerWindow: 5,
+  windowMs: 60 * 60 * 1000,
+  cooldownMs: 30 * 1000,
 } as const;
