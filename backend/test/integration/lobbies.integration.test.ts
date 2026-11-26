@@ -577,7 +577,7 @@ describe('lobby lifecycle (integration)', () => {
     expect(guestView.statusCode).toBe(404);
   });
 
-  it('shares a five-second review and starts the next round with its full clock', async () => {
+  it('shares a twenty-second review and starts the next round with its full clock', async () => {
     const host = await createLobby('easy', 'Host');
     const guest = (await joinLobby(host.lobby.code, 'Guest')).json() as LobbyBody;
     const code = host.lobby.code;

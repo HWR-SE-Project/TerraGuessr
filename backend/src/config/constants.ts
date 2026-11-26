@@ -31,7 +31,7 @@ export const LOBBY_CODE_LENGTH = 6;
 export const LOBBY_ROUNDS_TOTAL = DEFAULT_ROUNDS_TOTAL;
 export const MAX_LOBBY_MEMBERS = 16;
 export const LOBBY_TTL_MS = 2 * 60 * 60 * 1000;
-export const LOBBY_ROUND_REVIEW_MS = 5_000;
+export const LOBBY_ROUND_REVIEW_MS = 20_000;
 
 /**
  * Once a player requests a rematch after the final round, other players get
