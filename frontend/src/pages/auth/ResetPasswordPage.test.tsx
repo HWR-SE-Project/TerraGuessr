@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../services'
@@ -47,6 +47,7 @@ describe('ResetPasswordPage', () => {
 
     // Starts disabled with 30s countdown right after sending.
     expect(screen.getByRole('button', { name: /Resend recovery email \(30s\)/ })).toBeDisabled()
+    await waitFor(() => expect(vi.getTimerCount()).toBeGreaterThan(0))
 
     await act(async () => {
       vi.advanceTimersByTime(RESEND_COOLDOWN_SECONDS * 1000)
@@ -88,6 +89,7 @@ describe('ResetPasswordPage', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     fireEvent.click(screen.getByRole('button', { name: 'Send instructions' }))
     expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeVisible()
+    await waitFor(() => expect(vi.getTimerCount()).toBeGreaterThan(0))
 
     await act(async () => {
       vi.advanceTimersByTime(RESEND_COOLDOWN_SECONDS * 1000)

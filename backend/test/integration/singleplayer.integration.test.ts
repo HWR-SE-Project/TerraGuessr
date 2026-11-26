@@ -1285,6 +1285,8 @@ describe('next-round prefetch', () => {
         method: 'POST', url: `${base2}/rounds/${roundOne.id}/guess`, headers: headers2,
         payload: { lat: 10, lon: 20, final: true },
       });
+      // Drain the background prefetch kicked off by finalizeRound before resetting DB state.
+      await pendingStreetPrefetch(g2.id, 2);
       // Force Round 2 to prepare from scratch while weather is failing everywhere.
       await db.streetGame.update({
         where: { id: g2.id },
