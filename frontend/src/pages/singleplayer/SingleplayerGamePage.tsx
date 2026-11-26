@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Difficulty, GuessInput, StreetResult, StreetRound } from '../../lib/contracts'
 import { api } from '../../services'
-import { useGameCredentials, setGameCredentials } from '../../state/game'
+import { consumeInitialGameSession, setGameCredentials, useGameCredentials } from '../../state/game'
 import { RoundResultDetails } from '../../components/game/RoundResultDetails'
 import { RoundStage } from '../../components/game/RoundStage'
 import { Button, Spinner } from '../../components/ui/Button'
@@ -16,14 +16,31 @@ type Phase = 'loading' | 'playing' | 'result' | 'summary' | 'error'
 export function SingleplayerGamePage() {
   const navigate = useNavigate()
   const credentials = useGameCredentials()
+  const [preloadedSession] = useState(() =>
+    credentials ? consumeInitialGameSession(credentials.id) : null,
+  )
+  const hydratedGameId = useRef<string | null>(
+    preloadedSession?.activeRound ? preloadedSession.id : null,
+  )
 
-  const [phase, setPhase] = useState<Phase>('loading')
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
-  const [roundsTotal, setRoundsTotal] = useState<number | null>(null)
-  const [round, setRound] = useState<StreetRound | null>(null)
-  const [results, setResults] = useState<StreetResult[]>([])
+  const [phase, setPhase] = useState<Phase>(() =>
+    preloadedSession?.activeRound ? 'playing' : 'loading',
+  )
+  const [difficulty, setDifficulty] = useState<Difficulty>(
+    () => preloadedSession?.difficulty ?? 'medium',
+  )
+  const [roundsTotal, setRoundsTotal] = useState<number | null>(
+    () => preloadedSession?.roundsTotal ?? null,
+  )
+  const [round, setRound] = useState<StreetRound | null>(
+    () => preloadedSession?.activeRound ?? null,
+  )
+  const [results, setResults] = useState<StreetResult[]>(
+    () => preloadedSession?.results ?? [],
+  )
   const [expiredRoundId, setExpiredRoundId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [slowLoading, setSlowLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exitOpen, setExitOpen] = useState(false)
   const ended = useRef(false)
@@ -53,8 +70,17 @@ export function SingleplayerGamePage() {
   }, [credentials])
 
   useEffect(() => {
+    if (phase !== 'loading') return
+    const timer = window.setTimeout(() => setSlowLoading(true), 3_000)
+    return () => window.clearTimeout(timer)
+  }, [phase])
+
+  useEffect(() => {
     if (!credentials) {
       if (!ended.current) navigate('/singleplayer', { replace: true })
+      return
+    }
+    if (hydratedGameId.current === credentials.id) {
       return
     }
     let active = true
@@ -175,11 +201,23 @@ export function SingleplayerGamePage() {
     try {
       const created = await api.singleplayer.create(difficulty, roundsTotal)
       ended.current = false
-      setResults([])
-      setRound(null)
       setExpiredRoundId(null)
-      setPhase('loading')
-      setGameCredentials(created)
+      setSlowLoading(false)
+      if (created.session?.activeRound) {
+        hydratedGameId.current = created.id
+        setDifficulty(created.session.difficulty)
+        setRoundsTotal(created.session.roundsTotal ?? null)
+        setResults(created.session.results)
+        setRound(created.session.activeRound)
+        setPhase('playing')
+        setGameCredentials({ id: created.id, playerToken: created.playerToken })
+      } else {
+        hydratedGameId.current = null
+        setResults([])
+        setRound(null)
+        setPhase('loading')
+        setGameCredentials({ id: created.id, playerToken: created.playerToken })
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not start a new game.')
     } finally {
@@ -220,9 +258,14 @@ export function SingleplayerGamePage() {
       error={phase === 'error' ? null : error}
     >
       {phase === 'loading' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center">
           <Spinner className="size-8 text-lime-300" />
           <p className="text-muted">Preparing your round…</p>
+          {slowLoading && (
+            <p role="status" aria-live="polite" className="text-xs text-subtle">
+              Waking up the server — first load may take a moment…
+            </p>
+          )}
         </div>
       )}
 

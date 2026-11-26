@@ -39,6 +39,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    command: ["sh", "-c", "npx prisma migrate deploy && exec node dist/server.js"]
     environment:
       # Keep the test stack out of production mode: cookies stay usable over
       # plain HTTP and registration falls back to auto-verification when no

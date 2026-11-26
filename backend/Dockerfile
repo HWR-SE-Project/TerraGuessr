@@ -51,6 +51,7 @@ USER node
 
 EXPOSE 3000
 
-# Apply pending migrations, then exec the HTTP server so Node runs as PID 1
-# and receives SIGTERM/SIGINT directly for graceful shutdown.
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/server.js"]
+# Start the HTTP server directly as PID 1 so Render cold starts don't pay the
+# `npx prisma migrate deploy` penalty on every wake-up (production migrations
+# run as a dedicated CI deploy step; Docker Compose stacks override `command`).
+CMD ["node", "dist/server.js"]

@@ -76,6 +76,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    command: ["sh", "-c", "npx prisma migrate deploy && exec node dist/server.js"]
     restart: unless-stopped
     environment:
       NODE_ENV: production

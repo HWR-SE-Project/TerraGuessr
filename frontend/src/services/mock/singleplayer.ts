@@ -125,6 +125,10 @@ export const singleplayerMock = {
     return delay({ available: true, provider: 'google', serverKeyConfigured: true })
   },
 
+  async warm(): Promise<void> {
+    return undefined
+  },
+
   async create(difficulty: Difficulty = 'medium', roundsTotal: number | null = null): Promise<StreetCredentials> {
     if (
       roundsTotal !== null &&

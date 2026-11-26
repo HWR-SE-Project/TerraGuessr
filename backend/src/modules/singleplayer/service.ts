@@ -68,6 +68,10 @@ import {
   pendingStreetPrefetch,
   prefetchNextStreetRound,
 } from './prefetch.js';
+import {
+  createRoundWarmPool,
+  type RoundWarmPool,
+} from './warmPool.js';
 import { PanoramaError } from './providerErrors.js';
 import type { GeographicIntelligence } from '../intelligence/contract.js';
 import { createIntelligenceProvider } from '../intelligence/service.js';
@@ -133,6 +137,7 @@ export interface SingleplayerServiceOptions {
   provider?: PanoramaProvider;
   locate?: PanoramaLocator;
   intelligence?: IntelligenceLookup;
+  warmPool?: RoundWarmPool;
 }
 
 export function conflict(message: string): AppError {
@@ -240,6 +245,9 @@ export function createSingleplayerService(
   const provider = options.provider ?? catalogLocationProvider();
   const locate = options.locate;
   const intelligence = options.intelligence ?? createIntelligenceProvider();
+  const warmPool =
+    options.warmPool ??
+    createRoundWarmPool({ provider, intelligence, locate });
 
   async function resolveRoundPoint(
     round: Pick<StreetRound, 'panoId' | 'targetLat' | 'targetLon'>,
@@ -458,23 +466,134 @@ export function createSingleplayerService(
     });
   }
 
+  async function persistNewRound(
+    game: Pick<GameHeader, 'id' | 'difficulty' | 'roundsTotal'>,
+    nextNumber: number,
+    usedIndices: number[],
+    target: PanoramaTarget,
+    scene: RoundScene,
+  ) {
+    const rules = gameRulesFor(game.difficulty);
+    const startedAt = new Date();
+    const endsAt = new Date(startedAt.getTime() + rules.timeLimitSeconds * 1000);
+    const candidates =
+      rules.selectionMode === 'list'
+        ? buildCandidates(target.targetIndex, usedIndices)
+        : null;
+    try {
+      const round = await db.streetRound.create({
+        data: {
+          gameId: game.id,
+          number: nextNumber,
+          panoId: target.panoId,
+          targetIndex: target.targetIndex,
+          targetLat: target.lat,
+          targetLon: target.lon,
+          placeName: placeNameForTarget(target),
+          sceneJson: scene as unknown as Prisma.InputJsonValue,
+          startedAt,
+          endsAt,
+          ...(candidates
+            ? {
+                candidatesJson: candidates as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
+        },
+        include: roundInclude(),
+      });
+      // R12: start preparing round N+1 while the player plays round N so
+      // clicking Next round returns immediately even with slow upstream forecasts,
+      // unless this is the final round of a finite session.
+      if (hasMoreRounds(game.roundsTotal, nextNumber)) {
+        void prefetchNextStreetRound(
+          game.id,
+          nextNumber + 1,
+          db,
+          provider,
+          intelligence,
+          locate,
+        );
+      }
+      return publicRound(round, rules);
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const existing = await db.streetRound.findUniqueOrThrow({
+        where: { gameId_number: { gameId: game.id, number: nextNumber } },
+        include: roundInclude(),
+      });
+      return publicRound(existing, rules);
+    }
+  }
+
   async function createGame(input: {
     difficulty?: unknown;
     roundsTotal?: unknown;
     ownerUserId: string | null;
-  }): Promise<{ id: string; playerToken: string }> {
+    startFirstRound?: boolean;
+  }): Promise<{
+    id: string;
+    playerToken: string;
+    session?: ReturnType<typeof buildEmptySessionWithRound>;
+  }> {
     const playerToken = generatePlayerToken();
+    const difficulty = parseDifficulty(input.difficulty);
     const roundsTotal = parseRoundsTotal(input.roundsTotal);
     const game = await db.streetGame.create({
       data: {
         playerTokenHash: hashPlayerToken(playerToken),
         ownerUserId: input.ownerUserId,
-        difficulty: parseDifficulty(input.difficulty),
+        difficulty,
         roundsTotal,
         expiresAt: new Date(Date.now() + STREET_GAME_TTL_MS),
       },
     });
-    return { id: game.id, playerToken };
+    if (!input.startFirstRound) {
+      return { id: game.id, playerToken };
+    }
+    try {
+      const warm = await warmPool.take();
+      const { target, scene } =
+        warm ??
+        (await selectRoundWithWeather([], provider, intelligence, { locate }));
+      const activeRound = await persistNewRound(
+        { id: game.id, difficulty, roundsTotal },
+        1,
+        [],
+        target,
+        scene,
+      );
+      return {
+        id: game.id,
+        playerToken,
+        session: buildEmptySessionWithRound(
+          game.id,
+          difficulty,
+          roundsTotal,
+          activeRound,
+        ),
+      };
+    } catch (error) {
+      // Avoid leaving behind an orphaned empty game when Round 1 selection fails.
+      await db.streetGame.deleteMany({ where: { id: game.id } }).catch(() => {});
+      throw error;
+    }
+  }
+
+  function buildEmptySessionWithRound(
+    id: string,
+    difficulty: Difficulty,
+    roundsTotal: number | null,
+    activeRound: ReturnType<typeof publicRound>,
+  ) {
+    return {
+      id,
+      difficulty,
+      roundsTotal,
+      completed: false,
+      totalScore: 0,
+      activeRound,
+      results: [] as ReturnType<typeof result>[],
+    };
   }
 
   async function getSession(gameId: string, token: string | undefined) {
@@ -534,57 +653,8 @@ export function createSingleplayerService(
     }
 
     const usedIndices = game.rounds.map((r) => r.targetIndex);
-    async function persistRound(target: PanoramaTarget, scene: RoundScene) {
-      const startedAt = new Date();
-      const endsAt = new Date(startedAt.getTime() + rules.timeLimitSeconds * 1000);
-      const candidates =
-        rules.selectionMode === 'list'
-          ? buildCandidates(target.targetIndex, usedIndices)
-          : null;
-      try {
-        const round = await db.streetRound.create({
-          data: {
-            gameId: game.id,
-            number: nextNumber,
-            panoId: target.panoId,
-            targetIndex: target.targetIndex,
-            targetLat: target.lat,
-            targetLon: target.lon,
-            placeName: placeNameForTarget(target),
-            sceneJson: scene as unknown as Prisma.InputJsonValue,
-            startedAt,
-            endsAt,
-            ...(candidates
-              ? {
-                  candidatesJson: candidates as unknown as Prisma.InputJsonValue,
-                }
-              : {}),
-          },
-          include: roundInclude(),
-        });
-        // R12: start preparing round N+1 while the player plays round N so
-        // clicking Next round returns immediately even with slow upstream forecasts,
-        // unless this is the final round of a finite session.
-        if (hasMoreRounds(game.roundsTotal, nextNumber)) {
-          void prefetchNextStreetRound(
-            game.id,
-            nextNumber + 1,
-            db,
-            provider,
-            intelligence,
-            locate,
-          );
-        }
-        return publicRound(round, rules);
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) throw error;
-        const existing = await db.streetRound.findUniqueOrThrow({
-          where: { gameId_number: { gameId: game.id, number: nextNumber } },
-          include: roundInclude(),
-        });
-        return publicRound(existing, rules);
-      }
-    }
+    const persistRound = (target: PanoramaTarget, scene: RoundScene) =>
+      persistNewRound(game, nextNumber, usedIndices, target, scene);
 
     const matchesNext =
       game.nextRoundNumber === nextNumber ||
@@ -650,6 +720,19 @@ export function createSingleplayerService(
         where: { id: game.id, nextRoundNumber: game.nextRoundNumber },
         data: EMPTY_PREPARATION,
       });
+    }
+
+    // Round 1 fast path: consume a pre-validated entry from the shared warm pool
+    // when available (e.g., primed on server boot or via POST /singleplayer/warm).
+    if (
+      usedIndices.length === 0 &&
+      prefetched === undefined &&
+      alreadyAttempted.length === 0
+    ) {
+      const warm = await warmPool.take();
+      if (warm) {
+        return persistRound(warm.target, warm.scene);
+      }
     }
 
     // R03/R13: only accept a location whose mandatory weather data is
@@ -1033,6 +1116,7 @@ export function createSingleplayerService(
   return {
     available: true,
     serverKeyConfigured: true,
+    warmUp: () => warmPool.warmUp(),
     createGame,
     getSession,
     deleteGame,

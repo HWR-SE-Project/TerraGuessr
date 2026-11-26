@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { api } from '../../services'
+import { api, ApiError } from '../../services'
 import { SingleplayerPage } from './SingleplayerPage'
 
 beforeEach(() => {
@@ -89,5 +89,30 @@ describe('SingleplayerPage round count selection', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('radio', { name: 'Endless' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('retries transient cold-start gateway errors when starting a game', async () => {
+    const user = userEvent.setup()
+    const createSpy = vi
+      .spyOn(api.singleplayer, 'create')
+      .mockRejectedValueOnce(new ApiError('HTTP_502', 'Bad Gateway', 502))
+      .mockResolvedValueOnce({
+        id: 'game-3',
+        playerToken: 'token-3',
+      })
+
+    render(
+      <MemoryRouter initialEntries={['/singleplayer']}>
+        <Routes>
+          <Route path="/singleplayer" element={<SingleplayerPage />} />
+          <Route path="/singleplayer/play" element={<div>Play screen</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Start exploring' }))
+
+    expect(await screen.findByText('Play screen', {}, { timeout: 5_000 })).toBeVisible()
+    expect(createSpy).toHaveBeenCalledTimes(2)
   })
 })

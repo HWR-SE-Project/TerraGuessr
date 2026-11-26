@@ -288,4 +288,75 @@ describe('SingleplayerGamePage finite round sessions', () => {
     expect(nextSpy).not.toHaveBeenCalled()
     expect(endSpy).toHaveBeenCalledWith({ id: 'game-done', playerToken: 'token-done' })
   })
+
+  it('uses a preloaded initial session immediately without extra session or next-round requests', async () => {
+    const initialRound = {
+      id: 'round-preloaded-1',
+      number: 1,
+      scene: {
+        biome: 'urban' as const,
+        weather: 'clear' as const,
+        lighting: 'day' as const,
+        temperatureBand: 'mild' as const,
+        windBand: 'calm' as const,
+        seed: 101,
+      },
+      startedAt: new Date().toISOString(),
+      endsAt: new Date(Date.now() + 420_000).toISOString(),
+      attemptsUsed: 0,
+      attemptsTotal: 3,
+      rules: {
+        timeLimitSeconds: 420,
+        attemptsPerRound: 3,
+        selectionMode: 'list' as const,
+        countryBorders: true,
+        extraData: { mode: 'free' as const },
+      },
+      selection: null,
+      candidates: [{ id: '0', name: 'London', region: 'EUROPE', lat: 51.5074, lon: -0.1278 }],
+      extraData: { mode: 'immediate' as const, cost: null, availableAt: null, unlocked: true, pointsSpent: 0 },
+    }
+    setGameCredentials(
+      { id: 'game-preloaded', playerToken: 'token-preloaded' },
+      {
+        id: 'game-preloaded',
+        difficulty: 'easy',
+        roundsTotal: 5,
+        completed: false,
+        totalScore: 0,
+        activeRound: initialRound,
+        results: [],
+      },
+    )
+
+    const sessionSpy = vi.spyOn(api.singleplayer, 'session')
+    const nextSpy = vi.spyOn(api.singleplayer, 'next')
+    vi.spyOn(api.singleplayer, 'intelligence').mockResolvedValue({
+      fetchedAt: new Date().toISOString(),
+      cached: true,
+      weather: {
+        modelTime: new Date().toISOString(),
+        temperatureC: 12,
+        condition: 'Clear sky',
+        windSpeedKmh: 7.2,
+        windDirectionDeg: null,
+        humidityPct: 60,
+        pressureHpa: 1012,
+        precipitationMm: 0,
+        precipitationIntervalMinutes: 15,
+      },
+      environment: { elevationM: 10, reliefM: 5, terrain: 'Low relief', biome: null, vegetation: null },
+      climate: null,
+    })
+
+    render(
+      <MemoryRouter>
+        <SingleplayerGamePage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('button', { name: 'Submit guess' })).toBeVisible()
+    expect(sessionSpy).not.toHaveBeenCalled()
+    expect(nextSpy).not.toHaveBeenCalled()
+  })
 })

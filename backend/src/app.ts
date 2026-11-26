@@ -146,7 +146,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       : {}),
   });
   registerLobbiesRoutes(app, undefined, { intelligence });
-  registerSingleplayerRoutes(app, { intelligence });
+  const singleplayer = registerSingleplayerRoutes(app, { intelligence });
+  app.addHook('onListen', async () => {
+    if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+      void singleplayer.warmUp();
+    }
+  });
 
   app.get('/api/game-rules', {
     schema: {
@@ -183,14 +188,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           200: Type.Object({
             status: Type.Literal('ok'),
             time: Type.String(),
+            commit: Type.Union([Type.String(), Type.Null()]),
           }),
         },
       },
     },
-    async () => ({
-      status: 'ok' as const,
-      time: new Date().toISOString(),
-    }),
+    async (_request, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      const commit = process.env.RENDER_GIT_COMMIT?.trim() || null;
+      return {
+        status: 'ok' as const,
+        time: new Date().toISOString(),
+        commit,
+      };
+    },
   );
 
   app.get(
