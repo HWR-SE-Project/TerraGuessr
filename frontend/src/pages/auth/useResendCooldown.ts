@@ -16,10 +16,10 @@ export function useResendCooldown(initialSeconds = 0) {
 
   useEffect(() => {
     if (!active) return
-    const timer = window.setInterval(() => {
+    const timer = setInterval(() => {
       setRemaining((prev) => (prev <= 1 ? 0 : prev - 1))
     }, 1000)
-    return () => window.clearInterval(timer)
+    return () => clearInterval(timer)
   }, [active])
 
   const start = useCallback((seconds: number = RESEND_COOLDOWN_SECONDS) => {

@@ -76,6 +76,7 @@ describe('AuthPage registration verification flow', () => {
     // Resend starts in cooldown right after registration sends the initial email.
     const coolingBtn = screen.getByRole('button', { name: /Resend verification email \(30s\)/ })
     expect(coolingBtn).toBeDisabled()
+    await waitFor(() => expect(vi.getTimerCount()).toBeGreaterThan(0))
 
     await act(async () => {
       vi.advanceTimersByTime(RESEND_COOLDOWN_SECONDS * 1000)
