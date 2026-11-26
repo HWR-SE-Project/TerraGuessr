@@ -156,6 +156,10 @@ export interface StreetCredentials {
   playerToken: string
 }
 
+export interface StreetGameStartResponse extends StreetCredentials {
+  session?: StreetSession
+}
+
 // --- Lobbies ----------------------------------------------------------------
 
 export type LobbyStatus = 'waiting' | 'playing' | 'finished'

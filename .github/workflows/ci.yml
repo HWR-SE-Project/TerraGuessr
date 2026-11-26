@@ -334,6 +334,9 @@ jobs:
   deploy:
     name: Deploy (Render + Vercel)
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     needs: [changes, backend, frontend, e2e]
     if: |
       always() &&
@@ -346,14 +349,19 @@ jobs:
       (needs.frontend.result == 'success' || needs.frontend.result == 'skipped') &&
       (needs.e2e.result == 'success' || needs.e2e.result == 'skipped')
     steps:
-      - name: Validate deploy hook secrets
+      - name: Validate deploy secrets
         env:
           DEPLOY_BACKEND: ${{ needs.changes.outputs.deploy_backend }}
           DEPLOY_FRONTEND: ${{ needs.changes.outputs.deploy_frontend }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           missing=0
+          if [ "$DEPLOY_BACKEND" = "true" ] && [ -z "$DATABASE_URL" ]; then
+            echo "::error::Missing required GitHub Actions secret: DATABASE_URL"
+            missing=1
+          fi
           if [ "$DEPLOY_BACKEND" = "true" ] && [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "::error::Missing required GitHub Actions secret: RENDER_DEPLOY_HOOK_URL"
             missing=1
@@ -363,9 +371,33 @@ jobs:
             missing=1
           fi
           if [ "$missing" -ne 0 ]; then
-            echo "Add the missing deploy hook URL secret(s) under Repository Settings -> Secrets and variables -> Actions."
+            echo "Add the missing secret(s) under Repository Settings -> Secrets and variables -> Actions."
             exit 1
           fi
+
+      - name: Checkout repository for database migrations
+        if: needs.changes.outputs.deploy_backend == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for database migrations
+        if: needs.changes.outputs.deploy_backend == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies for migrations
+        if: needs.changes.outputs.deploy_backend == 'true'
+        working-directory: backend
+        run: npm ci
+
+      - name: Run database migrations (Prisma)
+        if: needs.changes.outputs.deploy_backend == 'true'
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:init
 
       - name: Trigger Render deploy (backend)
         if: needs.changes.outputs.deploy_backend == 'true'
@@ -375,6 +407,40 @@ jobs:
           echo "Triggering Render backend deployment..."
           curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
           echo ""
+
+      - name: Wait for Render backend to serve new commit
+        if: needs.changes.outputs.deploy_backend == 'true'
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          RENDER_API_BASE_URL: ${{ vars.RENDER_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          backend_url="${RENDER_API_BASE_URL%/}"
+          if [ -z "$backend_url" ]; then
+            # Derive the Render origin from frontend/vercel.json so no extra config is required.
+            backend_url="$(jq -r '.rewrites[] | select(.source == "/api/:path*") | .destination' frontend/vercel.json | sed -E 's#/api/:path\*$##')"
+          fi
+          if [ -z "$backend_url" ]; then
+            echo "::error::Could not determine Render backend URL from RENDER_API_BASE_URL or frontend/vercel.json"
+            exit 1
+          fi
+
+          health_url="${backend_url}/api/health"
+          echo "Waiting for ${health_url} to report commit ${EXPECTED_SHA}..."
+
+          for attempt in $(seq 1 90); do
+            body="$(curl --silent --show-error --max-time 15 "$health_url" 2>/dev/null || true)"
+            live_commit="$(printf '%s' "$body" | jq -r '.commit // empty' 2>/dev/null || true)"
+            if [ "$live_commit" = "$EXPECTED_SHA" ]; then
+              echo "Render backend is live on commit ${EXPECTED_SHA} (attempt ${attempt}/90)."
+              exit 0
+            fi
+            echo "Attempt ${attempt}/90: live commit is '${live_commit:-unavailable}', waiting for '${EXPECTED_SHA}'..."
+            sleep 10
+          done
+
+          echo "::error::Timed out waiting for Render backend (${health_url}) to serve commit ${EXPECTED_SHA}. Skipping frontend deploy to prevent version skew."
+          exit 1
 
       - name: Trigger Vercel deploy (frontend)
         if: needs.changes.outputs.deploy_frontend == 'true'

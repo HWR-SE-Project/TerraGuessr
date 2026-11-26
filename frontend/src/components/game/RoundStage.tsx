@@ -2,13 +2,14 @@ import { lazy, Suspense, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { GeographicIntelligence as Intelligence, GuessInput, StreetRound } from '../../lib/contracts'
 import { DioramaLoading } from '../../scene/diorama/DioramaFallback'
+import { preloadBiomeDiorama } from '../../scene/diorama/preload'
 import { GeographicIntelligence } from './GeographicIntelligence'
 import { GuessPanel } from './GuessPanel'
 import { Timer } from './Timer'
 import { TopHud } from './TopHud'
 
 const BiomeDiorama = lazy(() =>
-  import('../../scene/diorama/BiomeDiorama').then((module) => ({ default: module.BiomeDiorama })),
+  preloadBiomeDiorama().then((module) => ({ default: module.BiomeDiorama })),
 )
 
 type RoundView = Omit<StreetRound, 'startedAt'>

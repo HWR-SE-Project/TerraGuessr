@@ -6,6 +6,7 @@ import type {
   GeographicIntelligence,
   GuessInput,
   StreetCredentials,
+  StreetGameStartResponse,
   StreetGuessResponse,
   StreetRound,
   StreetSession,
@@ -19,10 +20,17 @@ export const singleplayerHttp = {
     return apiFetch('/singleplayer/config')
   },
 
-  create(difficulty: Difficulty = 'medium', roundsTotal?: number | null): Promise<StreetCredentials> {
-    return apiFetch<StreetCredentials>('/singleplayer/games', {
+  warm(): Promise<void> {
+    return apiFetch<void>('/singleplayer/warm', { method: 'POST' })
+  },
+
+  create(difficulty: Difficulty = 'medium', roundsTotal?: number | null): Promise<StreetGameStartResponse> {
+    return apiFetch<StreetGameStartResponse>('/singleplayer/games', {
       method: 'POST',
-      body: roundsTotal === undefined ? { difficulty } : { difficulty, roundsTotal },
+      body:
+        roundsTotal === undefined
+          ? { difficulty, startFirstRound: true }
+          : { difficulty, roundsTotal, startFirstRound: true },
     })
   },
 

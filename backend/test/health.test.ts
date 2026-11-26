@@ -24,12 +24,42 @@ describe('GET /api/health', () => {
       expect(response.statusCode).toBe(200);
       expect(response.headers['content-type']).toContain('application/json');
 
-      const body = response.json() as { status: string; time: string };
+      const body = response.json() as {
+        status: string;
+        time: string;
+        commit: string | null;
+      };
       expect(body.status).toBe('ok');
       expect(typeof body.time).toBe('string');
       expect(Number.isNaN(Date.parse(body.time))).toBe(false);
+      expect(body.commit).toBeNull();
     } finally {
       await app.close();
+    }
+  });
+
+  it('exposes RENDER_GIT_COMMIT on /api/health for backend-first deploy verification', async () => {
+    const previous = process.env.RENDER_GIT_COMMIT;
+    try {
+      process.env.RENDER_GIT_COMMIT = '0123456789abcdef0123456789abcdef01234567';
+      const app = await buildApp();
+      try {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/health',
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['cache-control']).toBe('no-store');
+        expect(response.json()).toMatchObject({
+          status: 'ok',
+          commit: '0123456789abcdef0123456789abcdef01234567',
+        });
+      } finally {
+        await app.close();
+      }
+    } finally {
+      if (previous === undefined) delete process.env.RENDER_GIT_COMMIT;
+      else process.env.RENDER_GIT_COMMIT = previous;
     }
   });
 

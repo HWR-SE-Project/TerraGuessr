@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { DifficultyPicker, DifficultySummary } from '../../components/game/DifficultyPicker'
 import { RoundCountStepper } from '../../components/game/RoundCountStepper'
-import { api } from '../../services'
+import { api, ApiError } from '../../services'
 import { setGameCredentials } from '../../state/game'
 import { useGameRules } from '../../state/gameRules'
+import { warmSingleplayer } from '../../state/singleplayerWarmup'
 import { readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
 import {
   clampRounds,
@@ -21,6 +22,15 @@ import { staggerContainer, staggerItem } from '../../lib/motion'
 
 type RoundMode = 'fixed' | 'endless'
 
+const WAKEUP_HINT_DELAY_MS = 3_000
+const COLD_START_MAX_RETRIES = 2
+const COLD_START_RETRY_DELAY_MS = 2_000
+
+function isColdStartGatewayError(cause: unknown): boolean {
+  if (!(cause instanceof ApiError)) return false
+  return cause.status === 0 || cause.status === 502 || cause.status === 504
+}
+
 export function SingleplayerPage() {
   const navigate = useNavigate()
   const [difficulty, setDifficulty] = useState<Difficulty>(readStoredDifficulty())
@@ -28,24 +38,53 @@ export function SingleplayerPage() {
   const [roundMode, setRoundMode] = useState<RoundMode>(() => (initialRounds === null ? 'endless' : 'fixed'))
   const [rounds, setRounds] = useState<number>(() => initialRounds ?? DEFAULT_ROUNDS_TOTAL)
   const [loading, setLoading] = useState(false)
+  const [slowWakeup, setSlowWakeup] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const rules = useGameRules()
   const roundBounds = resolveRoundBounds(rules?.rounds)
   const selectedRounds = clampRounds(rounds, roundBounds)
 
+  useEffect(() => {
+    warmSingleplayer()
+  }, [])
+
+  useEffect(() => {
+    if (!loading) return
+    const timer = window.setTimeout(() => setSlowWakeup(true), WAKEUP_HINT_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [loading])
+
   async function start() {
     setLoading(true)
+    setSlowWakeup(false)
     setError(null)
     try {
       const roundsTotal = roundMode === 'endless' ? null : selectedRounds
       storeDifficulty(difficulty)
       storeSingleplayerRounds(roundsTotal)
-      const credentials = await api.singleplayer.create(difficulty, roundsTotal)
-      setGameCredentials(credentials)
+      let created
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          created = await api.singleplayer.create(difficulty, roundsTotal)
+          break
+        } catch (cause) {
+          if (attempt < COLD_START_MAX_RETRIES && isColdStartGatewayError(cause)) {
+            setSlowWakeup(true)
+            await new Promise((resolve) => window.setTimeout(resolve, COLD_START_RETRY_DELAY_MS))
+            continue
+          }
+          throw cause
+        }
+      }
+      setGameCredentials(
+        { id: created.id, playerToken: created.playerToken },
+        created.session ?? null,
+      )
       navigate('/singleplayer/play')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not start the game.')
       setLoading(false)
+      setSlowWakeup(false)
     }
   }
 
@@ -136,10 +175,15 @@ export function SingleplayerPage() {
           </p>
         )}
 
-        <motion.div variants={staggerItem} className="mt-8 flex justify-center">
+        <motion.div variants={staggerItem} className="mt-8 flex flex-col items-center gap-2">
           <Button size="lg" icon="play" loading={loading} onClick={start} className="min-w-56">
             Start exploring
           </Button>
+          {loading && slowWakeup && (
+            <p role="status" aria-live="polite" className="text-center text-sm text-muted">
+              Waking up the server — first load may take a moment…
+            </p>
+          )}
         </motion.div>
       </motion.div>
     </div>

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { useSession } from '../../state/session'
+import { warmSingleplayer } from '../../state/singleplayerWarmup'
 import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
 import { AvatarCustomizeMenu } from './AvatarCustomizeMenu'
 import earthFallback from '../../assets/images/earth-horizon.webp'
@@ -110,6 +111,8 @@ export function HomePage() {
               size="lg"
               icon="play"
               className="min-w-0 flex-1 max-sm:h-12 max-sm:gap-1.5 max-sm:px-3 max-sm:text-[0.95rem] sm:h-[60px] sm:flex-none sm:px-6"
+              onPointerEnter={warmSingleplayer}
+              onFocus={warmSingleplayer}
               onClick={() => navigate('/singleplayer')}
             >
               Singleplayer

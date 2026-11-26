@@ -80,6 +80,8 @@ const CreateGameBody = Type.Union([
       difficulty: Type.Optional(DifficultyLevel),
       /** Finite round count matching multiplayer (3..10), or null/omitted for endless mode. */
       roundsTotal: Type.Optional(Type.Union([RoundsTotal, Type.Null()])),
+      /** When true, also starts Round 1 in the same request and returns `session`. */
+      startFirstRound: Type.Optional(Type.Boolean()),
     },
     { additionalProperties: false },
   ),
@@ -96,7 +98,7 @@ function playerToken(request: FastifyRequest): string | undefined {
 export function registerSingleplayerRoutes(
   app: FastifyInstance,
   options: SingleplayerServiceOptions = {},
-): void {
+) {
   const db = options.db ?? prisma;
   const service = createSingleplayerService(options);
   const limited = { rateLimit: RATE_LIMITS.standard };
@@ -121,20 +123,39 @@ export function registerSingleplayerRoutes(
     }),
   );
   app.post(
+    '/api/singleplayer/warm',
+    {
+      config: { rateLimit: RATE_LIMITS.read },
+    },
+    async (_request, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      void service.warmUp();
+      return reply.code(204).send();
+    },
+  );
+  app.post(
     '/api/singleplayer/games',
     {
       config: limited,
       schema: {
         body: CreateGameBody,
         response: {
-          201: Type.Object({ id: Type.String(), playerToken: Type.String() }),
+          201: Type.Object({
+            id: Type.String(),
+            playerToken: Type.String(),
+            session: Type.Optional(Session),
+          }),
         },
       },
     },
     async (request, reply) => {
       reply.header('Cache-Control', 'no-store');
       const body = request.body as
-        | { difficulty?: unknown; roundsTotal?: number | null }
+        | {
+            difficulty?: unknown;
+            roundsTotal?: number | null;
+            startFirstRound?: boolean;
+          }
         | null
         | undefined;
       // R18: capture the account once, so archival does not depend on the
@@ -144,6 +165,7 @@ export function registerSingleplayerRoutes(
         difficulty: body?.difficulty,
         roundsTotal: body?.roundsTotal,
         ownerUserId: ownerUserId ?? null,
+        startFirstRound: body?.startFirstRound === true,
       });
       return reply.code(201).send(game);
     },
@@ -326,4 +348,6 @@ export function registerSingleplayerRoutes(
       );
     },
   );
+
+  return service;
 }
