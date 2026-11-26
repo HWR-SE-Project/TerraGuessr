@@ -7,6 +7,8 @@ import { LogoMark } from '../../components/ui/Logo'
 import { api, ApiError } from '../../services'
 import { signIn, signUp, useSession } from '../../state/session'
 import { scaleIn } from '../../lib/motion'
+import { EmailSentView } from './EmailSentView'
+import { formatCooldown, RESEND_COOLDOWN_SECONDS, useResendCooldown } from './useResendCooldown'
 import googleLogo from '../../assets/brand/google-logo.svg'
 
 type Mode = 'signin' | 'register'
@@ -34,7 +36,9 @@ export function AuthPage() {
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
   const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
+  const resendCooldown = useResendCooldown()
   const [loading, setLoading] = useState(false)
   const [googleAvailable, setGoogleAvailable] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -82,6 +86,7 @@ export function AuthPage() {
     setError(null)
     setUnverifiedEmail(null)
     setResendMessage(null)
+    setResendError(null)
     setLoading(true)
     try {
       if (mode === 'signin') {
@@ -92,6 +97,7 @@ export function AuthPage() {
         if (result.verificationRequired) {
           setPendingVerificationEmail(result.user.email)
           setPassword('')
+          resendCooldown.start(RESEND_COOLDOWN_SECONDS)
         } else {
           navigate(from, { replace: true })
         }
@@ -109,77 +115,58 @@ export function AuthPage() {
   async function resendVerification(targetEmail: string) {
     setResending(true)
     setResendMessage(null)
+    setResendError(null)
     try {
       const { message } = await api.auth.resendVerification(targetEmail)
       setResendMessage(message)
+      resendCooldown.start(RESEND_COOLDOWN_SECONDS)
     } catch (cause) {
-      setResendMessage(cause instanceof Error ? cause.message : 'Could not resend verification email.')
+      if (cause instanceof ApiError && cause.retryAfterSeconds !== undefined) {
+        resendCooldown.start(cause.retryAfterSeconds)
+      }
+      setResendError(cause instanceof Error ? cause.message : 'Could not resend verification email.')
     } finally {
       setResending(false)
     }
   }
 
-  if (pendingVerificationEmail) {
-    return (
-      <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 py-10">
-        <motion.div variants={scaleIn} initial="initial" animate="animate" className="surface w-full max-w-md p-8 text-center">
-          <div className="flex flex-col items-center">
-            <LogoMark size={44} />
-            <h1 className="mt-4 font-display text-2xl font-semibold text-cream">Check your email</h1>
-            <p className="mt-2 text-sm text-muted">
-              We sent a verification link to <span className="font-semibold text-cream">{pendingVerificationEmail}</span>. Verify your address before signing in.
-            </p>
-            <p className="mt-2 text-xs text-subtle">
-              Don’t see it? Check your spam or junk folder.
-            </p>
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3">
-            {resendMessage && (
-              <p role="status" className="rounded-xl bg-lime-400/12 px-3 py-2 text-sm font-semibold text-lime-300">
-                {resendMessage}
-              </p>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              loading={resending}
-              onClick={() => void resendVerification(pendingVerificationEmail)}
-            >
-              Resend verification email
-            </Button>
-            <Button
-              type="button"
-              fullWidth
-              onClick={() => {
-                setEmail(pendingVerificationEmail)
-                setPendingVerificationEmail(null)
-                setResendMessage(null)
-                setError(null)
-                setMode('signin')
-              }}
-            >
-              Back to sign in
-            </Button>
-          </div>
-        </motion.div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 py-10">
       <motion.div variants={scaleIn} initial="initial" animate="animate" className="surface w-full max-w-md p-8">
-        <div className="flex flex-col items-center text-center">
-          <LogoMark size={44} />
-          <h1 className="mt-4 font-display text-2xl font-semibold text-cream">
-            {mode === 'signin' ? 'Welcome back, explorer' : 'Join the adventure'}
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            {mode === 'signin' ? 'Pick up where you left off.' : 'Create an account to save your progress.'}
-          </p>
-        </div>
+        {pendingVerificationEmail ? (
+          <EmailSentView
+            description={
+              <>
+                We sent a verification link to <span className="font-semibold text-cream">{pendingVerificationEmail}</span>. Verify your address before signing in.
+              </>
+            }
+            resendLabel="Resend verification email"
+            resending={resending}
+            cooldownSeconds={resendCooldown.remaining}
+            resendStatus={resendMessage}
+            resendError={resendError}
+            onResend={() => void resendVerification(pendingVerificationEmail)}
+            onBack={() => {
+              setEmail(pendingVerificationEmail)
+              setPendingVerificationEmail(null)
+              setResendMessage(null)
+              setResendError(null)
+              resendCooldown.reset()
+              setError(null)
+              setMode('signin')
+            }}
+          />
+        ) : (
+          <>
+            <div className="flex flex-col items-center text-center">
+              <LogoMark size={44} />
+              <h1 className="mt-4 font-display text-2xl font-semibold text-cream">
+                {mode === 'signin' ? 'Welcome back, explorer' : 'Join the adventure'}
+              </h1>
+              <p className="mt-1 text-sm text-muted">
+                {mode === 'signin' ? 'Pick up where you left off.' : 'Create an account to save your progress.'}
+              </p>
+            </div>
 
         <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
           {mode === 'register' && (
@@ -233,11 +220,15 @@ export function AuthPage() {
                 {unverifiedEmail && (
                   <button
                     type="button"
-                    disabled={resending}
+                    disabled={resending || resendCooldown.remaining > 0}
                     onClick={() => void resendVerification(unverifiedEmail)}
-                    className="self-start text-xs font-bold text-lime-300 underline hover:text-lime-200 disabled:opacity-50"
+                    className="self-start text-xs font-bold tabular-nums text-lime-300 underline hover:text-lime-200 disabled:opacity-50"
                   >
-                    {resending ? 'Sending…' : 'Resend verification email'}
+                    {resending
+                      ? 'Sending…'
+                      : resendCooldown.remaining > 0
+                        ? `Resend verification email (${formatCooldown(resendCooldown.remaining)})`
+                        : 'Resend verification email'}
                   </button>
                 )}
               </div>
@@ -245,6 +236,11 @@ export function AuthPage() {
             {resendMessage && (
               <p role="status" className="rounded-xl bg-lime-400/12 px-3 py-2 text-sm font-semibold text-lime-300">
                 {resendMessage}
+              </p>
+            )}
+            {resendError && (
+              <p role="alert" className="rounded-xl bg-rose-400/12 px-3 py-2 text-sm font-semibold text-rose-300">
+                {resendError}
               </p>
             )}
 
@@ -289,6 +285,8 @@ export function AuthPage() {
             </button>
           )}
         </div>
+          </>
+        )}
       </motion.div>
     </div>
   )

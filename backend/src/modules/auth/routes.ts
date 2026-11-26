@@ -6,6 +6,7 @@ import { Type } from '@sinclair/typebox';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import type { Env } from '../../config/env.js';
+import { AUTH_EMAIL_RATE_LIMIT, RATE_LIMITS } from '../../config/constants.js';
 import { prisma } from '../../db/prisma.js';
 import { isUniqueConstraintError } from '../../db/prismaErrors.js';
 import {
@@ -28,6 +29,11 @@ import {
 } from './service.js';
 import { createAuthMailer } from './mailer.js';
 import type { AuthMailer } from './mailer.js';
+import {
+  EmailRateLimiter,
+  formatEmailRateLimitMessage,
+  type EmailRateLimitNamespace,
+} from './emailRateLimit.js';
 import {
   buildEmailChangeConfirmationEmail,
   buildEmailChangeVerificationEmail,
@@ -216,11 +222,13 @@ export function registerAuthRoutes(
     mailer?: AuthMailer;
     googleClientFactory?: (config: Env) => GoogleOAuthClientLike;
     googleTimeoutMs?: number;
+    emailRateLimiter?: EmailRateLimiter;
   },
 ): void {
   const { config } = options;
   const db = options.db ?? prisma;
   const mailer = options.mailer ?? createAuthMailer(config);
+  const emailRateLimiter = options.emailRateLimiter ?? new EmailRateLimiter(AUTH_EMAIL_RATE_LIMIT);
   const createGoogleClient =
     options.googleClientFactory ??
     ((cfg: Env) => new OAuth2Client(cfg.googleClientId, cfg.googleClientSecret, cfg.googleRedirectUri));
@@ -257,6 +265,18 @@ export function registerAuthRoutes(
     const url = new URL('/confirm-email-change', config.appBaseUrl!);
     url.searchParams.set('token', token);
     return url.toString();
+  }
+
+  function enforceEmailRateLimit(
+    reply: FastifyReply,
+    namespace: EmailRateLimitNamespace,
+    email: string,
+  ): void {
+    const limit = emailRateLimiter.consume(namespace, email);
+    if (!limit.allowed) {
+      reply.header('Retry-After', String(limit.retryAfterSeconds));
+      throw new AuthError(429, formatEmailRateLimitMessage(limit), 'RATE_LIMITED');
+    }
   }
 
   app.get('/api/auth/config', async () => ({
@@ -316,15 +336,19 @@ export function registerAuthRoutes(
   });
 
   app.post('/api/auth/verification/resend', {
-    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+    config: { rateLimit: RATE_LIMITS.authEmailIp },
     onRequest: sameSiteMutation,
     schema: { body: ResetRequestBody },
   }, async (request, reply) => {
-    reply.code(202);
     const message = 'If an account needs verification, a new email has been sent.';
     // Never reveal whether an address is registered or already verified.
-    if (!mailer || !config.appBaseUrl) return { message };
+    if (!mailer || !config.appBaseUrl) {
+      reply.code(202);
+      return { message };
+    }
     const { email } = request.body as { email: string };
+    enforceEmailRateLimit(reply, 'verification-resend', email);
+    reply.code(202);
     const user = await db.user.findUnique({ where: { email: normalizeEmail(email) } });
     if (!user || !user.passwordHash || user.emailVerifiedAt) return { message };
 
@@ -465,7 +489,7 @@ export function registerAuthRoutes(
   });
 
   app.post('/api/auth/password-reset/request', {
-    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+    config: { rateLimit: RATE_LIMITS.authEmailIp },
     onRequest: sameSiteMutation,
     schema: { body: ResetRequestBody },
   }, async (request, reply) => {
@@ -473,6 +497,7 @@ export function registerAuthRoutes(
       throw new AuthError(503, 'Account recovery email is not configured');
     }
     const { email } = request.body as { email: string };
+    enforceEmailRateLimit(reply, 'password-reset', email);
     const user = await db.user.findUnique({ where: { email: normalizeEmail(email) } });
     if (user?.passwordHash && mailer) {
       const token = await issuePasswordReset(db, user);

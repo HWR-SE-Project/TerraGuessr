@@ -7,13 +7,21 @@ export class ApiError extends Error {
   readonly code: string
   readonly status: number
   readonly details?: Record<string, unknown>
+  readonly retryAfterSeconds?: number
 
-  constructor(code: string, message: string, status: number, details?: Record<string, unknown>) {
+  constructor(
+    code: string,
+    message: string,
+    status: number,
+    details?: Record<string, unknown>,
+    retryAfterSeconds?: number,
+  ) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.status = status
     this.details = details
+    this.retryAfterSeconds = retryAfterSeconds
   }
 }
 
@@ -51,7 +59,30 @@ function isErrorDTO(value: unknown): value is ErrorDTO {
   return typeof candidate.code === 'string' && typeof candidate.message === 'string'
 }
 
+function parseRetryAfterSeconds(header: string | null): number | undefined {
+  if (!header) return undefined
+  const trimmed = header.trim()
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number(trimmed)
+    return seconds > 0 ? seconds : undefined
+  }
+  const timestamp = Date.parse(trimmed)
+  if (!Number.isNaN(timestamp)) {
+    const seconds = Math.ceil((timestamp - Date.now()) / 1000)
+    return seconds > 0 ? seconds : undefined
+  }
+  return undefined
+}
+
+function formatRetryWait(seconds: number): string {
+  const safe = Math.max(1, Math.ceil(seconds))
+  if (safe < 60) return `${safe} second${safe === 1 ? '' : 's'}`
+  const minutes = Math.ceil(safe / 60)
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`
+}
+
 async function toApiError(response: Response): Promise<ApiError> {
+  const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get('retry-after'))
   let payload: unknown = null
   try {
     payload = await response.json()
@@ -59,12 +90,26 @@ async function toApiError(response: Response): Promise<ApiError> {
     payload = null
   }
   if (isErrorDTO(payload)) {
-    return new ApiError(payload.error.code, payload.error.message, response.status, payload.error.details)
+    const message =
+      response.status === 429 &&
+      retryAfterSeconds !== undefined &&
+      payload.error.message.trim().toLowerCase() === 'too many requests'
+        ? `Too many requests. Please try again in ${formatRetryWait(retryAfterSeconds)}.`
+        : payload.error.message
+    return new ApiError(
+      payload.error.code,
+      message,
+      response.status,
+      payload.error.details,
+      retryAfterSeconds,
+    )
   }
   return new ApiError(
     `HTTP_${response.status}`,
     response.statusText || `Request failed with status ${response.status}`,
     response.status,
+    undefined,
+    retryAfterSeconds,
   )
 }
 
