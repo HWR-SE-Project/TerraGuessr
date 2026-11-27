@@ -20,8 +20,8 @@ test.describe('multiplayer lobby', () => {
       await guestPage.getByRole('button', { name: 'Join lobby' }).click();
 
       await expect(guestPage).toHaveURL(new RegExp(`/lobby/${code}$`));
-      await expect(guestPage.getByText('2 joined')).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByText('2 joined')).toBeVisible({ timeout: 10_000 });
+      await expect(guestPage.getByText('2 / 16')).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText('2 / 16')).toBeVisible({ timeout: 10_000 });
 
       await page.getByRole('button', { name: 'Start match' }).click();
       await expect(page).toHaveURL(new RegExp(`/lobby/${code}/play$`));

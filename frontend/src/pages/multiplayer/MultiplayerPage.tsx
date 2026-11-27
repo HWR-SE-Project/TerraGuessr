@@ -10,6 +10,7 @@ import { api } from '../../services'
 import { setLobbySession } from '../../state/lobby'
 import { useSession } from '../../state/session'
 import { readStoredDifficulty, storeDifficulty } from '../../lib/difficulty'
+import { resolveLobbyBounds } from '../../lib/lobby'
 import { clampRounds, DEFAULT_ROUNDS_TOTAL, resolveRoundBounds } from '../../lib/rounds'
 import { readOrCreateGuestName, storeGuestName } from '../../lib/playerName'
 import { useGameRules } from '../../state/gameRules'
@@ -24,6 +25,8 @@ export function MultiplayerPage() {
   const initialMode: Mode = params.get('mode') === 'join' ? 'join' : 'create'
   const [mode, setMode] = useState<Mode>(initialMode)
   const { status, user } = useSession()
+  const rules = useGameRules()
+  const { minPlayers, maxPlayers } = resolveLobbyBounds(rules?.lobby)
   const [guestName] = useState(() => readOrCreateGuestName())
   const [customName, setCustomName] = useState<string | null>(null)
 
@@ -50,7 +53,7 @@ export function MultiplayerPage() {
           <p className="eyebrow !text-muted">Multiplayer</p>
           <h1 className="mt-1 font-display text-2xl font-semibold text-cream sm:text-3xl">Play with friends</h1>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted">
-            Host a lobby and share the code, or hop into a friend's game.
+            Host a lobby for {minPlayers}–{maxPlayers} players and share the code, or hop into a friend's game.
           </p>
         </motion.div>
 

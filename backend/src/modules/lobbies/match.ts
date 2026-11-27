@@ -540,7 +540,10 @@ async function ensureLobbyProgress(
     return { mutated: true };
   }
 
-  if (!isDeadlinePassed(round.reviewEndsAt, now)) return { mutated: false };
+  const allReviewReady =
+    lobby.members.length > 0 &&
+    lobby.members.every((member) => memberState(round, member.id)?.reviewReadyAt != null);
+  if (!allReviewReady && !isDeadlinePassed(round.reviewEndsAt, now)) return { mutated: false };
   if (!nextRound) {
     await db.lobby.updateMany({ where, data: { status: 'finished', finishedAt: now } });
     return { mutated: true };
@@ -553,7 +556,8 @@ async function ensureLobbyProgress(
   }
 
   try {
-    await prepareFollowingRound(lobby, nextRound.id, round.reviewEndsAt, db, provider, intelligence, locate);
+    const requiredValidAt = allReviewReady ? now : round.reviewEndsAt;
+    await prepareFollowingRound(lobby, nextRound.id, requiredValidAt, db, provider, intelligence, locate);
     const startedAt = new Date();
     const rules = gameRulesFor(lobby.difficulty);
     await db.$transaction(async (tx) => {
@@ -908,6 +912,23 @@ async function resolveFinishedLobby(
   return true;
 }
 
+function reviewPromptView(
+  lobby: MatchLobby,
+  round: MatchRound | null,
+  member: LobbyMember,
+): LobbyMatchView['reviewPrompt'] {
+  if (lobby.status !== 'playing' || !round?.reviewEndsAt) return null;
+  return {
+    readyPlayers: lobby.members
+      .filter((candidate) => memberState(round, candidate.id)?.reviewReadyAt != null)
+      .map(memberLabel),
+    pendingPlayers: lobby.members
+      .filter((candidate) => memberState(round, candidate.id)?.reviewReadyAt == null)
+      .map(memberLabel),
+    youReady: memberState(round, member.id)?.reviewReadyAt != null,
+  };
+}
+
 function continuePromptView(
   lobby: MatchLobby,
   member: LobbyMember,
@@ -1017,6 +1038,7 @@ function buildMatchView(
     round: currentRound ? publicRound(currentRound, rules, member) : null,
     roundComplete: Boolean(currentRound?.reviewEndsAt) || lobby.status === 'finished',
     reviewEndsAt: currentRound?.reviewEndsAt?.toISOString() ?? null,
+    reviewPrompt: reviewPromptView(lobby, currentRound, member),
     pendingPlayers,
     you: {
       attemptsUsed,
@@ -1220,6 +1242,98 @@ export async function requestLobbyContinue(
       where: { id: member.id },
       data: { continueRequestedAt: new Date() },
     });
+    lobby = await loadMatchLobby(code, db);
+  }
+
+  return matchResponse(code, rawToken, db, provider, intelligence, locate, lobby);
+}
+
+/**
+ * Record this player's choice to advance past the active round review early
+ * (R16). Once every remaining player is ready, the match immediately starts
+ * the next round (or opens final standings after the last round) without
+ * waiting for the 15-second review countdown to expire.
+ */
+export async function continueLobbyRoundReview(
+  code: string,
+  roundNumber: number,
+  rawToken: string,
+  db: PrismaClient = prisma,
+  provider?: PanoramaProvider,
+  intelligence?: IntelligenceLookup,
+  locate?: PanoramaLocator,
+): Promise<LobbyMatchResponse> {
+  let lobby = await loadMatchLobby(code, db);
+  let member = memberForToken(lobby, rawToken);
+
+  const progress = await ensureLobbyProgress(
+    lobby,
+    db,
+    new Date(),
+    provider,
+    intelligence,
+    locate,
+  );
+  if (progress.mutated) {
+    const previousMatchId = lobby.matchId;
+    const previousRound = lobby.currentRound;
+    lobby = await loadMatchLobby(code, db);
+    if (
+      progress.unavailable &&
+      lobby.matchId === previousMatchId &&
+      lobby.currentRound === previousRound
+    ) {
+      throw progress.unavailable;
+    }
+    member = memberForToken(lobby, rawToken);
+  } else if (progress.unavailable) {
+    throw progress.unavailable;
+  }
+
+  if (lobby.status === 'waiting') {
+    throw new LobbyConflictError('The match has not started');
+  }
+  if (lobby.status === 'finished') {
+    if (roundNumber <= lobby.roundsTotal) {
+      return matchResponse(code, rawToken, db, provider, intelligence, locate, lobby);
+    }
+    throw new LobbyConflictError('This round is not currently in review');
+  }
+  if (lobby.currentRound > roundNumber) {
+    return matchResponse(code, rawToken, db, provider, intelligence, locate, lobby);
+  }
+
+  const round = lobby.rounds.find(
+    (candidate) => candidate.number === roundNumber,
+  );
+  if (!round || round.number !== lobby.currentRound || !round.reviewEndsAt) {
+    throw new LobbyConflictError('This round is not currently in review');
+  }
+
+  const state = memberState(round, member.id);
+  if (state?.reviewReadyAt == null) {
+    const now = new Date();
+    try {
+      await db.lobbyRoundMemberState.upsert({
+        where: {
+          roundId_memberId: { roundId: round.id, memberId: member.id },
+        },
+        create: {
+          roundId: round.id,
+          memberId: member.id,
+          reviewReadyAt: now,
+        },
+        update: {
+          reviewReadyAt: now,
+        },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      await db.lobbyRoundMemberState.updateMany({
+        where: { roundId: round.id, memberId: member.id, reviewReadyAt: null },
+        data: { reviewReadyAt: now },
+      });
+    }
     lobby = await loadMatchLobby(code, db);
   }
 
@@ -1451,7 +1565,9 @@ export async function submitLobbyGuess(
 
     await tx.lobbyMember.update({
       where: { id: member.id },
-      data: { selectionLat: point.lat, selectionLon: point.lon },
+      data: liveDecision.finalizes
+        ? { selectionLat: point.lat, selectionLon: point.lon }
+        : { selectionLat: null, selectionLon: null },
     });
 
     if (!liveDecision.finalizes) {
@@ -1554,19 +1670,90 @@ export async function finishLobbyRound(
     );
   }
 
-  const result = await finalizeMemberRound(
-    db,
-    round,
-    member,
-    attempts,
-    await roundPoint(round, locate),
-  );
+  const actual = await roundPoint(round, locate);
+
+  type FinishOutcome =
+    | { expired: true }
+    | { expired: false; attemptsUsed: number };
+
+  const outcome: FinishOutcome = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "LobbyMember" WHERE "id" = ${member.id} FOR UPDATE`;
+    const liveMember = await tx.lobbyMember.findUnique({
+      where: { id: member.id },
+      select: { id: true },
+    });
+    if (!liveMember) throw new LobbyNotFoundError();
+
+    const liveRound = await tx.lobbyRound.findUnique({
+      where: { id: round.id },
+      include: {
+        attempts: { where: { memberId: member.id } },
+        results: { where: { memberId: member.id } },
+        memberStates: { where: { memberId: member.id } },
+      },
+    });
+    if (!liveRound) {
+      throw new LobbyConflictError('This round is not the active round');
+    }
+    if (isDeadlinePassed(roundDeadline(liveRound, member), new Date())) {
+      return { expired: true };
+    }
+    if (liveRound.results.length > 0) {
+      throw new LobbyConflictError('Your guess for this round is already final');
+    }
+    if (liveRound.attempts.length === 0) {
+      throw new LobbyConflictError(
+        'Submit at least one guess before finishing the round',
+      );
+    }
+
+    const extraDataPointsSpent = liveRound.memberStates[0]?.extraDataPointsSpent ?? 0;
+    const evaluated = computeScore({
+      attempts: liveRound.attempts,
+      selection: null,
+      actual,
+      pointsSpent: extraDataPointsSpent,
+    });
+    await tx.lobbyMember.update({
+      where: { id: member.id },
+      data: { selectionLat: null, selectionLon: null },
+    });
+    const finalizedResult = await tx.lobbyRoundResult.upsert({
+      where: {
+        roundId_memberId: { roundId: round.id, memberId: member.id },
+      },
+      create: {
+        roundId: round.id,
+        memberId: member.id,
+        actualLat: actual.lat,
+        actualLon: actual.lon,
+        guessLat: evaluated.guess?.lat ?? null,
+        guessLon: evaluated.guess?.lon ?? null,
+        distanceKm: evaluated.distanceKm,
+        score: evaluated.score,
+        attemptsUsed: liveRound.attempts.length,
+        extraDataPointsSpent,
+      },
+      update: {},
+    });
+
+    return {
+      expired: false,
+      attemptsUsed: finalizedResult.attemptsUsed,
+    };
+  });
+
+  if (outcome.expired) {
+    await ensureLobbyProgress(lobby, db, new Date(), provider, intelligence, locate);
+    throw new LobbyConflictError('The time limit for this round has expired');
+  }
+
   const afterFinish = await loadMatchLobby(code, db);
   await ensureLobbyProgress(afterFinish, db, new Date(), provider, intelligence, locate);
   return {
     finalized: true,
     attemptsRemaining: 0,
-    attemptsUsed: result.attemptsUsed,
+    attemptsUsed: outcome.attemptsUsed,
   };
 }
 

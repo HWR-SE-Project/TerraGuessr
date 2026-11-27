@@ -6,6 +6,7 @@ import { Button, IconButton, Spinner } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { PlayerBadge } from '../../components/game/PlayerBadge'
 import { difficultyDetails, difficultyInfo } from '../../lib/difficulty'
+import { MAX_LOBBY_PLAYERS, MIN_LOBBY_PLAYERS } from '../../lib/lobby'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 
 export function LobbyPage() {
@@ -50,6 +51,7 @@ export function LobbyPage() {
   }
 
   const info = difficultyInfo(lobby.difficulty)
+  const maxMembers = lobby.maxMembers ?? MAX_LOBBY_PLAYERS
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -83,7 +85,7 @@ export function LobbyPage() {
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold text-cream">Players</h2>
             <span className="rounded-full bg-space-800 px-3 py-1 text-xs font-bold text-muted">
-              {lobby.members.length} joined
+              {lobby.members.length} / {maxMembers}
             </span>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -129,8 +131,8 @@ export function LobbyPage() {
 
         <motion.div variants={staggerItem} className="flex flex-col gap-2 sm:flex-row">
           {lobby.youAreHost ? (
-            <Button size="lg" icon="play" fullWidth loading={starting} onClick={start} disabled={leaving || lobby.members.length < 2}>
-              {lobby.members.length < 2 ? 'Waiting for players…' : 'Start match'}
+            <Button size="lg" icon="play" fullWidth loading={starting} onClick={start} disabled={leaving || lobby.members.length < MIN_LOBBY_PLAYERS}>
+              {lobby.members.length < MIN_LOBBY_PLAYERS ? 'Waiting for players…' : 'Start match'}
             </Button>
           ) : (
             <div className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-space-700 py-4 text-muted">

@@ -51,6 +51,8 @@ const matchIntelligence: IntelligenceLookup = async () => ({
     pressureHpa: 1012,
     precipitationMm: 0,
     precipitationIntervalMinutes: 60,
+    dewPointC: 8.8,
+    uvIndexMax24h: 6.4,
   },
   environment: {
     elevationM: 20,
@@ -577,7 +579,8 @@ describe('lobby lifecycle (integration)', () => {
     expect(guestView.statusCode).toBe(404);
   });
 
-  it('shares a twenty-second review and starts the next round with its full clock', async () => {
+  it('shares a 15-second review and starts the next round with its full clock', async () => {
+    expect(LOBBY_ROUND_REVIEW_MS).toBe(15_000);
     const host = await createLobby('easy', 'Host');
     const guest = (await joinLobby(host.lobby.code, 'Guest')).json() as LobbyBody;
     const code = host.lobby.code;
@@ -602,7 +605,7 @@ describe('lobby lifecycle (integration)', () => {
     expect(earlyFinal.json()).toEqual({ finalized: true, attemptsRemaining: 0, attemptsUsed: 2 });
     const waiting = await readMatch(code, host.lobbyToken);
     expect(waiting).toMatchObject({
-      currentRound: 1, roundComplete: false, reviewEndsAt: null, pendingPlayers: ['Guest'],
+      currentRound: 1, roundComplete: false, reviewEndsAt: null, reviewPrompt: null, pendingPlayers: ['Guest'],
       you: { finalized: true, result: null }, results: [],
     });
     expect(waiting.leaderboard.every((entry) => entry.totalScore === 0)).toBe(true);
@@ -620,6 +623,7 @@ describe('lobby lifecycle (integration)', () => {
       for (const match of [hostReview, guestReview]) {
         expect(match).toMatchObject({
           status: 'playing', currentRound: 1, roundComplete: true, reviewEndsAt, endsAt: null,
+          reviewPrompt: { readyPlayers: [], pendingPlayers: ['Host', 'Guest'], youReady: false },
           you: { finalized: true, result: { actual: MATCH_TARGETS[0] } },
         });
         expect(match.you.result?.guesses.map((guess) => guess.displayName)).toEqual(['Host', 'Guest']);
@@ -646,7 +650,7 @@ describe('lobby lifecycle (integration)', () => {
       ]);
       for (const next of [hostNext, guestNext]) {
         expect(next).toMatchObject({
-          currentRound: 2, reviewEndsAt: null, roundComplete: false, startedAt: reviewEndsAt,
+          currentRound: 2, reviewEndsAt: null, reviewPrompt: null, roundComplete: false, startedAt: reviewEndsAt,
           round: { scene: expect.objectContaining({ biome: expect.any(String), seed: expect.any(Number) }) },
           you: { attemptsUsed: 0, selection: null },
         });
@@ -658,6 +662,124 @@ describe('lobby lifecycle (integration)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('advances past the round review early once every player continues, including on the final round', async () => {
+    const host = await createLobby('easy', 'Host', 3);
+    const guest = (await joinLobby(host.lobby.code, 'Guest')).json() as LobbyBody;
+    const code = host.lobby.code;
+    const base = `/api/lobbies/${code}`;
+
+    const started = await app.inject({
+      method: 'POST',
+      url: `${base}/start`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+    });
+    expect(started.statusCode).toBe(200);
+
+    // Reject continue before the round enters review.
+    const tooEarly = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/1/continue`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+    });
+    expect(tooEarly.statusCode).toBe(409);
+
+    const submitBoth = async (roundNumber: number) => {
+      const current = await readMatch(code, host.lobbyToken);
+      const candidateId = current.round!.candidates![0]!.id;
+      for (const token of [host.lobbyToken, guest.lobbyToken]) {
+        const res = await app.inject({
+          method: 'POST',
+          url: `${base}/rounds/${roundNumber}/guess`,
+          headers: { 'x-lobby-token': token },
+          payload: { candidateId, final: true },
+        });
+        expect(res.statusCode).toBe(200);
+      }
+    };
+
+    await submitBoth(1);
+
+    const wrongRound = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/2/continue`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+    });
+    expect(wrongRound.statusCode).toBe(409);
+
+    // First player marks ready: stays in review until the second player continues.
+    const hostReady = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/1/continue`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+    });
+    expect(hostReady.statusCode).toBe(200);
+    expect((hostReady.json() as LobbyMatchResponse).match).toMatchObject({
+      status: 'playing',
+      currentRound: 1,
+      roundComplete: true,
+      reviewPrompt: {
+        readyPlayers: ['Host'],
+        pendingPlayers: ['Guest'],
+        youReady: true,
+      },
+    });
+    expect(await readMatch(code, guest.lobbyToken)).toMatchObject({
+      currentRound: 1,
+      reviewPrompt: {
+        readyPlayers: ['Host'],
+        pendingPlayers: ['Guest'],
+        youReady: false,
+      },
+    });
+
+    // Second player marks ready: advances immediately to round 2 with a full clock.
+    const guestReady = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/1/continue`,
+      headers: { 'x-lobby-token': guest.lobbyToken },
+    });
+    expect(guestReady.statusCode).toBe(200);
+    const round2 = (guestReady.json() as LobbyMatchResponse).match;
+    expect(round2).toMatchObject({
+      status: 'playing',
+      currentRound: 2,
+      roundComplete: false,
+      reviewEndsAt: null,
+      reviewPrompt: null,
+    });
+    expect(Date.parse(round2.endsAt!) - Date.parse(round2.startedAt!)).toBe(
+      round2.rules.timeLimitSeconds * 1000,
+    );
+
+    // Late/duplicate continue for round 1 is idempotent once round 2 has started.
+    const lateContinue = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/1/continue`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+    });
+    expect(lateContinue.statusCode).toBe(200);
+    expect((lateContinue.json() as LobbyMatchResponse).match.currentRound).toBe(2);
+
+    // Advance rounds 2 and 3 via early continue; final round jumps straight to finished.
+    for (const roundNumber of [2, 3]) {
+      await submitBoth(roundNumber);
+      for (const token of [host.lobbyToken, guest.lobbyToken]) {
+        const res = await app.inject({
+          method: 'POST',
+          url: `${base}/rounds/${roundNumber}/continue`,
+          headers: { 'x-lobby-token': token },
+        });
+        expect(res.statusCode).toBe(200);
+      }
+    }
+
+    const finished = await readMatch(code, host.lobbyToken);
+    expect(finished.status).toBe('finished');
+    expect(finished.reviewEndsAt).toBeNull();
+    expect(finished.reviewPrompt).toBeNull();
+    expect(finished.results).toHaveLength(3);
   });
 
 
@@ -747,9 +869,9 @@ describe('lobby lifecycle (integration)', () => {
         headers: { 'x-lobby-token': guest.lobbyToken },
       })
     ).json();
-    expect(hostClues.weather).toMatchObject({ condition: 'Clear sky', pressureHpa: 1012 });
+    expect(hostClues.weather).toMatchObject({ condition: 'Clear sky', pressureHpa: 1012, dewPointC: 8.8, uvIndexMax24h: 6.4 });
     expect(hostClues.environment).toMatchObject({ elevationM: 20, reliefM: 5, terrain: 'Low relief' });
-    expect(guestClues.weather).toMatchObject({ temperatureC: 18, condition: null, pressureHpa: null });
+    expect(guestClues.weather).toMatchObject({ temperatureC: 18, condition: 'Clear sky', pressureHpa: null, dewPointC: null, uvIndexMax24h: null });
     expect(guestClues.environment).toMatchObject({ elevationM: null, reliefM: null, terrain: null });
 
     const payload = { lat: 51.5, lon: -0.12, final: true };
@@ -1386,6 +1508,52 @@ describe('lobby lifecycle (integration)', () => {
       guessLon: hostClose.lon,
       score: 5000,
     });
+  });
+
+  it('lets a multiplayer participant finish a round from their first submitted guess without a second location', async () => {
+    const host = await createLobby('medium', 'Finish Host', 3);
+    const guest = (await joinLobby(host.lobby.code, 'Finish Guest')).json() as LobbyBody;
+    const base = `/api/lobbies/${host.lobby.code}`;
+
+    await app.inject({ method: 'POST', url: `${base}/start`, headers: { 'x-lobby-token': host.lobbyToken } });
+
+    const tooEarly = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/1/finish`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+    });
+    expect(tooEarly.statusCode).toBe(409);
+
+    const firstGuess = MATCH_TARGETS[0];
+    const h1 = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/1/guess`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+      payload: firstGuess,
+    });
+    expect(h1.statusCode).toBe(200);
+    expect(h1.json()).toMatchObject({ finalized: false, attemptsRemaining: 1, attemptsUsed: 1 });
+
+    const midMatch = await readMatch(host.lobby.code, host.lobbyToken);
+    expect(midMatch.you.selection).toBeNull();
+    expect(midMatch.you.submittedGuesses).toEqual([firstGuess]);
+
+    const finished = await app.inject({
+      method: 'POST',
+      url: `${base}/rounds/1/finish`,
+      headers: { 'x-lobby-token': host.lobbyToken },
+    });
+    expect(finished.statusCode).toBe(200);
+    expect(finished.json()).toEqual({ finalized: true, attemptsRemaining: 0, attemptsUsed: 1 });
+
+    await finishRound(host.lobby.code, 1, guest.lobbyToken);
+    const hostReview = await readMatch(host.lobby.code, host.lobbyToken);
+    expect(hostReview.you.result).toMatchObject({
+      guess: firstGuess,
+      attemptsUsed: 1,
+      score: 5000,
+    });
+    expect(hostReview.you.result?.attempts).toHaveLength(1);
   });
 
   it('caps weather retrieval at 3 distinct locations per lobby round across planning, review prep, and repeated polls', async () => {

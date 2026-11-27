@@ -32,6 +32,8 @@ describe('MultiplayerPage display name prefill', () => {
       </MemoryRouter>,
     )
 
+    expect(screen.getByText(/2–16 players/)).toBeInTheDocument()
+
     const input = screen.getByLabelText('Your name') as HTMLInputElement
     expect(input.value).toBe('Captain Alice')
 
@@ -53,6 +55,8 @@ describe('MultiplayerPage display name prefill', () => {
       </MemoryRouter>,
     )
 
+    expect(screen.getByText(/2–16 players/)).toBeInTheDocument()
+
     const input = screen.getByLabelText('Your name') as HTMLInputElement
     expect(input.value.trim().length).toBeGreaterThan(0)
     const generated = input.value
@@ -66,6 +70,7 @@ describe('MultiplayerPage display name prefill', () => {
         difficulty: 'medium',
         status: 'waiting',
         roundsTotal: 5,
+        maxMembers: 16,
         rules: {
           timeLimitSeconds: 240,
           attemptsPerRound: 2,

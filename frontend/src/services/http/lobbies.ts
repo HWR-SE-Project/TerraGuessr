@@ -85,6 +85,17 @@ export const lobbyHttp = {
     })
   },
 
+  continueReview(
+    code: string,
+    roundNumber: number,
+    token: string,
+  ): Promise<LobbyMatchResponse> {
+    return apiFetch<LobbyMatchResponse>(`/lobbies/${encodeURIComponent(code)}/rounds/${roundNumber}/continue`, {
+      method: 'POST',
+      lobbyToken: token,
+    })
+  },
+
   continue(code: string, token: string): Promise<LobbyMatchResponse> {
     return apiFetch<LobbyMatchResponse>(`/lobbies/${encodeURIComponent(code)}/continue`, {
       method: 'POST',

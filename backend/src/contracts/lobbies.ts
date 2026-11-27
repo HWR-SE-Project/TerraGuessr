@@ -38,6 +38,7 @@ export const LobbyView = Type.Object({
   difficulty: Difficulty,
   status: LobbyStatus,
   roundsTotal: Type.Integer({ minimum: 1 }),
+  maxMembers: Type.Integer({ minimum: 2 }),
   rules: GameRulesView,
   createdAt: Type.String(),
   expiresAt: Type.String(),
@@ -142,6 +143,16 @@ const MatchYou = Type.Object({
 });
 
 /**
+ * Present while a round review is open so players can see who has chosen to
+ * continue early before the shared review countdown expires (R16).
+ */
+const MatchReviewPrompt = Type.Object({
+  readyPlayers: Type.Array(Type.String()),
+  pendingPlayers: Type.Array(Type.String()),
+  youReady: Type.Boolean(),
+});
+
+/**
  * Present on a finished match so players can see rematch readiness. `deadline`
  * stays null while players view final standings (R16), and starts once at least
  * one player requests a rematch so silent players never block them forever.
@@ -165,6 +176,7 @@ export const LobbyMatchView = Type.Object({
   round: Type.Union([MatchRound, Type.Null()]),
   roundComplete: Type.Boolean(),
   reviewEndsAt: Type.Union([Type.String(), Type.Null()]),
+  reviewPrompt: Type.Union([MatchReviewPrompt, Type.Null()]),
   pendingPlayers: Type.Array(Type.String()),
   you: MatchYou,
   leaderboard: Type.Array(MatchLeaderboardEntry),

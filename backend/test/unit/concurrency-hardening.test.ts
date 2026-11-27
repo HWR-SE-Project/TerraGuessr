@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 
 import { hashPlayerToken } from '../../src/plugins/auth.js';
 import { createSingleplayerService } from '../../src/modules/singleplayer/service.js';
-import { submitLobbyGuess } from '../../src/modules/lobbies/match.js';
+import { finishLobbyRound, submitLobbyGuess } from '../../src/modules/lobbies/match.js';
 
 const PLAYER_TOKEN = 'player-token';
 const PLAYER_HASH = hashPlayerToken(PLAYER_TOKEN);
@@ -170,6 +170,82 @@ describe('singleplayer round concurrency guards', () => {
     expect(queryRaw).toHaveBeenCalledTimes(1);
     expect(createAttempt).not.toHaveBeenCalled();
   });
+
+  it('finishRound locks the round row, rejects zero attempts, and finalizes from the existing attempt without creating another', async () => {
+    const attempt = {
+      id: 'att-1',
+      roundId: 'round-1',
+      attemptNumber: 1,
+      guessLat: 51.5074,
+      guessLon: -0.1278,
+      distanceKm: 0,
+      score: 5000,
+      createdAt: new Date(),
+    };
+    const baseRound = {
+      id: 'round-1',
+      gameId: 'game-1',
+      number: 1,
+      panoId: 'loc:0',
+      targetIndex: 0,
+      targetLat: 51.5074,
+      targetLon: -0.1278,
+      placeName: 'London',
+      sceneJson: null,
+      candidatesJson: null,
+      startedAt: new Date(),
+      endsAt: FAR_FUTURE,
+      selectionLat: null,
+      selectionLon: null,
+      additionalDataUnlockedAt: null,
+      additionalDataPointsSpent: 0,
+      guessLat: null,
+      guessLon: null,
+      distanceKm: null,
+      score: null,
+      createdAt: new Date(),
+      attempts: [attempt],
+    };
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'round-1' }]);
+    const updateRound = vi.fn().mockResolvedValue({
+      ...baseRound,
+      guessLat: attempt.guessLat,
+      guessLon: attempt.guessLon,
+      distanceKm: 0,
+      score: 5000,
+    });
+    const tx = {
+      $queryRaw: queryRaw,
+      streetRound: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue(baseRound),
+        update: updateRound,
+      },
+    };
+    const db = {
+      streetGame: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'game-1',
+          playerTokenHash: PLAYER_HASH,
+          ownerUserId: null,
+          difficulty: 'medium',
+          roundsTotal: 1,
+          expiresAt: FAR_FUTURE,
+          rounds: [baseRound],
+        }),
+      },
+      $transaction: vi.fn(async (cb: (client: typeof tx) => unknown) => cb(tx)),
+    } as unknown as PrismaClient;
+
+    const service = createSingleplayerService({ db });
+    const response = await service.finishRound('game-1', 'round-1', PLAYER_TOKEN);
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(updateRound).toHaveBeenCalledTimes(1);
+    expect(response.finalized).toBe(true);
+    expect(response.attemptsRemaining).toBe(0);
+    expect(response.result?.score).toBe(5000);
+    expect(response.result?.attempts).toHaveLength(1);
+  });
 });
 
 describe('multiplayer guess submission transactional locking', () => {
@@ -281,6 +357,112 @@ describe('multiplayer guess submission transactional locking', () => {
     expect(queryRaw).toHaveBeenCalledTimes(1);
     expect(createAttempt).toHaveBeenCalledTimes(1);
     expect(updateMember).toHaveBeenCalledTimes(1);
+    expect(upsertResult).toHaveBeenCalledTimes(1);
+  });
+
+  it('finishLobbyRound locks the member row and finalizes from existing attempts without creating another', async () => {
+    const member = {
+      id: 'member-1',
+      lobbyId: 'lobby-1',
+      userId: null,
+      playerTokenHash: PLAYER_HASH,
+      displayName: 'Host',
+      selectionLat: null,
+      selectionLon: null,
+      continueRequestedAt: null,
+      joinedAt: new Date(),
+    };
+    const attempt = {
+      id: 'att-1',
+      roundId: 'round-1',
+      memberId: 'member-1',
+      attemptNumber: 1,
+      guessLat: 51.5074,
+      guessLon: -0.1278,
+      distanceKm: 0,
+      score: 5000,
+      createdAt: new Date(),
+    };
+    const round = {
+      id: 'round-1',
+      lobbyId: 'lobby-1',
+      number: 1,
+      panoId: 'loc:0',
+      targetIndex: 0,
+      targetLat: 51.5074,
+      targetLon: -0.1278,
+      placeName: 'London',
+      sceneJson: null,
+      candidatesJson: null,
+      startedAt: new Date(),
+      endsAt: FAR_FUTURE,
+      reviewEndsAt: null,
+      weatherValidUntil: FAR_FUTURE,
+      weatherAttemptedIndices: [0],
+      weatherExhausted: false,
+      createdAt: new Date(),
+      attempts: [attempt],
+      results: [],
+      memberStates: [],
+    };
+    const lobby = {
+      id: 'lobby-1',
+      code: 'ABC234',
+      difficulty: 'medium',
+      matchId: 'match-1',
+      hostTokenHash: PLAYER_HASH,
+      roundsTotal: 5,
+      status: 'playing',
+      currentRound: 1,
+      startedAt: new Date(),
+      finishedAt: null,
+      createdAt: new Date(),
+      expiresAt: FAR_FUTURE,
+      members: [
+        member,
+        { ...member, id: 'member-2', playerTokenHash: hashPlayerToken('guest') },
+      ],
+      rounds: [round],
+    };
+
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'member-1' }]);
+    const updateMember = vi.fn().mockResolvedValue(member);
+    const upsertResult = vi.fn().mockResolvedValue({
+      id: 'res-1',
+      roundId: 'round-1',
+      memberId: 'member-1',
+      score: 5000,
+      attemptsUsed: 1,
+      extraDataPointsSpent: 0,
+    });
+    const tx = {
+      $queryRaw: queryRaw,
+      lobbyMember: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'member-1' }),
+        update: updateMember,
+      },
+      lobbyRound: {
+        findUnique: vi.fn().mockResolvedValue(round),
+      },
+      lobbyRoundResult: { upsert: upsertResult },
+    };
+    const db = {
+      lobby: { findUnique: vi.fn().mockResolvedValue(lobby) },
+      $transaction: vi.fn(async (cb: (client: typeof tx) => unknown) => cb(tx)),
+    } as unknown as PrismaClient;
+
+    const response = await finishLobbyRound('ABC234', 1, PLAYER_TOKEN, db);
+
+    expect(response).toEqual({
+      finalized: true,
+      attemptsRemaining: 0,
+      attemptsUsed: 1,
+    });
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(updateMember).toHaveBeenCalledWith({
+      where: { id: 'member-1' },
+      data: { selectionLat: null, selectionLon: null },
+    });
     expect(upsertResult).toHaveBeenCalledTimes(1);
   });
 });

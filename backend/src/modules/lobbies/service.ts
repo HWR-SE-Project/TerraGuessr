@@ -79,6 +79,7 @@ type LobbyWithMembers = Lobby & { members: LobbyMember[] };
 export function toLobbyView(
   lobby: LobbyWithMembers,
   rawToken?: string,
+  maxMembers: number = MAX_LOBBY_MEMBERS,
 ): LobbyView {
   const callerTokenHash =
     rawToken === undefined ? null : hashPlayerToken(rawToken);
@@ -97,6 +98,7 @@ export function toLobbyView(
     difficulty: lobby.difficulty,
     status: lobby.status,
     roundsTotal: lobby.roundsTotal,
+    maxMembers,
     rules: gameRulesFor(lobby.difficulty),
     createdAt: lobby.createdAt.toISOString(),
     expiresAt: lobby.expiresAt.toISOString(),
@@ -231,6 +233,7 @@ export async function joinLobby(
     lobby: toLobbyView(
       { ...lobby, members: [...lobby.members, member] },
       playerToken,
+      maxMembers,
     ),
     lobbyToken: playerToken,
   };
