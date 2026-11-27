@@ -62,4 +62,20 @@ describe('singleplayer mock flow', () => {
 
     await expect(singleplayerMock.next(credentials)).rejects.toThrow(/completed/i)
   })
+
+  it('finalizes a round from an already-submitted guess without requiring a second location', async () => {
+    const credentials = await singleplayerMock.create('medium')
+    const round = await singleplayerMock.next(credentials)
+
+    await expect(singleplayerMock.finish(credentials, round.id)).rejects.toThrow(/at least one guess/i)
+
+    const first = await singleplayerMock.guess(credentials, round.id, { lat: 48.8566, lon: 2.3522 }, false)
+    expect(first.finalized).toBe(false)
+    expect(first.attemptsRemaining).toBe(1)
+
+    const finished = await singleplayerMock.finish(credentials, round.id)
+    expect(finished.finalized).toBe(true)
+    expect(finished.attemptsRemaining).toBe(0)
+    expect(finished.result?.guess).toEqual({ lat: 48.8566, lon: 2.3522 })
+  })
 })

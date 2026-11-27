@@ -195,6 +195,7 @@ export const singleplayerMock = {
       extraDataUnlocked: rules.extraData.mode === 'free',
       extraDataPointsSpent: 0,
       guess: null,
+      attempts: [],
       result: null,
     }
     game.activeRound = round
@@ -247,6 +248,7 @@ export const singleplayerMock = {
     const round = requireRound(game, roundId)
     round.attemptsUsed = 0
     round.guess = null
+    round.attempts = []
     round.result = null
     round.endsAt = endRoundAt(game.difficulty)
     round.extraDataUnlocked = mockGameRules(game.difficulty).extraData.mode === 'free'
@@ -261,20 +263,27 @@ export const singleplayerMock = {
     const guess = resolveMockChoice(choice)
 
     round.attemptsUsed += 1
+    round.attempts.push({ lat: guess.lat, lon: guess.lon })
     const rules = mockGameRules(game.difficulty)
     const finalizes = final || round.attemptsUsed >= round.attemptsTotal
 
     if (finalizes) {
       const actual = locationById(round.locationId)
-      const distanceKm = haversineKm(guess, { lat: actual.lat, lon: actual.lon })
-      const rawScore = scoreForDistance(distanceKm)
-      const score = Math.max(0, rawScore - round.extraDataPointsSpent)
+      const best = round.attempts.reduce<{ point: LatLon; distanceKm: number; score: number } | null>((winner, point) => {
+        const distanceKm = haversineKm(point, { lat: actual.lat, lon: actual.lon })
+        const score = scoreForDistance(distanceKm)
+        if (!winner || score > winner.score || (score === winner.score && distanceKm < winner.distanceKm)) {
+          return { point, distanceKm, score }
+        }
+        return winner
+      }, null)!
+      const score = Math.max(0, best.score - round.extraDataPointsSpent)
       const result: MockStreetResult = {
         roundId: round.id,
         number: round.number,
-        guess: { lat: guess.lat, lon: guess.lon },
+        guess: { lat: best.point.lat, lon: best.point.lon },
         actual: { lat: actual.lat, lon: actual.lon },
-        distanceKm: Math.round(distanceKm * 10) / 10,
+        distanceKm: Math.round(best.distanceKm * 10) / 10,
         score,
         extraDataPointsSpent: round.extraDataPointsSpent,
       }
@@ -289,9 +298,53 @@ export const singleplayerMock = {
       })
     }
 
+    round.guess = null
     return delay({
       finalized: false,
       attemptsRemaining: rules.attemptsPerRound - round.attemptsUsed,
+    })
+  },
+
+  async finish(credentials: StreetCredentials, roundId: string): Promise<StreetGuessResponse> {
+    const game = requireGame(credentials.id)
+    const round = requireRound(game, roundId)
+    if (round.result) {
+      throw Object.assign(new Error('This round has already ended.'), { code: 'CONFLICT', status: 409 })
+    }
+    if (round.attempts.length === 0) {
+      throw Object.assign(new Error('Submit at least one guess before finishing the round.'), {
+        code: 'CONFLICT',
+        status: 409,
+      })
+    }
+    const actual = locationById(round.locationId)
+    const best = round.attempts.reduce<{ point: LatLon; distanceKm: number; score: number } | null>((winner, point) => {
+      const distanceKm = haversineKm(point, { lat: actual.lat, lon: actual.lon })
+      const score = scoreForDistance(distanceKm)
+      if (!winner || score > winner.score || (score === winner.score && distanceKm < winner.distanceKm)) {
+        return { point, distanceKm, score }
+      }
+      return winner
+    }, null)!
+    const score = Math.max(0, best.score - round.extraDataPointsSpent)
+    const result: MockStreetResult = {
+      roundId: round.id,
+      number: round.number,
+      guess: { lat: best.point.lat, lon: best.point.lon },
+      actual: { lat: actual.lat, lon: actual.lon },
+      distanceKm: Math.round(best.distanceKm * 10) / 10,
+      score,
+      extraDataPointsSpent: round.extraDataPointsSpent,
+    }
+    round.guess = null
+    round.result = result
+    game.results.push(result)
+    game.totalScore += score
+    game.activeRound = null
+    return delay({
+      finalized: true,
+      attemptsRemaining: 0,
+      result: toResult(result),
     })
   },
 

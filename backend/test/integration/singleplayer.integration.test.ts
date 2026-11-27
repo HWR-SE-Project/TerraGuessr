@@ -29,7 +29,13 @@ function validIntelligence(): GeographicIntelligence {
       humidityPct: 40,
       pressureHpa: 1013,
       precipitationMm: 0,
-      precipitationIntervalMinutes: null,
+      precipitationIntervalMinutes: 60,
+      dewPointC: 4.5,
+      cloudCoverPct: 20,
+      uvIndexMax24h: 5.8,
+      tempMin24hC: 12,
+      tempMax24hC: 23,
+      precipitation24hMm: 0.4,
     },
     environment: {
       elevationM: 100,
@@ -848,8 +854,14 @@ describe('difficulty levels and list-mode candidates', () => {
       precipitationMm: 0,
       humidityPct: 40,
       windSpeedKmh: 10,
-      condition: null,
+      condition: 'Clear sky',
       pressureHpa: null,
+      dewPointC: null,
+      cloudCoverPct: null,
+      uvIndexMax24h: null,
+      tempMin24hC: null,
+      tempMax24hC: null,
+      precipitation24hMm: null,
     });
     expect(beforeUnlock.environment).toMatchObject({
       elevationM: null,
@@ -876,6 +888,12 @@ describe('difficulty levels and list-mode candidates', () => {
     expect(afterUnlock.weather).toMatchObject({
       condition: 'Clear sky',
       pressureHpa: 1013,
+      dewPointC: 4.5,
+      cloudCoverPct: 20,
+      uvIndexMax24h: 5.8,
+      tempMin24hC: 12,
+      tempMax24hC: 23,
+      precipitation24hMm: 0.4,
     });
     expect(afterUnlock.environment).toMatchObject({
       elevationM: 100,
@@ -1129,32 +1147,46 @@ describe('next-round prefetch', () => {
     registerErrorHandler(slowApp);
     const slowFetch = vi.fn(async (input: URL | RequestInfo) => {
       await new Promise((resolve) => setTimeout(resolve, 2300));
-      const url = String(input);
-      if (url.includes('/elevation')) {
-        return new Response(JSON.stringify({ elevation: [40, 42, 45, 38, 40, 41, 39, 44, 43] }));
-      }
-      const iso = new Date(Date.now() - 60_000).toISOString().slice(0, 16);
+      const url = new URL(String(input));
+      const lat = Number(url.searchParams.get('lat') ?? 40);
+      const lon = Number(url.searchParams.get('lon') ?? 10);
+      const iso = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
       return new Response(
         JSON.stringify({
-          current: {
-            time: iso,
-            interval: 900,
-            temperature_2m: 19,
-            weather_code: 1,
-            relative_humidity_2m: 50,
-            wind_speed_10m: 11,
-            wind_direction_10m: 120,
-            surface_pressure: 1015,
-            precipitation: 0,
-            is_day: 1,
-          },
-          current_units: {
-            temperature_2m: '°C',
-            relative_humidity_2m: '%',
-            wind_speed_10m: 'km/h',
-            wind_direction_10m: '°',
-            surface_pressure: 'hPa',
-            precipitation: 'mm',
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lon, lat, 40] },
+          properties: {
+            meta: {
+              updated_at: iso,
+              units: {
+                air_pressure_at_sea_level: 'hPa',
+                air_temperature: 'celsius',
+                precipitation_amount: 'mm',
+                relative_humidity: '%',
+                wind_from_direction: 'degrees',
+                wind_speed: 'm/s',
+              },
+            },
+            timeseries: [
+              {
+                time: iso,
+                data: {
+                  instant: {
+                    details: {
+                      air_pressure_at_sea_level: 1015,
+                      air_temperature: 19,
+                      relative_humidity: 50,
+                      wind_from_direction: 120,
+                      wind_speed: 3.1,
+                    },
+                  },
+                  next_1_hours: {
+                    summary: { symbol_code: 'fair_day' },
+                    details: { precipitation_amount: 0 },
+                  },
+                },
+              },
+            ],
           },
         }),
       );
@@ -1468,6 +1500,54 @@ describe('durable result archive', () => {
     expect(archived.guessLon).toBe(11);
     expect(archived.score).toBe(second.result.score);
     expect(archived.distanceKm).toBe(second.result.distanceKm);
+  });
+  it('finalizes a round from an already-submitted guess via /finish without requiring a second location', async () => {
+    const account = await signIn(db, 'Archive Early Finish');
+    userIds.push(account.user.id);
+    const auth = await createGame('medium', account.cookie);
+    const round = (
+      await app.inject({ method: 'POST', url: `${auth.base}/rounds`, headers: auth.headers })
+    ).json();
+
+    const tooEarly = await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/finish`,
+      headers: auth.headers,
+    });
+    expect(tooEarly.statusCode).toBe(409);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/guess`,
+      headers: auth.headers,
+      payload: { lat: 48, lon: 11 },
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({ finalized: false, attemptsRemaining: 1 });
+
+    const midSession = (await app.inject({ url: auth.base, headers: auth.headers })).json();
+    expect(midSession.activeRound.selection).toBeNull();
+    expect(midSession.activeRound.submittedGuesses).toEqual([{ lat: 48, lon: 11 }]);
+
+    const finished = await app.inject({
+      method: 'POST',
+      url: `${auth.base}/rounds/${round.id}/finish`,
+      headers: auth.headers,
+    });
+    expect(finished.statusCode).toBe(200);
+    const body = finished.json();
+    expect(body.finalized).toBe(true);
+    expect(body.attemptsRemaining).toBe(0);
+    expect(body.result.guess).toEqual({ lat: 48, lon: 11 });
+    expect(body.result.attempts).toHaveLength(1);
+
+    const archived = await db.gameResult.findUniqueOrThrow({
+      where: { id: `solo:${round.id}` },
+    });
+    expect(archived.guessLat).toBe(48);
+    expect(archived.guessLon).toBe(11);
+    expect(archived.attemptsUsed).toBe(1);
+    expect(archived.score).toBe(body.result.score);
   });
   it('survives deletion of the 24h-expired session and cascades on account deletion', async () => {
     const account = await signIn(db, 'Archive Survivor');

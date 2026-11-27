@@ -348,6 +348,24 @@ export function registerSingleplayerRoutes(
       );
     },
   );
+  app.post<{ Params: { gameId: string; roundId: string } }>(
+    '/api/singleplayer/games/:gameId/rounds/:roundId/finish',
+    {
+      config: limited,
+      schema: {
+        params: Type.Object({ gameId: Type.String(), roundId: Type.String() }),
+        response: { 200: GuessResponse },
+      },
+    },
+    async (request, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      return service.finishRound(
+        request.params.gameId,
+        request.params.roundId,
+        playerToken(request),
+      );
+    },
+  );
 
   return service;
 }

@@ -16,8 +16,6 @@ const IMMEDIATE_FLUSH_WINDOW_MS = 3_000
 const MAX_SELECTION_RETRIES = 2
 const RETRY_BASE_DELAY_MS = 250
 
-type SelectionSyncState = 'idle' | 'saving' | 'saved' | 'error'
-
 function isTransientSelectionError(cause: unknown): boolean {
   if (cause instanceof ApiError) {
     return cause.status === 0 || cause.status === 429 || cause.status >= 500
@@ -39,7 +37,7 @@ function defaultPanelOpen(): boolean {
 export function GuessPanel({
   rules, candidates = [], initialSelection = null, initialCandidateId = null,
   submittedGuesses = [], submittedCandidateIds = [], endsAt = null, attemptsUsed, attemptsTotal,
-  submitting, disabled = false, onSelect, onSubmit,
+  submitting, disabled = false, onSelect, onSubmit, onFinish,
 }: {
   rules?: Pick<GameRules, 'selectionMode' | 'countryBorders'>
   candidates?: Candidate[]
@@ -54,14 +52,16 @@ export function GuessPanel({
   disabled?: boolean
   onSelect: (choice: GuessInput) => Promise<void>
   onSubmit: (choice: GuessInput, final: boolean) => void
+  onFinish?: () => void
 }) {
   const [open, setOpen] = useState(defaultPanelOpen)
   const [selection, setSelection] = useState(initialSelection)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(initialCandidateId)
-  const [syncState, setSyncState] = useState<SelectionSyncState>('idle')
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [submittingKind, setSubmittingKind] = useState<'guess' | 'final' | null>(null)
 
   const mountedRef = useRef(true)
+  const prevAttemptsUsedRef = useRef(attemptsUsed)
   const onSelectRef = useRef(onSelect)
   const endsAtRef = useRef(endsAt)
   const lockedRef = useRef(false)
@@ -79,12 +79,26 @@ export function GuessPanel({
     endsAtRef.current = endsAt
   }, [endsAt])
 
+  useEffect(() => {
+    if (attemptsUsed > prevAttemptsUsedRef.current) {
+      setSelection(null)
+      setSelectedCandidateId(null)
+    }
+    prevAttemptsUsedRef.current = attemptsUsed
+  }, [attemptsUsed])
+
   // Older round payloads signaled list mode by supplying city candidates.
   const selectionMode = rules?.selectionMode
   const listMode = selectionMode ? selectionMode === 'list' : candidates.length > 0
   const remaining = attemptsTotal - attemptsUsed
   const locked = disabled || submitting || remaining <= 0
-  lockedRef.current = locked
+  const canFinishWithoutSelection = attemptsUsed > 0 && Boolean(onFinish)
+  const showFinalSubmit = remaining > 1 || canFinishWithoutSelection
+  const activeSubmittingKind = submitting ? submittingKind : null
+
+  useEffect(() => {
+    lockedRef.current = locked
+  }, [locked])
 
   const clearTimers = useCallback(() => {
     if (debounceTimerRef.current !== undefined) {
@@ -105,10 +119,13 @@ export function GuessPanel({
     }
   }, [clearTimers])
 
-  const sendChoice = useCallback(async (choice: GuessInput, version: number, attempt = 0) => {
+  const sendChoice = useCallback(async function dispatchChoice(
+    choice: GuessInput,
+    version: number,
+    attempt = 0,
+  ) {
     if (!mountedRef.current || version !== latestVersionRef.current) return
     inFlightRef.current = true
-    setSyncState('saving')
     setSyncError(null)
     try {
       await onSelectRef.current(choice)
@@ -117,12 +134,11 @@ export function GuessPanel({
       const queued = pendingRef.current
       if (queued && queued.version === latestVersionRef.current) {
         pendingRef.current = null
-        void sendChoice(queued.choice, queued.version, 0)
+        void dispatchChoice(queued.choice, queued.version, 0)
         return
       }
       if (version === latestVersionRef.current) {
         failedRef.current = null
-        setSyncState('saved')
         setSyncError(null)
       }
     } catch (cause) {
@@ -131,14 +147,13 @@ export function GuessPanel({
       const queued = pendingRef.current
       if (queued && queued.version === latestVersionRef.current) {
         pendingRef.current = null
-        void sendChoice(queued.choice, queued.version, 0)
+        void dispatchChoice(queued.choice, queued.version, 0)
         return
       }
       if (version !== latestVersionRef.current) return
       // A 409 means the round has already ended or locked server-side; stop silently.
       if (cause instanceof ApiError && cause.status === 409) {
         failedRef.current = null
-        setSyncState('idle')
         setSyncError(null)
         return
       }
@@ -147,12 +162,11 @@ export function GuessPanel({
         retryTimerRef.current = window.setTimeout(() => {
           retryTimerRef.current = undefined
           if (!mountedRef.current || lockedRef.current) return
-          void sendChoice(choice, version, attempt + 1)
+          void dispatchChoice(choice, version, attempt + 1)
         }, delayMs)
         return
       }
       failedRef.current = { choice, version }
-      setSyncState('error')
       setSyncError(
         cause instanceof Error && cause.message
           ? cause.message
@@ -220,7 +234,6 @@ export function GuessPanel({
     const version = ++latestVersionRef.current
     failedRef.current = null
     setSyncError(null)
-    setSyncState('saving')
     clearTimers()
 
     if (inFlightRef.current) {
@@ -251,15 +264,20 @@ export function GuessPanel({
   }
 
   function handleSubmit(final: boolean) {
-    if (!activeChoice || locked) return
-    // Submitting a guess persists the chosen location server-side, superseding any queued selection write.
+    if (locked) return
+    if (!activeChoice && !(final && canFinishWithoutSelection)) return
+    // Submitting or finishing supersedes any queued selection write.
     latestVersionRef.current += 1
     pendingRef.current = null
     failedRef.current = null
     clearTimers()
     setSyncError(null)
-    setSyncState('idle')
-    onSubmit(activeChoice, final)
+    setSubmittingKind(final ? 'final' : 'guess')
+    if (activeChoice) {
+      onSubmit(activeChoice, final)
+    } else if (final && onFinish) {
+      onFinish()
+    }
   }
 
   return (
@@ -320,7 +338,11 @@ export function GuessPanel({
                       ) : (
                         <>
                           <Icon name="pin" size={13} className="shrink-0 text-subtle" />
-                          <span className="text-muted">Click a location on the map to select it.</span>
+                          <span className="text-muted">
+                            {canFinishWithoutSelection
+                              ? 'Click a location on the map, or Final submit to lock in.'
+                              : 'Click a location on the map to select it.'}
+                          </span>
                         </>
                       )}
                     </div>
@@ -345,22 +367,19 @@ export function GuessPanel({
                   />
                 </div>
               )}
-              {(attemptsTotal > 1 || syncState === 'saving' || (attemptsUsed > 0 && remaining > 0)) && (
+              {(attemptsTotal > 1 || (attemptsUsed > 0 && remaining > 0)) && (
                 <div className="mt-2.5 flex items-center justify-between gap-2">
                   {attemptsTotal > 1 && (
                     <p className="min-w-0 flex-1 text-[11px] text-subtle">
                       Best of {attemptsTotal}: your closest submitted guess counts.
                     </p>
                   )}
-                  {syncState === 'saving' && (
-                    <span className="shrink-0 text-[11px] font-semibold text-subtle">Saving…</span>
-                  )}
                   {attemptsUsed > 0 && remaining > 0 && (
                     <span className="shrink-0 text-xs font-bold text-amber-300">{remaining} {remaining === 1 ? 'try' : 'tries'} left</span>
                   )}
                 </div>
               )}
-              {syncState === 'error' && syncError && (
+              {syncError && (
                 <div
                   role="alert"
                   className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-rose-400/40 bg-rose-400/10 px-2.5 py-1.5 text-xs text-rose-200"
@@ -383,17 +402,18 @@ export function GuessPanel({
                 <Button
                   icon="pin"
                   disabled={locked || !activeChoice}
-                  loading={submitting}
+                  loading={activeSubmittingKind === 'guess'}
                   className="min-w-0 flex-1 max-sm:px-3 max-sm:text-sm"
                   onClick={() => handleSubmit(false)}
                 >
                   Submit guess
                 </Button>
-                {remaining > 1 && (
+                {showFinalSubmit && (
                   <Button
                     variant="tinted"
                     icon="check"
-                    disabled={locked || !activeChoice}
+                    disabled={locked || (!activeChoice && !canFinishWithoutSelection)}
+                    loading={activeSubmittingKind === 'final'}
                     className="min-w-0 flex-1 max-sm:px-3 max-sm:text-sm"
                     onClick={() => handleSubmit(true)}
                   >

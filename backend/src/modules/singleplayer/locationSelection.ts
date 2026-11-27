@@ -89,12 +89,14 @@ export async function selectRoundWithWeather(
     maxAttempts = MAX_WEATHER_ATTEMPTS,
     validAt,
     alreadyAttempted = [],
+    now = Date.now,
   }: {
     prefetched?: PanoramaTarget;
     locate?: PanoramaLocator;
     maxAttempts?: number;
     validAt?: Date;
     alreadyAttempted?: readonly number[];
+    now?: () => number;
   } = {},
 ): Promise<{
   target: PanoramaTarget;
@@ -116,7 +118,7 @@ export async function selectRoundWithWeather(
     )?.weather;
     if (
       weather &&
-      isValidStreetWeather(weather, Math.max(Date.now(), validAt?.getTime() ?? 0))
+      isValidStreetWeather(weather, Math.max(now(), validAt?.getTime() ?? 0))
     ) {
       const biome =
         target.biome ?? locationAt(target.targetIndex)?.biome ?? 'grasslands';

@@ -123,6 +123,7 @@ export interface MockRound {
   extraDataUnlocked: boolean
   extraDataPointsSpent: number
   guess: { lat: number; lon: number } | null
+  attempts: Array<{ lat: number; lon: number }>
   result: MockStreetResult | null
 }
 
@@ -187,9 +188,12 @@ export interface MockMatchRound {
   extraDataPointsSpent: number
   /** memberId → submitted guess */
   guesses: Map<string, { lat: number; lon: number; answer: string | null }>
+  /** memberId → submitted attempts */
+  submittedAttempts: Map<string, Array<{ lat: number; lon: number; answer: string | null }>>
   /** memberId → attempts used */
   memberAttempts: Map<string, number>
   finalized: Set<string>
+  reviewReady: Set<string>
 }
 
 export const lobbies = new Map<string, MockLobby>()

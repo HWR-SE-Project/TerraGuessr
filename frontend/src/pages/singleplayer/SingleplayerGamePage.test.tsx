@@ -359,4 +359,115 @@ describe('SingleplayerGamePage finite round sessions', () => {
     expect(sessionSpy).not.toHaveBeenCalled()
     expect(nextSpy).not.toHaveBeenCalled()
   })
+
+  it('lets a player finalize a round with their first submitted guess without picking a second location', async () => {
+    const user = userEvent.setup()
+    const initialRound = {
+      id: 'round-finish-1',
+      number: 1,
+      scene: {
+        biome: 'urban' as const,
+        weather: 'clear' as const,
+        lighting: 'day' as const,
+        temperatureBand: 'mild' as const,
+        windBand: 'calm' as const,
+        seed: 202,
+      },
+      startedAt: new Date().toISOString(),
+      endsAt: new Date(Date.now() + 420_000).toISOString(),
+      attemptsUsed: 0,
+      attemptsTotal: 3,
+      rules: {
+        timeLimitSeconds: 420,
+        attemptsPerRound: 3,
+        selectionMode: 'list' as const,
+        countryBorders: true,
+        extraData: { mode: 'free' as const },
+      },
+      selection: null,
+      candidates: [
+        { id: 'c1', name: 'London', region: 'EUROPE', lat: 51.5074, lon: -0.1278 },
+        { id: 'c2', name: 'Paris', region: 'EUROPE', lat: 48.8566, lon: 2.3522 },
+      ],
+      extraData: { mode: 'immediate' as const, cost: null, availableAt: null, unlocked: true, pointsSpent: 0 },
+    }
+    setGameCredentials(
+      { id: 'game-finish', playerToken: 'token-finish' },
+      {
+        id: 'game-finish',
+        difficulty: 'easy',
+        roundsTotal: 3,
+        completed: false,
+        totalScore: 0,
+        activeRound: initialRound,
+        results: [],
+      },
+    )
+
+    vi.spyOn(api.singleplayer, 'intelligence').mockResolvedValue({
+      fetchedAt: new Date().toISOString(),
+      cached: true,
+      weather: {
+        modelTime: new Date().toISOString(),
+        temperatureC: 12,
+        condition: 'Clear sky',
+        windSpeedKmh: 7.2,
+        windDirectionDeg: null,
+        humidityPct: 60,
+        pressureHpa: 1012,
+        precipitationMm: 0,
+        precipitationIntervalMinutes: 15,
+      },
+      environment: { elevationM: 10, reliefM: 5, terrain: 'Low relief', biome: null, vegetation: null },
+      climate: null,
+    })
+    vi.spyOn(api.singleplayer, 'selection').mockResolvedValue(undefined)
+    const guessSpy = vi.spyOn(api.singleplayer, 'guess').mockResolvedValue({
+      finalized: false,
+      attemptsRemaining: 2,
+    })
+    const finishSpy = vi.spyOn(api.singleplayer, 'finish').mockResolvedValue({
+      finalized: true,
+      attemptsRemaining: 0,
+      result: {
+        roundId: 'round-finish-1',
+        number: 1,
+        guess: { lat: 51.5074, lon: -0.1278 },
+        actual: { lat: 51.5074, lon: -0.1278 },
+        placeName: 'London',
+        distanceKm: 0,
+        score: 5000,
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <SingleplayerGamePage />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'London, Europe' }))
+    await user.click(screen.getByRole('button', { name: 'Submit guess' }))
+
+    expect(guessSpy).toHaveBeenCalledWith(
+      { id: 'game-finish', playerToken: 'token-finish' },
+      'round-finish-1',
+      { candidateId: 'c1' },
+      false,
+    )
+
+    expect(screen.getByRole('button', { name: 'Submit guess' })).toBeDisabled()
+    const finalButton = screen.getByRole('button', { name: 'Final submit' })
+    expect(finalButton).toBeEnabled()
+
+    await user.click(finalButton)
+
+    expect(finishSpy).toHaveBeenCalledWith(
+      { id: 'game-finish', playerToken: 'token-finish' },
+      'round-finish-1',
+    )
+    const resultDialog = await screen.findByRole('dialog', { name: 'Round 1 result' })
+    expect(resultDialog).toHaveTextContent('London')
+    expect(resultDialog).toHaveTextContent('5,000')
+  })
 })
