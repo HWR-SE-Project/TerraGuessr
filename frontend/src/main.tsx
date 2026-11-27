@@ -5,6 +5,8 @@ import { MotionConfig } from 'framer-motion'
 import './styles/index.css'
 import { SiteLayout } from './components/layout/SiteLayout'
 import { GameLayout } from './components/layout/GameLayout'
+import { RootErrorBoundary, RouteErrorFallback } from './components/layout/ErrorFallback'
+import { installPreloadErrorRecovery } from './lib/preloadRecovery'
 import { HomePage } from './pages/home/HomePage'
 import { SingleplayerPage } from './pages/singleplayer/SingleplayerPage'
 import { SingleplayerGamePage } from './pages/singleplayer/SingleplayerGamePage'
@@ -24,42 +26,51 @@ import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { VerifyEmailPage } from './pages/auth/VerifyEmailPage'
 import { EmailChangePage } from './pages/auth/EmailChangePage'
 
+installPreloadErrorRecovery()
+
 const router = createBrowserRouter([
   {
-    element: <SiteLayout />,
+    errorElement: <RouteErrorFallback />,
     children: [
-      { path: '/', element: <HomePage /> },
-      { path: '/singleplayer', element: <SingleplayerPage /> },
-      { path: '/multiplayer', element: <MultiplayerPage /> },
-      { path: '/lobby/:code', element: <LobbyPage /> },
-      { path: '/settings', element: <SettingsPage /> },
-      { path: '/account', element: <AccountPage /> },
-      { path: '/avatar', element: <AvatarPage /> },
-      { path: '/stats', element: <StatsPage /> },
-      { path: '/how-to-play', element: <HowToPlayPage /> },
-      { path: '/how-to-play/guide', element: <UltimateGuidePage /> },
-      { path: '/privacy', element: <PrivacyPage /> },
-      { path: '/auth', element: <AuthPage /> },
-      { path: '/reset-password', element: <ResetPasswordPage /> },
-      { path: '/verify-email', element: <VerifyEmailPage /> },
-      { path: '/confirm-email-change', element: <EmailChangePage /> },
+      {
+        element: <SiteLayout />,
+        children: [
+          { path: '/', element: <HomePage /> },
+          { path: '/singleplayer', element: <SingleplayerPage /> },
+          { path: '/multiplayer', element: <MultiplayerPage /> },
+          { path: '/lobby/:code', element: <LobbyPage /> },
+          { path: '/settings', element: <SettingsPage /> },
+          { path: '/account', element: <AccountPage /> },
+          { path: '/avatar', element: <AvatarPage /> },
+          { path: '/stats', element: <StatsPage /> },
+          { path: '/how-to-play', element: <HowToPlayPage /> },
+          { path: '/how-to-play/guide', element: <UltimateGuidePage /> },
+          { path: '/privacy', element: <PrivacyPage /> },
+          { path: '/auth', element: <AuthPage /> },
+          { path: '/reset-password', element: <ResetPasswordPage /> },
+          { path: '/verify-email', element: <VerifyEmailPage /> },
+          { path: '/confirm-email-change', element: <EmailChangePage /> },
+        ],
+      },
+      {
+        element: <GameLayout />,
+        children: [
+          { path: '/singleplayer/play', element: <SingleplayerGamePage /> },
+          { path: '/lobby/:code/play', element: <MultiplayerGamePage /> },
+          { path: '/how-to-play/tutorial', element: <TutorialPage /> },
+        ],
+      },
+      { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
-  {
-    element: <GameLayout />,
-    children: [
-      { path: '/singleplayer/play', element: <SingleplayerGamePage /> },
-      { path: '/lobby/:code/play', element: <MultiplayerGamePage /> },
-      { path: '/how-to-play/tutorial', element: <TutorialPage /> },
-    ],
-  },
-  { path: '*', element: <Navigate to="/" replace /> },
 ])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MotionConfig reducedMotion="user">
-      <RouterProvider router={router} />
-    </MotionConfig>
+    <RootErrorBoundary>
+      <MotionConfig reducedMotion="user">
+        <RouterProvider router={router} />
+      </MotionConfig>
+    </RootErrorBoundary>
   </StrictMode>,
 )
