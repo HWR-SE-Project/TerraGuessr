@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import type { GuessInput, LobbyLeaderboardEntry, LobbyMatchResponse, LobbyMatchResult, LobbyParticipantGuess } from '../../lib/contracts'
+import type { GuessInput, LobbyLeaderboardEntry, LobbyMatchResponse, LobbyMatchResult, LobbyMatchReviewPrompt, LobbyParticipantGuess } from '../../lib/contracts'
 import { api, ApiError } from '../../services'
 import { useLobbyPolling, useLobbyRoute } from './useLobbyRoute'
 import { RoundResultDetails } from '../../components/game/RoundResultDetails'
@@ -16,6 +16,8 @@ export function MultiplayerGamePage() {
   const { code, session, leaving, leave, openWaitingRoom } = useLobbyRoute()
   const { data: match, error: connectionError, refresh, update } = useLobbyPolling(session, api.lobby.match, 1000, !leaving)
   const [expiredRoundId, setExpiredRoundId] = useState<string | null>(null)
+  const [continuingReview, setContinuingReview] = useState(false)
+  const [reviewError, setReviewError] = useState<{ roundId: string; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [exitOpen, setExitOpen] = useState(false)
   const pollError = connectionError instanceof ApiError && (connectionError.status === 503 || !match)
@@ -73,6 +75,8 @@ export function MultiplayerGamePage() {
             ...previous.match,
             you: {
               ...you,
+              selection: response.finalized ? you.selection : null,
+              selectedCandidateId: response.finalized ? you.selectedCandidateId : null,
               attemptsUsed: response.attemptsUsed ?? (you.attemptsTotal - response.attemptsRemaining),
               submittedGuesses: 'candidateId' in choice
                 ? (you.submittedGuesses ?? [])
@@ -90,11 +94,53 @@ export function MultiplayerGamePage() {
     }
   }
 
+  async function finish() {
+    if (!round || !session || m.you.finalized) return
+    try {
+      const response = await api.lobby.finish(code, round.number, session.token)
+      update((previous) => {
+        if (!previous || previous.match.round?.id !== round.id) return previous
+        const you = previous.match.you
+        return {
+          ...previous,
+          match: {
+            ...previous.match,
+            you: {
+              ...you,
+              attemptsUsed: response.attemptsUsed ?? you.attemptsUsed,
+              finalized: response.finalized,
+            },
+          },
+        }
+      })
+    } finally {
+      void refresh()
+    }
+  }
+
   async function unlock() {
     if (!round || !session) return
     const updated = await api.lobby.unlock(code, round.number, session.token)
     update((previous) => previous?.match.round?.id === round.id ? updated : previous)
     void refresh()
+  }
+
+  async function continueReview() {
+    if (!round || !session || continuingReview || m.reviewPrompt?.youReady) return
+    setContinuingReview(true)
+    setReviewError(null)
+    try {
+      const updated = await api.lobby.continueReview(code, round.number, session.token)
+      update(() => updated)
+      void refresh()
+    } catch (caught) {
+      setReviewError({
+        roundId: round.id,
+        message: caught instanceof ApiError ? caught.message : 'Could not continue to the next round.',
+      })
+    } finally {
+      setContinuingReview(false)
+    }
   }
 
   async function rematch() {
@@ -134,6 +180,7 @@ export function MultiplayerGamePage() {
         loadIntelligence,
         select: (point) => api.lobby.selection(code, session.token, point, activeRound.id),
         submit,
+        finish,
         unlock,
       } : undefined}
       error={error ?? (m.reviewEndsAt ? null : pollError)}
@@ -150,8 +197,11 @@ export function MultiplayerGamePage() {
           leaderboard={m.leaderboard}
           endsAt={m.reviewEndsAt}
           lastRound={m.currentRound === m.roundsTotal}
+          reviewPrompt={m.reviewPrompt}
+          continuing={continuingReview}
+          onContinue={continueReview}
           onExpired={() => void refresh()}
-          error={pollError}
+          error={(reviewError && round && reviewError.roundId === round.id ? reviewError.message : null) ?? pollError}
         />
       )}
 
@@ -165,11 +215,11 @@ export function MultiplayerGamePage() {
         onClose={() => setExitOpen(false)}
         title="Leave the match?"
         footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" fullWidth onClick={() => setExitOpen(false)}>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <Button variant="secondary" fullWidth className="min-w-0" onClick={() => setExitOpen(false)}>
               Stay
             </Button>
-            <Button variant="danger" fullWidth icon="exit" onClick={leave} loading={leaving}>
+            <Button variant="danger" fullWidth className="min-w-0" icon="exit" onClick={leave} loading={leaving}>
               Leave match
             </Button>
           </div>
@@ -217,15 +267,26 @@ function Leaderboard({ entries, guesses }: {
 
 const ignoreReviewDismissal = () => {}
 
-function RoundResultOverlay({ result, leaderboard, endsAt, lastRound, onExpired, error }: {
+function RoundResultOverlay({ result, leaderboard, endsAt, lastRound, reviewPrompt, continuing, onContinue, onExpired, error }: {
   result: LobbyMatchResult
   leaderboard: LobbyLeaderboardEntry[]
   endsAt: string
   lastRound: boolean
+  reviewPrompt?: LobbyMatchReviewPrompt | null
+  continuing: boolean
+  onContinue: () => void
   onExpired: () => void
   error: string | null
 }) {
   const countdownLabel = lastRound ? 'Final standings in' : 'Next round in'
+  const youReady = Boolean(reviewPrompt?.youReady)
+  const readyCount = reviewPrompt?.readyPlayers.length ?? 0
+  const totalCount = readyCount + (reviewPrompt?.pendingPlayers.length ?? 0)
+  const readyStatus = reviewPrompt && readyCount > 0
+    ? reviewPrompt.pendingPlayers.length > 0
+      ? `${readyCount}/${totalCount} ready · Waiting for ${reviewPrompt.pendingPlayers.join(', ')}`
+      : 'Everyone is ready…'
+    : null
   const participantMarkers = useMemo(
     () => result.guesses.flatMap((guess) => guess.guess && !guess.isYou ? [{
       position: guess.guess,
@@ -244,9 +305,29 @@ function RoundResultOverlay({ result, leaderboard, endsAt, lastRound, onExpired,
       footer={
         <>
           {error && <p role="alert" className="mb-2 text-sm text-rose-300">{error}</p>}
-          <div className="flex items-center justify-between gap-3 text-cream">
-            <span>{countdownLabel}</span>
-            <Timer endsAt={endsAt} onExpired={onExpired} label={countdownLabel} warningAtSeconds={0} />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3 text-cream">
+                <span>{countdownLabel}</span>
+                <Timer endsAt={endsAt} onExpired={onExpired} label={countdownLabel} warningAtSeconds={0} />
+              </div>
+              {readyStatus && (
+                <p role="status" className="mt-2 truncate text-xs text-muted">
+                  {readyStatus}
+                </p>
+              )}
+            </div>
+            <Button
+              variant={youReady ? 'tinted' : 'primary'}
+              icon={youReady ? 'check' : undefined}
+              trailingIcon={youReady ? undefined : 'chevronRight'}
+              onClick={onContinue}
+              disabled={youReady}
+              loading={continuing}
+              className="shrink-0"
+            >
+              {youReady ? 'Ready' : 'Continue'}
+            </Button>
           </div>
         </>
       }

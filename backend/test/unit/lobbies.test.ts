@@ -6,7 +6,10 @@ import {
   generatePlayerToken,
   hashPlayerToken,
 } from '../../src/plugins/auth.js';
-import { MAX_LOBBY_MEMBERS } from '../../src/config/constants.js';
+import {
+  LOBBY_ROUND_REVIEW_MS,
+  MAX_LOBBY_MEMBERS,
+} from '../../src/config/constants.js';
 import { gameRulesFor } from '../../src/domain/gameRules.js';
 import {
   LobbyConflictError,
@@ -20,7 +23,10 @@ import {
   leaveLobby,
   type toLobbyView,
 } from '../../src/modules/lobbies/service.js';
-import { getLobbyMatch } from '../../src/modules/lobbies/match.js';
+import {
+  continueLobbyRoundReview,
+  getLobbyMatch,
+} from '../../src/modules/lobbies/match.js';
 
 type PrismaLike = Parameters<typeof createLobby>[1];
 type LobbyRow = Parameters<typeof toLobbyView>[0];
@@ -115,6 +121,7 @@ describe('createLobby', () => {
 
     expect(result.lobbyToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(result.lobby.difficulty).toBe('easy');
+    expect(result.lobby.maxMembers).toBe(MAX_LOBBY_MEMBERS);
     expect(result.lobby.rules.selectionMode).toBe('list');
     expect(result.lobby.members[0]?.isHost).toBe(true);
 
@@ -203,6 +210,7 @@ describe('getLobby', () => {
     const view = await getLobby('ABC234', db, 'guest-token');
 
     expect(view.members).toHaveLength(2);
+    expect(view.maxMembers).toBe(MAX_LOBBY_MEMBERS);
     expect(view.members[0]).toMatchObject({ displayName: 'Host', isHost: true, isYou: false });
     expect(view.members[1]).toMatchObject({ displayName: null, isHost: false, isYou: true });
     expect(view.rules).toEqual({
@@ -261,6 +269,7 @@ describe('joinLobby', () => {
 
     expect(queryRaw).toHaveBeenCalledTimes(1);
     expect(result.lobby.members).toHaveLength(2);
+    expect(result.lobby.maxMembers).toBe(MAX_LOBBY_MEMBERS);
     expect(result.lobby.members[1]?.displayName).toBe('Bob');
     expect(result.lobbyToken).not.toBe(HOST_TOKEN);
     const createData = (create.mock.calls[0] as [{ data: { playerTokenHash: string } }])[0]
@@ -463,6 +472,238 @@ describe('getLobbyMatch idle polling', () => {
     expect(response.match.continuePrompt?.youRequested).toBe(true);
     expect(response.match.continuePrompt?.pendingPlayers).toEqual(['Guest']);
     expect(findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses a 15-second review window and reports review readiness on an idle review poll', async () => {
+    expect(LOBBY_ROUND_REVIEW_MS).toBe(15_000);
+    const now = new Date();
+    const row = matchLobbyRow({
+      rounds: [
+        {
+          id: 'round-1',
+          lobbyId: 'lobby-1',
+          number: 1,
+          panoId: 'loc:0',
+          targetIndex: 0,
+          targetLat: 51.5074,
+          targetLon: -0.1278,
+          placeName: 'London',
+          sceneJson: {
+            biome: 'urban',
+            weather: 'clear',
+            lighting: 'day',
+            temperatureBand: 'mild',
+            windBand: 'calm',
+            seed: 42,
+          },
+          candidatesJson: null,
+          startedAt: CREATED_AT,
+          endsAt: FAR_FUTURE,
+          reviewEndsAt: new Date(now.getTime() + LOBBY_ROUND_REVIEW_MS),
+          weatherValidUntil: FAR_FUTURE,
+          weatherAttemptedIndices: [0],
+          weatherExhausted: false,
+          createdAt: CREATED_AT,
+          attempts: [],
+          results: [],
+          memberStates: [
+            {
+              id: 'state-1',
+              roundId: 'round-1',
+              memberId: 'member-1',
+              extraDataUnlockedAt: null,
+              extraDataPointsSpent: 0,
+              endsAt: null,
+              reviewReadyAt: now,
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+        },
+      ],
+    });
+    const findUnique = vi.fn().mockResolvedValue(row);
+    const db = { lobby: { findUnique } } as unknown as PrismaLike;
+
+    const response = await getLobbyMatch('ABC234', HOST_TOKEN, db);
+
+    expect(response.match.reviewPrompt).toEqual({
+      readyPlayers: ['Host'],
+      pendingPlayers: ['Guest'],
+      youReady: true,
+    });
+    expect(findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('records review readiness in continueLobbyRoundReview and rejects rounds not in review', async () => {
+    const notInReviewDb = {
+      lobby: { findUnique: vi.fn().mockResolvedValue(matchLobbyRow()) },
+    } as unknown as PrismaLike;
+    await expect(
+      continueLobbyRoundReview('ABC234', 1, HOST_TOKEN, notInReviewDb),
+    ).rejects.toBeInstanceOf(LobbyConflictError);
+
+    const now = new Date();
+    const reviewEndsAt = new Date(now.getTime() + LOBBY_ROUND_REVIEW_MS);
+    const beforeRow = matchLobbyRow({
+      rounds: [
+        {
+          id: 'round-1',
+          lobbyId: 'lobby-1',
+          number: 1,
+          panoId: 'loc:0',
+          targetIndex: 0,
+          targetLat: 51.5074,
+          targetLon: -0.1278,
+          placeName: 'London',
+          sceneJson: {
+            biome: 'urban',
+            weather: 'clear',
+            lighting: 'day',
+            temperatureBand: 'mild',
+            windBand: 'calm',
+            seed: 42,
+          },
+          candidatesJson: null,
+          startedAt: CREATED_AT,
+          endsAt: FAR_FUTURE,
+          reviewEndsAt,
+          weatherValidUntil: FAR_FUTURE,
+          weatherAttemptedIndices: [0],
+          weatherExhausted: false,
+          createdAt: CREATED_AT,
+          attempts: [],
+          results: [],
+          memberStates: [],
+        },
+      ],
+    });
+    const afterRow = matchLobbyRow({
+      rounds: [
+        {
+          ...beforeRow.rounds[0],
+          memberStates: [
+            {
+              id: 'state-1',
+              roundId: 'round-1',
+              memberId: 'member-1',
+              extraDataUnlockedAt: null,
+              extraDataPointsSpent: 0,
+              endsAt: null,
+              reviewReadyAt: now,
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+        },
+      ],
+    });
+    const upsert = vi.fn().mockResolvedValue({});
+    const findUnique = vi
+      .fn()
+      .mockResolvedValueOnce(beforeRow)
+      .mockResolvedValueOnce(afterRow);
+    const db = {
+      lobby: { findUnique },
+      lobbyRoundMemberState: { upsert },
+    } as unknown as PrismaLike;
+
+    const response = await continueLobbyRoundReview('ABC234', 1, HOST_TOKEN, db);
+
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(response.match.currentRound).toBe(1);
+    expect(response.match.reviewPrompt).toEqual({
+      readyPlayers: ['Host'],
+      pendingPlayers: ['Guest'],
+      youReady: true,
+    });
+  });
+
+  it('finishes the match early when all players continue on the final round review', async () => {
+    const now = new Date();
+    const reviewEndsAt = new Date(now.getTime() + LOBBY_ROUND_REVIEW_MS);
+    const roundBase = {
+      id: 'round-1',
+      lobbyId: 'lobby-1',
+      number: 1,
+      panoId: 'loc:0',
+      targetIndex: 0,
+      targetLat: 51.5074,
+      targetLon: -0.1278,
+      placeName: 'London',
+      sceneJson: {
+        biome: 'urban',
+        weather: 'clear',
+        lighting: 'day',
+        temperatureBand: 'mild',
+        windBand: 'calm',
+        seed: 42,
+      },
+      candidatesJson: null,
+      startedAt: CREATED_AT,
+      endsAt: FAR_FUTURE,
+      reviewEndsAt,
+      weatherValidUntil: FAR_FUTURE,
+      weatherAttemptedIndices: [0],
+      weatherExhausted: false,
+      createdAt: CREATED_AT,
+      attempts: [],
+      results: [],
+    };
+    const guestReadyState = {
+      id: 'state-2',
+      roundId: 'round-1',
+      memberId: 'member-2',
+      extraDataUnlockedAt: null,
+      extraDataPointsSpent: 0,
+      endsAt: null,
+      reviewReadyAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const hostReadyState = {
+      id: 'state-1',
+      roundId: 'round-1',
+      memberId: 'member-1',
+      extraDataUnlockedAt: null,
+      extraDataPointsSpent: 0,
+      endsAt: null,
+      reviewReadyAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const beforeRow = matchLobbyRow({
+      roundsTotal: 1,
+      rounds: [{ ...roundBase, memberStates: [guestReadyState] }],
+    });
+    const bothReadyRow = matchLobbyRow({
+      roundsTotal: 1,
+      rounds: [{ ...roundBase, memberStates: [guestReadyState, hostReadyState] }],
+    });
+    const finishedRow = matchLobbyRow({
+      roundsTotal: 1,
+      status: 'finished',
+      finishedAt: now,
+      rounds: [{ ...roundBase, memberStates: [guestReadyState, hostReadyState] }],
+    });
+    const upsert = vi.fn().mockResolvedValue({});
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const findUnique = vi
+      .fn()
+      .mockResolvedValueOnce(beforeRow)
+      .mockResolvedValueOnce(bothReadyRow)
+      .mockResolvedValueOnce(finishedRow);
+    const db = {
+      lobby: { findUnique, updateMany },
+      lobbyRoundMemberState: { upsert },
+    } as unknown as PrismaLike;
+
+    const response = await continueLobbyRoundReview('ABC234', 1, HOST_TOKEN, db);
+
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(response.match.status).toBe('finished');
+    expect(response.match.reviewPrompt).toBeNull();
   });
 });
 

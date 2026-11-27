@@ -20,6 +20,7 @@ import type {
 import { LOCATIONS, locationById, mockWeather, randomLocation } from './data'
 import { haversineKm, mockGameRules, scoreForDistance } from './gameRules'
 import { disambiguateDisplayName } from '../../lib/playerName'
+import { MAX_LOBBY_PLAYERS } from '../../lib/lobby'
 import { lobbies, lobbiesByCode } from './db'
 import type { MockLobby, MockMatch, MockMatchRound } from './db'
 
@@ -63,6 +64,7 @@ function toLobby(lobby: MockLobby, viewerId: string): Lobby {
     difficulty: lobby.difficulty,
     status: lobby.status,
     roundsTotal: lobby.roundsTotal,
+    maxMembers: MAX_LOBBY_PLAYERS,
     rules: mockGameRules(lobby.difficulty),
     createdAt: lobby.createdAt,
     expiresAt: lobby.expiresAt,
@@ -140,8 +142,10 @@ function buildMatch(lobby: MockLobby): MockMatch {
       extraDataUnlocked: mockGameRules(lobby.difficulty).extraData.mode === 'free',
       extraDataPointsSpent: 0,
       guesses: new Map(),
+      submittedAttempts: new Map(),
       memberAttempts: new Map(),
       finalized: new Set(),
+      reviewReady: new Set(),
     })
   }
   return match
@@ -246,9 +250,10 @@ function matchView(lobby: MockLobby, match: MockMatch, viewerId: string): LobbyM
     ensureBotFinalization(lobby, match, round)
     const allFinalized = lobby.members.every((member) => round!.finalized.has(member.id))
     if (allFinalized) {
-      // Give the round-result screen a beat before advancing.
-      if (match.advanceAt == null) match.advanceAt = Date.now() + 1600
-      else if (Date.now() >= match.advanceAt) {
+      // Give the round-result screen up to 15s, or advance early once everyone continues.
+      if (match.advanceAt == null) match.advanceAt = Date.now() + 15_000
+      const allReviewReady = lobby.members.every((member) => round!.reviewReady.has(member.id))
+      if (allReviewReady || Date.now() >= match.advanceAt) {
         match.advanceAt = undefined
         if (match.currentRound >= match.roundsTotal) {
           match.status = 'finished'
@@ -312,6 +317,13 @@ function matchView(lobby: MockLobby, match: MockMatch, viewerId: string): LobbyM
       : null,
     roundComplete,
     reviewEndsAt: match.advanceAt == null ? null : new Date(match.advanceAt).toISOString(),
+    reviewPrompt: match.advanceAt != null && round
+      ? {
+          readyPlayers: lobby.members.filter((m) => round.reviewReady.has(m.id)).map((m) => m.displayName),
+          pendingPlayers: lobby.members.filter((m) => !round.reviewReady.has(m.id)).map((m) => m.displayName),
+          youReady: round.reviewReady.has(viewerId),
+        }
+      : null,
     pendingPlayers,
     you: {
       attemptsUsed: round?.memberAttempts.get(viewerId) ?? 0,
@@ -437,16 +449,29 @@ export const lobbyMock = {
     const resolved = resolveLobbyChoice(choice)
     const guess = resolved.point
     const answer = resolved.answer
-    round.guesses.set(memberId, { lat: guess.lat, lon: guess.lon, answer })
+    const existingAttempts = round.submittedAttempts.get(memberId) ?? []
+    const attempts = [...existingAttempts, { lat: guess.lat, lon: guess.lon, answer }]
+    round.submittedAttempts.set(memberId, attempts)
 
     const rules = mockGameRules(lobby.difficulty)
-    const attemptsUsed = (round.memberAttempts.get(memberId) ?? 0) + 1
+    const attemptsUsed = attempts.length
     round.memberAttempts.set(memberId, attemptsUsed)
     const finalizes = final || attemptsUsed >= rules.attemptsPerRound
 
     if (finalizes) {
-      const distanceKm = haversineKm(guess, { lat: location.lat, lon: location.lon })
-      const score = Math.max(0, scoreForDistance(distanceKm) - round.extraDataPointsSpent)
+      const best = attempts.reduce<{ entry: { lat: number; lon: number; answer: string | null }; distanceKm: number; score: number } | null>(
+        (winner, entry) => {
+          const distanceKm = haversineKm(entry, { lat: location.lat, lon: location.lon })
+          const score = scoreForDistance(distanceKm)
+          if (!winner || score > winner.score || (score === winner.score && distanceKm < winner.distanceKm)) {
+            return { entry, distanceKm, score }
+          }
+          return winner
+        },
+        null,
+      )!
+      round.guesses.set(memberId, best.entry)
+      const score = Math.max(0, best.score - round.extraDataPointsSpent)
       match.scores.set(memberId, (match.scores.get(memberId) ?? 0) + score)
       round.finalized.add(memberId)
       ;(round as MockMatchRound & { playerFinalizedAt?: number }).playerFinalizedAt = Date.now()
@@ -454,6 +479,7 @@ export const lobbyMock = {
       match.results.push(result)
       return delay({ finalized: true, attemptsRemaining: 0, attemptsUsed }, 400)
     }
+    round.guesses.delete(memberId)
     return delay({ finalized: false, attemptsRemaining: rules.attemptsPerRound - attemptsUsed, attemptsUsed })
   },
 
@@ -470,10 +496,53 @@ export const lobbyMock = {
   async finish(code: string, roundNumber: number, token: string): Promise<LobbyGuessResponse> {
     const lobby = requireLobby(code)
     const memberId = requireMember(lobby, token)
-    const round = lobby.match!.rounds.get(roundNumber)!
-    const stored = round.guesses.get(memberId)
-    // A player who times out finalizes with their last selection (or none).
-    return this.guess(code, roundNumber, token, stored ?? { lat: 0, lon: 0 }, true)
+    const match = lobby.match!
+    const round = match.rounds.get(roundNumber)!
+    if (round.finalized.has(memberId)) {
+      throw Object.assign(new Error('Your guess for this round is already final'), { code: 'CONFLICT', status: 409 })
+    }
+    const attempts = round.submittedAttempts.get(memberId) ?? []
+    if (attempts.length === 0) {
+      throw Object.assign(new Error('Submit at least one guess before finishing the round'), {
+        code: 'CONFLICT',
+        status: 409,
+      })
+    }
+    const location = locationById(round.locationId)
+    const best = attempts.reduce<{ entry: { lat: number; lon: number; answer: string | null }; distanceKm: number; score: number } | null>(
+      (winner, entry) => {
+        const distanceKm = haversineKm(entry, { lat: location.lat, lon: location.lon })
+        const score = scoreForDistance(distanceKm)
+        if (!winner || score > winner.score || (score === winner.score && distanceKm < winner.distanceKm)) {
+          return { entry, distanceKm, score }
+        }
+        return winner
+      },
+      null,
+    )!
+    round.guesses.set(memberId, best.entry)
+    const score = Math.max(0, best.score - round.extraDataPointsSpent)
+    match.scores.set(memberId, (match.scores.get(memberId) ?? 0) + score)
+    round.finalized.add(memberId)
+    ;(round as MockMatchRound & { playerFinalizedAt?: number }).playerFinalizedAt = Date.now()
+    const result = roundResultView(lobby, round, memberId)
+    match.results.push(result)
+    return delay({ finalized: true, attemptsRemaining: 0, attemptsUsed: attempts.length }, 400)
+  },
+
+  async continueReview(code: string, roundNumber: number, token: string): Promise<LobbyMatchResponse> {
+    const lobby = requireLobby(code)
+    const memberId = requireMember(lobby, token)
+    const match = lobby.match!
+    const round = match.rounds.get(roundNumber)
+    if (round && match.currentRound === roundNumber && match.advanceAt != null) {
+      round.reviewReady.add(memberId)
+      // Bots follow the player's continue click immediately in mock mode.
+      for (const member of lobby.members) {
+        if (member.id !== lobby.hostId) round.reviewReady.add(member.id)
+      }
+    }
+    return delay(responseView(lobby, match, memberId), 120)
   },
 
   async continue(code: string, token: string): Promise<LobbyMatchResponse> {

@@ -31,6 +31,7 @@ import {
   leaveLobby,
 } from './service.js';
 import {
+  continueLobbyRoundReview,
   finishLobbyRound,
   getLobbyMatch,
   getLobbyRoundIntelligence,
@@ -324,6 +325,32 @@ export function registerLobbiesRoutes(
         roundNumber: number;
       };
       return finishLobbyRound(
+        code,
+        roundNumber,
+        requireLobbyToken(request),
+        db,
+        provider,
+        intelligence,
+        locate,
+      );
+    },
+  );
+
+  app.post(
+    '/api/lobbies/:code/rounds/:roundNumber/continue',
+    {
+      config: { rateLimit: RATE_LIMITS.read },
+      schema: {
+        params: LobbyRoundParams,
+        response: { 200: LobbyMatchResponse },
+      },
+    },
+    async (request) => {
+      const { code, roundNumber } = request.params as {
+        code: string;
+        roundNumber: number;
+      };
+      return continueLobbyRoundReview(
         code,
         roundNumber,
         requireLobbyToken(request),
