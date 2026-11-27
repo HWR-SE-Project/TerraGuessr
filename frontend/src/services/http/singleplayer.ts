@@ -93,6 +93,16 @@ export const singleplayerHttp = {
     })
   },
 
+  finish(
+    credentials: StreetCredentials,
+    roundId: string,
+  ): Promise<StreetGuessResponse> {
+    return apiFetch<StreetGuessResponse>(`${path(credentials.id)}/rounds/${encodeURIComponent(roundId)}/finish`, {
+      method: 'POST',
+      playerToken: credentials.playerToken,
+    })
+  },
+
   end(credentials: StreetCredentials): Promise<void> {
     return apiFetch<void>(path(credentials.id), {
       method: 'DELETE',

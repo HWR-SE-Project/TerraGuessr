@@ -162,6 +162,8 @@ export function SingleplayerGamePage() {
     } else {
       setRound((current) => current?.id === round.id ? {
         ...current,
+        selection: null,
+        selectedCandidateId: null,
         attemptsUsed: current.attemptsTotal - response.attemptsRemaining,
         submittedGuesses: 'candidateId' in choice
           ? (current.submittedGuesses ?? [])
@@ -170,6 +172,17 @@ export function SingleplayerGamePage() {
           ? [...(current.submittedCandidateIds ?? []), choice.candidateId]
           : (current.submittedCandidateIds ?? []),
       } : current)
+    }
+  }
+
+  async function finish() {
+    if (!credentials || !round) return
+    const response = await api.singleplayer.finish(credentials, round.id)
+    if (ended.current) return
+    if (response.result) {
+      const result = response.result
+      setResults((previous) => [...previous.filter((entry) => entry.roundId !== result.roundId), result])
+      setPhase('result')
     }
   }
 
@@ -253,6 +266,7 @@ export function SingleplayerGamePage() {
         loadIntelligence,
         select: (point) => api.singleplayer.selection(credentials, round.id, point),
         submit,
+        finish,
         unlock,
       } : undefined}
       error={phase === 'error' ? null : error}
@@ -311,22 +325,28 @@ export function SingleplayerGamePage() {
         onClose={() => setExitOpen(false)}
         title="End your session?"
         footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" fullWidth onClick={() => setExitOpen(false)}>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <Button variant="secondary" fullWidth className="min-w-0" onClick={() => setExitOpen(false)}>
               Keep exploring
             </Button>
-            <Button variant="danger" fullWidth icon="exit" onClick={endSession}>
+            <Button variant="danger" fullWidth className="min-w-0" icon="exit" onClick={endSession}>
               End session
             </Button>
           </div>
         }
       >
         <p className="text-sm text-muted">
-          Your score so far — <span className="font-bold text-cream">{formatScore(totalScore)} points</span> across{' '}
-          {roundsTotal !== null
-            ? `${results.length} of ${roundsTotal} rounds`
-            : `${results.length} round${results.length === 1 ? '' : 's'}`} — will be saved. Ready to{' '}
-          {roundsTotal !== null ? 'end early?' : 'call it a day?'}
+          {results.length === 0 ? (
+            'You haven’t completed any rounds yet, so nothing will be saved. Leave this session?'
+          ) : (
+            <>
+              Your score so far — <span className="font-bold text-cream">{formatScore(totalScore)} points</span> across{' '}
+              {roundsTotal !== null
+                ? `${results.length} of ${roundsTotal} rounds`
+                : `${results.length} round${results.length === 1 ? '' : 's'}`} — will be saved. Ready to{' '}
+              {roundsTotal !== null ? 'end early?' : 'call it a day?'}
+            </>
+          )}
         </p>
       </Dialog>
     </RoundStage>

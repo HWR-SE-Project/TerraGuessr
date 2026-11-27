@@ -18,6 +18,8 @@ interface RoundHud {
   score: number
   roundsTotal?: number
   pauseExpiry?: boolean
+  /** Optional replacement for the countdown timer (e.g. a calm "Practice" badge in the tutorial). */
+  timerBadge?: ReactNode
   onExpired: () => void
   onLeave: () => void
   leaveLabel?: string
@@ -28,6 +30,7 @@ interface RoundControls {
   loadIntelligence: (roundId: string, signal?: AbortSignal) => Promise<Intelligence>
   select: (choice: GuessInput) => Promise<void>
   submit: (choice: GuessInput, final: boolean) => Promise<void>
+  finish?: () => Promise<void>
   unlock: () => Promise<void>
 }
 
@@ -92,7 +95,15 @@ function RoundSurface({ round, hud, controls, error }: {
             score={hud.score}
             attemptsUsed={round.attemptsUsed}
             attemptsTotal={round.attemptsTotal}
-            timer={<Timer endsAt={round.endsAt} paused={pending !== null || hud.pauseExpiry} onExpired={hud.onExpired} />}
+            timer={
+              hud.timerBadge ?? (
+                <Timer
+                  endsAt={round.endsAt}
+                  paused={pending !== null || hud.pauseExpiry}
+                  onExpired={hud.onExpired}
+                />
+              )
+            }
             onLeave={hud.onLeave}
             leaveLabel={hud.leaveLabel}
           />
@@ -129,6 +140,7 @@ function RoundSurface({ round, hud, controls, error }: {
                 disabled={controls.disabled || pending === 'unlock'}
                 onSelect={controls.select}
                 onSubmit={(choice, final) => void run('guess', () => controls.submit(choice, final))}
+                onFinish={controls.finish ? () => void run('guess', () => controls.finish!()) : undefined}
               />
             </div>
           </section>

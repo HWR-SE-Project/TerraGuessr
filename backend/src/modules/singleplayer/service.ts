@@ -1026,7 +1026,7 @@ export function createSingleplayerService(
       if (!decision.finalizes) {
         await tx.streetRound.updateMany({
           where: { id: round.id, score: null },
-          data: { selectionLat: point.lat, selectionLon: point.lon },
+          data: { selectionLat: null, selectionLon: null },
         });
         return {
           response: {
@@ -1113,6 +1113,113 @@ export function createSingleplayerService(
     return outcome.response;
   }
 
+  async function finishRound(
+    gameId: string,
+    roundId: string,
+    token: string | undefined,
+  ) {
+    const { game, round } = await ownedRoundSettled(gameId, roundId, token);
+    const rules = gameRulesFor(game.difficulty);
+    const actual = await resolveRoundPoint(round);
+
+    const outcome = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "StreetRound" WHERE "id" = ${round.id} FOR UPDATE`;
+      const latest = await tx.streetRound.findUniqueOrThrow({
+        where: { id: round.id },
+        include: roundInclude(),
+      });
+      if (latest.panoId !== round.panoId) {
+        throw conflict(
+          'The panorama changed. Reload the current round before finishing.',
+        );
+      }
+      if (latest.score !== null) {
+        throw conflict('This round has already ended.');
+      }
+      if (isDeadlinePassed(latest.endsAt, new Date())) {
+        throw conflict('The time limit for this round has expired.');
+      }
+      if (latest.attempts.length === 0) {
+        throw conflict(
+          'Submit at least one guess before finishing the round.',
+        );
+      }
+
+      const evaluated = computeScore({
+        attempts: latest.attempts,
+        selection: null,
+        actual,
+        pointsSpent: latest.additionalDataPointsSpent,
+      });
+
+      const locked = await tx.streetRound.update({
+        where: { id: round.id },
+        data: {
+          selectionLat: null,
+          selectionLon: null,
+          guessLat: evaluated.guess?.lat ?? null,
+          guessLon: evaluated.guess?.lon ?? null,
+          distanceKm: evaluated.distanceKm,
+          score: evaluated.score,
+        },
+        include: roundInclude(),
+      });
+
+      if (game.ownerUserId !== null) {
+        const sceneMeta = extractSceneMetadata(locked.sceneJson);
+        await archiveGameResult(tx, {
+          prefix: 'solo',
+          roundId: round.id,
+          userId: game.ownerUserId,
+          mode: 'solo',
+          difficulty: game.difficulty,
+          sessionId: game.id,
+          matchId: game.id,
+          roundNumber: round.number,
+          actual,
+          evaluatedGuess: evaluated.guess,
+          distanceKm: evaluated.distanceKm,
+          score: evaluated.score,
+          placeName: locked.placeName,
+          biome: sceneMeta.biome,
+          weather: sceneMeta.weather,
+          temperatureBand: sceneMeta.temperatureBand,
+          attemptsUsed: latest.attempts.length,
+          extraDataUnlocked: locked.additionalDataUnlockedAt !== null,
+          extraDataPointsSpent: locked.additionalDataPointsSpent,
+          elapsedSeconds: computeElapsedSeconds(
+            locked.startedAt,
+            new Date(),
+            rules.timeLimitSeconds,
+            false,
+          ),
+        });
+      }
+
+      return {
+        response: {
+          finalized: true as const,
+          attemptsRemaining: 0,
+          result: result(locked, actual),
+        },
+        shouldPrefetch: true,
+      };
+    });
+
+    if (outcome.shouldPrefetch && hasMoreRounds(game.roundsTotal, round.number)) {
+      void prefetchNextStreetRound(
+        game.id,
+        round.number + 1,
+        db,
+        provider,
+        intelligence,
+        locate,
+      );
+    }
+
+    return outcome.response;
+  }
+
   return {
     available: true,
     serverKeyConfigured: true,
@@ -1126,6 +1233,7 @@ export function createSingleplayerService(
     unlockExtraData,
     retryRound,
     submitGuess,
+    finishRound,
   };
 }
 

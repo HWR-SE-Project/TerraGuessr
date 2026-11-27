@@ -97,7 +97,7 @@ export function createRoundWarmPool(
           alreadyBuffered,
           provider,
           intelligence,
-          { locate },
+          { locate, now },
         );
         const current = now();
         const expiresAtMs = Math.min(

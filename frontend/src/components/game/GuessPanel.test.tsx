@@ -35,6 +35,7 @@ describe('GuessPanel selection sync', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /London/ }))
+    expect(screen.queryByText(/Saving/i)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Paris/ }))
     fireEvent.click(screen.getByRole('button', { name: /Berlin/ }))
 
@@ -249,5 +250,127 @@ describe('GuessPanel easy-mode candidate map', () => {
     } finally {
       window.matchMedia = originalMatchMedia
     }
+  })
+})
+
+describe('GuessPanel finalizing an already-submitted guess', () => {
+  it('enables Final submit without requiring a second city after one Easy-mode guess is submitted', () => {
+    const onSubmit = vi.fn()
+    const onFinish = vi.fn()
+    render(
+      <GuessPanel
+        rules={listRules}
+        candidates={candidates}
+        submittedCandidateIds={['c1']}
+        attemptsUsed={1}
+        attemptsTotal={3}
+        submitting={false}
+        onSelect={vi.fn(async () => {})}
+        onSubmit={onSubmit}
+        onFinish={onFinish}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Submit guess' })).toBeDisabled()
+    const finalButton = screen.getByRole('button', { name: 'Final submit' })
+    expect(finalButton).toBeEnabled()
+
+    fireEvent.click(finalButton)
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('keeps Final submit visible and enabled when only 1 attempt remains after earlier guesses', () => {
+    const onSubmit = vi.fn()
+    const onFinish = vi.fn()
+    render(
+      <GuessPanel
+        rules={listRules}
+        candidates={candidates}
+        submittedCandidateIds={['c1', 'c2']}
+        attemptsUsed={2}
+        attemptsTotal={3}
+        submitting={false}
+        onSelect={vi.fn(async () => {})}
+        onSubmit={onSubmit}
+        onFinish={onFinish}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Submit guess' })).toBeDisabled()
+    const finalButton = screen.getByRole('button', { name: 'Final submit' })
+    expect(finalButton).toBeEnabled()
+
+    fireEvent.click(finalButton)
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('submits the newly chosen city when Final submit is clicked with a second selection active', () => {
+    const onSubmit = vi.fn()
+    const onFinish = vi.fn()
+    render(
+      <GuessPanel
+        rules={listRules}
+        candidates={candidates}
+        submittedCandidateIds={['c1']}
+        attemptsUsed={1}
+        attemptsTotal={3}
+        submitting={false}
+        onSelect={vi.fn(async () => {})}
+        onSubmit={onSubmit}
+        onFinish={onFinish}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Paris, Europe' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Final submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({ candidateId: 'c2' }, true)
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('clears the map draft pin after a non-final Medium-mode guess so Final submit locks in that first guess', () => {
+    const onSubmit = vi.fn()
+    const onFinish = vi.fn()
+    const mapRules = { selectionMode: 'map' as const, countryBorders: true }
+    const { rerender } = render(
+      <GuessPanel
+        rules={mapRules}
+        initialSelection={{ lat: 48.8566, lon: 2.3522 }}
+        submittedGuesses={[]}
+        attemptsUsed={0}
+        attemptsTotal={2}
+        submitting={false}
+        onSelect={vi.fn(async () => {})}
+        onSubmit={onSubmit}
+        onFinish={onFinish}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit guess' }))
+    expect(onSubmit).toHaveBeenCalledWith({ lat: 48.8566, lon: 2.3522 }, false)
+
+    rerender(
+      <GuessPanel
+        rules={mapRules}
+        initialSelection={null}
+        submittedGuesses={[{ lat: 48.8566, lon: 2.3522 }]}
+        attemptsUsed={1}
+        attemptsTotal={2}
+        submitting={false}
+        onSelect={vi.fn(async () => {})}
+        onSubmit={onSubmit}
+        onFinish={onFinish}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Submit guess' })).toBeDisabled()
+    const finalButton = screen.getByRole('button', { name: 'Final submit' })
+    expect(finalButton).toBeEnabled()
+
+    fireEvent.click(finalButton)
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 })
