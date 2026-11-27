@@ -1,37 +1,91 @@
-// Deterministic stand-in for Open-Meteo: e2e tests must never depend on
-// live egress or real weather. Serves the exact /v1/forecast shape the
-// intelligence provider (src/modules/intelligence/service.ts) parses, with
-// fixed values, for any latitude/longitude. Zero dependencies — plain Node http.
+// Deterministic stand-in for MET Norway Locationforecast 2.0 (/complete):
+// e2e tests must never depend on live egress or real weather. Serves the exact
+// GeoJSON shape the intelligence provider (src/modules/intelligence/service.ts)
+// parses, with fixed values and a 24-hour timeseries, for any lat/lon.
+// Zero dependencies — plain Node http.
 import { createServer } from 'node:http';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
-function freshForecastBody() {
-  const observedAt = new Date(Date.now() - 5 * 60_000);
-  const isoMinute = observedAt.toISOString().slice(0, 16);
-  const isoDay = isoMinute.slice(0, 10);
+function freshForecastBody(lat, lon) {
+  const baseMs = Date.now() - 5 * 60_000;
+  const timeseries = [];
+  for (let hour = 0; hour <= 24; hour += 1) {
+    const time = new Date(baseMs + hour * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const temp = Math.round((21.5 + Math.sin((hour / 24) * Math.PI * 2) * 4.5) * 10) / 10;
+    const uv = Math.max(0, Math.round(Math.sin(((hour + 4) / 24) * Math.PI * 2) * 7.2 * 10) / 10);
+    timeseries.push({
+      time,
+      data: {
+        instant: {
+          details: {
+            air_pressure_at_sea_level: 1013.2,
+            air_temperature: temp,
+            cloud_area_fraction: 32.0,
+            cloud_area_fraction_high: 18.0,
+            cloud_area_fraction_low: 12.0,
+            cloud_area_fraction_medium: 14.0,
+            dew_point_temperature: 13.8,
+            fog_area_fraction: 0.0,
+            relative_humidity: 62.0,
+            ultraviolet_index_clear_sky: uv,
+            wind_from_direction: 245.0,
+            wind_speed: 3.5,
+            wind_speed_of_gust: 6.1,
+          },
+        },
+        next_1_hours: {
+          summary: { symbol_code: 'fair_day' },
+          details: {
+            precipitation_amount: hour === 0 ? 0.4 : 0.1,
+            probability_of_precipitation: 25.0,
+            probability_of_thunder: 0.0,
+          },
+        },
+        next_6_hours: {
+          summary: { symbol_code: 'fair_day' },
+          details: {
+            air_temperature_max: 26.0,
+            air_temperature_min: 17.0,
+            precipitation_amount: 1.0,
+          },
+        },
+      },
+    });
+  }
+
   return JSON.stringify({
-    current: {
-      time: isoMinute,
-      interval: 900,
-      temperature_2m: 21.5,
-      weather_code: 1,
-      relative_humidity_2m: 62,
-      precipitation: 0.4,
-      wind_speed_10m: 12.7,
-      wind_direction_10m: 245,
-      surface_pressure: 1013.2,
-      is_day: 1,
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates: [lon, lat, 120],
     },
-    current_units: {
-      temperature_2m: '°C',
-      relative_humidity_2m: '%',
-      wind_speed_10m: 'km/h',
-      wind_direction_10m: '°',
-      surface_pressure: 'hPa',
-      precipitation: 'mm',
+    properties: {
+      meta: {
+        updated_at: new Date(baseMs).toISOString().replace(/\.\d{3}Z$/, 'Z'),
+        units: {
+          air_pressure_at_sea_level: 'hPa',
+          air_temperature: 'celsius',
+          air_temperature_max: 'celsius',
+          air_temperature_min: 'celsius',
+          cloud_area_fraction: '%',
+          cloud_area_fraction_high: '%',
+          cloud_area_fraction_low: '%',
+          cloud_area_fraction_medium: '%',
+          dew_point_temperature: 'celsius',
+          fog_area_fraction: '%',
+          precipitation_amount: 'mm',
+          probability_of_precipitation: '%',
+          probability_of_thunder: '%',
+          relative_humidity: '%',
+          ultraviolet_index_clear_sky: '1',
+          wind_from_direction: 'degrees',
+          wind_speed: 'm/s',
+          wind_speed_of_gust: 'm/s',
+        },
+      },
+      timeseries,
     },
-    daily: { time: [isoDay], sunshine_duration: [7200] },
   });
 }
 
@@ -60,31 +114,21 @@ const server = createServer((req, res) => {
     res.end(JSON.stringify({ failuresRemaining, failuresServed, forecastsServed, lastFailedCoordinates }));
     return;
   }
-  if (req.url && req.url.startsWith('/v1/forecast')) {
+  if (req.url && req.url.startsWith('/weatherapi/locationforecast/2.0/complete')) {
     forecastsServed += 1;
+    const query = new URL(req.url, 'http://localhost').searchParams;
+    const lat = Number(query.get('lat'));
+    const lon = Number(query.get('lon'));
     if (failuresRemaining > 0) {
       failuresRemaining -= 1;
       failuresServed += 1;
-      const query = new URL(req.url, 'http://localhost').searchParams;
-      lastFailedCoordinates = {
-        lat: Number(query.get('latitude')),
-        lon: Number(query.get('longitude')),
-      };
+      lastFailedCoordinates = { lat, lon };
       res.writeHead(503, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'simulated weather failure' }));
       return;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(freshForecastBody());
-    return;
-  }
-  if (req.url && req.url.startsWith('/v1/elevation')) {
-    const query = new URL(req.url, 'http://localhost').searchParams;
-    const latitudes = (query.get('latitude') ?? '').split(',').filter(Boolean);
-    const count = Math.max(1, latitudes.length);
-    const elevation = Array.from({ length: count }, (_, idx) => 120 + (idx % 3) * 15);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ elevation }));
+    res.end(freshForecastBody(lat, lon));
     return;
   }
   res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -92,5 +136,5 @@ const server = createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('fake-open-meteo listening on :' + PORT);
+  console.log('fake-met-no listening on :' + PORT);
 });

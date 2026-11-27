@@ -25,8 +25,8 @@ services:
       timeout: 5s
       retries: 12
 
-  # Deterministic stand-in for Open-Meteo (ADR-0012) — e2e must never depend
-  # on live egress or real weather data. backend's OPEN_METEO_BASE_URL points
+  # Deterministic stand-in for MET Norway (ADR-0012) — e2e must never depend
+  # on live egress or real weather data. backend's MET_NO_BASE_URL points
   # here instead of the real API.
   fake-weather:
     build:
@@ -50,7 +50,7 @@ services:
       CORS_ORIGIN: http://localhost:${TERRAGUESSR_TEST_FRONTEND_PORT:-8080}
       # nginx proxies /api, so trust exactly that one hop for client IPs.
       TRUST_PROXY: "1"
-      OPEN_METEO_BASE_URL: http://fake-weather:4000
+      MET_NO_BASE_URL: http://fake-weather:4000
       LOG_LEVEL: warn
     ports:
       - "${TERRAGUESSR_TEST_BACKEND_PORT:-3000}:3000"

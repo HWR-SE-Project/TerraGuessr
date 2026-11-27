@@ -33,9 +33,7 @@ services:
         value: "true"
       - key: LOG_LEVEL
         value: info
-      - key: OPEN_METEO_BASE_URL
-        value: https://api.open-meteo.com
-      # Optional fallback weather provider (used automatically when Open-Meteo fails/429s).
+      # Weather & elevation provider (MET Norway Locationforecast 2.0 /complete).
       - key: MET_NO_BASE_URL
         value: https://api.met.no
       # Neon direct PostgreSQL connection string (must include ?sslmode=require).

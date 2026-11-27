@@ -86,15 +86,35 @@ export function mockWeather(location: MockLocation) {
     condition === 'Rain' || condition === 'Drizzle' || condition === 'Thunderstorm'
       ? 0.2 + (Math.abs(location.lon) % 30) / 10
       : 0
+  const windSpeedKmh = Math.round(4 + (Math.abs(location.lat) % 22))
+  const humidityPct = Math.round(40 + (Math.abs(location.lat) % 50))
+  const dewPointC = Math.round((temperatureC - (100 - humidityPct) / 5) * 10) / 10
+  const swing = location.climate === 'arid' ? 14 : location.climate === 'tropical' ? 5 : 9
+  const tempMin24hC = Math.round((temperatureC - swing / 2) * 10) / 10
+  const tempMax24hC = Math.round((temperatureC + swing / 2) * 10) / 10
+  const uvIndexMax24h = Math.max(
+    0.5,
+    Math.round((11 - Math.abs(location.lat) * 0.14) * 10) / 10,
+  )
   return {
     modelTime: new Date().toISOString(),
     temperatureC,
     condition,
-    windSpeedKmh: Math.round(4 + (Math.abs(location.lat) % 22)),
+    windSpeedKmh,
     windDirectionDeg: Math.round(Math.abs(location.lon * 7) % 360),
-    humidityPct: Math.round(40 + (Math.abs(location.lat) % 50)),
+    humidityPct,
     pressureHpa: Math.round(1002 + (Math.abs(location.lon) % 28)),
     precipitationMm,
     precipitationIntervalMinutes: precipitationMm > 0 ? 60 : null,
+    dewPointC,
+    cloudCoverPct: condition === 'Clear sky' ? 10 : condition === 'Overcast' ? 92 : 48,
+    fogPct: 0,
+    windGustKmh: Math.round(windSpeedKmh * 1.45 * 10) / 10,
+    uvIndex: Math.round(uvIndexMax24h * 0.6 * 10) / 10,
+    uvIndexMax24h,
+    tempMin24hC,
+    tempMax24hC,
+    precipitation24hMm: Math.round(precipitationMm * 4 * 10) / 10,
+    thunderProbabilityPct: condition === 'Thunderstorm' ? 65 : 0,
   }
 }

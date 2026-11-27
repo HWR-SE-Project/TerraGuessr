@@ -29,9 +29,10 @@ export const DEFAULT_ROUNDS_TOTAL = 5;
 /** Lobby (R16) defaults. Difficulty controls rules; the host sets the round count. */
 export const LOBBY_CODE_LENGTH = 6;
 export const LOBBY_ROUNDS_TOTAL = DEFAULT_ROUNDS_TOTAL;
+export const MIN_LOBBY_MEMBERS = 2;
 export const MAX_LOBBY_MEMBERS = 16;
 export const LOBBY_TTL_MS = 2 * 60 * 60 * 1000;
-export const LOBBY_ROUND_REVIEW_MS = 20_000;
+export const LOBBY_ROUND_REVIEW_MS = 15_000;
 
 /**
  * Once a player requests a rematch after the final round, other players get

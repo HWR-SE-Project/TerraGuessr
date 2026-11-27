@@ -14,8 +14,7 @@ This document records where TerraGuessr runs in production, how deployments and 
 | **Backend API** | Render | Frankfurt (`https://terraguessr-api.onrender.com`) | Free Web Service (Docker) | `render.yaml`, `backend/Dockerfile` | Fastify + Prisma API. `autoDeployTrigger: "off"` — deploys are driven exclusively by GitHub Actions. |
 | **Database** | Neon | `eu-central-1` (Frankfurt) | Free (PostgreSQL 16) | `backend/prisma/schema.prisma` | Primary PostgreSQL database. Uses the **direct** (unpooled) connection string with `?sslmode=require`. |
 | **Keep-Alive Pinger** | cron-job.org *(external)* | External HTTP cron | Free | *(external dashboard)* | Sends `GET https://terraguessr-api.onrender.com/api/health` every 10–14 min so Render Free does not spin down after 15 min idle. |
-| **Primary Weather & Elevation** | Open-Meteo | `https://api.open-meteo.com` | Free (no key) | `backend/src/modules/intelligence/service.ts` | Live weather clues & elevation relief data (cached in-memory for 15 min / 30 days). |
-| **Fallback Weather** | MET Norway | `https://api.met.no` | Free (no key, custom User-Agent) | `render.yaml`, `backend/src/modules/intelligence/service.ts` | Automatic fallback when Open-Meteo fails or rate-limits. |
+| **Weather & Elevation** | MET Norway | `https://api.met.no` | Free (no key, custom User-Agent) | `render.yaml`, `backend/src/modules/intelligence/service.ts` | Live weather, 24h forecast summaries & elevation clues via Locationforecast 2.0 `/complete` (cached in-memory per `Expires`, 15–60 min). |
 | **Map Tiles** | Esri ArcGIS Online | `server.arcgisonline.com` | Free (no key) | `frontend/src/components/game/GuessMap.tsx` | World Street Map & World Physical Map raster tiles loaded directly by the browser. |
 | **Email Delivery** *(optional)* | External SMTP | Configured via `SMTP_URL` | — | `render.yaml` | Email verification, email change, and password recovery emails. |
 | **Google OAuth** *(optional)* | Google Cloud Console | Configured via `GOOGLE_*` | Free | `render.yaml` | Optional Google sign-in. |
@@ -37,7 +36,7 @@ This document records where TerraGuessr runs in production, how deployments and 
 - **Daily retention & auth cleanup (`0 3 * * *` UTC):** `backend/src/scheduler/index.ts` enforces the 6-month archive retention policy and deletes expired auth tokens/sessions.
 - **Round 1 warm pool (`backend/src/modules/singleplayer/warmPool.ts`):**
   - Primed automatically on server startup (`onListen` in `backend/src/app.ts`) and lazily via `POST /api/singleplayer/warm` when a user hovers **Singleplayer** or visits `/singleplayer`.
-  - Buffers up to 3 pre-validated Round 1 locations in memory (TTL 14 min, aligned under `weatherCache`'s 15-min TTL) so clicking **Start exploring** avoids waiting on Open-Meteo.
+  - Buffers up to 3 pre-validated Round 1 locations in memory (TTL 14 min, aligned under the intelligence cache's 15-min minimum TTL) so clicking **Start exploring** avoids waiting on MET Norway.
 
 ---
 
@@ -56,7 +55,7 @@ This document records where TerraGuessr runs in production, how deployments and 
 
 | Name | Managed In | Notes |
 | :--- | :--- | :--- |
-| `NODE_ENV`, `SESSION_COOKIE_SECURE`, `TRUST_PROXY`, `LOG_LEVEL`, `OPEN_METEO_BASE_URL`, `MET_NO_BASE_URL` | `render.yaml` | Synced from the Render Blueprint. |
+| `NODE_ENV`, `SESSION_COOKIE_SECURE`, `TRUST_PROXY`, `LOG_LEVEL`, `MET_NO_BASE_URL` | `render.yaml` | Synced from the Render Blueprint. |
 | `DATABASE_URL` | Render Dashboard (`sync: false`) | Same Neon direct PostgreSQL connection string as in GitHub Actions. |
 | `APP_BASE_URL`, `CORS_ORIGIN` | Render Dashboard (`sync: false`) | Public Vercel origin (e.g. `https://terraguessr.vercel.app`, no trailing slash). |
 | `SMTP_URL`, `SMTP_FROM` | Render Dashboard (`sync: false`) | Optional; enables outbound verification/recovery emails. |

@@ -18,7 +18,7 @@ function emailTestEnv(): Env {
     nodeEnv: 'test',
     port: 3000,
     corsOrigin: false,
-    openMeteoBaseUrl: 'https://api.open-meteo.com',
+    metNoBaseUrl: 'https://api.met.no',
     logLevel: 'silent',
     smtpUrl: 'smtp://localhost:1025',
     smtpFrom: 'noreply@terraguessr.test',

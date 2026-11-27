@@ -19,7 +19,7 @@ function baseEnv(): Env {
     nodeEnv: 'test',
     port: 3000,
     corsOrigin: false,
-    openMeteoBaseUrl: 'https://api.open-meteo.com',
+    metNoBaseUrl: 'https://api.met.no',
     logLevel: 'silent',
     sessionCookieSecure: false,
     trustProxy: false,

@@ -30,8 +30,10 @@ export function withCurrentRoundWeather(data: GeographicIntelligence): Geographi
 }
 
 /**
- * R05: withhold optional environmental and weather clues until the player has
- * unlocked additional data for the round (or difficulty grants them for free).
+ * R05: withhold optional non-visual environmental and weather clues until the
+ * player has unlocked additional data for the round (or difficulty grants them
+ * for free). `weather.condition` stays visible because the 3D diorama already
+ * depicts rain, snow, fog, storm, and clouds.
  */
 export function redactLockedExtraData(
   data: GeographicIntelligence,
@@ -43,8 +45,20 @@ export function redactLockedExtraData(
     weather: data.weather
       ? {
           ...data.weather,
-          condition: null,
           pressureHpa: null,
+          dewPointC: null,
+          cloudCoverPct: null,
+          cloudLowPct: null,
+          cloudMediumPct: null,
+          cloudHighPct: null,
+          fogPct: null,
+          windGustKmh: null,
+          uvIndex: null,
+          uvIndexMax24h: null,
+          tempMin24hC: null,
+          tempMax24hC: null,
+          precipitation24hMm: null,
+          thunderProbabilityPct: null,
         }
       : null,
     environment: {

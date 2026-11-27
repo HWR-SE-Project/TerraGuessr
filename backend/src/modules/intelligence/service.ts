@@ -4,7 +4,14 @@ import { WEATHER_FETCH_TIMEOUT_MS } from '../../config/constants.js';
 
 type Weather = GeographicIntelligence['weather'];
 type Environment = GeographicIntelligence['environment'];
+
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const MIN_CACHE_TTL_MS = 15 * MINUTE;
+const MAX_CACHE_TTL_MS = 60 * MINUTE;
+const NEGATIVE_CACHE_TTL_MS = 30_000;
+const MET_NO_ENDPOINT = '/weatherapi/locationforecast/2.0/complete';
+
 const EMPTY_ENVIRONMENT: Environment = {
   elevationM: null,
   reliefM: null,
@@ -12,24 +19,8 @@ const EMPTY_ENVIRONMENT: Environment = {
   biome: null,
   vegetation: null,
 };
+
 // Only our fixed vocabulary crosses the trust boundary, never provider text.
-function condition(code: unknown): NonNullable<Weather>['condition'] {
-  if (code === 0) return 'Clear sky';
-  if (code === 1) return 'Mainly clear';
-  if (code === 2) return 'Partly cloudy';
-  if (code === 3) return 'Overcast';
-  if (code === 45 || code === 48) return 'Fog';
-  if ([51, 53, 55].includes(code as number)) return 'Drizzle';
-  if ([56, 57].includes(code as number)) return 'Freezing drizzle';
-  if ([61, 63, 65].includes(code as number)) return 'Rain';
-  if ([66, 67].includes(code as number)) return 'Freezing rain';
-  if ([71, 73, 75].includes(code as number)) return 'Snow';
-  if (code === 77) return 'Snow grains';
-  if ([80, 81, 82].includes(code as number)) return 'Rain showers';
-  if ([85, 86].includes(code as number)) return 'Snow showers';
-  if ([95, 96, 99].includes(code as number)) return 'Thunderstorm';
-  return null;
-}
 function metNoCondition(symbolCode: unknown): NonNullable<Weather>['condition'] {
   if (typeof symbolCode !== 'string' || symbolCode.length === 0) return null;
   const base = symbolCode.replace(/_(day|night|polartwilight)$/, '');
@@ -62,10 +53,22 @@ function number(value: unknown, min: number, max: number): number | null {
     ? value
     : null;
 }
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 interface Entry<T> {
   value: T;
   expires: number;
 }
+
 // Per-process, bounded caches: no persistence of panorama positions or provider payloads.
 class Cache<T> {
   private entries = new Map<string, Entry<T>>();
@@ -82,15 +85,16 @@ class Cache<T> {
     this.entries.set(key, { value, expires });
   }
 }
+
 export interface IntelligenceLogger {
   warn(obj: unknown, msg?: string): void;
 }
 
 export interface IntelligenceLookupOptions {
   /**
-   * When false, skips fetching `/v1/elevation` (still returns cached elevation
-   * if already warm). Used during weather-only round validation and locked
-   * Medium/Hard rounds where elevation clues are redacted anyway.
+   * When false, hides environment fields in the returned view (elevation is
+   * still parsed and cached from the single MET Norway response so subsequent
+   * unlocked lookups require zero extra upstream requests).
    */
   includeEnvironment?: boolean;
 }
@@ -121,12 +125,279 @@ function safeErrorSummary(error: unknown): Record<string, unknown> {
   return { kind: 'unknown' };
 }
 
+interface CachedObservation {
+  weather: Weather;
+  environment: Environment;
+  fetchedAt: string;
+}
+
+interface ParsedEntry {
+  time: string;
+  ts: number;
+  instantDetails: Record<string, unknown>;
+  next1h?: Record<string, unknown>;
+  next6h?: Record<string, unknown>;
+  next12h?: Record<string, unknown>;
+}
+
+function computeCacheExpires(response: Response, currentNow: number): number {
+  const header = response.headers?.get?.('expires');
+  if (header) {
+    const parsed = Date.parse(header);
+    if (Number.isFinite(parsed) && parsed > currentNow) {
+      const ttl = Math.min(MAX_CACHE_TTL_MS, Math.max(MIN_CACHE_TTL_MS, parsed - currentNow));
+      return currentNow + ttl;
+    }
+  }
+  return currentNow + MIN_CACHE_TTL_MS;
+}
+
+function parseMetNoPayload(
+  data: Record<string, unknown>,
+  currentNow: number,
+): { weather: Weather; environment: Environment } {
+  // Elevation comes directly from GeoJSON Point coordinates: [lon, lat, altitude_m].
+  const geometry = asRecord(data.geometry);
+  const coords = Array.isArray(geometry?.coordinates) ? geometry.coordinates : undefined;
+  const rawAltitude = coords && coords.length >= 3 ? number(coords[2], -500, 9000) : null;
+  const environment: Environment = {
+    ...EMPTY_ENVIRONMENT,
+    elevationM: rawAltitude === null ? null : Math.round(rawAltitude),
+  };
+
+  const props = asRecord(data.properties);
+  if (!props) return { weather: null, environment };
+  const meta = asRecord(props.meta);
+  const units = asRecord(meta?.units) ?? {};
+  const rawSeries = props.timeseries;
+  if (!Array.isArray(rawSeries) || rawSeries.length === 0) {
+    return { weather: null, environment };
+  }
+
+  const parsedSeries: ParsedEntry[] = [];
+  for (const rawEntry of rawSeries) {
+    const entry = asRecord(rawEntry);
+    if (!entry || typeof entry.time !== 'string') continue;
+    const ts = Date.parse(entry.time);
+    if (!Number.isFinite(ts)) continue;
+    const entryData = asRecord(entry.data);
+    const instant = asRecord(entryData?.instant);
+    const instantDetails = asRecord(instant?.details) ?? {};
+    parsedSeries.push({
+      time: entry.time,
+      ts,
+      instantDetails,
+      next1h: asRecord(entryData?.next_1_hours),
+      next6h: asRecord(entryData?.next_6_hours),
+      next12h: asRecord(entryData?.next_12_hours),
+    });
+  }
+
+  if (parsedSeries.length === 0) return { weather: null, environment };
+  parsedSeries.sort((a, b) => a.ts - b.ts);
+
+  let bestEntry: ParsedEntry | undefined;
+  let bestDiff = Infinity;
+  for (const entry of parsedSeries) {
+    if (!isFreshWeatherTimestamp(entry.time, currentNow)) continue;
+    const diff = Math.abs(currentNow - entry.ts);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestEntry = entry;
+    }
+  }
+  if (!bestEntry) return { weather: null, environment };
+
+  const details = bestEntry.instantDetails;
+  const next1h = bestEntry.next1h;
+  const next6h = bestEntry.next6h;
+  const next12h = bestEntry.next12h;
+  const precipPeriod = next1h ?? next6h;
+  const periodIntervalMinutes = next1h ? 60 : next6h ? 360 : null;
+  const precipPeriodDetails = asRecord(precipPeriod?.details) ?? {};
+  const symbolPeriod = next1h ?? next6h ?? next12h;
+  const symbolSummary = asRecord(symbolPeriod?.summary) ?? {};
+  const symbolCode = symbolSummary.symbol_code;
+
+  const windMs =
+    units.wind_speed === 'm/s' ? number(details.wind_speed, 0, 150) : null;
+  const windSpeedKmh = windMs === null ? null : round1(windMs * 3.6);
+
+  const gustMs =
+    units.wind_speed_of_gust === 'm/s'
+      ? number(details.wind_speed_of_gust, 0, 200)
+      : null;
+  const windGustKmh = gustMs === null ? null : round1(gustMs * 3.6);
+
+  const thunderProb =
+    units.probability_of_thunder === '%'
+      ? (number(asRecord(next1h?.details)?.probability_of_thunder, 0, 100) ??
+        number(asRecord(next6h?.details)?.probability_of_thunder, 0, 100))
+      : null;
+
+  // 24-hour rolling forecast summaries derived from the same timeseries.
+  const windowStart = bestEntry.ts;
+  const windowEnd = windowStart + 24 * HOUR;
+
+  let tempMin = Infinity;
+  let tempMax = -Infinity;
+  let tempFirstTs = Infinity;
+  let tempLastTs = -Infinity;
+
+  let uvMax = -Infinity;
+  let uvFirstTs = Infinity;
+  let uvLastTs = -Infinity;
+
+  let precipSum = 0;
+  let precipCoveredMs = 0;
+  let precipCursor = windowStart;
+
+  for (const entry of parsedSeries) {
+    if (entry.ts < windowStart || entry.ts > windowEnd) continue;
+
+    if (units.air_temperature === 'celsius') {
+      const t = number(entry.instantDetails.air_temperature, -100, 70);
+      if (t !== null) {
+        if (t < tempMin) tempMin = t;
+        if (t > tempMax) tempMax = t;
+        if (entry.ts < tempFirstTs) tempFirstTs = entry.ts;
+        if (entry.ts > tempLastTs) tempLastTs = entry.ts;
+      }
+    }
+
+    const n6Details = asRecord(entry.next6h?.details);
+    if (n6Details && entry.ts + 6 * HOUR <= windowEnd) {
+      if (units.air_temperature_min === 'celsius') {
+        const tMin = number(n6Details.air_temperature_min, -100, 70);
+        if (tMin !== null) {
+          if (tMin < tempMin) tempMin = tMin;
+          if (entry.ts < tempFirstTs) tempFirstTs = entry.ts;
+          if (entry.ts + 6 * HOUR > tempLastTs) tempLastTs = entry.ts + 6 * HOUR;
+        }
+      }
+      if (units.air_temperature_max === 'celsius') {
+        const tMax = number(n6Details.air_temperature_max, -100, 70);
+        if (tMax !== null) {
+          if (tMax > tempMax) tempMax = tMax;
+          if (entry.ts < tempFirstTs) tempFirstTs = entry.ts;
+          if (entry.ts + 6 * HOUR > tempLastTs) tempLastTs = entry.ts + 6 * HOUR;
+        }
+      }
+    }
+
+    if (units.ultraviolet_index_clear_sky === '1') {
+      const uv = number(entry.instantDetails.ultraviolet_index_clear_sky, 0, 25);
+      if (uv !== null) {
+        if (uv > uvMax) uvMax = uv;
+        if (entry.ts < uvFirstTs) uvFirstTs = entry.ts;
+        if (entry.ts > uvLastTs) uvLastTs = entry.ts;
+      }
+    }
+
+    if (units.precipitation_amount === 'mm' && entry.ts >= precipCursor && entry.ts < windowEnd) {
+      const p1 = number(asRecord(entry.next1h?.details)?.precipitation_amount, 0, 1000);
+      const p6 = number(n6Details?.precipitation_amount, 0, 1000);
+      if (p1 !== null && entry.ts + HOUR <= windowEnd) {
+        precipSum += p1;
+        precipCoveredMs += HOUR;
+        precipCursor = entry.ts + HOUR;
+      } else if (p6 !== null && entry.ts + 6 * HOUR <= windowEnd) {
+        precipSum += p6;
+        precipCoveredMs += 6 * HOUR;
+        precipCursor = entry.ts + 6 * HOUR;
+      }
+    }
+  }
+
+  const hasTempRange =
+    Number.isFinite(tempMin) &&
+    Number.isFinite(tempMax) &&
+    tempLastTs - tempFirstTs >= 12 * HOUR;
+  const hasUvMax = Number.isFinite(uvMax) && uvLastTs - uvFirstTs >= 12 * HOUR;
+  const hasPrecip24h = precipCoveredMs >= 18 * HOUR;
+
+  const isDay = metNoIsDay(symbolCode);
+
+  const result: NonNullable<Weather> = {
+    modelTime: bestEntry.time,
+    temperatureC:
+      units.air_temperature === 'celsius'
+        ? number(details.air_temperature, -100, 70)
+        : null,
+    condition: metNoCondition(symbolCode),
+    windSpeedKmh,
+    windDirectionDeg:
+      units.wind_from_direction === 'degrees'
+        ? number(details.wind_from_direction, 0, 360)
+        : null,
+    humidityPct:
+      units.relative_humidity === '%'
+        ? number(details.relative_humidity, 0, 100)
+        : null,
+    pressureHpa:
+      units.air_pressure_at_sea_level === 'hPa'
+        ? number(details.air_pressure_at_sea_level, 100, 1200)
+        : null,
+    precipitationMm:
+      units.precipitation_amount === 'mm'
+        ? number(precipPeriodDetails.precipitation_amount, 0, 1000)
+        : null,
+    precipitationIntervalMinutes: periodIntervalMinutes,
+    ...(isDay !== undefined ? { isDay } : {}),
+    dewPointC:
+      units.dew_point_temperature === 'celsius'
+        ? number(details.dew_point_temperature, -100, 70)
+        : null,
+    cloudCoverPct:
+      units.cloud_area_fraction === '%'
+        ? number(details.cloud_area_fraction, 0, 100)
+        : null,
+    cloudLowPct:
+      units.cloud_area_fraction_low === '%'
+        ? number(details.cloud_area_fraction_low, 0, 100)
+        : null,
+    cloudMediumPct:
+      units.cloud_area_fraction_medium === '%'
+        ? number(details.cloud_area_fraction_medium, 0, 100)
+        : null,
+    cloudHighPct:
+      units.cloud_area_fraction_high === '%'
+        ? number(details.cloud_area_fraction_high, 0, 100)
+        : null,
+    fogPct:
+      units.fog_area_fraction === '%'
+        ? number(details.fog_area_fraction, 0, 100)
+        : null,
+    windGustKmh,
+    uvIndex:
+      units.ultraviolet_index_clear_sky === '1'
+        ? number(details.ultraviolet_index_clear_sky, 0, 25)
+        : null,
+    uvIndexMax24h: hasUvMax ? round1(uvMax) : null,
+    tempMin24hC: hasTempRange ? round1(tempMin) : null,
+    tempMax24hC: hasTempRange ? round1(tempMax) : null,
+    precipitation24hMm: hasPrecip24h ? round1(precipSum) : null,
+    thunderProbabilityPct: thunderProb,
+  };
+
+  const hasMetric = Object.entries(result).some(
+    ([key, value]) =>
+      key !== 'modelTime' &&
+      key !== 'precipitationIntervalMinutes' &&
+      value !== null &&
+      value !== undefined,
+  );
+
+  return {
+    weather: hasMetric ? result : null,
+    environment,
+  };
+}
+
 export function createIntelligenceProvider(
   options: {
     baseUrl?: string;
-    apiKey?: string;
-    fallbackWeatherBaseUrl?: string | false;
-    fallbackUserAgent?: string;
+    userAgent?: string;
     fetcher?: typeof fetch;
     now?: () => number;
     log?: IntelligenceLogger;
@@ -141,362 +412,100 @@ export function createIntelligenceProvider(
     options.circuitFailureThreshold ?? DEFAULT_CIRCUIT_FAILURE_THRESHOLD;
   const circuitOpenMs = options.circuitOpenMs ?? DEFAULT_CIRCUIT_OPEN_MS;
 
-  const weatherCache = new Cache<{ weather: Weather; fetchedAt: string }>();
-  const environmentCache = new Cache<Environment>();
-  const pendingWeather = new Map<string, Promise<{ weather: Weather; fetchedAt: string }>>();
-  const pendingEnvironment = new Map<string, Promise<Environment>>();
-  const baseUrl = options.baseUrl ?? 'https://api.open-meteo.com';
-  const fallbackWeatherBaseUrl = options.fallbackWeatherBaseUrl || undefined;
-  const fallbackUserAgent =
-    options.fallbackUserAgent ?? 'TerraGuessr/0.1 (+https://github.com/TerraGuessr)';
+  const cache = new Cache<CachedObservation>();
+  const pending = new Map<string, Promise<CachedObservation>>();
+  const baseUrl = options.baseUrl ?? 'https://api.met.no';
+  const userAgent =
+    options.userAgent ?? 'TerraGuessr/0.1 (+https://github.com/TerraGuessr)';
 
-  let consecutiveWeatherFailures = 0;
+  let consecutiveFailures = 0;
   let circuitOpenUntil = 0;
 
-  async function json(
-    path: string,
-    params: Record<string, string>,
-  ): Promise<Record<string, unknown>> {
-    const url = new URL(path, baseUrl);
-    url.search = new URLSearchParams({
-      ...params,
-      ...(options.apiKey ? { apikey: options.apiKey } : {}),
-    }).toString();
-    const response = await fetcher(url, {
-      signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
-    });
-    if (!response.ok) throw new UpstreamStatusError(response.status);
-    const data: unknown = await response.json();
-    if (!data || typeof data !== 'object' || Array.isArray(data))
-      throw new Error('Invalid environmental data');
-    return data as Record<string, unknown>;
-  }
-
-  async function fallbackWeather(lat: number, lon: number): Promise<Weather> {
-    if (!fallbackWeatherBaseUrl) return null;
-    const url = new URL('/weatherapi/locationforecast/2.0/compact', fallbackWeatherBaseUrl);
+  async function fetchMetNo(
+    lat: number,
+    lon: number,
+  ): Promise<{ observation: CachedObservation; expires: number }> {
+    const url = new URL(MET_NO_ENDPOINT, baseUrl);
     url.search = new URLSearchParams({
       lat: lat.toFixed(4),
       lon: lon.toFixed(4),
     }).toString();
+
     const response = await fetcher(url, {
       headers: {
-        'User-Agent': fallbackUserAgent,
+        'User-Agent': userAgent,
         Accept: 'application/json',
       },
       signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
     });
     if (!response.ok) throw new UpstreamStatusError(response.status);
     const data: unknown = await response.json();
-    if (!data || typeof data !== 'object' || Array.isArray(data))
-      throw new Error('Invalid fallback weather data');
-
-    const props = (data as Record<string, unknown>).properties;
-    if (!props || typeof props !== 'object' || Array.isArray(props)) return null;
-    const meta = (props as Record<string, unknown>).meta as Record<string, unknown> | undefined;
-    const units = (meta?.units ?? {}) as Record<string, unknown>;
-    const timeseries = (props as Record<string, unknown>).timeseries;
-    if (!Array.isArray(timeseries) || timeseries.length === 0) return null;
+    const record = asRecord(data);
+    if (!record) throw new Error('Invalid MET Norway weather data');
 
     const currentNow = now();
-    let bestEntry: Record<string, unknown> | undefined;
-    let bestDiff = Infinity;
-    for (const rawEntry of timeseries) {
-      if (!rawEntry || typeof rawEntry !== 'object' || Array.isArray(rawEntry)) continue;
-      const entry = rawEntry as Record<string, unknown>;
-      if (typeof entry.time !== 'string') continue;
-      const ts = Date.parse(entry.time);
-      if (!Number.isFinite(ts)) continue;
-      if (!isFreshWeatherTimestamp(entry.time, currentNow)) continue;
-      const diff = Math.abs(currentNow - ts);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        bestEntry = entry;
-      }
-    }
-    if (!bestEntry || typeof bestEntry.time !== 'string') return null;
-
-    const entryData = bestEntry.data as Record<string, unknown> | undefined;
-    const instant = entryData?.instant as Record<string, unknown> | undefined;
-    const details = (instant?.details ?? {}) as Record<string, unknown>;
-    const next1h = entryData?.next_1_hours as Record<string, unknown> | undefined;
-    const next6h = entryData?.next_6_hours as Record<string, unknown> | undefined;
-    const period = next1h ?? next6h;
-    const periodIntervalMinutes = next1h ? 60 : next6h ? 360 : null;
-    const periodDetails = (period?.details ?? {}) as Record<string, unknown>;
-    const periodSummary = (period?.summary ?? {}) as Record<string, unknown>;
-
-    const windMs =
-      units.wind_speed === 'm/s' ? number(details.wind_speed, 0, 150) : null;
-    const windSpeedKmh =
-      windMs === null ? null : Math.round(windMs * 3.6 * 10) / 10;
-    const symbolCode = periodSummary.symbol_code;
-    const isDay = metNoIsDay(symbolCode);
-
-    const result: NonNullable<Weather> = {
-      modelTime: bestEntry.time,
-      temperatureC:
-        units.air_temperature === 'celsius'
-          ? number(details.air_temperature, -100, 70)
-          : null,
-      condition: metNoCondition(symbolCode),
-      windSpeedKmh,
-      windDirectionDeg:
-        units.wind_from_direction === 'degrees'
-          ? number(details.wind_from_direction, 0, 360)
-          : null,
-      humidityPct:
-        units.relative_humidity === '%'
-          ? number(details.relative_humidity, 0, 100)
-          : null,
-      pressureHpa:
-        units.air_pressure_at_sea_level === 'hPa'
-          ? number(details.air_pressure_at_sea_level, 100, 1200)
-          : null,
-      precipitationMm:
-        units.precipitation_amount === 'mm'
-          ? number(periodDetails.precipitation_amount, 0, 1000)
-          : null,
-      precipitationIntervalMinutes: periodIntervalMinutes,
-      ...(isDay !== undefined ? { isDay } : {}),
+    const parsed = parseMetNoPayload(record, currentNow);
+    const observation: CachedObservation = {
+      weather: parsed.weather,
+      environment: parsed.environment,
+      fetchedAt: new Date(currentNow).toISOString(),
     };
-
-    return Object.entries(result).some(
-      ([key, value]) =>
-        key !== 'modelTime' &&
-        key !== 'precipitationIntervalMinutes' &&
-        value !== null,
-    )
-      ? result
-      : null;
-  }
-  async function weather(lat: number, lon: number): Promise<Weather> {
-    const data = await json('/v1/forecast', {
-      latitude: String(lat),
-      longitude: String(lon),
-      timezone: 'GMT',
-      current:
-        'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,precipitation,is_day',
-      temperature_unit: 'celsius',
-      wind_speed_unit: 'kmh',
-      precipitation_unit: 'mm',
-    });
-    if (
-      !data.current ||
-      typeof data.current !== 'object' ||
-      Array.isArray(data.current)
-    )
-      return null;
-    const c = data.current as Record<string, unknown>;
-    const units = (data.current_units ?? {}) as Record<string, unknown>;
-    const measured = (field: string, unit: string, min: number, max: number) =>
-      units[field] === unit ? number(c[field], min, max) : null;
-    const modelTime =
-      typeof c.time === 'string' &&
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(c.time) &&
-      Number.isFinite(Date.parse(c.time + 'Z'))
-        ? c.time + 'Z'
-        : null;
-    // R03: a displayed observation must carry a timestamp no older than the
-    // 120-minute limit. Reject missing timestamps instead of assuming current.
-    if (!isFreshWeatherTimestamp(modelTime, now())) return null;
-    const result: NonNullable<Weather> = {
-      modelTime,
-      temperatureC: measured('temperature_2m', '°C', -100, 70),
-      condition: condition(c.weather_code),
-      windSpeedKmh: measured('wind_speed_10m', 'km/h', 0, 500),
-      windDirectionDeg: measured('wind_direction_10m', '°', 0, 360),
-      humidityPct: measured('relative_humidity_2m', '%', 0, 100),
-      pressureHpa: measured('surface_pressure', 'hPa', 100, 1200),
-      precipitationMm: measured('precipitation', 'mm', 0, 1000),
-      precipitationIntervalMinutes:
-        number(c.interval, 1, 86400) === null
-          ? null
-          : (c.interval as number) / 60,
-      ...(c.is_day === 0 || c.is_day === 1 ? { isDay: c.is_day === 1 } : {}),
-    };
-    // A timestamp alone is not a usable observation: require at least one
-    // projected metric.
-    return Object.entries(result).some(
-      ([key, value]) =>
-        key !== 'modelTime' &&
-        key !== 'precipitationIntervalMinutes' &&
-        value !== null,
-    )
-      ? result
-      : null;
-  }
-  async function environment(lat: number, lon: number): Promise<Environment> {
-    const points = [[lat, lon]];
-    const dx = 0.009 / Math.max(0.05, Math.cos((lat * Math.PI) / 180));
-    for (const north of [-1, 0, 1])
-      for (const east of [-1, 0, 1]) {
-        if (north === 0 && east === 0) continue;
-        points.push([
-          Math.max(-90, Math.min(90, lat + north * 0.009)),
-          ((lon + east * dx + 540) % 360) - 180,
-        ]);
-      }
-    const data = await json('/v1/elevation', {
-      latitude: points.map((p) => p[0]).join(','),
-      longitude: points.map((p) => p[1]).join(','),
-    });
-    const values = Array.isArray(data.elevation)
-      ? data.elevation.map((v) => number(v, -500, 9000))
-      : [];
-    const elevationM = values[0] ?? null;
-    // This is a sampled relief proxy over ~2 km, not a biome or landform claim.
-    const reliefM =
-      values.length === 9 &&
-      values.every((v) => v !== null) &&
-      Math.abs(lat) < 85
-        ? Math.round(
-            Math.max(...(values as number[])) -
-              Math.min(...(values as number[])),
-          )
-        : null;
-    return {
-      ...EMPTY_ENVIRONMENT,
-      elevationM: elevationM === null ? null : Math.round(elevationM),
-      reliefM,
-      terrain:
-        reliefM === null
-          ? null
-          : reliefM < 50
-            ? 'Low relief'
-            : reliefM < 200
-              ? 'Rolling relief'
-              : 'High relief',
-    };
-  }
-  async function tryFallbackWeather(lat: number, lon: number): Promise<Weather> {
-    if (!fallbackWeatherBaseUrl) return null;
-    try {
-      return await fallbackWeather(lat, lon);
-    } catch (error: unknown) {
-      log.warn(
-        {
-          endpoint: '/weatherapi/locationforecast/2.0/compact',
-          ...safeErrorSummary(error),
-        },
-        'MET Norway fallback weather request failed',
-      );
-      return null;
-    }
+    const expires =
+      parsed.weather !== null
+        ? computeCacheExpires(response, currentNow)
+        : currentNow + NEGATIVE_CACHE_TTL_MS;
+    return { observation, expires };
   }
 
-  function fetchWeatherDedup(
+  function fetchDedup(
     key: string,
     lat: number,
     lon: number,
-    skipPrimary = false,
-  ): Promise<{ weather: Weather; fetchedAt: string }> {
-    const existing = pendingWeather.get(key);
+  ): Promise<CachedObservation> {
+    const existing = pending.get(key);
     if (existing) return existing;
 
     const job = (async () => {
-      if (skipPrimary) {
-        const value = await tryFallbackWeather(lat, lon);
-        const entry = {
-          weather: value,
-          fetchedAt: new Date(now()).toISOString(),
-        };
-        weatherCache.set(
-          key,
-          entry,
-          now() + (value ? 15 * MINUTE : 30_000),
-        );
-        return entry;
-      }
-
       try {
-        const value = await weather(lat, lon);
-        consecutiveWeatherFailures = 0;
+        const { observation, expires } = await fetchMetNo(lat, lon);
+        consecutiveFailures = 0;
         circuitOpenUntil = 0;
-        const entry = {
-          weather: value,
-          fetchedAt: new Date(now()).toISOString(),
-        };
-        weatherCache.set(
-          key,
-          entry,
-          now() + (value ? 15 * MINUTE : 30_000),
-        );
-        return entry;
+        cache.set(key, observation, expires);
+        return observation;
       } catch (error: unknown) {
-        consecutiveWeatherFailures += 1;
+        consecutiveFailures += 1;
         log.warn(
           {
-            endpoint: '/v1/forecast',
-            consecutiveFailures: consecutiveWeatherFailures,
+            endpoint: MET_NO_ENDPOINT,
+            consecutiveFailures,
             ...safeErrorSummary(error),
           },
-          'Open-Meteo weather request failed',
+          'MET Norway weather request failed',
         );
-        if (consecutiveWeatherFailures >= circuitFailureThreshold) {
+        if (consecutiveFailures >= circuitFailureThreshold) {
           circuitOpenUntil = now() + circuitOpenMs;
           log.warn(
             {
-              endpoint: '/v1/forecast',
-              consecutiveFailures: consecutiveWeatherFailures,
+              endpoint: MET_NO_ENDPOINT,
+              consecutiveFailures,
               openMs: circuitOpenMs,
             },
-            'Open-Meteo circuit breaker opened',
+            'MET Norway circuit breaker opened',
           );
         }
-        const fallback = await tryFallbackWeather(lat, lon);
-        const entry = {
-          weather: fallback,
+        const entry: CachedObservation = {
+          weather: null,
+          environment: { ...EMPTY_ENVIRONMENT },
           fetchedAt: new Date(now()).toISOString(),
         };
-        weatherCache.set(
-          key,
-          entry,
-          now() + (fallback ? 15 * MINUTE : 30_000),
-        );
+        cache.set(key, entry, now() + NEGATIVE_CACHE_TTL_MS);
         return entry;
       }
     })().finally(() => {
-      pendingWeather.delete(key);
+      pending.delete(key);
     });
 
-    pendingWeather.set(key, job);
-    return job;
-  }
-
-  function fetchEnvironmentDedup(
-    key: string,
-    lat: number,
-    lon: number,
-  ): Promise<Environment> {
-    const existing = pendingEnvironment.get(key);
-    if (existing) return existing;
-
-    const job = environment(lat, lon)
-      .catch((error: unknown) => {
-        log.warn(
-          {
-            endpoint: '/v1/elevation',
-            ...safeErrorSummary(error),
-          },
-          'Open-Meteo elevation request failed',
-        );
-        return { ...EMPTY_ENVIRONMENT };
-      })
-      .then((value) => {
-        environmentCache.set(
-          key,
-          value,
-          now() +
-            (value.elevationM !== null ? 30 * 24 * 60 * MINUTE : 30_000),
-        );
-        return value;
-      })
-      .finally(() => {
-        pendingEnvironment.delete(key);
-      });
-
-    pendingEnvironment.set(key, job);
+    pending.set(key, job);
     return job;
   }
 
@@ -505,53 +514,47 @@ export function createIntelligenceProvider(
     lon: number,
     lookupOptions: IntelligenceLookupOptions = {},
   ): Promise<GeographicIntelligence> => {
-    if (number(lat, -90, 90) === null || number(lon, -180, 180) === null)
+    if (number(lat, -90, 90) === null || number(lon, -180, 180) === null) {
       throw new Error('Invalid server location');
+    }
     const includeEnvironment = lookupOptions.includeEnvironment ?? true;
-    const key = `${lat},${lon}`;
+    const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
     const time = now();
-    const cachedWeatherEntry = weatherCache.get(key, time);
+    const cachedEntry = cache.get(key, time);
+
     // Negative-cache entries stay usable for their short TTL; a stale
     // positive entry is treated as a miss so the observation is re-fetched.
-    const cachedWeather =
-      cachedWeatherEntry &&
-      (cachedWeatherEntry.weather === null ||
-        isFreshWeatherTimestamp(cachedWeatherEntry.weather.modelTime, time))
-        ? cachedWeatherEntry
+    const usableCached =
+      cachedEntry &&
+      (cachedEntry.weather === null ||
+        isFreshWeatherTimestamp(cachedEntry.weather.modelTime, time))
+        ? cachedEntry
         : undefined;
-    const cachedEnvironment = environmentCache.get(key, time);
 
-    const weatherCircuitOpen = !cachedWeather && time < circuitOpenUntil;
-    const weatherPromise = cachedWeather
-      ? Promise.resolve(cachedWeather)
-      : weatherCircuitOpen
-        ? fallbackWeatherBaseUrl
-          ? fetchWeatherDedup(key, lat, lon, true)
-          : Promise.resolve({
-              weather: null as Weather,
-              fetchedAt: new Date(time).toISOString(),
-            })
-        : fetchWeatherDedup(key, lat, lon, false);
+    const circuitOpen = !usableCached && time < circuitOpenUntil;
+    const obs = usableCached
+      ? usableCached
+      : circuitOpen
+        ? {
+            weather: null as Weather,
+            environment: { ...EMPTY_ENVIRONMENT },
+            fetchedAt: new Date(time).toISOString(),
+          }
+        : await fetchDedup(key, lat, lon);
 
-    const environmentPromise = cachedEnvironment
-      ? Promise.resolve(cachedEnvironment)
-      : includeEnvironment
-        ? fetchEnvironmentDedup(key, lat, lon)
-        : Promise.resolve({ ...EMPTY_ENVIRONMENT });
-
-    const [w, e] = await Promise.all([weatherPromise, environmentPromise]);
     // Re-check at display time: a cached observation can cross the
     // 120-minute limit while it is still inside the cache TTL.
     const displayTime = now();
     const displayedWeather =
-      w.weather && isFreshWeatherTimestamp(w.weather.modelTime, displayTime)
-        ? w.weather
+      obs.weather && isFreshWeatherTimestamp(obs.weather.modelTime, displayTime)
+        ? obs.weather
         : null;
+
     return {
-      ...w,
+      fetchedAt: obs.fetchedAt,
+      cached: Boolean(usableCached),
       weather: displayedWeather,
-      cached: Boolean(cachedWeather),
-      environment: e,
+      environment: includeEnvironment ? obs.environment : { ...EMPTY_ENVIRONMENT },
       climate: null,
     };
   };
