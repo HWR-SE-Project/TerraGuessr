@@ -89,5 +89,6 @@ describe('AccountPage controls', () => {
     )
 
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/auth')
+    expect(screen.getByRole('link', { name: 'How your data is used' })).toHaveAttribute('href', '/privacy')
   })
 })

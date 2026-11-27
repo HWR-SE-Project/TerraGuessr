@@ -20,7 +20,7 @@ export function HomePage() {
 
   return (
     <section
-      className="relative isolate flex h-[calc(100dvh-4rem)] min-h-[490px] flex-col justify-stretch px-4 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-1 sm:h-auto sm:min-h-[calc(100svh-4rem)] sm:justify-center sm:px-6 sm:pb-6 sm:pt-5 md:px-8 md:pb-8 md:pt-6"
+      className="relative isolate flex h-[calc(100dvh-6.5rem)] min-h-[460px] flex-col justify-stretch px-4 pb-2 pt-1 sm:h-auto sm:min-h-[calc(100svh-6.5rem)] sm:justify-center sm:px-6 sm:pb-4 sm:pt-5 md:px-8 md:pb-6 md:pt-6"
       aria-labelledby="home-heading"
     >
       <motion.div

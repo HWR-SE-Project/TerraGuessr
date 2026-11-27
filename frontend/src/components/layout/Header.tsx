@@ -217,10 +217,17 @@ export function Header() {
                           {onSettings ? 'Close settings' : 'Settings'}
                         </Button>
                         <Button icon="person" onClick={() => { setMobileOpen(false); navigate('/auth') }}>
-                          Sign in or create account
+                          Sign in
                         </Button>
                       </>
                     )}
+                    <Link
+                      to="/privacy"
+                      onClick={() => setMobileOpen(false)}
+                      className="mt-2 text-center text-xs font-semibold text-subtle/75 transition-colors hover:text-cream hover:underline hover:underline-offset-4"
+                    >
+                      Data &amp; privacy
+                    </Link>
                   </div>
                 </motion.div>
               </motion.div>

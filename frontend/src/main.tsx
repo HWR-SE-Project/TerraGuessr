@@ -15,6 +15,9 @@ import { SettingsPage } from './pages/settings/SettingsPage'
 import { AccountPage } from './pages/account/AccountPage'
 import { AvatarPage } from './pages/avatar/AvatarPage'
 import { HowToPlayPage } from './pages/how-to-play/HowToPlayPage'
+import { UltimateGuidePage } from './pages/how-to-play/UltimateGuidePage'
+import { TutorialPage } from './pages/how-to-play/TutorialPage'
+import { PrivacyPage } from './pages/privacy/PrivacyPage'
 import { StatsPage } from './pages/stats/StatsPage'
 import { AuthPage } from './pages/auth/AuthPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
@@ -34,6 +37,8 @@ const router = createBrowserRouter([
       { path: '/avatar', element: <AvatarPage /> },
       { path: '/stats', element: <StatsPage /> },
       { path: '/how-to-play', element: <HowToPlayPage /> },
+      { path: '/how-to-play/guide', element: <UltimateGuidePage /> },
+      { path: '/privacy', element: <PrivacyPage /> },
       { path: '/auth', element: <AuthPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
       { path: '/verify-email', element: <VerifyEmailPage /> },
@@ -45,6 +50,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/singleplayer/play', element: <SingleplayerGamePage /> },
       { path: '/lobby/:code/play', element: <MultiplayerGamePage /> },
+      { path: '/how-to-play/tutorial', element: <TutorialPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Field, Input } from '../../components/ui/Form'
@@ -46,6 +46,16 @@ export function AccountPage() {
             </div>
           )}
         </SettingSection>
+
+        <p className="text-center text-xs text-subtle">
+          Accounts store only what’s needed to save your progress.{' '}
+          <Link
+            to="/privacy"
+            className="font-semibold text-muted underline decoration-white/20 underline-offset-4 transition-colors hover:text-cream"
+          >
+            How your data is used
+          </Link>
+        </p>
       </motion.div>
     </div>
   )
@@ -149,6 +159,7 @@ function ChangeEmail({ user }: { user: PublicUser }) {
       <Dialog
         open={open}
         onClose={closeDialog}
+        maxWidth="max-w-lg"
         title="Change email address"
         footer={
           success ? (
@@ -156,11 +167,11 @@ function ChangeEmail({ user }: { user: PublicUser }) {
               Done
             </Button>
           ) : (
-            <div className="flex gap-2">
-              <Button variant="secondary" fullWidth onClick={closeDialog} disabled={loading}>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Button variant="secondary" fullWidth className="min-w-0" onClick={closeDialog} disabled={loading}>
                 Cancel
               </Button>
-              <Button fullWidth loading={loading} disabled={!canSubmit} onClick={submit}>
+              <Button fullWidth className="min-w-0" loading={loading} disabled={!canSubmit} onClick={submit}>
                 Send confirmation
               </Button>
             </div>
@@ -242,11 +253,11 @@ function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
         onClose={() => setOpen(false)}
         title="Delete your account?"
         footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" fullWidth onClick={() => setOpen(false)}>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <Button variant="secondary" fullWidth className="min-w-0" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button variant="danger" fullWidth loading={loading} disabled={confirm !== 'DELETE'} onClick={remove}>
+            <Button variant="danger" fullWidth className="min-w-0" loading={loading} disabled={confirm !== 'DELETE'} onClick={remove}>
               Delete forever
             </Button>
           </div>
