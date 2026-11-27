@@ -158,4 +158,22 @@ describe('AuthPage Google sign-in', () => {
     await waitFor(() => expect(auth.getConfig).toHaveBeenCalled())
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  it('opens the data usage summary dialog without navigating away from the form', async () => {
+    render(
+      <MemoryRouter initialEntries={['/auth']}>
+        <AuthPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(auth.getConfig).toHaveBeenCalled())
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'explorer@example.test' } })
+    fireEvent.click(screen.getByRole('button', { name: 'How your data is used' }))
+
+    expect(screen.getByRole('dialog', { name: 'How your data is used' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open full page' })).toHaveAttribute('href', '/privacy')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }))
+    expect(screen.getByLabelText('Email')).toHaveValue('explorer@example.test')
+  })
 })

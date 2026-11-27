@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Switch } from '../../components/ui/Form'
 import { SettingRow, SettingSection } from '../../components/ui/SettingsCard'
@@ -26,7 +27,13 @@ export function SettingsPage() {
         </SettingSection>
 
         <p className="text-center text-xs text-subtle">
-          Preferences sync to your account when signed in; guests keep them on this device.
+          Preferences sync to your account when signed in; guests keep them on this device.{' '}
+          <Link
+            to="/privacy"
+            className="font-semibold text-muted underline decoration-white/20 underline-offset-4 transition-colors hover:text-cream"
+          >
+            How your data is used
+          </Link>
         </p>
       </motion.div>
     </div>

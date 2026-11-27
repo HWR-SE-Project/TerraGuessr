@@ -53,12 +53,12 @@ export function Button({
   const content = (
     <>
       {loading ? (
-        <Spinner className="size-4" />
+        <Spinner className="size-4 shrink-0" />
       ) : (
-        icon && <Icon name={icon} size={size === 'lg' ? 22 : 19} />
+        icon && <Icon name={icon} size={size === 'lg' ? 22 : 19} className="shrink-0" />
       )}
       {children}
-      {trailingIcon && !loading && <Icon name={trailingIcon} size={size === 'lg' ? 22 : 19} />}
+      {trailingIcon && !loading && <Icon name={trailingIcon} size={size === 'lg' ? 22 : 19} className="shrink-0" />}
     </>
   )
 

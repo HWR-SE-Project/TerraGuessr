@@ -9,6 +9,7 @@ import { signIn, signUp, useSession } from '../../state/session'
 import { scaleIn } from '../../lib/motion'
 import { EmailSentView } from './EmailSentView'
 import { formatCooldown, RESEND_COOLDOWN_SECONDS, useResendCooldown } from './useResendCooldown'
+import { PrivacyDialog } from '../privacy/PrivacyContent'
 import googleLogo from '../../assets/brand/google-logo.svg'
 
 type Mode = 'signin' | 'register'
@@ -42,6 +43,7 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [googleAvailable, setGoogleAvailable] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
 
   const session = useSession()
   const from = (location.state as { from?: string } | null)?.from ?? '/'
@@ -285,9 +287,21 @@ export function AuthPage() {
             </button>
           )}
         </div>
+
+        <p className="mt-5 border-t border-white/8 pt-4 text-center text-xs text-subtle">
+          No ads or tracking.{' '}
+          <button
+            type="button"
+            onClick={() => setPrivacyOpen(true)}
+            className="font-semibold text-muted underline decoration-white/20 underline-offset-4 transition-colors hover:text-cream"
+          >
+            How your data is used
+          </button>
+        </p>
           </>
         )}
       </motion.div>
+      <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
     </div>
   )
 }

@@ -36,5 +36,6 @@ describe('SettingsPage game settings', () => {
 
     expect(screen.queryByRole('heading', { name: 'Account' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'How your data is used' })).toHaveAttribute('href', '/privacy')
   })
 })
