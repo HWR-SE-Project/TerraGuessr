@@ -28,9 +28,114 @@ function windMeasurement(speedKmh: number | null, directionDeg: number | null): 
   return heading ? `${speed} ${heading}` : speed
 }
 
+function uvMeasurement(uv: number): string {
+  const formatted = uv.toLocaleString(undefined, { maximumFractionDigits: 1 })
+  const level =
+    uv < 3 ? 'Low' : uv < 6 ? 'Moderate' : uv < 8 ? 'High' : uv < 11 ? 'Very high' : 'Extreme'
+  return `${formatted} · ${level}`
+}
+
+function tempRangeMeasurement(minC: number, maxC: number): string {
+  const minStr = minC.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  const maxStr = maxC.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  const swing = Math.round(maxC - minC)
+  return `${minStr}° – ${maxStr}°C (Δ${swing}°)`
+}
+
 function defaultIntelligenceExpanded(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true
   return window.matchMedia('(min-width: 1024px)').matches
+}
+
+interface ExtraMetricItem {
+  key: string
+  icon: IconName
+  label: string
+  value: string
+}
+
+function buildExtraMetrics(weather: NonNullable<Intelligence['weather']>): ExtraMetricItem[] {
+  const items: ExtraMetricItem[] = []
+  if (weather.tempMin24hC != null && weather.tempMax24hC != null) {
+    items.push({
+      key: 'temp24h',
+      icon: 'flame',
+      label: '24h temp range',
+      value: tempRangeMeasurement(weather.tempMin24hC, weather.tempMax24hC),
+    })
+  }
+  if (weather.uvIndexMax24h != null) {
+    items.push({
+      key: 'uvMax24h',
+      icon: 'sun',
+      label: 'Peak UV (24h)',
+      value: uvMeasurement(weather.uvIndexMax24h),
+    })
+  } else if (weather.uvIndex != null) {
+    items.push({
+      key: 'uv',
+      icon: 'sun',
+      label: 'Clear-sky UV',
+      value: uvMeasurement(weather.uvIndex),
+    })
+  }
+  if (weather.dewPointC != null) {
+    items.push({
+      key: 'dewPoint',
+      icon: 'drop',
+      label: 'Dew point',
+      value: measurement(weather.dewPointC, '°C', 1),
+    })
+  }
+  if (weather.precipitation24hMm != null) {
+    items.push({
+      key: 'precip24h',
+      icon: 'rain',
+      label: '24h precip',
+      value: measurement(weather.precipitation24hMm, ' mm', 1),
+    })
+  }
+  if (weather.cloudCoverPct != null) {
+    items.push({
+      key: 'cloudCover',
+      icon: 'cloud',
+      label: 'Cloud cover',
+      value: formatPercent(weather.cloudCoverPct),
+    })
+  }
+  if (weather.pressureHpa != null) {
+    items.push({
+      key: 'pressure',
+      icon: 'pressure',
+      label: 'Pressure',
+      value: measurement(weather.pressureHpa, ' hPa'),
+    })
+  }
+  if (weather.windGustKmh != null) {
+    items.push({
+      key: 'windGust',
+      icon: 'wind',
+      label: 'Wind gusts',
+      value: measurement(weather.windGustKmh / 3.6, ' m/s', 1),
+    })
+  }
+  if (weather.fogPct != null && weather.fogPct > 0) {
+    items.push({
+      key: 'fog',
+      icon: 'cloud',
+      label: 'Fog cover',
+      value: formatPercent(weather.fogPct),
+    })
+  }
+  if (weather.thunderProbabilityPct != null && weather.thunderProbabilityPct > 0) {
+    items.push({
+      key: 'thunder',
+      icon: 'sparkle',
+      label: 'Thunder risk',
+      value: formatPercent(weather.thunderProbabilityPct),
+    })
+  }
+  return items
 }
 
 /** Collapsible geographic intelligence (weather + environment clues). */
@@ -102,6 +207,8 @@ export function GeographicIntelligence({
   const temperature = measurement(weather?.temperatureC, '°C', 1)
   const environment = data?.environment
   const canUnlock = access.mode !== 'immediate' && !unlocked && onUnlock
+  const extraMetrics = unlocked && weather ? buildExtraMetrics(weather) : []
+  const hasUnlockedClues = unlocked && (environment?.elevationM != null || extraMetrics.length > 0)
 
   const unlockLabel =
     access.mode === 'points'
@@ -129,7 +236,7 @@ export function GeographicIntelligence({
             {!request
               ? 'Connecting…'
               : weather
-                ? `${temperature}${unlocked && weather.condition ? ` · ${weather.condition}` : ''}`
+                ? `${temperature}${weather.condition ? ` · ${weather.condition}` : ''}`
                 : 'Environmental clues'}
           </span>
         </span>
@@ -148,19 +255,6 @@ export function GeographicIntelligence({
             className="overflow-hidden"
           >
             <div className="border-t border-white/8 px-3 py-2.5 lg:px-4 lg:py-3">
-              {data && canUnlock && (
-                <div className="mb-3 rounded-2xl bg-space-800 p-3">
-                  <p className="text-sm text-muted">Extra clues are locked for this difficulty.</p>
-                  <button
-                    type="button"
-                    disabled={unlocking || unlockDisabled}
-                    onClick={onUnlock}
-                    className="mt-2 rounded-full bg-lime-400 px-3 py-1.5 text-sm font-bold text-ink"
-                  >
-                    {unlocking ? 'Unlocking…' : unlockLabel}
-                  </button>
-                </div>
-              )}
               {!request ? (
                 <p className="py-2 text-sm text-muted">Connecting to the weather station…</p>
               ) : !weather ? (
@@ -178,16 +272,18 @@ export function GeographicIntelligence({
                 <>
                   <div className="flex items-center gap-3">
                     <span className="shrink-0 text-2xl text-sky-300">
-                      <Icon name={weatherIcon(unlocked ? weather.condition : null)} size={26} />
+                      <Icon name={weatherIcon(weather.condition)} size={26} />
                     </span>
                     <div className="min-w-0 flex-1 wrap-anywhere">
                       <span className="block text-xs text-subtle">Temperature</span>
                       <span className="font-display text-2xl font-semibold text-cream">
                         {temperature}
                       </span>
-                      <span className="ml-2 text-sm font-semibold text-muted">
-                        {unlocked ? (weather.condition ?? 'Conditions unavailable') : 'Conditions locked'}
-                      </span>
+                      {weather.condition && (
+                        <span className="ml-2 text-sm font-semibold text-muted">
+                          {weather.condition}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -195,23 +291,59 @@ export function GeographicIntelligence({
                     <Metric icon="rain" label="Precipitation" value={measurement(weather.precipitationMm, ' mm', 1)} />
                     <Metric icon="drop" label="Humidity" value={formatPercent(weather.humidityPct)} />
                     <Metric icon="wind" label="Wind speed" value={windMeasurement(weather.windSpeedKmh, weather.windDirectionDeg)} />
-                    {unlocked && <Metric icon="pressure" label="Pressure" value={measurement(weather.pressureHpa, ' hPa')} />}
                   </dl>
                 </>
               )}
 
-              {unlocked && environment?.elevationM != null && (
-                <div className="mt-2 flex items-center gap-3 rounded-2xl bg-space-800 px-3 py-2 lg:mt-3 lg:p-3">
-                  <span className="text-lime-300">
-                    <Icon name="mountain" size={20} />
+              {data && canUnlock && (
+                <div className="mt-2.5 rounded-2xl bg-space-800 p-3 lg:mt-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-lime-300">
+                    Additional clues locked
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted">
+                    Reveal elevation, 24h temperature &amp; rain forecast, peak UV, dew point, cloud cover, and pressure.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={unlocking || unlockDisabled}
+                    onClick={onUnlock}
+                    className="mt-2.5 rounded-full bg-lime-400 px-3 py-1.5 text-sm font-bold text-ink"
+                  >
+                    {unlocking ? 'Unlocking…' : unlockLabel}
+                  </button>
+                </div>
+              )}
+
+              {hasUnlockedClues && (
+                <div className="mt-2.5 border-t border-white/8 pt-2.5 lg:mt-3 lg:pt-3">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-subtle">
+                    Station dossier
                   </span>
-                  <div>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-subtle">Elevation</span>
-                    <span className="font-display text-lg font-semibold text-cream">
-                      {measurement(environment.elevationM, ' m')}
-                      <span className="ml-2 text-sm font-semibold text-muted">{environment.terrain}</span>
-                    </span>
-                  </div>
+
+                  {environment?.elevationM != null && (
+                    <div className="mt-2 flex items-center gap-3 rounded-2xl bg-space-800 px-3 py-2 lg:p-2.5">
+                      <span className="text-lime-300">
+                        <Icon name="mountain" size={20} />
+                      </span>
+                      <div>
+                        <span className="block text-xs font-bold uppercase tracking-wider text-subtle">Elevation</span>
+                        <span className="font-display text-lg font-semibold text-cream">
+                          {measurement(environment.elevationM, ' m')}
+                          {environment.terrain && (
+                            <span className="ml-2 text-sm font-semibold text-muted">{environment.terrain}</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {extraMetrics.length > 0 && (
+                    <dl className="mt-2 grid grid-cols-2 gap-1.5 text-sm lg:gap-2">
+                      {extraMetrics.map((item) => (
+                        <Metric key={item.key} icon={item.icon} label={item.label} value={item.value} />
+                      ))}
+                    </dl>
+                  )}
                 </div>
               )}
             </div>

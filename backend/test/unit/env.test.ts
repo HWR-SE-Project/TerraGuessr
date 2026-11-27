@@ -51,16 +51,18 @@ describe('loadEnv', () => {
       loadEnv({ DATABASE_URL: 'postgresql://x', APP_BASE_URL: 'ftp://example.com' }),
     ).toThrow(/Invalid APP_BASE_URL protocol/);
     expect(() =>
-      loadEnv({ DATABASE_URL: 'postgresql://x', OPEN_METEO_BASE_URL: 'bad' }),
-    ).toThrow(/Invalid OPEN_METEO_BASE_URL URL/);
+      loadEnv({ DATABASE_URL: 'postgresql://x', MET_NO_BASE_URL: 'bad' }),
+    ).toThrow(/Invalid MET_NO_BASE_URL URL/);
     expect(() =>
       loadEnv({ DATABASE_URL: 'postgresql://x', MET_NO_BASE_URL: 'ftp://api.met.no' }),
     ).toThrow(/Invalid MET_NO_BASE_URL protocol/);
-    expect(loadEnv({ DATABASE_URL: 'postgresql://x' }).metNoBaseUrl).toBeUndefined();
+    expect(loadEnv({ DATABASE_URL: 'postgresql://x' }).metNoBaseUrl).toBe(
+      'https://api.met.no',
+    );
     expect(
-      loadEnv({ DATABASE_URL: 'postgresql://x', MET_NO_BASE_URL: 'https://api.met.no' })
+      loadEnv({ DATABASE_URL: 'postgresql://x', MET_NO_BASE_URL: 'http://fake-weather:4000' })
         .metNoBaseUrl,
-    ).toBe('https://api.met.no');
+    ).toBe('http://fake-weather:4000');
     expect(() =>
       loadEnv({ DATABASE_URL: 'postgresql://x', LOG_LEVEL: 'verbose' }),
     ).toThrow(/Invalid LOG_LEVEL/);

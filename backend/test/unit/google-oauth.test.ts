@@ -20,7 +20,7 @@ function googleEnv(): Env {
     nodeEnv: 'test',
     port: 3000,
     corsOrigin: false,
-    openMeteoBaseUrl: 'https://api.open-meteo.com',
+    metNoBaseUrl: 'https://api.met.no',
     logLevel: 'silent',
     googleClientId: 'test-client-id',
     googleClientSecret: GOOGLE_SECRET,

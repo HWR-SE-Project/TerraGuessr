@@ -7,9 +7,7 @@ export interface Env {
   corsOrigin: string | false;
   /** Precomputed origins permitted by same-site mutation checks. */
   allowedOrigins?: ReadonlySet<string>;
-  openMeteoBaseUrl: string;
-  openMeteoApiKey?: string;
-  metNoBaseUrl?: string;
+  metNoBaseUrl: string;
   logLevel: string;
   googleClientId?: string;
   googleClientSecret?: string;
@@ -28,7 +26,7 @@ export interface Env {
 }
 
 const DEFAULT_PORT = 3000;
-const DEFAULT_OPEN_METEO_BASE_URL = 'https://api.open-meteo.com';
+const DEFAULT_MET_NO_BASE_URL = 'https://api.met.no';
 const DEFAULT_LOG_LEVEL = 'info';
 const VALID_LOG_LEVELS = new Set([
   'trace',
@@ -100,14 +98,9 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     ? parseUrl('CORS_ORIGIN', rawCorsOrigin, ['http:', 'https:'])
     : undefined;
 
-  const openMeteoBaseUrl =
-    env.OPEN_METEO_BASE_URL?.trim() || DEFAULT_OPEN_METEO_BASE_URL;
-  parseUrl('OPEN_METEO_BASE_URL', openMeteoBaseUrl, ['http:', 'https:']);
-
-  const metNoBaseUrl = env.MET_NO_BASE_URL?.trim() || undefined;
-  if (metNoBaseUrl) {
-    parseUrl('MET_NO_BASE_URL', metNoBaseUrl, ['http:', 'https:']);
-  }
+  const metNoBaseUrl =
+    env.MET_NO_BASE_URL?.trim() || DEFAULT_MET_NO_BASE_URL;
+  parseUrl('MET_NO_BASE_URL', metNoBaseUrl, ['http:', 'https:']);
 
   const appBaseUrl = env.APP_BASE_URL?.trim() || undefined;
   const appBaseUrlParsed = appBaseUrl
@@ -153,8 +146,6 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): Env {
     // docker-compose.*.yml always sets this explicitly for real deployments.
     corsOrigin: rawCorsOrigin || false,
     allowedOrigins,
-    openMeteoBaseUrl,
-    openMeteoApiKey: env.OPEN_METEO_API_KEY?.trim() || undefined,
     metNoBaseUrl,
     logLevel: parseLogLevel(env.LOG_LEVEL),
     googleClientId,

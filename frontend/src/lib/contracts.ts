@@ -43,6 +43,19 @@ export interface GeographicIntelligence {
     pressureHpa: number | null
     precipitationMm: number | null
     precipitationIntervalMinutes: number | null
+    dewPointC?: number | null
+    cloudCoverPct?: number | null
+    cloudLowPct?: number | null
+    cloudMediumPct?: number | null
+    cloudHighPct?: number | null
+    fogPct?: number | null
+    windGustKmh?: number | null
+    uvIndex?: number | null
+    uvIndexMax24h?: number | null
+    tempMin24hC?: number | null
+    tempMax24hC?: number | null
+    precipitation24hMm?: number | null
+    thunderProbabilityPct?: number | null
   } | null
   environment: {
     elevationM: number | null
@@ -183,6 +196,11 @@ export interface RoundBounds {
   default: number
 }
 
+export interface LobbyBounds {
+  minPlayers: number
+  maxPlayers: number
+}
+
 export interface GameRulesCatalog {
   difficulties: Record<Difficulty, GameRules>
   scoring: {
@@ -194,6 +212,7 @@ export interface GameRulesCatalog {
     londonParisKm: number
   }
   rounds?: RoundBounds
+  lobby?: LobbyBounds
 }
 
 export interface LobbyMember {
@@ -209,6 +228,7 @@ export interface Lobby {
   difficulty: Difficulty
   status: LobbyStatus
   roundsTotal: number
+  maxMembers?: number
   rules: LobbyRules
   createdAt: string
   expiresAt: string
@@ -266,6 +286,12 @@ export interface LobbyLeaderboardEntry {
   roundsCompleted: number
 }
 
+export interface LobbyMatchReviewPrompt {
+  readyPlayers: string[]
+  pendingPlayers: string[]
+  youReady: boolean
+}
+
 export interface LobbyMatchContinuePrompt {
   deadline: string | null
   readyPlayers: string[]
@@ -285,6 +311,7 @@ export interface LobbyMatch {
   round: LobbyMatchRound | null
   roundComplete: boolean
   reviewEndsAt: string | null
+  reviewPrompt?: LobbyMatchReviewPrompt | null
   pendingPlayers: string[]
   you: {
     attemptsUsed: number

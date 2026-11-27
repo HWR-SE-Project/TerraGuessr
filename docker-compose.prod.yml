@@ -88,9 +88,7 @@ services:
       # Caddy is the only hop in front of the API; trust exactly that one so
       # rate limits use the real client IP without trusting spoofable XFF values.
       TRUST_PROXY: "1"
-      OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
-      OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
-      MET_NO_BASE_URL: ${MET_NO_BASE_URL:-}
+      MET_NO_BASE_URL: ${MET_NO_BASE_URL:-https://api.met.no}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

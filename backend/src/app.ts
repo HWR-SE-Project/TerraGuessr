@@ -9,7 +9,9 @@ import type { FastifyInstance } from 'fastify';
 import { prisma } from './db/prisma.js';
 import {
   DEFAULT_ROUNDS_TOTAL,
+  MAX_LOBBY_MEMBERS,
   MAX_ROUNDS_TOTAL,
+  MIN_LOBBY_MEMBERS,
   MIN_ROUNDS_TOTAL,
   RATE_LIMITS,
 } from './config/constants.js';
@@ -48,6 +50,10 @@ const gameRulesCatalog = {
     min: MIN_ROUNDS_TOTAL,
     max: MAX_ROUNDS_TOTAL,
     default: DEFAULT_ROUNDS_TOTAL,
+  },
+  lobby: {
+    minPlayers: MIN_LOBBY_MEMBERS,
+    maxPlayers: MAX_LOBBY_MEMBERS,
   },
 };
 
@@ -135,15 +141,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   registerStatisticsRoutes(app);
   registerResultsRoutes(app);
   const intelligence = createIntelligenceProvider({
-    baseUrl: config.openMeteoBaseUrl,
-    apiKey: config.openMeteoApiKey,
+    baseUrl: config.metNoBaseUrl,
+    userAgent: `TerraGuessr/0.1 (+${config.appBaseUrl ?? 'https://github.com/TerraGuessr'})`,
     log: app.log,
-    ...(config.metNoBaseUrl
-      ? {
-          fallbackWeatherBaseUrl: config.metNoBaseUrl,
-          fallbackUserAgent: `TerraGuessr/0.1 (+${config.appBaseUrl ?? 'https://github.com/TerraGuessr'})`,
-        }
-      : {}),
   });
   registerLobbiesRoutes(app, undefined, { intelligence });
   const singleplayer = registerSingleplayerRoutes(app, { intelligence });
@@ -170,6 +170,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             min: Type.Integer(),
             max: Type.Integer(),
             default: Type.Integer(),
+          }),
+          lobby: Type.Object({
+            minPlayers: Type.Integer(),
+            maxPlayers: Type.Integer(),
           }),
         }),
       },

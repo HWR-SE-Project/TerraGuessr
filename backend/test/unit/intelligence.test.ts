@@ -6,121 +6,242 @@ import { registerSingleplayerRoutes } from '../../src/modules/singleplayer/route
 import { registerErrorHandler } from '../../src/plugins/errorHandler.js';
 import { hashPlayerToken } from '../../src/plugins/auth.js';
 
-const current = {
-  time: '2026-11-19T12:00',
-  interval: 900,
-  temperature_2m: 12.3,
-  weather_code: 2,
-  relative_humidity_2m: 64,
-  wind_speed_10m: 8,
-  wind_direction_10m: 240,
-  surface_pressure: 1003.4,
-  precipitation: 0,
+const MET_NO_UNITS = {
+  air_pressure_at_sea_level: 'hPa',
+  air_temperature: 'celsius',
+  air_temperature_max: 'celsius',
+  air_temperature_min: 'celsius',
+  cloud_area_fraction: '%',
+  cloud_area_fraction_high: '%',
+  cloud_area_fraction_low: '%',
+  cloud_area_fraction_medium: '%',
+  dew_point_temperature: 'celsius',
+  fog_area_fraction: '%',
+  precipitation_amount: 'mm',
+  probability_of_precipitation: '%',
+  probability_of_thunder: '%',
+  relative_humidity: '%',
+  ultraviolet_index_clear_sky: '1',
+  wind_from_direction: 'degrees',
+  wind_speed: 'm/s',
+  wind_speed_of_gust: 'm/s',
 };
-const current_units = {
-  temperature_2m: '°C',
-  relative_humidity_2m: '%',
-  wind_speed_10m: 'km/h',
-  wind_direction_10m: '°',
-  surface_pressure: 'hPa',
-  precipitation: 'mm',
-};
+
+function metNoResponse(
+  baseIso = '2026-11-19T12:00:00Z',
+  options: {
+    hours?: number;
+    altitudeM?: number;
+    detailsOverride?: Record<string, unknown>;
+    unitsOverride?: Record<string, unknown>;
+    symbolCode?: string;
+    expiresHeader?: string;
+  } = {},
+) {
+  const baseMs = Date.parse(baseIso);
+  const hours = options.hours ?? 24;
+  const timeseries = [];
+  for (let h = 0; h <= hours; h += 1) {
+    const time = new Date(baseMs + h * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const temp = h === 0 ? 12.3 : h === 6 ? 18.5 : h === 15 ? 4.2 : 11.0;
+    const uv = h === 0 ? 1.4 : h === 3 ? 6.8 : 0.0;
+    timeseries.push({
+      time,
+      data: {
+        instant: {
+          details: {
+            air_pressure_at_sea_level: 1011.5,
+            air_temperature: temp,
+            cloud_area_fraction: 58.2,
+            cloud_area_fraction_low: 25.0,
+            cloud_area_fraction_medium: 30.0,
+            cloud_area_fraction_high: 15.0,
+            dew_point_temperature: 6.4,
+            fog_area_fraction: 5.0,
+            relative_humidity: 64,
+            ultraviolet_index_clear_sky: uv,
+            wind_from_direction: 240,
+            wind_speed: 5,
+            wind_speed_of_gust: 8.5,
+            ...(h === 0 ? options.detailsOverride : {}),
+          },
+        },
+        next_1_hours: {
+          summary: { symbol_code: options.symbolCode ?? 'partlycloudy_day' },
+          details: {
+            precipitation_amount: h === 0 ? 0.5 : 0.2,
+            probability_of_thunder: h === 0 ? 15 : 0,
+          },
+        },
+        next_6_hours: {
+          summary: { symbol_code: options.symbolCode ?? 'partlycloudy_day' },
+          details: {
+            air_temperature_max: 19.1,
+            air_temperature_min: 3.8,
+            precipitation_amount: 1.5,
+          },
+        },
+      },
+    });
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (options.expiresHeader) headers.Expires = options.expiresHeader;
+
+  return new Response(
+    JSON.stringify({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [10.7522, 59.9139, options.altitudeM ?? 142],
+      },
+      properties: {
+        meta: {
+          updated_at: baseIso,
+          units: { ...MET_NO_UNITS, ...options.unitsOverride },
+        },
+        timeseries,
+      },
+      timezone: 'spoiler',
+      city: 'spoiler',
+    }),
+    { headers },
+  );
+}
+
 const sample = () => ({
   fetchedAt: '2026-11-19T12:01:00Z',
   cached: false,
   weather: null,
   environment: {
-    elevationM: 100,
-    reliefM: 20,
-    terrain: 'Low relief' as const,
+    elevationM: 142,
+    reliefM: null,
+    terrain: null,
     biome: null,
     vegetation: null,
   },
   climate: null,
 });
 
-describe('environment provider boundary', () => {
-  it('projects real metrics, deduplicates requests, expires weather separately and caches elevation', async () => {
-    let now = Date.parse('2026-11-19T12:01Z');
-    const fetcher = vi.fn(
-      async (input: URL | RequestInfo) =>
-        new Response(
-          JSON.stringify(
-            String(input).includes('/elevation')
-              ? { elevation: [100, 101, 102, 103, 90, 95, 100, 103, 110] }
-              : {
-                  current,
-                  current_units,
-                  latitude: 50,
-                  longitude: 10,
-                  timezone: 'spoiler',
-                  city: 'spoiler',
-                },
-          ),
-        ),
-    );
+describe('MET Norway intelligence provider boundary', () => {
+  it('extracts complete metrics, 24h rollups, and elevation in one call, deduplicates, and honors Expires', async () => {
+    let now = Date.parse('2026-11-19T12:05:00Z');
+    const fetcher = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = String(input);
+      expect(url).toContain('api.met.no/weatherapi/locationforecast/2.0/complete');
+      expect(url).toContain('lat=59.9139');
+      expect(url).toContain('lon=10.7522');
+      expect((init?.headers as Record<string, string>)['User-Agent']).toContain('TerraGuessr');
+      return metNoResponse('2026-11-19T12:00:00Z', {
+        expiresHeader: 'Thu, 19 Nov 2026 12:35:00 GMT',
+      });
+    });
+
     const get = createIntelligenceProvider({
+      baseUrl: 'https://api.met.no',
+      userAgent: 'TerraGuessr/0.1 (+https://terra-guessr.vercel.app)',
       fetcher: fetcher as typeof fetch,
       now: () => now,
     });
-    const [first, simultaneous] = await Promise.all([get(50, 10), get(50, 10)]);
+
+    const [first, simultaneous] = await Promise.all([
+      get(59.91391, 10.75224),
+      get(59.91392, 10.75221),
+    ]);
     expect(first).toEqual(simultaneous);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(first.weather).toMatchObject({
-      condition: 'Partly cloudy',
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    expect(first.weather).toEqual({
+      modelTime: '2026-11-19T12:00:00Z',
       temperatureC: 12.3,
-      precipitationMm: 0,
-      precipitationIntervalMinutes: 15,
-      modelTime: '2026-11-19T12:00Z',
+      condition: 'Partly cloudy',
+      windSpeedKmh: 18,
+      windDirectionDeg: 240,
+      humidityPct: 64,
+      pressureHpa: 1011.5,
+      precipitationMm: 0.5,
+      precipitationIntervalMinutes: 60,
+      isDay: true,
+      dewPointC: 6.4,
+      cloudCoverPct: 58.2,
+      cloudLowPct: 25,
+      cloudMediumPct: 30,
+      cloudHighPct: 15,
+      fogPct: 5,
+      windGustKmh: 30.6,
+      uvIndex: 1.4,
+      uvIndexMax24h: 6.8,
+      tempMin24hC: 3.8,
+      tempMax24hC: 19.1,
+      precipitation24hMm: 5.1,
+      thunderProbabilityPct: 15,
     });
-    expect(first.environment).toMatchObject({
-      elevationM: 100,
-      reliefM: 20,
-      terrain: 'Low relief',
+    expect(first.environment).toEqual({
+      elevationM: 142,
+      reliefM: null,
+      terrain: null,
+      biome: null,
+      vegetation: null,
     });
-    expect(JSON.stringify(first)).not.toMatch(
-      /latitude|longitude|timezone|spoiler/,
-    );
-    expect((await get(50, 10)).cached).toBe(true);
-    now += 16 * 60_000;
-    expect((await get(50, 10)).cached).toBe(false);
-    expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(String(fetcher.mock.calls[2]![0])).toContain('/forecast');
+    expect(JSON.stringify(first)).not.toMatch(/latitude|longitude|timezone|spoiler/);
+
+    // Still cached at +20m because Expires was +30m.
+    now += 20 * 60_000;
+    expect((await get(59.9139, 10.7522)).cached).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    // Refetches once past Expires (+31m total).
+    now += 11 * 60_000;
+    expect((await get(59.9139, 10.7522)).cached).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
-  it('keeps elevation during weather outages, rejects bogus units and values, and never infers biome or climate', async () => {
+
+  it('rejects bogus units and out-of-range values without inferring biome or climate', async () => {
     const get = createIntelligenceProvider({
-      now: () => Date.parse('2026-11-19T12:01Z'),
-      fetcher: vi.fn(async (input) => {
-        if (String(input).includes('/elevation'))
-          return new Response(JSON.stringify({ elevation: [0] }));
-        return new Response(
-          JSON.stringify({
-            current: {
-              ...current,
-              relative_humidity_2m: 999,
-              weather_code: 'city name',
-              temperature_2m: null,
-            },
-            current_units: { ...current_units, surface_pressure: 'Pa' },
-          }),
-        );
-      }) as typeof fetch,
+      now: () => Date.parse('2026-11-19T12:01:00Z'),
+      fetcher: vi.fn(async () =>
+        metNoResponse('2026-11-19T12:00:00Z', {
+          hours: 0,
+          altitudeM: 0,
+          detailsOverride: {
+            relative_humidity: 999,
+            air_temperature: null,
+            dew_point_temperature: 250,
+            ultraviolet_index_clear_sky: -4,
+          },
+          unitsOverride: {
+            air_pressure_at_sea_level: 'Pa',
+            cloud_area_fraction: 'fraction',
+          },
+          symbolCode: 'unknown_city_name',
+        }),
+      ) as typeof fetch,
     });
+
     const value = await get(0, 0);
     expect(value.weather).toMatchObject({
       humidityPct: null,
       temperatureC: null,
       condition: null,
       pressureHpa: null,
+      dewPointC: null,
+      cloudCoverPct: null,
+      uvIndex: null,
+      uvIndexMax24h: null,
+      tempMin24hC: null,
+      tempMax24hC: null,
+      precipitation24hMm: null,
     });
-    expect(value.environment).toMatchObject({
+    expect(value.environment).toEqual({
       elevationM: 0,
+      reliefM: null,
       terrain: null,
       biome: null,
       vegetation: null,
     });
     expect(value.climate).toBeNull();
   });
+
   it('uses a short negative cache after outages and recovers without stale or fictional values', async () => {
     let now = 0;
     const fetcher = vi.fn(async () => {
@@ -131,43 +252,26 @@ describe('environment provider boundary', () => {
     expect(failed.weather).toBeNull();
     expect(failed.environment.elevationM).toBeNull();
     await get(50, 10);
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(1);
     now = 31_000;
     await get(50, 10);
-    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(fetcher).toHaveBeenCalledTimes(2);
     await expect(get(NaN, 10)).rejects.toThrow('Invalid server location');
   });
+
   it('rejects a weather model timestamp older than 120 minutes at display time', async () => {
-    const fetcher = vi.fn(
-      async (input: URL | RequestInfo) =>
-        new Response(
-          JSON.stringify(
-            String(input).includes('/elevation')
-              ? { elevation: [100] }
-              : { current, current_units },
-          ),
-        ),
-    );
+    const fetcher = vi.fn(async () => metNoResponse('2026-11-19T12:00:00Z', { hours: 0 }));
     const get = createIntelligenceProvider({
       fetcher: fetcher as typeof fetch,
-      now: () => Date.parse('2026-11-19T14:01Z'),
+      now: () => Date.parse('2026-11-19T14:01:00Z'),
     });
     const value = await get(50, 10);
     expect(value.weather).toBeNull();
   });
+
   it('rejects cached weather that crosses the 120-minute limit while cached', async () => {
-    const aged = { ...current, time: '2026-11-19T11:00' };
-    let now = Date.parse('2026-11-19T12:50Z');
-    const fetcher = vi.fn(
-      async (input: URL | RequestInfo) =>
-        new Response(
-          JSON.stringify(
-            String(input).includes('/elevation')
-              ? { elevation: [100] }
-              : { current: aged, current_units },
-          ),
-        ),
-    );
+    let now = Date.parse('2026-11-19T12:50:00Z');
+    const fetcher = vi.fn(async () => metNoResponse('2026-11-19T11:00:00Z', { hours: 0 }));
     const get = createIntelligenceProvider({
       fetcher: fetcher as typeof fetch,
       now: () => now,
@@ -175,43 +279,15 @@ describe('environment provider boundary', () => {
     const fresh = await get(50, 10);
     expect(fresh.weather?.temperatureC).toBe(12.3);
     expect(fresh.cached).toBe(false);
-    now = Date.parse('2026-11-19T13:01Z');
+    now = Date.parse('2026-11-19T13:01:00Z');
     const stale = await get(50, 10);
     expect(stale.weather).toBeNull();
     expect(stale.cached).toBe(false);
   });
-  it('rejects weather without a model timestamp even when metrics are present', async () => {
-    const { time: _time, ...withoutTime } = current;
-    const fetcher = vi.fn(
-      async (input: URL | RequestInfo) =>
-        new Response(
-          JSON.stringify(
-            String(input).includes('/elevation')
-              ? { elevation: [100] }
-              : { current: withoutTime, current_units },
-          ),
-        ),
-    );
-    const get = createIntelligenceProvider({
-      fetcher: fetcher as typeof fetch,
-      now: () => Date.parse('2026-11-19T12:01Z'),
-    });
-    const value = await get(50, 10);
-    expect(value.weather).toBeNull();
-  });
 
-  it('skips /v1/elevation when includeEnvironment is false and fetches it only on demand', async () => {
-    const now = Date.parse('2026-11-19T12:01Z');
-    const fetcher = vi.fn(
-      async (input: URL | RequestInfo) =>
-        new Response(
-          JSON.stringify(
-            String(input).includes('/elevation')
-              ? { elevation: [250, 250, 250, 250, 250, 250, 250, 250, 250] }
-              : { current, current_units },
-          ),
-        ),
-    );
+  it('caches elevation from the initial weather lookup so unlocking needs zero extra HTTP calls', async () => {
+    const now = Date.parse('2026-11-19T12:05:00Z');
+    const fetcher = vi.fn(async () => metNoResponse('2026-11-19T12:00:00Z', { altitudeM: 250 }));
     const get = createIntelligenceProvider({
       fetcher: fetcher as typeof fetch,
       now: () => now,
@@ -221,28 +297,26 @@ describe('environment provider boundary', () => {
     expect(weatherOnly.weather?.temperatureC).toBe(12.3);
     expect(weatherOnly.environment.elevationM).toBeNull();
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(String(fetcher.mock.calls[0]![0])).toContain('/v1/forecast');
 
-    // Subsequent full request reuses cached weather and fetches only /v1/elevation.
+    // Subsequent unlocked request reuses cached weather and elevation with 0 extra fetches.
     const full = await get(50, 10);
+    expect(full.cached).toBe(true);
     expect(full.weather?.temperatureC).toBe(12.3);
     expect(full.environment.elevationM).toBe(250);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(String(fetcher.mock.calls[1]![0])).toContain('/v1/elevation');
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it('logs Open-Meteo failures without coordinates or API keys and opens circuit breaker during outages', async () => {
-    let now = Date.parse('2026-11-19T12:01Z');
+  it('logs MET Norway failures without coordinates and opens circuit breaker during outages', async () => {
+    let now = Date.parse('2026-11-19T12:05:00Z');
     const log = { warn: vi.fn() };
     let fail = true;
     const fetcher = vi.fn(async () => {
       if (fail) {
         return new Response('rate limited', { status: 429 });
       }
-      return new Response(JSON.stringify({ current, current_units }));
+      return metNoResponse('2026-11-19T12:00:00Z');
     });
     const get = createIntelligenceProvider({
-      apiKey: 'super-secret-open-meteo-key',
       fetcher: fetcher as typeof fetch,
       now: () => now,
       log,
@@ -251,20 +325,25 @@ describe('environment provider boundary', () => {
     });
 
     // 3 consecutive failures on distinct coordinates trip the circuit breaker.
-    await get(10, 10, { includeEnvironment: false });
-    await get(20, 20, { includeEnvironment: false });
-    await get(30, 30, { includeEnvironment: false });
+    await get(10.1234, 20.5678, { includeEnvironment: false });
+    await get(20.1234, 30.5678, { includeEnvironment: false });
+    await get(30.1234, 40.5678, { includeEnvironment: false });
     expect(fetcher).toHaveBeenCalledTimes(3);
     expect(log.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: '/v1/forecast', status: 429 }),
-      'Open-Meteo weather request failed',
+      expect.objectContaining({
+        endpoint: '/weatherapi/locationforecast/2.0/complete',
+        status: 429,
+      }),
+      'MET Norway weather request failed',
     );
     expect(log.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: '/v1/forecast', consecutiveFailures: 3 }),
-      'Open-Meteo circuit breaker opened',
+      expect.objectContaining({
+        endpoint: '/weatherapi/locationforecast/2.0/complete',
+        consecutiveFailures: 3,
+      }),
+      'MET Norway circuit breaker opened',
     );
-    // Logs must never leak coordinates or the subscription API key.
-    expect(JSON.stringify(log.warn.mock.calls)).not.toContain('super-secret-open-meteo-key');
+    expect(JSON.stringify(log.warn.mock.calls)).not.toContain('10.1234');
 
     // While circuit is open, a 4th distinct coordinate short-circuits with 0 HTTP calls.
     const blocked = await get(40, 40, { includeEnvironment: false });
@@ -277,88 +356,6 @@ describe('environment provider boundary', () => {
     const recovered = await get(50, 50, { includeEnvironment: false });
     expect(recovered.weather?.temperatureC).toBe(12.3);
     expect(fetcher).toHaveBeenCalledTimes(4);
-  });
-
-  it('falls back to MET Norway when Open-Meteo returns 429 and bypasses Open-Meteo while circuit is open', async () => {
-    const now = Date.parse('2026-11-19T12:15Z');
-    const log = { warn: vi.fn() };
-    const metNoPayload = {
-      type: 'Feature',
-      properties: {
-        meta: {
-          units: {
-            air_pressure_at_sea_level: 'hPa',
-            air_temperature: 'celsius',
-            precipitation_amount: 'mm',
-            relative_humidity: '%',
-            wind_from_direction: 'degrees',
-            wind_speed: 'm/s',
-          },
-        },
-        timeseries: [
-          {
-            time: '2026-11-19T12:00:00Z',
-            data: {
-              instant: {
-                details: {
-                  air_pressure_at_sea_level: 1011.5,
-                  air_temperature: 7.4,
-                  relative_humidity: 72,
-                  wind_from_direction: 195,
-                  wind_speed: 5,
-                },
-              },
-              next_1_hours: {
-                summary: { symbol_code: 'rainshowers_day' },
-                details: { precipitation_amount: 1.2 },
-              },
-            },
-          },
-        ],
-      },
-    };
-    const fetcher = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes('api.open-meteo.com')) {
-        return new Response('rate limited', { status: 429 });
-      }
-      expect(url).toContain('api.met.no/weatherapi/locationforecast/2.0/compact');
-      expect((init?.headers as Record<string, string>)['User-Agent']).toContain('TerraGuessr');
-      return new Response(JSON.stringify(metNoPayload));
-    });
-
-    const get = createIntelligenceProvider({
-      baseUrl: 'https://api.open-meteo.com',
-      fallbackWeatherBaseUrl: 'https://api.met.no',
-      fallbackUserAgent: 'TerraGuessr/0.1 (+https://terra-guessr.vercel.app)',
-      fetcher: fetcher as typeof fetch,
-      now: () => now,
-      log,
-      circuitFailureThreshold: 1,
-      circuitOpenMs: 20_000,
-    });
-
-    // First call hits Open-Meteo (429), opens circuit, and falls back to MET Norway.
-    const first = await get(59.9139, 10.7522, { includeEnvironment: false });
-    expect(first.weather).toEqual({
-      modelTime: '2026-11-19T12:00:00Z',
-      temperatureC: 7.4,
-      condition: 'Rain showers',
-      windSpeedKmh: 18,
-      windDirectionDeg: 195,
-      humidityPct: 72,
-      pressureHpa: 1011.5,
-      precipitationMm: 1.2,
-      precipitationIntervalMinutes: 60,
-      isDay: true,
-    });
-    expect(fetcher).toHaveBeenCalledTimes(2);
-
-    // Second distinct location skips Open-Meteo while circuit is open and calls MET Norway directly.
-    const second = await get(48.8566, 2.3522, { includeEnvironment: false });
-    expect(second.weather?.temperatureC).toBe(7.4);
-    expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(String(fetcher.mock.calls[2]![0])).toContain('api.met.no');
   });
 });
 
@@ -407,6 +404,7 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       headers: { 'x-player-token': 'owner' },
     };
   }
+
   it('requires ownership, active round and valid session before touching providers', async () => {
     const f = await fixture();
     try {
@@ -436,6 +434,7 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       await f.app.close();
     }
   });
+
   it('uses the server panorama and strips unexpected fields at every level', async () => {
     const f = await fixture();
     try {
@@ -452,7 +451,8 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       await f.app.close();
     }
   });
-  it('withholds locked extra clues on medium and hard difficulties until unlocked, while keeping core weather', async () => {
+
+  it('withholds non-visual extra clues on medium and hard until unlocked, while keeping core weather and visible condition', async () => {
     const f = await fixture();
     f.game.difficulty = 'medium';
     f.intelligence.mockResolvedValue({
@@ -467,12 +467,22 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
         humidityPct: 64,
         pressureHpa: 1003.4,
         precipitationMm: 0,
-        precipitationIntervalMinutes: 15,
+        precipitationIntervalMinutes: 60,
+        dewPointC: 5.8,
+        cloudCoverPct: 62,
+        uvIndex: 1.5,
+        uvIndexMax24h: 6.2,
+        tempMin24hC: 4.0,
+        tempMax24hC: 17.5,
+        precipitation24hMm: 3.4,
+        windGustKmh: 21.6,
+        fogPct: 12,
+        thunderProbabilityPct: 10,
       },
       environment: {
         elevationM: 420,
-        reliefM: 85,
-        terrain: 'Rolling relief',
+        reliefM: null,
+        terrain: null,
         biome: null,
         vegetation: null,
       },
@@ -484,11 +494,21 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       ).json();
       expect(locked.weather).toMatchObject({
         temperatureC: 12.3,
+        condition: 'Partly cloudy',
         precipitationMm: 0,
         humidityPct: 64,
         windSpeedKmh: 8,
-        condition: null,
         pressureHpa: null,
+        dewPointC: null,
+        cloudCoverPct: null,
+        uvIndex: null,
+        uvIndexMax24h: null,
+        tempMin24hC: null,
+        tempMax24hC: null,
+        precipitation24hMm: null,
+        windGustKmh: null,
+        fogPct: null,
+        thunderProbabilityPct: null,
       });
       expect(locked.environment).toMatchObject({
         elevationM: null,
@@ -503,16 +523,24 @@ describe('intelligence HTTP privacy and ownership (database double)', () => {
       expect(unlocked.weather).toMatchObject({
         condition: 'Partly cloudy',
         pressureHpa: 1003.4,
+        dewPointC: 5.8,
+        cloudCoverPct: 62,
+        uvIndexMax24h: 6.2,
+        tempMin24hC: 4.0,
+        tempMax24hC: 17.5,
+        precipitation24hMm: 3.4,
+        windGustKmh: 21.6,
+        fogPct: 12,
+        thunderProbabilityPct: 10,
       });
       expect(unlocked.environment).toMatchObject({
         elevationM: 420,
-        reliefM: 85,
-        terrain: 'Rolling relief',
       });
     } finally {
       await f.app.close();
     }
   });
+
   it('discards a response if the round changes during provider retrieval', async () => {
     const f = await fixture();
     f.intelligence.mockImplementationOnce(async () => {

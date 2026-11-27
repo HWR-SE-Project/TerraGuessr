@@ -44,19 +44,30 @@ describe('core weather measurements', () => {
 
     const panel = within(screen.getByRole('complementary', { name: 'Geographic intelligence' }))
     expect(await panel.findByText('Temperature', { exact: true })).toBeVisible()
-    expect(panel.getAllByText('12°C')).toHaveLength(2)
+    expect(panel.getByText('12°C')).toBeVisible()
+    expect(panel.getByText('12°C · Clear sky')).toBeVisible()
     expect(panel.getAllByRole('term').map((label) => label.textContent)).toEqual(['Precipitation', 'Humidity', 'Wind speed'])
     expect(panel.getAllByRole('definition').map((value) => value.textContent)).toEqual([`${precipitationMm} mm`, '66%', '2 m/s'])
     expect(panel.getByRole('button', { name: /Unlock.*100 pts/ })).toBeEnabled()
   })
 
-  it('refetches intelligence when additional data is unlocked so server-gated clues appear', async () => {
+  it('refetches intelligence when additional data is unlocked so server-gated MET Norway clues appear', async () => {
     const lockedData = observation(new Date().toISOString())
-    lockedData.weather!.condition = null
     lockedData.weather!.pressureHpa = null
+    lockedData.weather!.dewPointC = null
+    lockedData.weather!.uvIndexMax24h = null
+    lockedData.weather!.tempMin24hC = null
+    lockedData.weather!.tempMax24hC = null
     const unlockedData = observation(new Date().toISOString())
     unlockedData.weather!.pressureHpa = 1015
-    unlockedData.environment = { elevationM: 420, reliefM: 85, terrain: 'Rolling relief', biome: null, vegetation: null }
+    unlockedData.weather!.dewPointC = 6.4
+    unlockedData.weather!.cloudCoverPct = 42
+    unlockedData.weather!.uvIndexMax24h = 8.4
+    unlockedData.weather!.tempMin24hC = 4
+    unlockedData.weather!.tempMax24hC = 21
+    unlockedData.weather!.precipitation24hMm = 3.2
+    unlockedData.weather!.windGustKmh = 28.8
+    unlockedData.environment = { elevationM: 420, reliefM: null, terrain: null, biome: null, vegetation: null }
 
     const load = vi.fn()
       .mockResolvedValueOnce(lockedData)
@@ -73,9 +84,11 @@ describe('core weather measurements', () => {
     )
 
     const panel = within(screen.getByRole('complementary', { name: 'Geographic intelligence' }))
-    expect(await panel.findByText('Conditions locked')).toBeVisible()
+    expect(await panel.findByText('Additional clues locked')).toBeVisible()
+    expect(panel.getByText('Clear sky')).toBeVisible()
     expect(panel.queryByText('1,015 hPa')).not.toBeInTheDocument()
     expect(panel.queryByText('420 m')).not.toBeInTheDocument()
+    expect(panel.queryByText('8.4 · Very high')).not.toBeInTheDocument()
 
     rerender(
       <GeographicIntelligence
@@ -87,9 +100,15 @@ describe('core weather measurements', () => {
       />,
     )
 
-    expect(await panel.findByText('Clear sky')).toBeVisible()
+    expect(await panel.findByText('Station dossier')).toBeVisible()
     expect(panel.getByText('1,015 hPa')).toBeVisible()
     expect(panel.getByText('420 m')).toBeVisible()
+    expect(panel.getByText('4° – 21°C (Δ17°)')).toBeVisible()
+    expect(panel.getByText('8.4 · Very high')).toBeVisible()
+    expect(panel.getByText('6.4°C')).toBeVisible()
+    expect(panel.getByText('42%')).toBeVisible()
+    expect(panel.getByText('3.2 mm')).toBeVisible()
+    expect(panel.getByText('8 m/s')).toBeVisible()
     expect(load).toHaveBeenCalledTimes(2)
   })
 })

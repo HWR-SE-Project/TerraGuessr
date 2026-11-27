@@ -106,7 +106,7 @@ export function classifyWindBand(windSpeedKmh: number | null): WindBand {
 }
 
 /**
- * Coarse sky lighting (`day | dusk | night`) from Open-Meteo `isDay` plus an
+ * Coarse sky lighting (`day | dusk | night`) from MET Norway `isDay` plus an
  * approximate solar hour band so sunrise/sunset reads as dusk without exposing
  * exact longitude or timezone.
  */
