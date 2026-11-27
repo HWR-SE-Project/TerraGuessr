@@ -1,0 +1,176 @@
+<mxfile host="app.diagrams.net" agent="TerraGuessr UML Generator" version="24.7.17">
+  <diagram id="terraguessr-use-case-de" name="TerraGuessr Anwendungsfalldiagramm">
+    <mxGraphModel dx="1500" dy="920" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1490" pageHeight="900" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Systemgrenze -->
+        <mxCell id="sys-boundary" value="&lt;b style=&quot;font-size:16px;&quot;&gt;TerraGuessr&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;spacingTop=10;fillColor=#F8FAFC;strokeColor=#1E293B;strokeWidth=2;fontFamily=Helvetica;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="215" y="25" width="1020" height="835" as="geometry" />
+        </mxCell>
+
+        <!-- Primäre Akteure (Links) -->
+        <mxCell id="actor-host" value="Lobby-Host" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.8;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="75" y="80" width="36" height="68" as="geometry" />
+        </mxCell>
+
+        <mxCell id="actor-player" value="Spieler" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.8;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="75" y="388" width="36" height="68" as="geometry" />
+        </mxCell>
+
+        <mxCell id="actor-registered" value="Registrierter&#xa;Spieler" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.8;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="75" y="705" width="36" height="68" as="geometry" />
+        </mxCell>
+
+        <!-- Sekundärer Akteur / Externes System (Rechts) -->
+        <mxCell id="actor-weather" value="&amp;laquo;actor&amp;raquo;&lt;br/&gt;&amp;laquo;system&amp;raquo;&lt;br/&gt;&lt;b&gt;Externe Wetter-API&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#1E293B;strokeWidth=1.8;fontFamily=Helvetica;fontSize=12;fontColor=#0F172A;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="250" width="160" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Generalisierungen (Hohles Dreieck zeigt auf Basisakteur Spieler) -->
+        <mxCell id="gen-host-player" value="" style="endArrow=block;endFill=0;endSize=12;html=1;strokeColor=#1E293B;strokeWidth=1.6;exitX=0.5;exitY=1;exitDx=0;exitDy=28;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=-6;entryPerimeter=0;" edge="1" parent="1" source="actor-host" target="actor-player">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gen-reg-player" value="" style="endArrow=block;endFill=0;endSize=12;html=1;strokeColor=#1E293B;strokeWidth=1.6;exitX=0.5;exitY=0;exitDx=0;exitDy=-6;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=28;entryPerimeter=0;" edge="1" parent="1" source="actor-registered" target="actor-player">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Spalte 1: Anwendungsfälle der Akteure -->
+        <mxCell id="uc-lobby-manage" value="Lobby erstellen &amp;amp;&#xa;verwalten" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="82" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-multiplayer" value="An Mehrspieler-Match&#xa;teilnehmen" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="192" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-singleplayer" value="Einzelspieler-Modus&#xa;spielen" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="294" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-tutorial" value="Interaktives Tutorial&#xa;absolvieren" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="396" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-avatar-prefs" value="Avatar &amp;amp; Einstellungen&#xa;anpassen" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="492" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-auth" value="Konto authentifizieren" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="588" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-stats" value="Statistiken &amp;amp; Spielverlauf&#xa;einsehen" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="684" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-account" value="Konto verwalten" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="245" y="772" width="235" height="64" as="geometry" />
+        </mxCell>
+
+        <!-- Spalte 2: Kern-Spielrunde + Erweiterungen -->
+        <mxCell id="uc-unlock" value="Zusatzdaten&#xa;freischalten" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="630" y="76" width="220" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-play-round" value="&lt;b&gt;Spielrunde spielen&lt;/b&gt;&lt;div style=&quot;border-top:1px solid #64748B;width:190px;margin:6px auto 4px auto;&quot;&gt;&lt;/div&gt;&lt;span style=&quot;font-size:10px;font-style:italic;color:#475569;&quot;&gt;extension points&lt;/span&gt;&lt;br/&gt;&lt;span style=&quot;font-size:10px;color:#334155;&quot;&gt;Zusatzdaten angefordert&lt;br/&gt;Runde abgeschlossen&lt;/span&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="615" y="228" width="250" height="114" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc-archive" value="Spielergebnis&#xa;archivieren" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="630" y="516" width="220" height="64" as="geometry" />
+        </mxCell>
+
+        <!-- Spalte 3: Wetterdatenabruf -->
+        <mxCell id="uc-weather" value="Aktuelle Wetterdaten&#xa;abrufen" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E293B;strokeWidth=1.6;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1">
+          <mxGeometry x="980" y="253" width="225" height="64" as="geometry" />
+        </mxCell>
+
+        <!-- Assoziationen (Durchgezogene Linien ohne Pfeilspitzen) -->
+        <mxCell id="assoc-host-lobby" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-host" target="uc-lobby-manage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-player-mp" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.45;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-player" target="uc-multiplayer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-player-sp" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.48;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-player" target="uc-singleplayer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-player-tut" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-player" target="uc-tutorial">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-player-avatar" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.52;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-player" target="uc-avatar-prefs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-player-auth" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.55;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-player" target="uc-auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-reg-stats" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.48;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-registered" target="uc-stats">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-reg-account" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.52;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor-registered" target="uc-account">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc-weather-api" value="" style="endArrow=none;html=1;strokeColor=#1E293B;strokeWidth=1.4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="uc-weather" target="actor-weather">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- <<include>>-Beziehungen (Gestrichelter offener Pfeil: Basis -> Eingebunden) -->
+        <mxCell id="inc-mp-round" value="&amp;laquo;include&amp;raquo;" style="endArrow=open;endFill=0;endSize=10;dashed=1;dashPattern=6 4;html=1;strokeColor=#1E293B;strokeWidth=1.4;fontFamily=Helvetica;fontSize=11;fontColor=#1E293B;labelBackgroundColor=#F8FAFC;" edge="1" parent="1" source="uc-multiplayer" target="uc-play-round">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="inc-sp-round" value="&amp;laquo;include&amp;raquo;" style="endArrow=open;endFill=0;endSize=10;dashed=1;dashPattern=6 4;html=1;strokeColor=#1E293B;strokeWidth=1.4;fontFamily=Helvetica;fontSize=11;fontColor=#1E293B;labelBackgroundColor=#F8FAFC;" edge="1" parent="1" source="uc-singleplayer" target="uc-play-round">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="inc-round-weather" value="&amp;laquo;include&amp;raquo;" style="endArrow=open;endFill=0;endSize=10;dashed=1;dashPattern=6 4;html=1;strokeColor=#1E293B;strokeWidth=1.4;fontFamily=Helvetica;fontSize=11;fontColor=#1E293B;labelBackgroundColor=#F8FAFC;" edge="1" parent="1" source="uc-play-round" target="uc-weather">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- <<extend>>-Beziehungen (Gestrichelter offener Pfeil: Erweiternd -> Basis) -->
+        <mxCell id="ext-unlock-round" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endFill=0;endSize=10;dashed=1;dashPattern=6 4;html=1;strokeColor=#1E293B;strokeWidth=1.4;fontFamily=Helvetica;fontSize=11;fontColor=#1E293B;labelBackgroundColor=#F8FAFC;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="uc-unlock" target="uc-play-round">
+          <mxGeometry x="-0.28" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="ext-archive-round" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endFill=0;endSize=10;dashed=1;dashPattern=6 4;html=1;strokeColor=#1E293B;strokeWidth=1.4;fontFamily=Helvetica;fontSize=11;fontColor=#1E293B;labelBackgroundColor=#F8FAFC;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="uc-archive" target="uc-play-round">
+          <mxGeometry x="-0.38" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- UML-Notizen mit Bedingungen für <<extend>>-Beziehungen -->
+        <mxCell id="note-unlock" value="&lt;b&gt;Bedingung:&lt;/b&gt; [Zusatzdaten sind gesperrt&lt;br/&gt;UND Spieler fordert Freischaltung an]&lt;br/&gt;&lt;b&gt;Extension Point:&lt;/b&gt; Zusatzdaten angefordert" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=14;fillColor=#FFFBEB;strokeColor=#B45309;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;fontColor=#1E293B;align=left;spacingLeft=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="895" y="110" width="295" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="note-unlock-link" value="" style="endArrow=none;dashed=1;dashPattern=3 3;html=1;strokeColor=#B45309;strokeWidth=1.2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="note-unlock">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="198" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="note-archive" value="&lt;b&gt;Bedingung:&lt;/b&gt; [Spieler ist angemeldet]&lt;br/&gt;&lt;b&gt;Extension Point:&lt;/b&gt; Runde abgeschlossen" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=14;fillColor=#FFFBEB;strokeColor=#B45309;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;fontColor=#1E293B;align=left;spacingLeft=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="845" y="395" width="250" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="note-archive-link" value="" style="endArrow=none;dashed=1;dashPattern=3 3;html=1;strokeColor=#B45309;strokeWidth=1.2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="note-archive">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="424" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
