@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { Dialog } from '../../components/ui/Dialog'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
+import { SectionErrorBoundary } from '../../components/layout/ErrorFallback'
 import type { MatchHistoryEntry } from '../../lib/contracts'
 import { capitalize, formatCoordinates, formatDistance, formatScore } from '../../lib/format'
 import {
@@ -105,15 +106,27 @@ export function MatchReplayDialog({
           </div>
 
           {/* Lazy-loaded single-round Leaflet map */}
-          <Suspense
+          <SectionErrorBoundary
+            key={activeRound.id}
+            name="MatchReplayMap"
             fallback={
-              <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-white/10 bg-space-850 text-sm text-subtle sm:h-72">
-                Loading map…
+              <div className="flex h-64 w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-space-850 px-4 text-center sm:h-72">
+                <Icon name="pin" size={24} className="text-subtle" />
+                <p className="font-display text-sm font-semibold text-cream">Map preview unavailable</p>
+                <p className="text-xs text-muted">Round details and scores are still available below.</p>
               </div>
             }
           >
-            <MatchReplayMap round={activeRound} />
-          </Suspense>
+            <Suspense
+              fallback={
+                <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-white/10 bg-space-850 text-sm text-subtle sm:h-72">
+                  Loading map…
+                </div>
+              }
+            >
+              <MatchReplayMap round={activeRound} />
+            </Suspense>
+          </SectionErrorBoundary>
 
           {/* Per-round selector list */}
           <ul className="flex flex-col gap-2">

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
+import { SectionErrorBoundary } from '../../components/layout/ErrorFallback'
 import { useSession } from '../../state/session'
 import { warmSingleplayer } from '../../state/singleplayerWarmup'
 import { fadeUp, staggerContainer, staggerItem } from '../../lib/motion'
@@ -80,7 +81,8 @@ export function HomePage() {
             role="img"
             aria-label="Your explorer standing on a miniature, rotating Earth"
           >
-            <Suspense
+            <SectionErrorBoundary
+              name="HomeScene"
               fallback={
                 <div
                   className="absolute inset-x-[5%] top-[12%] bottom-[3%] overflow-hidden rounded-full [mask-image:radial-gradient(ellipse,black_30%,transparent_70%)]"
@@ -95,8 +97,24 @@ export function HomePage() {
                 </div>
               }
             >
-              <HomeScene />
-            </Suspense>
+              <Suspense
+                fallback={
+                  <div
+                    className="absolute inset-x-[5%] top-[12%] bottom-[3%] overflow-hidden rounded-full [mask-image:radial-gradient(ellipse,black_30%,transparent_70%)]"
+                    aria-hidden="true"
+                  >
+                    <img
+                      src={earthFallback}
+                      alt=""
+                      fetchPriority="high"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                }
+              >
+                <HomeScene />
+              </Suspense>
+            </SectionErrorBoundary>
             <div className="home-character-slot pointer-events-none absolute left-1/2 top-[3%] h-[52%] w-[46%] -translate-x-1/2" />
           </div>
           {/* Tracks the seam where the explorer's feet meet the planet (~53.4% of the scene height). */}

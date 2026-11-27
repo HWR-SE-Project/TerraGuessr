@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Button, IconButton, Spinner } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import type { IconName } from '../../components/ui/Icon'
+import { SectionErrorBoundary } from '../../components/layout/ErrorFallback'
 import { useSession } from '../../state/session'
 import { useAvatar, saveAvatar, AVATAR_PALETTE } from '../../state/avatar'
 import type { AvatarPart } from '../../lib/contracts'
@@ -118,22 +119,35 @@ export function AvatarPage() {
 
             <div className="absolute inset-0">
               {previewReady ? (
-                <Suspense
+                <SectionErrorBoundary
+                  name="AvatarPreview"
                   fallback={
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Spinner className="size-8 text-subtle" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+                      <Icon name="person" size={32} className="text-subtle" />
+                      <p className="font-display text-sm font-semibold text-cream">3D preview unavailable</p>
+                      <p className="max-w-xs text-xs text-muted">
+                        You can still pick colors below and save your explorer.
+                      </p>
                     </div>
                   }
                 >
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.25 }}
-                    className="h-full w-full"
+                  <Suspense
+                    fallback={
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Spinner className="size-8 text-subtle" />
+                      </div>
+                    }
                   >
-                    <AvatarPreview config={draft} />
-                  </motion.div>
-                </Suspense>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.25 }}
+                      className="h-full w-full"
+                    >
+                      <AvatarPreview config={draft} />
+                    </motion.div>
+                  </Suspense>
+                </SectionErrorBoundary>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Spinner className="size-8 text-subtle" />
